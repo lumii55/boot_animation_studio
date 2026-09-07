@@ -1,0 +1,2468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✨ Boot Animation Studio ✨</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body { 
+            background-color: #121212; color: #ffffff; font-family: 'Fredoka', sans-serif; 
+            display: flex; justify-content: center; align-items: flex-start;
+            padding: 15px; min-height: 100vh; width: 100vw; overflow-x: hidden; 
+        }
+
+        .container { 
+            width: 100%; max-width: 450px; display: flex; flex-direction: column; 
+            align-items: center; gap: 15px; padding-bottom: 50px;
+        }
+
+        .topo-idioma {
+            width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+        }
+        .topo-idioma select {
+            background: #2a2a2a; border: 1px solid #444; color: #fff; padding: 6px 10px;
+            border-radius: 10px; font-family: 'Fredoka', sans-serif; font-size: 13px; outline: none; cursor: pointer;
+        }
+
+        h1 { color: #bb86fc; text-align: center; font-size: 22px; margin-top: 5px; }
+        p { color: #aaaaaa; text-align: center; font-size: 13px; margin-bottom: 5px; }
+
+        .dicas-container {
+            background: #1e1e1e;
+            border-left: 4px solid #bb86fc;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #cccccc;
+            margin-bottom: 5px;
+            width: 100%;
+        }
+        .dicas-container h3 { color: #bb86fc; margin-bottom: 10px; font-size: 15px; text-align: center; }
+        .dicas-container ul { list-style-type: none; padding-left: 0; }
+        .dicas-container li { margin-bottom: 10px; position: relative; padding-left: 22px; line-height: 1.4; }
+        .dicas-container li::before { content: "💡"; position: absolute; left: 0; top: 0; font-size: 14px; }
+        .dicas-container li:last-child { margin-bottom: 0; }
+        
+        .dica-destaque {
+            color: #03dac6;
+            border: 1px solid #03dac6;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px !important;
+            background: rgba(3, 218, 198, 0.05);
+        }
+        .dica-destaque::before { content: "⚙️" !important; top: 10px !important; left: 10px !important; }
+        .dica-destaque { padding-left: 35px !important; }
+
+        .btn-upload { 
+            background-color: #bb86fc; color: #000; padding: 14px 20px; 
+            border-radius: 20px; font-weight: 700; cursor: pointer; width: 100%; 
+            text-align: center; font-size: 15px; transition: 0.2s; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: none; font-family: 'Fredoka', sans-serif;
+        }
+        .btn-upload:active { transform: scale(0.96); }
+
+        .video-container { position: relative; width: 100%; text-align: center; display: none; transition: 0.3s; }
+        video { 
+            width: 100%; max-height: 35vh; border-radius: 15px; 
+            background-color: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+            object-fit: contain; cursor: pointer; transition: opacity 0.3s;
+        }
+        video.pausado { border: 2px solid #03dac6; }
+        .dica-video { font-size: 11px; color: #aaaaaa; margin-top: 5px; opacity: 0.8; }
+
+        .timeline-wrapper {
+            width: 100%; height: 60px; background: #222; border-radius: 10px;
+            position: relative; display: none; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            border: 1px solid #444; overflow: hidden; transition: 0.3s;
+        }
+        .playhead-centro {
+            position: absolute; left: 50%; top: -5px; bottom: -5px; width: 3px;
+            background: #fff; z-index: 20; transform: translateX(-50%);
+            border-radius: 3px; box-shadow: 0 0 8px rgba(255,255,255,0.8); pointer-events: none;
+        }
+        .timeline-scroll {
+            width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden;
+            scroll-behavior: auto; position: relative; cursor: grab;
+        }
+        .timeline-scroll:active { cursor: grabbing; }
+        .timeline-scroll::-webkit-scrollbar { display: none; }
+        
+        .filmstrip-container { display: flex; height: 100%; width: max-content; }
+        .pad-spacer { height: 100%; flex-shrink: 0; }
+        
+        .filmstrip { 
+            display: flex; height: 100%; position: relative; 
+            background-color: #111; user-select: none;
+        }
+        .filmstrip img { height: 100%; object-fit: cover; opacity: 0.6; pointer-events: none; flex: 1; }
+        
+        .linha-marcador {
+            position: absolute; top: 0; bottom: 0; width: 6px; z-index: 10;
+            transform: translateX(-50%); border-radius: 3px; opacity: 0.9;
+            box-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+        .linha-m0 { background: #03dac6; }
+        .linha-m1 { background: #bb86fc; }
+        .linha-m2 { background: #ffb86c; }
+        .linha-m3 { background: #ff5555; }
+
+        .grid-marcadores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; display: none; transition: 0.3s; }
+        .btn-marc {
+            padding: 12px 5px; border-radius: 12px; font-weight: bold; border: none;
+            font-family: 'Fredoka', sans-serif; cursor: pointer; color: #000; font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s;
+        }
+        .btn-marc:active { transform: scale(0.95); }
+        .btn-m0 { background-color: #03dac6; }
+        .btn-m1 { background-color: #bb86fc; }
+        .btn-m2 { background-color: #ffb86c; }
+        .btn-m3 { background-color: #ff5555; }
+        
+        .status-marc { font-size: 11px; display: block; opacity: 0.7; }
+
+        .configuracoes { display: none; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; transition: 0.3s; }
+        .campo-full { grid-column: span 2; }
+        .campo { display: flex; flex-direction: column; }
+        .campo label { color: #bb86fc; margin-bottom: 4px; text-align: center; font-size: 13px; font-weight: 700; }
+        .campo input[type="text"], .campo input[type="number"], .campo select { 
+            background: #2a2a2a; border: 1px solid #444; color: #fff; padding: 10px; 
+            border-radius: 10px; text-align: center; font-family: 'Fredoka', sans-serif; 
+            font-size: 14px; width: 100%; outline: none; transition: 0.2s;
+        }
+        .campo select:hover { background: #333; }
+
+        .checkbox-container {
+            display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px;
+            background: #2a2a2a; border: 1px solid #444; border-radius: 10px; padding: 10px;
+        }
+        .checkbox-container input[type="checkbox"] {
+            width: 20px; height: 20px; cursor: pointer; accent-color: #bb86fc;
+        }
+
+        .painel-audio {
+            display: none; flex-direction: column; gap: 10px; width: 100%; grid-column: span 2;
+            background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px dashed #bb86fc;
+        }
+        .painel-audio label { color: #03dac6; text-align: left; font-size: 12px; margin-bottom: 2px; }
+
+        .vol-container { display: none; align-items: center; gap: 10px; margin-top: 5px; }
+        .vol-slider { flex: 1; accent-color: #bb86fc; cursor: pointer; }
+        .vol-label { font-size: 12px; color: #fff; min-width: 35px; text-align: right; }
+
+        .hist-wrapper { display: none; flex-direction: column; width: 100%; margin-top: 10px; }
+        .hist-title { color: #bb86fc; font-size: 14px; margin-bottom: 8px; text-align: center; font-weight: bold; }
+        .hist-scroll { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 10px; scroll-snap-type: x mandatory; }
+        .hist-scroll::-webkit-scrollbar { height: 6px; }
+        .hist-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+        .hist-card { 
+            scroll-snap-align: center; min-width: 110px; max-width: 110px; background: #222; 
+            border: 1px solid #444; border-radius: 12px; padding: 8px; display: flex; 
+            flex-direction: column; align-items: center; position: relative; flex-shrink: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+        .hist-card video { width: 100%; height: 140px; background: #000; border-radius: 8px; object-fit: cover; margin-bottom: 8px; }
+        .hist-card .btn-close { 
+            position: absolute; top: -5px; right: -5px; background: #ff5555; color: white; 
+            border: none; border-radius: 50%; width: 22px; height: 22px; font-weight: bold; 
+            cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.5); font-size: 12px;
+        }
+        .hist-card .btn-apply { 
+            background: #03dac6; border: none; padding: 5px 10px; border-radius: 10px; 
+            font-family: 'Fredoka'; font-weight: bold; font-size: 12px; cursor: pointer; width: 100%;
+        }
+        .hist-footer { font-size: 11px; color: #666; text-align: center; margin-top: 5px; font-style: italic; }
+
+        .btn-gerar { 
+            background-color: #03dac6; color: #000; padding: 15px; border-radius: 20px; 
+            font-weight: 700; font-family: 'Fredoka', sans-serif; border: none; width: 100%; 
+            font-size: 15px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: none; margin-top: 10px;
+        }
+        .btn-gerar:active { transform: scale(0.96); }
+        .btn-desativado { background-color: #444444 !important; color: #888888 !important; pointer-events: none; box-shadow: none; }
+
+        .bloqueado { pointer-events: none !important; opacity: 0.4 !important; filter: grayscale(50%); }
+
+        .container-progresso { width: 100%; display: none; flex-direction: column; gap: 5px; margin-top: 5px; }
+        .texto-progresso { font-size: 12px; color: #03dac6; text-align: center; font-weight: 700; }
+        .barra-fundo { width: 100%; height: 12px; background-color: #2a2a2a; border-radius: 10px; overflow: hidden; }
+        .barra-preenchimento { height: 100%; width: 0%; background-color: #bb86fc; border-radius: 10px; transition: width 0.1s linear; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85); display: none; justify-content: center;
+            align-items: center; z-index: 100; backdrop-filter: blur(5px);
+        }
+        .modal-box {
+            background: #1e1e1e; border: 2px solid #bb86fc; border-radius: 20px;
+            padding: 20px; display: flex; flex-direction: column; align-items: center;
+            max-width: 90%; max-height: 90vh; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .modal-box h2 { color: #03dac6; font-size: 18px; margin-bottom: 15px; text-align: center; }
+        .modal-img { max-width: 100%; max-height: 60vh; border-radius: 10px; margin-bottom: 15px; background: #000; }
+        
+        .btn-fechar-modal {
+            background-color: #ff5555; color: #fff; padding: 10px 30px; border-radius: 15px;
+            font-weight: 700; font-family: 'Fredoka', sans-serif; border: none; cursor: pointer;
+            transition: 0.2s; font-size: 15px;
+        }
+        .btn-fechar-modal:active { transform: scale(0.95); }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="topo-idioma">
+            <span style="font-size: 13px; color: #888;">🌐</span>
+            <select id="select-idioma" onchange="mudarIdioma(this.value)">
+                <option value="en">English (US)</option>
+                <option value="pt">Português (BR)</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+            </select>
+        </div>
+
+        <h1 id="txt-titulo">✨ Boot Animation Studio ✨</h1>
+        <p id="txt-subtitulo">Create, edit or apply a boot animation file!</p>
+
+        <div class="dicas-container" id="dicas-iniciais">
+            <h3 id="txt-dicas-titulo">Tips for Beginners</h3>
+            <ul>
+                <li id="txt-dica-modulo" class="dica-destaque">
+                    <strong id="txt-dica-modulo-prefix">Companion Module:</strong> 
+                    <span id="txt-dica-modulo-text">The "Connect to Phone" feature requires our optional root module. The site works 100% perfectly without it, but for direct phone integration, download the module from our</span> 
+                    <a href="#" id="txt-dica-modulo-link" style="color: #bb86fc; text-decoration: none; font-weight: bold;">GitHub Repository</a>.
+                </li>
+                <li id="txt-dica1"><strong>Important (Samsung):</strong> Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.</li>
+                <li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
+                <li id="txt-dica3"><strong>Screen aspect:</strong> Phones are vertical! Prefer vertical videos (TikTok/Reels format) so your animation doesn't get stretched.</li>
+            </ul>
+        </div>
+
+        <div id="initial-state" style="width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
+            <button class="btn-upload" id="btn-connect" onclick="connectToPhone()" style="background-color: #03dac6;">🔌 Connect to Phone</button>
+            <button class="btn-upload" id="btn-manual" onclick="startManualMode()" style="background-color: #333; color: #fff;">📦 Just Create .ZIP</button>
+        </div>
+
+        <div id="connected-state" style="width: 100%; display: none; flex-direction: column; gap: 10px; margin-bottom: 5px;">
+            <div style="background-color: #28a745; padding: 12px; border-radius: 15px; font-weight: bold; text-align: center; color: white; font-size: 15px;" id="status-connected">🟢 Phone Connected!</div>
+            
+            <div class="hist-wrapper" id="history-wrapper">
+                <div class="hist-title" id="lbl-history">Animations History (Max 5):</div>
+                <div class="hist-scroll" id="history-scroll">
+                </div>
+                <div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div>
+            </div>
+
+            <button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()" style="background-color: #333; color: #fff;">🚪 Disconnect</button>
+        </div>
+
+        <div id="editor-section" style="display: none; width: 100%; flex-direction: column; align-items: center; gap: 15px;">
+            
+            <div id="acoes-principais" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
+                <label for="upload-video" class="btn-upload" id="lbl-upload" style="margin: 0; display: flex; align-items: center; justify-content: center; height: 100%;">📂 Video / GIF</label>
+                <input type="file" id="upload-video" accept="video/*, image/gif" hidden>
+
+                <label for="upload-zip" class="btn-upload" id="lbl-upload-zip" style="margin: 0; display: flex; align-items: center; justify-content: center; height: 100%; background-color: #ffb86c; color: #000;">📦 Edit .ZIP</label>
+                <input type="file" id="upload-zip" accept=".zip" hidden>
+
+                <label for="upload-zip-direto" class="btn-upload" id="lbl-upload-direto" style="margin: 0; display: none; align-items: center; justify-content: center; height: 100%; background-color: #03dac6; color: #000; font-size: 14px;">🚀 Inject .ZIP</label>
+                <input type="file" id="upload-zip-direto" accept=".zip" hidden>
+
+                <button class="btn-upload" id="btn-pull" onclick="abrirModalPull()" style="background-color: #bb86fc; color: #000; margin: 0; height: 100%; display: none; font-size: 14px;">📥 Pull from Phone</button>
+
+                <button class="btn-upload" id="btn-remove" onclick="removeAnimation()" style="background-color: #ff5555; color: #fff; margin: 0; height: 100%; display: none; font-size: 14px; grid-column: span 2;">🗑️ Remove Animation</button>
+                
+                <button class="btn-upload" id="btn-reset" onclick="resetarModulo()" style="background-color: #ff5555; border: 2px solid #8b0000; color: #fff; margin: 0; height: 100%; display: none; font-size: 14px; grid-column: span 2;">⚠️ Troubleshoot (Reset)</button>
+            </div>
+
+            <div class="video-container" id="video-container">
+                <video id="player-video" playsinline class="pausado"></video>
+                <p class="dica-video" id="txt-dicavideo">👆 Click video to Play or Pause!</p>
+            </div>
+
+            <div class="timeline-wrapper" id="timeline-wrapper">
+                <div class="playhead-centro"></div>
+                <div class="timeline-scroll" id="timeline-scroll">
+                    <div class="filmstrip-container">
+                        <div class="pad-spacer" id="pad-left"></div>
+                        <div class="filmstrip" id="filmstrip"></div>
+                        <div class="pad-spacer" id="pad-right"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-marcadores" id="grid-marcadores">
+                <button class="btn-marc btn-m0" onclick="marcarTrecho('m0')">📍 <span id="lbl-m0">1. Start</span><span class="status-marc" id="st-m0">Not marked</span></button>
+                <button class="btn-marc btn-m1" onclick="marcarTrecho('m1')">✂️ <span id="lbl-m1">2. End Intro</span><span class="status-marc" id="st-m1">Not marked</span></button>
+                <button class="btn-marc btn-m2" onclick="marcarTrecho('m2')">🔁 <span id="lbl-m2">3. End Loop</span><span class="status-marc" id="st-m2">Not marked</span></button>
+                <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Final</span><span class="status-marc" id="st-m3">Not marked</span></button>
+            </div>
+
+            <div class="configuracoes" id="configuracoes">
+                <div class="campo campo-full" id="wrap-gerar-modulo">
+                    <div class="checkbox-container">
+                        <label style="margin:0;" id="lbl-gerarmodulo">Generate Root Module? 🧲</label>
+                        <input type="checkbox" id="input-gerar-modulo" onchange="verificarModulo()">
+                    </div>
+                </div>
+
+                <div class="campo campo-full" id="container-fabricante" style="display: none;">
+                    <label id="lbl-fabricante">Device Variant 📱</label>
+                    <select id="input-fabricante">
+                        <option value="standard" id="opt-standard">Standard (AOSP/Pixel/OnePlus)</option>
+                        <option value="miui" id="opt-miui">MIUI (Xiaomi)</option>
+                        <option value="mtk" id="opt-mtk">MTK (MediaTek Stock)</option>
+                        <option value="motorola" id="opt-motorola">Motorola</option>
+                        <option value="emui" id="opt-emui">EMUI (Huawei)</option>
+                    </select>
+                </div>
+
+                <div class="campo campo-full">
+                    <div class="checkbox-container">
+                        <label style="margin:0;" id="lbl-usar-som">Use sound in animation? 🎵</label>
+                        <input type="checkbox" id="input-usar-som" onchange="verificarPainelAudio()">
+                    </div>
+                </div>
+                
+                <div class="painel-audio" id="painel-audio">
+                    <div class="campo">
+                        <label id="lbl-audio-intro">Intro Audio:</label>
+                        <select id="sel-audio-intro" onchange="handleAudioSelect('intro')">
+                            <option value="none" id="opt-none-intro">None</option>
+                            <option value="video" id="opt-vid-intro">Video's Audio</option>
+                            <option value="file" id="opt-file-intro">Audio File...</option>
+                        </select>
+                        <input type="file" id="file-audio-intro" accept="audio/*" hidden onchange="fileAudioSelecionado('intro')">
+                        <div class="vol-container" id="vol-wrap-intro">
+                            <input type="range" class="vol-slider" id="vol-intro" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-intro').textContent = this.value + '%'">
+                            <div class="vol-label" id="lbl-vol-intro">100%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="campo">
+                        <label id="lbl-audio-loop">Loop Audio:</label>
+                        <select id="sel-audio-loop" onchange="handleAudioSelect('loop')">
+                            <option value="none" id="opt-none-loop">None</option>
+                            <option value="video" id="opt-vid-loop">Video's Audio</option>
+                            <option value="file" id="opt-file-loop">Audio File...</option>
+                        </select>
+                        <input type="file" id="file-audio-loop" accept="audio/*" hidden onchange="fileAudioSelecionado('loop')">
+                        <div class="vol-container" id="vol-wrap-loop">
+                            <input type="range" class="vol-slider" id="vol-loop" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-loop').textContent = this.value + '%'">
+                            <div class="vol-label" id="lbl-vol-loop">100%</div>
+                        </div>
+                    </div>
+
+                    <div class="campo">
+                        <label id="lbl-audio-final">Outro Audio:</label>
+                        <select id="sel-audio-final" onchange="handleAudioSelect('final')">
+                            <option value="none" id="opt-none-final">None</option>
+                            <option value="video" id="opt-vid-final">Video's Audio</option>
+                            <option value="file" id="opt-file-final">Audio File...</option>
+                        </select>
+                        <input type="file" id="file-audio-final" accept="audio/*" hidden onchange="fileAudioSelecionado('final')">
+                        <div class="vol-container" id="vol-wrap-final">
+                            <input type="range" class="vol-slider" id="vol-final" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-final').textContent = this.value + '%'">
+                            <div class="vol-label" id="lbl-vol-final">100%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="campo campo-full" id="wrap-nome">
+                    <label id="lbl-nome">File Name 📝 (Without extension)</label>
+                    <input type="text" id="input-nome" value="bootanimation" placeholder="Ex: my_boot_animation">
+                </div>
+
+                <div class="campo campo-full">
+                    <label id="lbl-formato">Frames Format 🖼️</label>
+                    <select id="input-formato">
+                        <option value="jpeg" id="opt-jpeg">JPEG (Lighter!)</option>
+                        <option value="png" id="opt-png">PNG (Heavy)</option>
+                    </select>
+                </div>
+                <div class="campo campo-full">
+                    <label id="lbl-qualidade">Resolution 📉</label>
+                    <select id="input-qualidade" onchange="atualizarTamanho()">
+                        <option value="auto" id="opt-auto" style="display:none;"></option>
+                        <option value="320" id="opt-320">320p</option>
+                        <option value="480" id="opt-480">480p</option>
+                        <option value="720" id="opt-720">720p</option>
+                        <option value="1" id="opt-orig" selected>Original</option>
+                        <option value="custom" id="opt-custom">Custom</option>
+                    </select>
+                </div>
+                
+                <div class="campo campo-full">
+                    <label id="lbl-fps">FPS 🎬 (Global)</label>
+                    <input type="number" id="input-fps" value="30" min="1" max="60">
+                </div>
+
+                <div class="campo"><label id="lbl-largura">Width</label><input type="number" id="input-largura" oninput="aoMudarTamanhoManual()"></div>
+                <div class="campo"><label id="lbl-altura">Height</label><input type="number" id="input-altura" oninput="aoMudarTamanhoManual()"></div>
+            </div>
+
+            <div id="botoes-exportacao" style="display: none; flex-direction: column; gap: 10px; width: 100%; margin-top: 5px;">
+                <button id="btn-baixar-video" class="btn-gerar" style="background-color: #ffb86c; color: #000; display: none;" onclick="baixarVideo()">🎬 Download Video</button>
+                <button id="btn-baixar-zip" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="baixarZipEditado()">📦 Download .ZIP</button>
+            </div>
+
+            <button id="btn-gerar" class="btn-gerar btn-desativado">Missing Markers...</button>
+            
+            <button id="btn-ver-preview" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="chamarModalPreview()">👀 Ver Preview</button>
+
+            <div class="container-progresso" id="container-progresso">
+                <div class="texto-progresso" id="texto-progresso">0%</div>
+                <div class="barra-fundo"><div class="barra-preenchimento" id="barra-preenchimento"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-escolha-preview">
+        <div class="modal-box">
+            <h2 id="lbl-modal-escolha-title">👀 How do you want to test?</h2>
+            <p id="lbl-modal-escolha-desc" style="text-align: center; margin-bottom: 20px; font-size: 13px; color: #ccc;">Choose where you want to see your masterpiece!</p>
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-upload" id="btn-web" style="background-color: #bb86fc;" onclick="abrirPreviewWeb()">💻 On Site</button>
+                <button class="btn-upload" id="btn-phone" style="background-color: #03dac6;" onclick="testarNoCelular()">📱 On Phone</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-cancel-preview" style="margin-top: 15px; background-color: #333;" onclick="document.getElementById('modal-escolha-preview').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-pull">
+        <div class="modal-box">
+            <h2 id="lbl-modal-pull-title">📥 Pull Animation</h2>
+            <p id="lbl-modal-pull-desc" style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #ccc;">You already have a custom animation installed! Which version do you want to pull to the editor?</p>
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-upload" id="btn-pull-module" style="background-color: #bb86fc;" onclick="puxarAnimacao('module')">🔧 From Module</button>
+                <button class="btn-upload" id="btn-pull-system" style="background-color: #ffb86c;" onclick="puxarAnimacao('system')">📱 Original System</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-pull-cancel" style="margin-top: 15px; background-color: #333;" onclick="fecharModalPull()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-network">
+        <div class="modal-box">
+            <h2 id="lbl-modal-net-title">🌐 Connect via Network</h2>
+            <p id="lbl-modal-net-desc" style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #ccc;">Server not found on localhost. Enter your phone's IP address or scan the network!</p>
+            <input type="text" id="input-ip" value="192.168.0." style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; text-align: center; font-family: 'Fredoka', sans-serif;">
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-upload" id="btn-connect-ip" style="background-color: #03dac6;" onclick="conectarPorIp()">🔌 Connect</button>
+                <button class="btn-upload" id="btn-scan-net" style="background-color: #bb86fc;" onclick="iniciarVarredura()">🔍 Auto-Scan</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-cancel-net" style="margin-top: 15px; background-color: #333;" onclick="fecharModalRede()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="loading-overlay" style="z-index: 200;">
+        <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
+            <div style="width: 50px; height: 50px; border: 5px solid #444; border-top: 5px solid #03dac6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+            <h2 id="txt-loading-timeline" style="color: #03dac6; font-size: 16px; font-weight: bold; text-shadow: 0 2px 5px rgba(0,0,0,0.8);">Loading Timeline... ⌛</h2>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-preview">
+        <div class="modal-box">
+            <h2 id="lbl-modal-titulo">Preview of your Animation! 🎬</h2>
+            <video class="modal-img" id="video-preview" autoplay playsinline></video>
+            <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const traducoes = {
+            en: { 
+                titulo: "✨ Boot Animation Studio ✨",
+                subtitulo: "Create, edit or apply a boot animation file!",
+                dicasTitulo: "Tips for Beginners",
+                dicaModuloPrefix: "Companion Module:",
+                dicaModuloText: "The 'Connect to Phone' feature requires our optional root module. The site works 100% perfectly without it, but for direct phone integration, download the module from our",
+                dicaModuloLink: "GitHub Repository",
+                dica1: "Important (Samsung): Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.",
+                dica2: "Size matters: Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.",
+                dica3: "Screen aspect: Phones are vertical! Prefer vertical videos (TikTok/Reels format) so your animation doesn't get stretched.",
+                upload: "📂 Video / GIF",
+                uploadZip: "📦 Edit .ZIP",
+                btnInjectZip: "🚀 Inject .ZIP",
+                btnPull: "📥 Pull from Phone",
+                modalPullTitle: "📥 Pull Animation",
+                modalPullDesc: "You already have a custom animation installed! Which version do you want to pull to the editor?",
+                btnPullModule: "🔧 From Module",
+                btnPullSystem: "📱 Original System",
+                btnPullCancel: "Cancel",
+                modalNetTitle: "🌐 Connect via Network",
+                modalNetDesc: "Server not found on PC. Enter your phone's IP address or scan the network!",
+                btnScan: "🔍 Auto-Scan",
+                btnConnectIp: "🔌 Connect",
+                scanningMsg: "Scanning common networks... This might take a few seconds 🕵️‍♂️",
+                scanFound: "Found it! 🎉 Connecting...",
+                scanNotFound: "Couldn't find the phone! Make sure the server is running and you are on the SAME Wi-Fi.",
+                btnDownloadVideo: "🎬 Download Video",
+                btnDownloadZip: "📦 Download .ZIP",
+                dicaVideo: "👆 Click video to Play or Pause!",
+                m0: "1. Start",
+                m1: "2. End Intro",
+                m2: "3. End Loop",
+                m3: "4. Final",
+                naoMarcado: "Not marked",
+                lblFabricante: "Device Variant 📱",
+                optStandard: "Standard (AOSP/Pixel/OnePlus)",
+                optMiui: "MIUI (Xiaomi)",
+                optMtk: "MTK (MediaTek Stock)",
+                optMotorola: "Motorola",
+                optEmui: "EMUI (Huawei)",
+                lblGerarModulo: "Generate Root Module? 🧲",
+                lblUsarSom: "Use sound in animation? 🎵",
+                lblAudioIntro: "Intro Audio:",
+                lblAudioLoop: "Loop Audio:",
+                lblAudioFinal: "Outro Audio:",
+                optNone: "None",
+                optVid: "Video's Audio",
+                optFile: "Audio File...",
+                lblNome: "File Name 📝 (Without extension)",
+                lblFormato: "Frames Format 🖼️",
+                lblQualidade: "Resolution 📉",
+                lblFps: "FPS 🎬 (Global)",
+                lblLargura: "Width",
+                lblAltura: "Height",
+                btnFaltam: "Missing Markers...",
+                btnOrdem: "⚠️ Wrong order! Start (1) must come before Final (4)!",
+                btnGerarPronto: "🚀 GENERATE BOOT ANIMATION",
+                gerandoFrames: "Extracting frames... 📸",
+                fechandoZiper: "Closing zip... 📦",
+                msgSuccessDownload: "🎉 SUCCESS! FILES DOWNLOADED!",
+                erro: "An error occurred ❌",
+                carregandoTimeline: "Loading Timeline... ⌛",
+                extraindo: "Extracting Frames...",
+                processandoAudio: "Converting Audio to .WAV... 🎵",
+                compactandoZip: "Compressing final .ZIP...",
+                modalTitulo: "Preview of your Animation! 🎬",
+                btnFechar: "Close",
+                optJpeg: "JPEG (Lighter!)",
+                optPng: "PNG (Heavy)",
+                opt320: "320p",
+                opt480: "480p",
+                opt720: "720p",
+                optOrig: "Original",
+                optCustom: "Custom",
+                btnConnect: "🔌 Connect to Phone",
+                btnManual: "📦 Just Create .ZIP",
+                statusConnected: "🟢 Phone Connected!",
+                btnRemove: "🗑️ Remove Animation",
+                btnResetModule: "⚠️ Troubleshoot (Reset)",
+                btnInjectReady: "⚡ INJECT INTO PHONE",
+                msgSearching: "Searching... 🔍",
+                msgNotFound: "Module not found! Is the server running in the background?",
+                msgConfirmRemove: "Are you sure you want to remove the current animation and restore the default?",
+                msgInjecting: "Injecting... ⚡",
+                msgInjectError: "Error injecting animation! ❌",
+                msgWaitingAuth: "Please look at your phone screen to allow the connection...",
+                msgAuthDenied: "❌ Connection denied by the phone!",
+                msgAuthTimeout: "⏰ Timeout! You took too long to answer.",
+                btnDisconnect: "🚪 Disconnect",
+                msgRemoveSuccess: "✨ Animation successfully removed! Boot restored to default.",
+                msgRemoveError: "❌ Server error: ",
+                lblHistory: "Animations History (Max 5):",
+                lblHistFooter: "History keeps the 5 most recent animations! The oldest will be deleted automatically.",
+                btnApplyHist: "Inject",
+                btnVerPreview: "👀 See Preview",
+                modalEscolhaTitle: "👀 How do you want to test?",
+                modalEscolhaDesc: "Choose where you want to see your masterpiece!",
+                btnWeb: "💻 On Site",
+                btnPhone: "📱 On Phone",
+                msgResetConfirm: "This will force the module to rescan and update paths on the next boot! Continue?",
+                msgResetError: "Server error when trying to reset!",
+                msgDelHistoryError: "Error deleting history",
+                msgApplyHistorySuccess: "✨ Animation restored successfully! Reboot your phone to see it!",
+                msgApplyHistoryError: "Error injecting history",
+                msgZipNoDesc: "This ZIP is missing the desc.txt file! It is not a valid bootanimation.",
+                msgZipNoParts: "Could not find any frame folders (like part0) inside the ZIP!",
+                msgZipInjectSuccess: "🎉 ZIP injected beautifully! Reboot your phone to see it!",
+                msgZipInjectRefused: "The server refused the file!",
+                msgGifEmpty: "The GIF is empty!",
+                msgGifError: "Error converting GIF: ",
+                msgZipReadError: "Error reading ZIP: ",
+                msgMagicSent: "🪄 Magic sent! Look at your phone screen! (It will close automatically after a few seconds)",
+                msgMagicError: "An error occurred while sending the command to the phone!",
+                msgMagicConnError: "Connection error with the module!",
+                msgLoadingGif: "Reading GIF... ✨",
+                msgLoadingVid: "Recording Video... 🎬",
+                msgLoadingZip: "Opening .ZIP... 📦",
+                msgOrgFrames: "Organizing frames... 🖼️",
+                msgStitching: "Stitching Video... 🎬",
+                msgCheckingZip: "Verifying ZIP... 🕵️‍♂️",
+                msgInjectingPhone: "Injecting into phone... ⚡",
+                msgInjectingPast: "Injecting from the past... ✨"
+            },
+            pt: {
+                titulo: "✨ Boot Animation Studio ✨",
+                subtitulo: "Crie, edite ou aplique um arquivo de boot animation!",
+                dicasTitulo: "Dicas para Principiantes",
+                dicaModuloPrefix: "Módulo Auxiliar:",
+                dicaModuloText: "Para usar a função 'Conectar ao Celular' você precisa de um módulo root opcional. O site funciona 100% sem ele, mas caso queira integração direta, baixe o módulo no nosso",
+                dicaModuloLink: "Repositório GitHub",
+                dica1: "Aviso Samsung: Como o formato .qmg é fechado, o site não gera animações para Samsung de fábrica. Você DEVE usar uma Custom ROM/GSI! Requer acesso Root.",
+                dica2: "Tamanho Importa: Evite arquivos maiores que 20MB. Animações pesadas podem engasgar o Android ou causar bootloops.",
+                dica3: "Formato da Tela: Celulares ficam em pé! Dê preferência a vídeos verticais (formato Reels/TikTok) para a imagem não ficar esticada.",
+                upload: "📂 Vídeo / GIF",
+                uploadZip: "📦 Editar .ZIP",
+                btnInjectZip: "🚀 Injetar .ZIP",
+                btnPull: "📥 Puxar do Celular",
+                modalPullTitle: "📥 Puxar Animação",
+                modalPullDesc: "Você já possui uma animação customizada instalada! Qual versão você deseja puxar para o editor?",
+                btnPullModule: "🔧 Do Módulo",
+                btnPullSystem: "📱 Original do Sistema",
+                btnPullCancel: "Cancelar",
+                modalNetTitle: "🌐 Conectar pela Rede",
+                modalNetDesc: "Servidor não encontrado no PC. Digite o IP do celular ou faça uma varredura na rede!",
+                btnScan: "🔍 Varredura Auto",
+                btnConnectIp: "🔌 Conectar",
+                scanningMsg: "Vasculhando redes comuns... Isso leva uns segundinhos 🕵️‍♂️",
+                scanFound: "Achei!! 🎉 Conectando...",
+                scanNotFound: "Não achei o celular! Certifique-se de que o servidor está rodando e você está no mesmo Wi-Fi.",
+                btnDownloadVideo: "🎬 Baixar Vídeo",
+                btnDownloadZip: "📦 Baixar .ZIP",
+                dicaVideo: "👆 Clique no vídeo para dar Play ou Pausar!",
+                m0: "1. Início",
+                m1: "2. Fim Início",
+                m2: "3. Fim Loop",
+                m3: "4. Final",
+                naoMarcado: "Não marcado",
+                lblFabricante: "Variante do Aparelho 📱",
+                optStandard: "Padrão (AOSP/Pixel/OnePlus)",
+                optMiui: "MIUI (Xiaomi)",
+                optMtk: "MTK (MediaTek Stock)",
+                optMotorola: "Motorola",
+                optEmui: "EMUI (Huawei)",
+                lblGerarModulo: "Gerar Módulo Root? 🧲",
+                lblUsarSom: "Usar som na animação? 🎵",
+                lblAudioIntro: "Áudio do trecho de inicialização:",
+                lblAudioLoop: "Áudio do trecho de loop:",
+                lblAudioFinal: "Áudio do trecho de finalização:",
+                optNone: "Nenhum",
+                optVid: "Áudio do vídeo",
+                optFile: "Arquivo de áudio...",
+                lblNome: "Nome do Arquivo 📝 (Sem extensão)",
+                lblFormato: "Formato dos Frames 🖼️",
+                lblQualidade: "Resolução 📉",
+                lblFps: "FPS 🎬 (Global)",
+                lblLargura: "Largura",
+                lblAltura: "Altura",
+                btnFaltam: "Faltam Marcadores...",
+                btnOrdem: "⚠️ Ordem errada! O Início (1) deve vir antes do Fim (4)!",
+                btnGerarPronto: "🚀 GERAR ANIMAÇÃO DE BOOT",
+                gerandoFrames: "Extraindo os frames... 📸",
+                fechandoZiper: "Fechando o zíper... 📦",
+                msgSuccessDownload: "🎉 SUCESSO! ARQUIVOS BAIXADOS!",
+                erro: "Aconteceu um erro ❌",
+                carregandoTimeline: "Carregando a Timeline... ⌛",
+                extraindo: "Extraindo Frames...",
+                processandoAudio: "Convertendo Áudio para .WAV... 🎵",
+                compactandoZip: "Compactando o .ZIP final...",
+                modalTitulo: "Preview da sua Animação! 🎬",
+                btnFechar: "Fechar",
+                optJpeg: "JPEG (Mais leve!)",
+                optPng: "PNG (Pesado)",
+                opt320: "320p",
+                opt480: "480p",
+                opt720: "720p",
+                optOrig: "Original",
+                optCustom: "Personalizado",
+                btnConnect: "🔌 Conectar ao Celular",
+                btnManual: "📦 Apenas Criar .ZIP",
+                statusConnected: "🟢 Celular Conectado!",
+                btnRemove: "🗑️ Remover Animação",
+                btnResetModule: "⚠️ Troubleshoot (Reset)",
+                btnInjectReady: "⚡ INJETAR NO CELULAR",
+                msgSearching: "Procurando... 🔍",
+                msgNotFound: "Módulo não encontrado! O servidor está rodando no fundo?",
+                msgConfirmRemove: "Quer mesmo apagar a animação atual e voltar para a de fábrica?",
+                msgInjecting: "Injetando... ⚡",
+                msgInjectError: "Erro ao injetar a animação! ❌",
+                msgWaitingAuth: "Por favor, olhe para a tela do celular e permita a conexão...",
+                msgAuthDenied: "❌ Conexão negada pelo celular!",
+                msgAuthTimeout: "⏰ Tempo esgotado! Você demorou muito para responder.",
+                btnDisconnect: "🚪 Desconectar",
+                msgRemoveSuccess: "✨ Animação removida com sucesso! O boot voltou ao original!",
+                msgRemoveError: "❌ Erro do servidor: ",
+                lblHistory: "Histórico de Animações (Máx 5):",
+                lblHistFooter: "O histórico retém as 5 animações mais recentes! A mais antiga será apagada automaticamente.",
+                btnApplyHist: "Injetar",
+                btnVerPreview: "👀 Ver Preview",
+                modalEscolhaTitle: "👀 Como deseja testar?",
+                modalEscolhaDesc: "Escolha onde quer ver sua mais nova obra de arte!",
+                btnWeb: "💻 No Site",
+                btnPhone: "📱 No Celular",
+                msgResetConfirm: "Isso vai forçar o módulo a refazer a varredura e atualizar os caminhos no próximo boot! Continuar?",
+                msgResetError: "Erro no servidor ao tentar resetar!",
+                msgDelHistoryError: "Erro ao deletar histórico",
+                msgApplyHistorySuccess: "✨ Animação restaurada com sucesso! Reinicie o celular para ver!",
+                msgApplyHistoryError: "Erro ao injetar histórico",
+                msgZipNoDesc: "Esse ZIP não tem o arquivo desc.txt! Não é um bootanimation válido.",
+                msgZipNoParts: "Não achei nenhuma pasta de frames (tipo part0) dentro do ZIP!",
+                msgZipInjectSuccess: "🎉 ZIP injetado lindamente! Reinicie o celular para ver!",
+                msgZipInjectRefused: "O servidor recusou o arquivo!",
+                msgGifEmpty: "O GIF está vazio!",
+                msgGifError: "Erro ao converter GIF: ",
+                msgZipReadError: "Erro ao ler o ZIP: ",
+                msgMagicSent: "🪄 Magia enviada! Olhe para a tela do seu celular! (O sistema encerra sozinho depois de uns segundos)",
+                msgMagicError: "Ocorreu um erro ao tentar enviar o comando pro celular!",
+                msgMagicConnError: "Erro de conexão com o módulo!",
+                msgLoadingGif: "Lendo GIF... ✨",
+                msgLoadingVid: "Gravando Vídeo... 🎬",
+                msgLoadingZip: "Abrindo .ZIP... 📦",
+                msgOrgFrames: "Organizando frames... 🖼️",
+                msgStitching: "Costurando Vídeo... 🎬",
+                msgCheckingZip: "Verificando ZIP... 🕵️‍♂️",
+                msgInjectingPhone: "Injetando no celular... ⚡",
+                msgInjectingPast: "Injetando do passado... ✨"
+            },
+            es: {
+                titulo: "✨ Boot Animation Studio ✨",
+                subtitulo: "¡Crea, edita o aplica un archivo de boot animation!",
+                dicasTitulo: "Consejos para Principiantes",
+                dicaModuloPrefix: "Módulo Auxiliar:",
+                dicaModuloText: "La función 'Conectar al Celular' requiere nuestro módulo root opcional. El sitio funciona 100% sin él, pero para integración directa, descarga el módulo en nuestro",
+                dicaModuloLink: "Repositorio de GitHub",
+                dica1: "Aviso Samsung: Como .qmg es un formato cerrado, el sitio no genera animaciones para Samsung de fábrica. ¡DEBES usar una Custom ROM/GSI! Requiere Root.",
+                dica2: "El Tamaño Importa: Evita archivos de más de 20MB. Los archivos muy pesados pueden trabar Android o causar bootloops.",
+                dica3: "Formato de Pantalla: ¡Los teléfonos son verticales! Prefiere videos verticales (formato TikTok/Reels) para que no se estiren.",
+                upload: "📂 Video / GIF",
+                uploadZip: "📦 Editar .ZIP",
+                btnInjectZip: "🚀 Inyectar .ZIP",
+                btnPull: "📥 Extraer del Celular",
+                modalPullTitle: "📥 Extraer Animación",
+                modalPullDesc: "¡Ya tienes una animación personalizada instalada! ¿Qué versión deseas extraer al editor?",
+                btnPullModule: "🔧 Del Módulo",
+                btnPullSystem: "📱 Original del Sistema",
+                btnPullCancel: "Cancelar",
+                modalNetTitle: "🌐 Conectar vía Red",
+                modalNetDesc: "Servidor no encontrado en la PC. ¡Ingresa la IP del celular o escanea la red!",
+                btnScan: "🔍 Escaneo Auto",
+                btnConnectIp: "🔌 Conectar",
+                scanningMsg: "Buscando en redes comunes... Esto tomará unos segundos 🕵️‍♂️",
+                scanFound: "¡Lo encontré! 🎉 Conectando...",
+                scanNotFound: "¡No pude encontrar el celular! Asegúrate de estar en el mismo Wi-Fi.",
+                btnDownloadVideo: "🎬 Descargar Video",
+                btnDownloadZip: "📦 Descargar .ZIP",
+                dicaVideo: "👆 ¡Haz clic en el video para Reproducir o Pausar!",
+                m0: "1. Inicio",
+                m1: "2. Fin Intro",
+                m2: "3. Fin Loop",
+                m3: "4. Final",
+                naoMarcado: "No marcado",
+                lblFabricante: "Variante del Dispositivo 📱",
+                optStandard: "Estándar (AOSP/Pixel/OnePlus)",
+                optMiui: "MIUI (Xiaomi)",
+                optMtk: "MTK (MediaTek Stock)",
+                optMotorola: "Motorola",
+                optEmui: "EMUI (Huawei)",
+                lblGerarModulo: "¿Generar Módulo Root? 🧲",
+                lblUsarSom: "¿Usar sonido en la animación? 🎵",
+                lblAudioIntro: "Audio del inicio:",
+                lblAudioLoop: "Audio del bucle:",
+                lblAudioFinal: "Audio final:",
+                optNone: "Ninguno",
+                optVid: "Audio del vídeo",
+                optFile: "Archivo de audio...",
+                lblNome: "Nombre del Archivo 📝 (Sin extensión)",
+                lblFormato: "Formato de Fotogramas 🖼️",
+                lblQualidade: "Resolución 📉",
+                lblFps: "FPS 🎬 (Global)",
+                lblLargura: "Ancho",
+                lblAltura: "Alto",
+                btnFaltam: "Faltan Marcadores...",
+                btnOrdem: "⚠️ ¡Orden incorrecto! ¡El Inicio (1) debe ir antes del Final (4)!",
+                btnGerarPronto: "🚀 GENERAR ANIMACIÓN DE BOOT",
+                gerandoFrames: "Extrayendo fotogramas... 📸",
+                fechandoZiper: "Cerrando el zip... 📦",
+                msgSuccessDownload: "🎉 ¡ÉXITO! ¡ARCHIVOS DESCARGADOS!",
+                erro: "Ocurrió un error ❌",
+                carregandoTimeline: "Cargando Línea de Tiempo... ⌛",
+                extraindo: "Extrayendo Fotogramas...",
+                processandoAudio: "Convirtiendo Audio a .WAV... 🎵",
+                compactandoZip: "Comprimiendo .ZIP final...",
+                modalTitulo: "¡Vista Previa de tu Animación! 🎬",
+                btnFechar: "Cerrar",
+                optJpeg: "JPEG (¡Más ligero!)",
+                optPng: "PNG (Pesado)",
+                opt320: "320p",
+                opt480: "480p",
+                opt720: "720p",
+                optOrig: "Original",
+                optCustom: "Personalizado",
+                btnConnect: "🔌 Conectar al Celular",
+                btnManual: "📦 Solo Crear .ZIP",
+                statusConnected: "🟢 ¡Celular Conectado!",
+                btnRemove: "🗑️ Eliminar Animación",
+                btnResetModule: "⚠️ Troubleshoot (Reset)",
+                btnInjectReady: "⚡ INYECTAR EN EL CELULAR",
+                msgSearching: "Buscando... 🔍",
+                msgNotFound: "¡Módulo no encontrado! ¿El servidor se está ejecutando en segundo plano?",
+                msgConfirmRemove: "¿Estás seguro de que quieres eliminar la animación actual y restaurar la de fábrica?",
+                msgInjecting: "Inyectando... ⚡",
+                msgInjectError: "¡Error al inyectar la animación! ❌",
+                msgWaitingAuth: "Por favor, mira la pantalla de tu celular y permite la conexión...",
+                msgAuthDenied: "❌ ¡Conexión denegada por el celular!",
+                msgAuthTimeout: "⏰ ¡Tiempo agotado! Tardaste mucho en responder.",
+                btnDisconnect: "🚪 Desconectar",
+                msgRemoveSuccess: "✨ ¡Animación eliminada con éxito! Arranque restaurado al original.",
+                msgRemoveError: "❌ Error del servidor: ",
+                lblHistory: "Historial de Animaciones (Máx 5):",
+                lblHistFooter: "¡El historial conserva las 5 más recientes! La más antigua se borrará automáticamente.",
+                btnApplyHist: "Inyectar",
+                btnVerPreview: "👀 Ver Preview",
+                modalEscolhaTitle: "👀 ¿Cómo quieres probar?",
+                modalEscolhaDesc: "¡Elige dónde quieres ver tu obra maestra!",
+                btnWeb: "💻 En la web",
+                btnPhone: "📱 En el Celular",
+                msgResetConfirm: "¡Esto forzará al módulo a volver a escanear y actualizar las rutas en el próximo inicio! ¿Continuar?",
+                msgResetError: "¡Error en el servidor al intentar restablecer!",
+                msgDelHistoryError: "Error al borrar el historial",
+                msgApplyHistorySuccess: "✨ ¡Animación restaurada con éxito! ¡Reinicia tu teléfono para verla!",
+                msgApplyHistoryError: "Error al inyectar historial",
+                msgZipNoDesc: "¡A este ZIP le falta el archivo desc.txt! No es un bootanimation válido.",
+                msgZipNoParts: "¡No se pudo encontrar ninguna carpeta de frames (como part0) dentro del ZIP!",
+                msgZipInjectSuccess: "🎉 ¡ZIP inyectado maravillosamente! ¡Reinicia el teléfono para verlo!",
+                msgZipInjectRefused: "¡El servidor rechazó el archivo!",
+                msgGifEmpty: "¡El GIF está vacío!",
+                msgGifError: "Error al convertir GIF: ",
+                msgZipReadError: "Error al leer ZIP: ",
+                msgMagicSent: "🪄 ¡Magia enviada! ¡Mira la pantalla de tu teléfono! (Se cerrará automáticamente después de unos segundos)",
+                msgMagicError: "¡Ocurrió un error al intentar enviar el comando al teléfono!",
+                msgMagicConnError: "¡Error de conexión con el módulo!",
+                msgLoadingGif: "Leyendo GIF... ✨",
+                msgLoadingVid: "Grabando Video... 🎬",
+                msgLoadingZip: "Abriendo .ZIP... 📦",
+                msgOrgFrames: "Organizando frames... 🖼️",
+                msgStitching: "Uniendo Video... 🎬",
+                msgCheckingZip: "Verificando ZIP... 🕵️‍♂️",
+                msgInjectingPhone: "Inyectando en el celular... ⚡",
+                msgInjectingPast: "Inyectando del pasado... ✨"
+            },
+            fr: {
+                titulo: "✨ Boot Animation Studio ✨",
+                subtitulo: "Créez, éditez ou appliquez un fichier boot animation !",
+                dicasTitulo: "Conseils pour Débutants",
+                dicaModuloPrefix: "Module Compagnon:",
+                dicaModuloText: "La fonction 'Connecter au Téléphone' nécessite notre module root optionnel. Le site fonctionne à 100% sans lui, mais pour une intégration directe, téléchargez-le sur notre",
+                dicaModuloLink: "Dépôt GitHub",
+                dica1: "Avis Samsung : Le format .qmg étant fermé, le site ne génère pas d'animations pour Samsung d'origine. Vous DEVEZ être sur une Custom ROM/GSI ! Root requis.",
+                dica2: "La Taille Compte : Évitez les fichiers de plus de 20 Mo. Les fichiers lourds peuvent faire ramer Android ou causer des bootloops.",
+                dica3: "Format d'Écran : Privilégiez les vidéos verticales (format TikTok/Reels) pour que votre animation ne soit pas déformée.",
+                upload: "📂 Vidéo / GIF",
+                uploadZip: "📦 Éditer .ZIP",
+                btnInjectZip: "🚀 Injecter .ZIP",
+                btnPull: "📥 Extraire du Téléphone",
+                modalPullTitle: "📥 Extraire l'Animation",
+                modalPullDesc: "Vous avez déjà une animation personnalisée installée ! Quelle version voulez-vous extraire vers l'éditeur ?",
+                btnPullModule: "🔧 Du Module",
+                btnPullSystem: "📱 Système d'Origine",
+                btnPullCancel: "Annuler",
+                modalNetTitle: "🌐 Connexion via Réseau",
+                modalNetDesc: "Serveur introuvable sur le PC. Entrez l'IP du téléphone ou scannez le réseau !",
+                btnScan: "🔍 Scan Auto",
+                btnConnectIp: "🔌 Connecter",
+                scanningMsg: "Recherche sur les réseaux... Cela prend quelques secondes 🕵️‍♂️",
+                scanFound: "Trouvé ! 🎉 Connexion...",
+                scanNotFound: "Téléphone introuvable ! Assurez-vous que le serveur tourne et que vous êtes sur le même Wi-Fi.",
+                btnDownloadVideo: "🎬 Télécharger Vidéo",
+                btnDownloadZip: "📦 Télécharger .ZIP",
+                dicaVideo: "👆 Cliquez sur la vidéo pour Lire ou Mettre en pause !",
+                m0: "1. Début",
+                m1: "2. Fin Intro",
+                m2: "3. Fin Boucle",
+                m3: "4. Fin",
+                naoMarcado: "Non marqué",
+                lblFabricante: "Variante d'Appareil 📱",
+                optStandard: "Standard (AOSP/Pixel/OnePlus)",
+                optMiui: "MIUI (Xiaomi)",
+                optMtk: "MTK (MediaTek Stock)",
+                optMotorola: "Motorola",
+                optEmui: "EMUI (Huawei)",
+                lblGerarModulo: "Générer un Module Root ? 🧲",
+                lblUsarSom: "Utiliser du son ? 🎵",
+                lblAudioIntro: "Audio d'intro :",
+                lblAudioLoop: "Audio de boucle :",
+                lblAudioFinal: "Audio de fin :",
+                optNone: "Aucun",
+                optVid: "Audio de la vidéo",
+                optFile: "Fichier audio...",
+                lblNome: "Nom du Fichier 📝 (Sans extension)",
+                lblFormato: "Format des Images 🖼️",
+                lblQualidade: "Résolution 📉",
+                lblFps: "FPS 🎬 (Global)",
+                lblLargura: "Largeur",
+                lblAltura: "Hauteur",
+                btnFaltam: "Marqueurs manquants...",
+                btnOrdem: "⚠️ Mauvais ordre ! Le Début (1) doit précéder la Fin (4) !",
+                btnGerarPronto: "🚀 GÉNÉRER L'ANIMATION",
+                gerandoFrames: "Extraction des images... 📸",
+                fechandoZiper: "Fermeture du zip... 📦",
+                msgSuccessDownload: "🎉 SUCCÈS ! FICHIERS TÉLÉCHARGÉS !",
+                erro: "Une erreur est survenue ❌",
+                carregandoTimeline: "Chargement de la timeline... ⌛",
+                extraindo: "Extraction des Images...",
+                processandoAudio: "Conversion Audio en .WAV... 🎵",
+                compactandoZip: "Compression du .ZIP final...",
+                modalTitulo: "Aperçu de votre Animation ! 🎬",
+                btnFechar: "Fermer",
+                optJpeg: "JPEG (Plus léger !)",
+                optPng: "PNG (Lourd)",
+                opt320: "320p",
+                opt480: "480p",
+                opt720: "720p",
+                optOrig: "Original",
+                optCustom: "Personnalisé",
+                btnConnect: "🔌 Connecter au Téléphone",
+                btnManual: "📦 Juste Créer un .ZIP",
+                statusConnected: "🟢 Téléphone Connecté !",
+                btnRemove: "🗑️ Supprimer l'Anim",
+                btnResetModule: "⚠️ Troubleshoot (Reset)",
+                btnInjectReady: "⚡ INJECTER DANS LE TÉLÉPHONE",
+                msgSearching: "Recherche... 🔍",
+                msgNotFound: "Module introuvable ! Le serveur tourne-t-il en arrière-plan ?",
+                msgConfirmRemove: "Êtes-vous sûr de vouloir supprimer l'animation actuelle et restaurar celle par défaut ?",
+                msgInjecting: "Injection... ⚡",
+                msgInjectError: "Erreur lors de l'injection ! ❌",
+                msgWaitingAuth: "Veuillez regarder l'écran de votre téléphone pour autoriser...",
+                msgAuthDenied: "❌ Connexion refusée par le téléphone !",
+                msgAuthTimeout: "⏰ Délai d'attente dépassé ! Vous avez mis trop de temps à répondre.",
+                btnDisconnect: "🚪 Déconnecter",
+                msgRemoveSuccess: "✨ Animation supprimée avec succès ! Démarrage restauré par défaut.",
+                msgRemoveError: "❌ Erreur du serveur : ",
+                lblHistory: "Historique (Max 5):",
+                lblHistFooter: "L'historique conserve les 5 plus récentes ! La plus ancienne sera effacée automatiquement.",
+                btnApplyHist: "Injecter",
+                btnVerPreview: "👀 Voir Preview",
+                modalEscolhaTitle: "👀 Comment tester?",
+                modalEscolhaDesc: "Choisissez où vous voulez voir votre chef-d'œuvre!",
+                btnWeb: "💻 Sur le Site",
+                btnPhone: "📱 Sur le Téléphone",
+                msgResetConfirm: "Cela forcera le module à réanalyser et mettre à jour les chemins au prochain démarrage ! Continuer ?",
+                msgResetError: "Erreur du serveur lors de la tentative de réinitialisation !",
+                msgDelHistoryError: "Erreur lors de la suppression de l'historique",
+                msgApplyHistorySuccess: "✨ Animation restaurée avec succès ! Redémarrez votre téléphone pour la voir !",
+                msgApplyHistoryError: "Erreur lors de l'injection de l'historique",
+                msgZipNoDesc: "Ce fichier ZIP ne contient pas le fichier desc.txt ! Ce n'est pas un bootanimation valide.",
+                msgZipNoParts: "Impossible de trouver des dossiers de frames (comme part0) dans le ZIP !",
+                msgZipInjectSuccess: "🎉 ZIP injecté magnifiquement ! Redémarrez le téléphone pour le voir !",
+                msgZipInjectRefused: "Le serveur a refusé le fichier !",
+                msgGifEmpty: "Le GIF est vide !",
+                msgGifError: "Erreur lors de la conversion du GIF : ",
+                msgZipReadError: "Erreur lors de la lecture du ZIP : ",
+                msgMagicSent: "🪄 Magie envoyée ! Regardez l'écran de votre téléphone ! (Il se fermera automatiquement après quelques secondes)",
+                msgMagicError: "Une erreur est survenue lors de l'envoi de la commande au téléphone !",
+                msgMagicConnError: "Erreur de connexion avec le module !",
+                msgLoadingGif: "Lecture du GIF... ✨",
+                msgLoadingVid: "Enregistrement Vidéo... 🎬",
+                msgLoadingZip: "Ouverture .ZIP... 📦",
+                msgOrgFrames: "Organisation des frames... 🖼️",
+                msgStitching: "Assemblage Vidéo... 🎬",
+                msgCheckingZip: "Vérification du ZIP... 🕵️‍♂️",
+                msgInjectingPhone: "Injection dans le téléphone... ⚡",
+                msgInjectingPast: "Injection depuis le passé... ✨"
+            }
+        };
+
+        let idiomaAtual = 'en'; 
+        let isConnectedMode = false;
+        window.hasCustomAnimApplied = false;
+        let IP_LOCAL = "http://127.0.0.1:4040";
+
+        function forcarDesconexao() {
+            if (isConnectedMode) {
+                fetch(IP_LOCAL + '/disconnect', { method: 'GET', keepalive: true }).catch(()=>{});
+            }
+        }
+        window.addEventListener('beforeunload', forcarDesconexao);
+        window.addEventListener('pagehide', forcarDesconexao);
+        window.addEventListener('unload', forcarDesconexao);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let langDetectada = 'en';
+            const idiomasSuportados = ['en', 'pt', 'es', 'fr'];
+            try {
+                const linguasNavegador = navigator.languages || [navigator.language || navigator.userLanguage];
+                let idiomaSistema = null;
+                if (window.Intl && Intl.DateTimeFormat) { idiomaSistema = Intl.DateTimeFormat().resolvedOptions().locale; }
+                const todasPistas = [...linguasNavegador, idiomaSistema];
+                for (let pista of todasPistas) {
+                    if (pista) {
+                        const base = pista.split('-')[0];
+                        if (idiomasSuportados.includes(base)) {
+                            langDetectada = base;
+                            if (base !== 'en') break; 
+                        }
+                    }
+                }
+            } catch (e) { langDetectada = 'en'; }
+            
+            idiomaAtual = langDetectada;
+            document.getElementById('select-idioma').value = idiomaAtual;
+            mudarIdioma(idiomaAtual);
+        });
+
+        function mudarIdioma(lang) {
+            idiomaAtual = lang;
+            const t = traducoes[lang];
+
+            document.getElementById('txt-titulo').textContent = t.titulo;
+            document.getElementById('txt-subtitulo').textContent = t.subtitulo;
+            document.getElementById('txt-dicas-titulo').innerHTML = t.dicasTitulo;
+            document.getElementById('txt-dica-modulo-prefix').textContent = t.dicaModuloPrefix;
+            document.getElementById('txt-dica-modulo-text').textContent = t.dicaModuloText;
+            document.getElementById('txt-dica-modulo-link').textContent = t.dicaModuloLink;
+            document.getElementById('txt-dica1').innerHTML = `<strong>${t.dica1.split(': ')[0]}:</strong> ${t.dica1.split(': ')[1]}`;
+            document.getElementById('txt-dica2').innerHTML = `<strong>${t.dica2.split(': ')[0]}:</strong> ${t.dica2.split(': ')[1]}`;
+            document.getElementById('txt-dica3').innerHTML = `<strong>${t.dica3.split(': ')[0]}:</strong> ${t.dica3.split(': ')[1]}`;
+            document.getElementById('lbl-upload').textContent = t.upload;
+            document.getElementById('lbl-upload-zip').textContent = t.uploadZip;
+            document.getElementById('lbl-upload-direto').textContent = t.btnInjectZip;
+            document.getElementById('btn-pull').textContent = t.btnPull;
+            document.getElementById('lbl-modal-pull-title').textContent = t.modalPullTitle;
+            document.getElementById('lbl-modal-pull-desc').textContent = t.modalPullDesc;
+            document.getElementById('btn-pull-module').textContent = t.btnPullModule;
+            document.getElementById('btn-pull-system').textContent = t.btnPullSystem;
+            document.getElementById('btn-pull-cancel').textContent = t.btnPullCancel;
+            document.getElementById('lbl-modal-net-title').textContent = t.modalNetTitle;
+            document.getElementById('lbl-modal-net-desc').textContent = t.modalNetDesc;
+            document.getElementById('btn-scan-net').textContent = t.btnScan;
+            document.getElementById('btn-connect-ip').textContent = t.btnConnectIp;
+            document.getElementById('btn-cancel-net').textContent = t.btnPullCancel;
+            document.getElementById('btn-baixar-video').textContent = t.btnDownloadVideo;
+            document.getElementById('btn-baixar-zip').textContent = t.btnDownloadZip;
+            document.getElementById('txt-dicavideo').textContent = t.dicaVideo;
+            document.getElementById('lbl-m0').textContent = t.m0;
+            document.getElementById('lbl-m1').textContent = t.m1;
+            document.getElementById('lbl-m2').textContent = t.m2;
+            document.getElementById('lbl-m3').textContent = t.m3;
+            document.getElementById('lbl-fabricante').textContent = t.lblFabricante;
+            document.getElementById('opt-standard').textContent = t.optStandard;
+            document.getElementById('opt-miui').textContent = t.optMiui;
+            document.getElementById('opt-mtk').textContent = t.optMtk;
+            document.getElementById('opt-motorola').textContent = t.optMotorola;
+            document.getElementById('opt-emui').textContent = t.optEmui;
+            document.getElementById('lbl-gerarmodulo').textContent = t.lblGerarModulo;
+            document.getElementById('lbl-nome').textContent = t.lblNome;
+            document.getElementById('lbl-formato').textContent = t.lblFormato;
+            document.getElementById('lbl-qualidade').textContent = t.lblQualidade;
+            document.getElementById('lbl-fps').textContent = t.lblFps;
+            document.getElementById('lbl-largura').textContent = t.lblLargura;
+            document.getElementById('lbl-altura').textContent = t.lblAltura;
+            document.getElementById('opt-jpeg').textContent = t.optJpeg;
+            document.getElementById('opt-png').textContent = t.optPng;
+            document.getElementById('opt-320').textContent = t.opt320;
+            document.getElementById('opt-480').textContent = t.opt480;
+            document.getElementById('opt-720').textContent = t.opt720;
+            document.getElementById('opt-orig').textContent = t.optOrig;
+            document.getElementById('opt-custom').textContent = t.optCustom;
+            document.getElementById('lbl-modal-titulo').textContent = t.modalTitulo;
+            document.getElementById('btn-fechar-modal').textContent = t.btnFechar;
+            document.getElementById('txt-loading-timeline').textContent = t.carregandoTimeline;
+            document.getElementById('lbl-usar-som').textContent = t.lblUsarSom;
+            document.getElementById('lbl-audio-intro').textContent = t.lblAudioIntro;
+            document.getElementById('lbl-audio-loop').textContent = t.lblAudioLoop;
+            document.getElementById('lbl-audio-final').textContent = t.lblAudioFinal;
+            
+            document.getElementById('btn-connect').textContent = t.btnConnect;
+            document.getElementById('btn-manual').textContent = t.btnManual;
+            document.getElementById('status-connected').textContent = t.statusConnected;
+            document.getElementById('btn-remove').textContent = t.btnRemove;
+            document.getElementById('btn-reset').textContent = t.btnResetModule;
+            document.getElementById('btn-disconnect').textContent = t.btnDisconnect;
+
+            document.getElementById('lbl-history').textContent = t.lblHistory;
+            document.getElementById('lbl-hist-footer').textContent = t.lblHistFooter;
+
+            document.getElementById('btn-ver-preview').textContent = t.btnVerPreview;
+            document.getElementById('lbl-modal-escolha-title').textContent = t.modalEscolhaTitle;
+            document.getElementById('lbl-modal-escolha-desc').textContent = t.modalEscolhaDesc;
+            document.getElementById('btn-web').textContent = t.btnWeb;
+            document.getElementById('btn-phone').textContent = t.btnPhone;
+            document.getElementById('btn-cancel-preview').textContent = t.btnPullCancel;
+
+            ['intro', 'loop', 'final'].forEach(part => {
+                const optNone = document.getElementById(`opt-none-${part}`);
+                const optVid = document.getElementById(`opt-vid-${part}`);
+                const optFile = document.getElementById(`opt-file-${part}`);
+                if(optNone.textContent !== optNone.getAttribute('data-custom')) optNone.textContent = t.optNone;
+                if(optVid.textContent !== optVid.getAttribute('data-custom')) optVid.textContent = t.optVid;
+                if(optFile.textContent !== optFile.getAttribute('data-custom')) optFile.textContent = t.optFile;
+            });
+            atualizarBotoesELinhas();
+        }
+
+        async function connectToPhone() {
+            const btn = document.getElementById('btn-connect');
+            const t = traducoes[idiomaAtual];
+            btn.textContent = t.msgSearching;
+
+            try {
+                let response = await fetch(IP_LOCAL + '/ping', { signal: AbortSignal.timeout(1500) });
+                if (response.ok) {
+                    await tentaConexao();
+                } else {
+                    throw new Error("Failed");
+                }
+            } catch (error) {
+                btn.textContent = t.btnConnect; 
+                document.getElementById('modal-network').style.display = 'flex';
+            }
+        }
+
+        async function tentaConexao() {
+            const btn = document.getElementById('btn-connect');
+            const t = traducoes[idiomaAtual];
+            btn.textContent = "Connecting... ⚡";
+
+            try {
+                let response = await fetch(IP_LOCAL + '/ping');
+                let data = await response.json();
+
+                if (data.status === 'auth_required') {
+                    btn.textContent = t.msgWaitingAuth;
+                    let authRes = await fetch(IP_LOCAL + '/request_auth');
+                    data = await authRes.json();
+                    
+                    if (data.status === 'denied') {
+                        alert(t.msgAuthDenied);
+                        btn.textContent = t.btnConnect;
+                        return;
+                    } else if (data.status === 'timeout') {
+                        alert(t.msgAuthTimeout);
+                        btn.textContent = t.btnConnect;
+                        return;
+                    }
+                }
+
+                if (data.status === 'ok') {
+                    isConnectedMode = true;
+                    document.getElementById('initial-state').style.display = 'none';
+                    document.getElementById('connected-state').style.display = 'flex';
+                    document.getElementById('editor-section').style.display = 'flex';
+                    document.getElementById('wrap-gerar-modulo').style.display = 'none';
+                    document.getElementById('wrap-nome').style.display = 'none'; 
+                    
+                    document.getElementById('status-connected').textContent = t.statusConnected.replace('!', ': ' + data.model);
+                    
+                    if(data.resolution && data.resolution !== "Unknown") {
+                        const optAuto = document.getElementById('opt-auto');
+                        optAuto.style.display = 'block';
+                        optAuto.value = data.resolution;
+                        optAuto.textContent = `Dispositivo (${data.resolution})`;
+                        document.getElementById('input-qualidade').value = data.resolution;
+                    }
+
+                    if (data.has_custom) {
+                        document.getElementById('btn-remove').style.display = "block";
+                        window.hasCustomAnimApplied = true;
+                    } else {
+                        document.getElementById('btn-remove').style.display = "none";
+                        window.hasCustomAnimApplied = false;
+                    }
+
+                    document.getElementById('btn-pull').style.display = "block";
+                    document.getElementById('lbl-upload-direto').style.display = "flex";
+                    document.getElementById('btn-reset').style.display = "block";
+                    document.getElementById('acoes-principais').style.gridTemplateColumns = "1fr 1fr";
+                    
+                    atualizarBotoesELinhas();
+                    loadHistory(); 
+                } else {
+                    alert(t.msgNotFound);
+                    btn.textContent = t.btnConnect;
+                }
+            } catch (error) {
+                alert(t.msgNotFound);
+                btn.textContent = t.btnConnect;
+            }
+        }
+
+        async function conectarPorIp() {
+            const ip = document.getElementById('input-ip').value.trim();
+            if(!ip) return;
+            IP_LOCAL = `http://${ip}:4040`;
+            fecharModalRede();
+            tentaConexao();
+        }
+
+        function fecharModalRede() {
+            document.getElementById('modal-network').style.display = 'none';
+        }
+
+        async function checkIP(ip) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1200); 
+            try {
+                const res = await fetch(`http://${ip}:4040/ping`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status) return ip;
+                }
+            } catch (e) {
+                return null;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+            return null;
+        }
+
+        async function iniciarVarredura() {
+            const btn = document.getElementById('btn-scan-net');
+            const desc = document.getElementById('lbl-modal-net-desc');
+            const originalText = btn.textContent;
+            const t = traducoes[idiomaAtual];
+
+            btn.textContent = "Scanning... 🕵️‍♂️";
+            btn.style.pointerEvents = 'none';
+            desc.textContent = t.scanningMsg;
+
+            const subnets = ['192.168.0', '192.168.1', '192.168.15', '192.168.2', '10.0.0', '192.168.3'];
+            let foundIp = null;
+
+            for (let sub of subnets) {
+                if (foundIp) break;
+                
+                const chunkSize = 40;
+                for (let i = 1; i <= 254; i += chunkSize) {
+                    let promises = [];
+                    for (let j = i; j < i + chunkSize && j <= 254; j++) {
+                        promises.push(checkIP(`${sub}.${j}`));
+                    }
+                    const results = await Promise.all(promises);
+                    foundIp = results.find(ip => ip !== null);
+                    if (foundIp) break;
+                }
+            }
+
+            if (foundIp) {
+                desc.textContent = t.scanFound;
+                document.getElementById('input-ip').value = foundIp;
+                IP_LOCAL = `http://${foundIp}:4040`;
+                setTimeout(() => {
+                    fecharModalRede();
+                    tentaConexao();
+                }, 1500);
+            } else {
+                desc.textContent = t.scanNotFound;
+                btn.textContent = originalText;
+                btn.style.pointerEvents = 'all';
+            }
+        }
+
+        function startManualMode() {
+            isConnectedMode = false;
+            document.getElementById('initial-state').style.display = 'none';
+            document.getElementById('editor-section').style.display = 'flex';
+            document.getElementById('wrap-nome').style.display = 'flex';
+            
+            document.getElementById('acoes-principais').style.gridTemplateColumns = "1fr 1fr";
+            document.getElementById('btn-remove').style.display = "none";
+            document.getElementById('btn-pull').style.display = "none";
+            document.getElementById('lbl-upload-direto').style.display = "none";
+            document.getElementById('btn-reset').style.display = "none";
+            
+            atualizarBotoesELinhas();
+        }
+
+        async function disconnectPhone() {
+            try { await fetch(IP_LOCAL + '/disconnect'); } catch(e) {}
+            isConnectedMode = false;
+            document.getElementById('initial-state').style.display = 'flex';
+            document.getElementById('connected-state').style.display = 'none';
+            document.getElementById('editor-section').style.display = 'none';
+            document.getElementById('btn-connect').textContent = traducoes[idiomaAtual].btnConnect;
+        }
+
+        async function removeAnimation() {
+            const t = traducoes[idiomaAtual];
+            if(confirm(t.msgConfirmRemove)) {
+                try {
+                    let res = await fetch(IP_LOCAL + '/remove', { method: 'POST' });
+                    
+                    if (res.ok) {
+                        let data = await res.json();
+                        if (data.status === "success") {
+                            alert(t.msgRemoveSuccess);
+                            document.getElementById('btn-remove').style.display = "none";
+                            window.hasCustomAnimApplied = false;
+                        } else {
+                            alert(t.msgRemoveError + data.message);
+                        }
+                    } else {
+                        alert(t.erro + " (HTTP " + res.status + ")");
+                    }
+                } catch (error) {
+                    alert(t.erro + " - The server blocked the connection or is offline!");
+                }
+            }
+        }
+
+        async function resetarModulo() {
+            const t = traducoes[idiomaAtual];
+            if(confirm(t.msgResetConfirm)) {
+                try {
+                    let res = await fetch(IP_LOCAL + '/reset', { method: 'POST' });
+                    if (res.ok) {
+                        let data = await res.json();
+                        alert(data.message);
+                        document.getElementById('btn-remove').style.display = "none";
+                        window.hasCustomAnimApplied = false;
+                    } else {
+                        alert(t.msgResetError);
+                    }
+                } catch (error) {
+                    alert(t.msgResetError);
+                }
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                let res = await fetch(IP_LOCAL + '/history/list');
+                if(!res.ok) return;
+                let ids = await res.json();
+                
+                const scroll = document.getElementById('history-scroll');
+                scroll.innerHTML = '';
+                
+                if(ids && ids.length > 0) {
+                    document.getElementById('history-wrapper').style.display = "flex";
+                    const t = traducoes[idiomaAtual];
+                    
+                    ids.forEach(id => {
+                        const date = new Date(parseInt(id) * 1000).toLocaleString();
+                        const card = document.createElement('div');
+                        card.className = "hist-card";
+                        
+                        const vid = document.createElement('video');
+                        vid.src = IP_LOCAL + '/history/preview?id=' + id;
+                        vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+                        
+                        const btnClose = document.createElement('button');
+                        btnClose.className = "btn-close";
+                        btnClose.innerHTML = "X";
+                        btnClose.onclick = () => deleteHistory(id);
+
+                        const btnApply = document.createElement('button');
+                        btnApply.className = "btn-apply";
+                        btnApply.innerHTML = t.btnApplyHist;
+                        btnApply.onclick = () => applyHistory(id);
+
+                        const label = document.createElement('div');
+                        label.style.fontSize = "10px"; label.style.color = "#ccc"; label.style.marginBottom = "5px";
+                        label.innerText = date;
+
+                        card.appendChild(btnClose);
+                        card.appendChild(vid);
+                        card.appendChild(label);
+                        card.appendChild(btnApply);
+                        scroll.appendChild(card);
+                    });
+                } else {
+                    document.getElementById('history-wrapper').style.display = "none";
+                }
+            } catch(e) { console.log("No history found"); }
+        }
+
+        async function deleteHistory(id) {
+            const t = traducoes[idiomaAtual];
+            try {
+                await fetch(IP_LOCAL + '/history/delete?id=' + id, { method: 'POST' });
+                loadHistory();
+            } catch(e) { alert(t.msgDelHistoryError); }
+        }
+
+        async function applyHistory(id) {
+            const t = traducoes[idiomaAtual];
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPast;
+            try {
+                let res = await fetch(IP_LOCAL + '/history/apply?id=' + id, { method: 'POST' });
+                if(res.ok) {
+                    alert(t.msgApplyHistorySuccess);
+                    document.getElementById('btn-remove').style.display = "block";
+                    window.hasCustomAnimApplied = true;
+                }
+            } catch(e) { alert(t.msgApplyHistoryError); }
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        async function createMiniPreviewWebm() {
+            return new Promise(async (resolve) => {
+                const c = document.createElement('canvas');
+                c.width = 150; c.height = Math.floor(150 * (originalH/originalW));
+                const ctx = c.getContext('2d');
+                const stream = c.captureStream(10);
+                const rec = new MediaRecorder(stream, {mimeType: 'video/webm'});
+                const chunks = [];
+                rec.ondataavailable = e => chunks.push(e.data);
+                rec.start();
+                
+                let t = marcadores.m1;
+                let step = (marcadores.m2 - marcadores.m1) / 30; 
+                for(let i=0; i<30; i++) {
+                    playerVideo.currentTime = t;
+                    await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });
+                    ctx.drawImage(playerVideo, 0, 0, c.width, c.height);
+                    t += step;
+                    await new Promise(r => setTimeout(r, 20));
+                }
+                
+                rec.stop();
+                rec.onstop = () => resolve(new Blob(chunks, {type: 'video/webm'}));
+            });
+        }
+
+        function abrirModalPull() {
+            if (window.hasCustomAnimApplied) {
+                document.getElementById('modal-pull').style.display = 'flex';
+            } else {
+                puxarAnimacao('system');
+            }
+        }
+
+        function fecharModalPull() {
+            document.getElementById('modal-pull').style.display = 'none';
+        }
+
+        async function puxarAnimacao(source) {
+            fecharModalPull();
+            const t = traducoes[idiomaAtual];
+            document.getElementById('texto-progresso').textContent = "Downloading from phone... 📥";
+            document.getElementById('container-progresso').style.display = 'flex';
+            
+            try {
+                let res = await fetch(IP_LOCAL + '/pull?source=' + source + '&t=' + Date.now());
+                if (!res.ok) throw new Error("Failed to pull");
+                
+                let blob = await res.blob();
+                await abrirZipNoEditor(blob);
+                
+                document.getElementById('container-progresso').style.display = 'none';
+                
+            } catch(e) {
+                alert(t.erro + " - " + e.message);
+                document.getElementById('container-progresso').style.display = 'none';
+            }
+        }
+
+        document.getElementById('upload-zip').addEventListener('change', function(evento) {
+            const arquivo = evento.target.files[0];
+            if (!arquivo) return;
+            abrirZipNoEditor(arquivo);
+        });
+
+        document.getElementById('upload-zip-direto').addEventListener('change', async function(evento) {
+            const arquivo = evento.target.files[0];
+            const t = traducoes[idiomaAtual];
+            if (!arquivo) return;
+
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('txt-loading-timeline').textContent = t.msgCheckingZip;
+
+            try {
+                const zip = await JSZip.loadAsync(arquivo);
+                const descFile = zip.file("desc.txt");
+                
+                if (!descFile) throw new Error(t.msgZipNoDesc);
+                
+                let temPastaPart = false;
+                zip.forEach(function (relativePath, file){
+                    if (file.dir && (relativePath.includes("part") || relativePath.includes("folder"))) {
+                        temPastaPart = true;
+                    }
+                });
+
+                if (!temPastaPart) throw new Error(t.msgZipNoParts);
+
+                document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPhone;
+                
+                const formData = new FormData();
+                formData.append('bootanimation', arquivo, 'bootanimation.zip');
+                
+                let res = await fetch(IP_LOCAL + "/upload", { method: "POST", body: formData });
+                
+                if (res.ok) {
+                    alert(t.msgZipInjectSuccess);
+                    document.getElementById('btn-remove').style.display = "block";
+                    window.hasCustomAnimApplied = true;
+                    loadHistory(); 
+                } else {
+                    throw new Error(t.msgZipInjectRefused);
+                }
+            } catch (e) {
+                alert(t.erro + " - " + e.message);
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
+                evento.target.value = ''; 
+            }
+        });
+
+        async function converterGifParaVideo(file) {
+            const t = traducoes[idiomaAtual];
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('txt-loading-timeline').textContent = t.msgLoadingGif;
+            
+            try {
+                const { parseGIF, decompressFrames } = await import('https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm');
+                
+                const buffer = await file.arrayBuffer();
+                const gif = parseGIF(buffer);
+                const frames = decompressFrames(gif, true);
+                
+                if (!frames || frames.length === 0) throw new Error(t.msgGifEmpty);
+
+                const w = frames[0].dims.width;
+                const h = frames[0].dims.height;
+                
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w; tempCanvas.height = h;
+                const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+                
+                let totalDelay = 0;
+                frames.forEach(f => totalDelay += Math.max(20, f.delay));
+                let avgDelay = totalDelay / frames.length;
+                let fps = Math.round(1000 / avgDelay);
+                if(fps > 60) fps = 60; 
+                if(fps < 1) fps = 10;
+                
+                document.getElementById('txt-loading-timeline').textContent = t.msgLoadingVid;
+
+                const stream = tempCanvas.captureStream(fps);
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                const pedacos = [];
+                recorder.ondataavailable = e => { if (e.data.size > 0) pedacos.push(e.data); };
+                
+                const gravacaoPronta = new Promise(res => recorder.onstop = () => res(new Blob(pedacos, {type: 'video/webm'})));
+                recorder.start();
+
+                const gifCanvas = document.createElement('canvas');
+                gifCanvas.width = w; gifCanvas.height = h;
+                const gifCtx = gifCanvas.getContext('2d');
+                let prevImgData;
+                
+                const startTime = performance.now();
+                let accumulatedDelay = 0;
+
+                for (let i = 0; i < frames.length; i++) {
+                    const frame = frames[i];
+                    
+                    if (i > 0 && frames[i-1].disposalType === 2) {
+                        gifCtx.clearRect(frames[i-1].dims.left, frames[i-1].dims.top, frames[i-1].dims.width, frames[i-1].dims.height);
+                    } else if (i > 0 && frames[i-1].disposalType === 3 && prevImgData) {
+                        gifCtx.putImageData(prevImgData, 0, 0);
+                    }
+                    
+                    if (frame.disposalType === 3) {
+                        prevImgData = gifCtx.getImageData(0, 0, w, h);
+                    }
+                    
+                    const patchCanvas = document.createElement('canvas');
+                    patchCanvas.width = frame.dims.width; patchCanvas.height = frame.dims.height;
+                    const pData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+                    patchCanvas.getContext('2d').putImageData(pData, 0, 0);
+                    
+                    gifCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
+                    
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(gifCanvas, 0, 0);
+                    
+                    accumulatedDelay += Math.max(20, frame.delay);
+                    const expectedTime = startTime + accumulatedDelay;
+                    const now = performance.now();
+                    const sleepTime = expectedTime - now;
+                    
+                    if (sleepTime > 0) {
+                        await new Promise(r => setTimeout(r, sleepTime));
+                    } else {
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                recorder.stop();
+                const videoWebm = await gravacaoPronta;
+                
+                document.getElementById('dicas-iniciais').style.display = 'none';
+                playerVideo.src = URL.createObjectURL(videoWebm); 
+                document.getElementById('video-container').style.display = 'block';
+                document.getElementById('timeline-wrapper').style.display = 'block';
+                document.getElementById('grid-marcadores').style.display = 'grid';
+                document.getElementById('configuracoes').style.display = 'grid';
+                document.getElementById('botoes-exportacao').style.display = 'none';
+                document.getElementById('btn-ver-preview').style.display = 'none';
+                marcadores = { m0: null, m1: null, m2: null, m3: null };
+                atualizarBotoesELinhas();
+                
+            } catch (error) {
+                console.error(error);
+                alert(t.msgGifError + error.message);
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }
+
+        async function abrirZipNoEditor(zipBlob) {
+            const t = traducoes[idiomaAtual];
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('txt-loading-timeline').textContent = t.msgLoadingZip;
+
+            try {
+                const zip = await JSZip.loadAsync(zipBlob);
+                const descFile = zip.file("desc.txt");
+                if (!descFile) throw new Error(t.msgZipNoDesc);
+                
+                const descText = await descFile.async("string");
+                const linhas = descText.split('\n').map(l => l.trim()).filter(l => l);
+                
+                const configTops = linhas[0].split(' ');
+                const zipW = parseInt(configTops[0]);
+                const zipH = parseInt(configTops[1]);
+                const zipFps = parseInt(configTops[2]) || 30;
+
+                document.getElementById('txt-loading-timeline').textContent = t.msgOrgFrames;
+                
+                let todasImagens = [];
+                let contagemPorPasta = [];
+
+                for (let i = 1; i < linhas.length; i++) {
+                    const partes = linhas[i].split(' ');
+                    if (partes[0] === 'c' || partes[0] === 'p') {
+                        const nomePasta = partes[3];
+                        const regex = new RegExp("^" + nomePasta + "/.*\\.(png|jpg|jpeg)$", "i");
+                        const arquivosPasta = zip.file(regex);
+                        
+                        arquivosPasta.sort((a, b) => a.name.localeCompare(b.name));
+                        
+                        for (let arq of arquivosPasta) {
+                            const imgBlob = await arq.async("blob");
+                            todasImagens.push(imgBlob);
+                        }
+                        
+                        contagemPorPasta.push({ nome: nomePasta, frames: arquivosPasta.length });
+                    }
+                }
+
+                if (todasImagens.length === 0) throw new Error(t.msgZipNoParts);
+
+                document.getElementById('txt-loading-timeline').textContent = t.msgStitching;
+                
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = zipW;
+                tempCanvas.height = zipH;
+                const ctx = tempCanvas.getContext('2d');
+
+                const stream = tempCanvas.captureStream(zipFps);
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                const pedacosVideo = [];
+
+                recorder.ondataavailable = e => { if (e.data.size > 0) pedacosVideo.push(e.data); };
+                
+                const gravacaoPronta = new Promise(resolve => {
+                    recorder.onstop = () => resolve(new Blob(pedacosVideo, { type: 'video/webm' }));
+                });
+
+                recorder.start();
+
+                const frameTime = 1000 / zipFps;
+                const startTime = performance.now();
+                
+                for (let i = 0; i < todasImagens.length; i++) {
+                    const img = new Image();
+                    img.src = URL.createObjectURL(todasImagens[i]);
+                    await new Promise(r => img.onload = r);
+                    
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(0, 0, zipW, zipH);
+                    ctx.drawImage(img, 0, 0, zipW, zipH);
+                    URL.revokeObjectURL(img.src);
+
+                    const expectedTime = startTime + ((i + 1) * frameTime);
+                    const now = performance.now();
+                    const sleepTime = expectedTime - now;
+                    
+                    if (sleepTime > 0) {
+                        await new Promise(r => setTimeout(r, sleepTime));
+                    } else {
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                recorder.stop();
+                const videoWebm = await gravacaoPronta;
+
+                document.getElementById('dicas-iniciais').style.display = 'none';
+                document.getElementById('botoes-exportacao').style.display = 'flex';
+                document.getElementById('video-container').style.display = 'block';
+                document.getElementById('timeline-wrapper').style.display = 'block';
+                document.getElementById('grid-marcadores').style.display = 'grid';
+                document.getElementById('configuracoes').style.display = 'grid';
+                document.getElementById('btn-gerar').style.display = 'block';
+                document.getElementById('btn-ver-preview').style.display = 'none';
+                
+                document.getElementById('input-fps').value = zipFps;
+                document.getElementById('input-largura').value = zipW;
+                document.getElementById('input-altura').value = zipH;
+                document.getElementById('input-qualidade').value = "custom";
+                
+                let m1_idx = 0;
+                let m2_idx = 0;
+                let totalFramesGerais = 0;
+
+                for (let c of contagemPorPasta) {
+                    if (c.nome.includes('0') || totalFramesGerais === 0) {
+                        m1_idx = totalFramesGerais + c.frames - 1; 
+                    }
+                    if (c.nome.includes('1') || (contagemPorPasta.length > 1 && totalFramesGerais > 0 && m2_idx === 0)) {
+                        m2_idx = totalFramesGerais + c.frames - 1; 
+                    }
+                    totalFramesGerais += c.frames;
+                }
+
+                if (m2_idx === 0) m2_idx = m1_idx; 
+                if (m2_idx < m1_idx) m2_idx = m1_idx; 
+
+                marcadores.m0 = 0;
+                marcadores.m1 = m1_idx / zipFps;
+                marcadores.m2 = m2_idx / zipFps;
+                marcadores.m3 = (totalFramesGerais - 1) / zipFps;
+
+                playerVideo.src = URL.createObjectURL(videoWebm);
+                
+                playerVideo.onloadedmetadata = async () => {
+                    originalW = zipW;
+                    originalH = zipH;
+                    atualizarTamanho();
+                    ajustarPaddings();
+                    await desenharFilmstrip(); 
+                    atualizarBotoesELinhas(); 
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    playerVideo.onloadedmetadata = null;
+                };
+
+            } catch (error) {
+                console.error(error);
+                alert(t.msgZipReadError + error.message);
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }
+
+        function baixarVideo() {
+            if (!playerVideo.src) return;
+            const linkDownload = document.createElement("a");
+            linkDownload.href = playerVideo.src;
+            linkDownload.download = "bootanimation_video.webm"; 
+            linkDownload.click();
+        }
+
+        function baixarZipEditado() {
+            btnGerar.click(); 
+        }
+
+        function verificarModulo() {
+            const isModulo = document.getElementById('input-gerar-modulo').checked;
+            const containerFabricante = document.getElementById('container-fabricante');
+            if (isModulo) { containerFabricante.style.display = "flex"; } else { containerFabricante.style.display = "none"; }
+        }
+
+        function verificarPainelAudio() {
+            const usaAudio = document.getElementById('input-usar-som').checked;
+            document.getElementById('painel-audio').style.display = usaAudio ? "flex" : "none";
+        }
+
+        function handleAudioSelect(part) {
+            const select = document.getElementById(`sel-audio-${part}`);
+            const wrap = document.getElementById(`vol-wrap-${part}`);
+            if (select.value === 'file') {
+                document.getElementById(`file-audio-${part}`).click();
+                wrap.style.display = "flex";
+            } else if (select.value === 'video') {
+                wrap.style.display = "flex";
+            } else {
+                wrap.style.display = "none";
+                const t = traducoes[idiomaAtual];
+                document.getElementById(`opt-file-${part}`).textContent = t.optFile;
+                document.getElementById(`opt-file-${part}`).removeAttribute('data-custom');
+            }
+        }
+
+        function fileAudioSelecionado(part) {
+            const inputFile = document.getElementById(`file-audio-${part}`);
+            const select = document.getElementById(`sel-audio-${part}`);
+            const optFile = document.getElementById(`opt-file-${part}`);
+            const wrap = document.getElementById(`vol-wrap-${part}`);
+            if (inputFile.files.length > 0) {
+                const nome = inputFile.files[0].name;
+                optFile.textContent = `🎵 ${nome}`;
+                optFile.setAttribute('data-custom', `🎵 ${nome}`);
+                wrap.style.display = "flex";
+            } else {
+                select.value = "none";
+                const t = traducoes[idiomaAtual];
+                optFile.textContent = t.optFile;
+                optFile.removeAttribute('data-custom');
+                wrap.style.display = "none";
+            }
+        }
+
+        function fecharModal() {
+            videoPreview.pause();
+            ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause()); 
+            document.getElementById('modal-preview').style.display = 'none';
+        }
+
+        function chamarModalPreview() {
+            if (isConnectedMode) {
+                document.getElementById('modal-escolha-preview').style.display = 'flex';
+            } else {
+                abrirPreviewWeb();
+            }
+        }
+
+        function abrirPreviewWeb() {
+            document.getElementById('modal-escolha-preview').style.display = 'none';
+            videoPreview.src = playerVideo.src;
+            videoPreview.currentTime = marcadores.m0;
+            videoPreview.muted = !document.getElementById('input-usar-som').checked; 
+            currentPreviewPart = -1;
+            
+            document.getElementById('modal-preview').style.display = 'flex';
+            videoPreview.play();
+        }
+
+        async function testarNoCelular() {
+            const t = traducoes[idiomaAtual];
+            document.getElementById('modal-escolha-preview').style.display = 'none';
+            try {
+                let res = await fetch(IP_LOCAL + '/test_anim');
+                if(res.ok) {
+                    alert(t.msgMagicSent);
+                } else {
+                    alert(t.msgMagicError);
+                }
+            } catch(e) {
+                alert(t.msgMagicConnError);
+            }
+        }
+
+        const inputVideo = document.getElementById('upload-video');
+        const playerVideo = document.getElementById('player-video');
+        const videoContainer = document.getElementById('video-container');
+        const timelineWrapper = document.getElementById('timeline-wrapper');
+        const scrollTimeline = document.getElementById('timeline-scroll');
+        const filmstrip = document.getElementById('filmstrip');
+        const gridMarcadores = document.getElementById('grid-marcadores');
+        const configuracoes = document.getElementById('configuracoes');
+        const btnGerar = document.getElementById('btn-gerar');
+        const btnVerPreview = document.getElementById('btn-ver-preview');
+        const dicasIniciais = document.getElementById('dicas-iniciais');
+        const videoPreview = document.getElementById('video-preview');
+        
+        const canvasInvisivel = document.createElement('canvas');
+        const contexto = canvasInvisivel.getContext('2d', { alpha: false, willReadFrequently: true }); 
+        
+        let marcadores = { m0: null, m1: null, m2: null, m3: null };
+        let originalW = 0, originalH = 0;
+        let isGenerating = false;
+        let animationFrameId = null;
+
+        let isBuildingTimeline = false;
+        let isProgrammaticScroll = false;
+
+        const previewAudios = { m0: new Audio(), m1: new Audio(), m2: new Audio() };
+        let currentPreviewPart = -1;
+        
+        videoPreview.addEventListener('timeupdate', () => {
+            const t = videoPreview.currentTime;
+            
+            if (t >= marcadores.m3) { 
+                videoPreview.currentTime = marcadores.m0; 
+            }
+
+            if (document.getElementById('input-usar-som').checked) {
+                let part = 'm0';
+                if (t >= marcadores.m1 && t < marcadores.m2) part = 'm1';
+                else if (t >= marcadores.m2) part = 'm2';
+
+                if (part !== currentPreviewPart) {
+                    ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause());
+                    if (previewAudios[part] && previewAudios[part].src) {
+                        previewAudios[part].currentTime = 0;
+                        previewAudios[part].play().catch(e=>console.log("Audio block: ", e));
+                    }
+                    currentPreviewPart = part;
+                }
+            }
+        });
+
+        playerVideo.addEventListener('click', () => {
+            if (isGenerating || isBuildingTimeline) return; 
+            if (playerVideo.paused) { playerVideo.play(); } 
+            else { playerVideo.pause(); }
+        });
+
+        playerVideo.addEventListener('pause', () => {
+            playerVideo.classList.add('pausado');
+            cancelAnimationFrame(animationFrameId);
+        });
+        
+        playerVideo.addEventListener('play', () => {
+            playerVideo.classList.remove('pausado');
+            animationFrameId = requestAnimationFrame(animarTimelineSmooth);
+        });
+
+        function animarTimelineSmooth() {
+            if (!playerVideo.paused && !isGenerating && !isBuildingTimeline && playerVideo.duration) {
+                const percent = playerVideo.currentTime / playerVideo.duration;
+                isProgrammaticScroll = true;
+                scrollTimeline.scrollLeft = percent * filmstrip.offsetWidth;
+                setTimeout(() => { isProgrammaticScroll = false; }, 20);
+                animationFrameId = requestAnimationFrame(animarTimelineSmooth);
+            }
+        }
+
+        function ajustarPaddings() {
+            const pad = (timelineWrapper.clientWidth / 2) + "px";
+            document.getElementById('pad-left').style.width = pad;
+            document.getElementById('pad-left').style.minWidth = pad;
+            document.getElementById('pad-right').style.width = pad;
+            document.getElementById('pad-right').style.minWidth = pad;
+        }
+        window.addEventListener('resize', ajustarPaddings);
+
+        inputVideo.addEventListener('change', function(evento) {
+            const arquivo = evento.target.files[0];
+            if (!arquivo) return;
+
+            if (arquivo.type === 'image/gif') {
+                converterGifParaVideo(arquivo);
+                return;
+            }
+
+            const leitor = new FileReader();
+            leitor.onload = function(e) {
+                dicasIniciais.style.display = 'none';
+                playerVideo.src = e.target.result; 
+                videoContainer.style.display = 'block';
+                timelineWrapper.style.display = 'block';
+                gridMarcadores.style.display = 'grid';
+                configuracoes.style.display = 'grid';
+                btnVerPreview.style.display = 'none'; 
+                document.getElementById('botoes-exportacao').style.display = 'none';
+                marcadores = { m0: null, m1: null, m2: null, m3: null };
+                atualizarBotoesELinhas();
+            };
+            leitor.readAsDataURL(arquivo);
+        });
+
+        playerVideo.addEventListener('loadedmetadata', async function() {
+            originalW = playerVideo.videoWidth;
+            originalH = playerVideo.videoHeight;
+            atualizarTamanho();
+            ajustarPaddings();
+            
+            document.getElementById('loading-overlay').style.display = 'flex';
+            playerVideo.style.opacity = '0'; 
+            
+            await desenharFilmstrip();
+            
+            playerVideo.style.opacity = '1';
+            document.getElementById('loading-overlay').style.display = 'none';
+        });
+
+        let isMouseDown = false;
+        let startX;
+        let scrollLeftPos;
+
+        scrollTimeline.addEventListener('touchstart', () => { 
+            if (isGenerating || isBuildingTimeline) return; 
+            playerVideo.pause(); 
+        }, {passive: true});
+        
+        scrollTimeline.addEventListener('mousedown', (e) => {
+            if (isGenerating || isBuildingTimeline) return; 
+            isMouseDown = true;
+            playerVideo.pause();
+            startX = e.pageX - scrollTimeline.offsetLeft;
+            scrollLeftPos = scrollTimeline.scrollLeft;
+            scrollTimeline.style.cursor = 'grabbing';
+        });
+
+        scrollTimeline.addEventListener('mouseleave', () => {
+            isMouseDown = false;
+            scrollTimeline.style.cursor = 'grab';
+        });
+
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            scrollTimeline.style.cursor = 'grab';
+        });
+
+        scrollTimeline.addEventListener('mousemove', (e) => {
+            if (!isMouseDown || isGenerating || isBuildingTimeline) return; 
+            e.preventDefault();
+            const x = e.pageX - scrollTimeline.offsetLeft;
+            const walk = (x - startX) * 1.5; 
+            scrollTimeline.scrollLeft = scrollLeftPos - walk;
+        });
+
+        let isSeeking = false;
+        let targetTime = 0;
+
+        scrollTimeline.addEventListener('scroll', () => {
+            if (isProgrammaticScroll || isBuildingTimeline || !playerVideo.paused || !playerVideo.duration || isGenerating) return;
+            
+            let percent = scrollTimeline.scrollLeft / filmstrip.offsetWidth;
+            percent = Math.max(0, Math.min(1, percent));
+            targetTime = percent * playerVideo.duration;
+
+            if (!isSeeking && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
+                isSeeking = true;
+                playerVideo.currentTime = targetTime;
+            }
+        });
+
+        playerVideo.addEventListener('seeked', () => {
+            isSeeking = false;
+            if (playerVideo.paused && !isGenerating && !isBuildingTimeline && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
+                isSeeking = true;
+                playerVideo.currentTime = targetTime;
+            }
+        });
+
+        async function desenharFilmstrip() {
+            isBuildingTimeline = true;
+            filmstrip.innerHTML = '';
+            const dur = playerVideo.duration;
+            
+            let framesPorSegundo = dur < 5 ? 5 : dur < 10 ? 3 : dur < 20 ? 2 : 1; 
+            let numFrames = Math.ceil(dur * framesPorSegundo);
+            numFrames = Math.max(10, Math.min(numFrames, 50)); 
+            
+            const larguraFrame = 70; 
+            filmstrip.style.width = (numFrames * larguraFrame) + 'px';
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 100;
+            tempCanvas.height = Math.floor((originalH / originalW) * 100);
+            const tempCtx = tempCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+            
+            for (let i = 0; i < numFrames; i++) {
+                const tempoAlvo = Math.min(dur - 0.05, Math.max(0.01, ((i + 0.5) / numFrames) * dur));
+                
+                await new Promise(r => {
+                    const cb = () => { 
+                        playerVideo.removeEventListener('seeked', cb); 
+                        requestAnimationFrame(() => r());
+                    };
+                    playerVideo.addEventListener('seeked', cb);
+                    playerVideo.currentTime = tempoAlvo;
+                });
+
+                tempCtx.drawImage(playerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+                
+                const img = document.createElement('img');
+                img.src = tempCanvas.toDataURL('image/jpeg', 0.5);
+                img.style.width = (100 / numFrames) + '%';
+                filmstrip.appendChild(img);
+            }
+
+            playerVideo.currentTime = 0;
+            isProgrammaticScroll = true;
+            scrollTimeline.scrollLeft = 0;
+            
+            setTimeout(() => { 
+                isProgrammaticScroll = false; 
+                isBuildingTimeline = false; 
+            }, 100);
+        }
+
+        window.marcarTrecho = function(id) {
+            if (isGenerating || isBuildingTimeline) return; 
+            marcadores[id] = playerVideo.currentTime; 
+            atualizarBotoesELinhas();
+        }
+
+        function atualizarBotoesELinhas() {
+            document.querySelectorAll('.linha-marcador').forEach(el => el.remove());
+            const t = traducoes[idiomaAtual];
+            let tudoMarcado = true;
+            let temposOrdem = [];
+
+            const temVideo = (document.getElementById('video-container').style.display === 'block');
+
+            btnVerPreview.style.display = 'none';
+
+            ['m0', 'm1', 'm2', 'm3'].forEach(id => {
+                const tempo = marcadores[id];
+                const spanStatus = document.getElementById(`st-${id}`);
+                
+                if (tempo !== null) {
+                    spanStatus.textContent = tempo.toFixed(2) + 's';
+                    temposOrdem.push(tempo);
+                    
+                    const linha = document.createElement('div');
+                    linha.className = `linha-marcador linha-${id}`;
+                    linha.style.left = ((tempo / playerVideo.duration) * 100) + '%';
+                    
+                    linha.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (isGenerating || isBuildingTimeline) return;
+                        playerVideo.currentTime = tempo;
+                        isProgrammaticScroll = true;
+                        scrollTimeline.scrollLeft = (tempo / playerVideo.duration) * filmstrip.offsetWidth;
+                        setTimeout(() => { isProgrammaticScroll = false; }, 20);
+                        playerVideo.pause();
+                    });
+                    linha.style.cursor = 'pointer';
+                    filmstrip.appendChild(linha);
+                } else {
+                    spanStatus.textContent = t.naoMarcado;
+                    tudoMarcado = false;
+                }
+            });
+
+            if (tudoMarcado) {
+                if (temposOrdem[0] <= temposOrdem[1] && temposOrdem[1] <= temposOrdem[2] && temposOrdem[2] <= temposOrdem[3]) {
+                    btnGerar.classList.remove('btn-desativado');
+                    btnGerar.textContent = isConnectedMode ? t.btnInjectReady : t.btnGerarPronto;
+                    if(temVideo) btnGerar.style.display = 'block'; 
+                } else {
+                    if(temVideo) btnGerar.style.display = 'block';
+                    btnGerar.classList.add('btn-desativado');
+                    btnGerar.textContent = t.btnOrdem;
+                }
+            } else {
+                if(temVideo) btnGerar.style.display = 'block';
+                btnGerar.classList.add('btn-desativado');
+                btnGerar.textContent = t.btnFaltam;
+            }
+            
+            if (!temVideo) {
+                btnGerar.style.display = 'none';
+            }
+        }
+
+        function atualizarTamanho() {
+            if (!originalW || !originalH) return;
+            let val = document.getElementById('input-qualidade').value;
+            if (val === "custom") return;
+
+            let w = originalW; let h = originalH;
+            if (val === "320" && originalW > 320) { w = 320; h = Math.floor(originalH * (320/originalW)); } 
+            else if (val === "480" && originalW > 480) { w = 480; h = Math.floor(originalH * (480/originalW)); } 
+            else if (val === "720" && originalW > 720) { w = 720; h = Math.floor(originalH * (720/originalW)); }
+            else if (val.includes("x")) { const p = val.split("x"); w = parseInt(p[0]); h = parseInt(p[1]); }
+
+            w = Math.floor(w / 2) * 2; h = Math.floor(h / 2) * 2;
+            document.getElementById('input-largura').value = w; document.getElementById('input-altura').value = h;
+        }
+
+        window.aoMudarTamanhoManual = function() {
+            if (originalW === 0 || originalH === 0) return;
+            let w = parseInt(document.getElementById('input-largura').value) || 0;
+            let h = parseInt(document.getElementById('input-altura').value) || 0;
+            let wOrig = Math.floor(originalW / 2) * 2;
+            let hOrig = Math.floor(originalH / 2) * 2;
+            let seletor = document.getElementById('input-qualidade');
+            let checarProporcao = (alvoW) => {
+                if (originalW <= alvoW) return { w: wOrig, h: hOrig };
+                return { w: alvoW, h: Math.floor(Math.floor(originalH * (alvoW / originalW)) / 2) * 2 };
+            };
+            let p320 = checarProporcao(320); let p480 = checarProporcao(480); let p720 = checarProporcao(720);
+
+            let pAuto = {w:0, h:0};
+            const optAuto = document.getElementById('opt-auto');
+            if (optAuto && optAuto.value && optAuto.value.includes("x")) {
+                const pa = optAuto.value.split("x"); pAuto = {w: parseInt(pa[0]), h: parseInt(pa[1])};
+            }
+
+            if (w === p320.w && h === p320.h && p320.w !== 0) seletor.value = "320";
+            else if (w === p480.w && h === p480.h && p480.w !== 0) seletor.value = "480";
+            else if (w === p720.w && h === p720.h && p720.w !== 0) seletor.value = "720";
+            else if (w === pAuto.w && h === pAuto.h && pAuto.w !== 0) seletor.value = optAuto.value;
+            else if (w === wOrig && h === hOrig && wOrig !== 0) seletor.value = "1";
+            else seletor.value = "custom";
+        }
+
+        function audioBufferToWav(buffer) {
+            let numOfChan = buffer.numberOfChannels,
+                length = buffer.length * numOfChan * 2 + 44,
+                bufferData = new ArrayBuffer(length),
+                view = new DataView(bufferData),
+                channels = [], i, sample, offset = 0, pos = 0;
+
+            function setUint16(data) { view.setUint16(offset, data, true); offset += 2; }
+            function setUint32(data) { view.setUint32(offset, data, true); offset += 4; }
+
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157); 
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * 2 * numOfChan); 
+            setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4); 
+
+            for(i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
+
+            while(pos < buffer.length) {
+                for(i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+                pos++;
+            }
+            return new Blob([bufferData], { type: "audio/wav" });
+        }
+
+        async function processarAudioMagico(tipo, startSec, endSec, ctx, volume = 1.0) {
+            let bufferAlvo = null;
+            if (tipo === 'video') {
+                const vidFile = document.getElementById('upload-video').files[0];
+                try {
+                    const arrBuf = await vidFile.arrayBuffer();
+                    const fullBuf = await ctx.decodeAudioData(arrBuf);
+                    const duracao = endSec - startSec;
+                    if (duracao > 0) {
+                        const offlineCtx = new OfflineAudioContext(fullBuf.numberOfChannels, Math.floor(duracao * fullBuf.sampleRate), fullBuf.sampleRate);
+                        const source = offlineCtx.createBufferSource();
+                        source.buffer = fullBuf;
+                        
+                        const gainNode = offlineCtx.createGain();
+                        gainNode.gain.value = volume;
+                        source.connect(gainNode);
+                        gainNode.connect(offlineCtx.destination);
+                        
+                        source.start(0, startSec, duracao);
+                        bufferAlvo = await offlineCtx.startRendering();
+                    }
+                } catch(e) { console.error("Error video audio:", e); }
+            } else if (tipo.startsWith('file_')) {
+                const idInput = tipo.split('_')[1];
+                const input = document.getElementById(`file-audio-${idInput}`);
+                if (input.files.length > 0) {
+                    try {
+                        const arrBuf = await input.files[0].arrayBuffer();
+                        const rawBuffer = await ctx.decodeAudioData(arrBuf);
+                        
+                        const offlineCtx = new OfflineAudioContext(rawBuffer.numberOfChannels, rawBuffer.length, rawBuffer.sampleRate);
+                        const source = offlineCtx.createBufferSource();
+                        source.buffer = rawBuffer;
+                        
+                        const gainNode = offlineCtx.createGain();
+                        gainNode.gain.value = volume;
+                        source.connect(gainNode);
+                        gainNode.connect(offlineCtx.destination);
+                        
+                        source.start(0);
+                        bufferAlvo = await offlineCtx.startRendering();
+                    } catch(e) { console.error("Error file audio:", e); }
+                }
+            }
+            if (bufferAlvo) return audioBufferToWav(bufferAlvo);
+            return null;
+        }
+
+        btnGerar.addEventListener('click', async () => {
+            if (btnGerar.classList.contains('btn-desativado') || isGenerating) return;
+            const t = traducoes[idiomaAtual];
+            
+            isGenerating = true;
+            videoContainer.classList.add('bloqueado');
+            timelineWrapper.classList.add('bloqueado');
+            gridMarcadores.classList.add('bloqueado');
+            configuracoes.classList.add('bloqueado');
+            
+            btnGerar.classList.add('btn-desativado');
+            btnGerar.textContent = t.gerandoFrames;
+            document.getElementById('container-progresso').style.display = 'flex'; 
+            
+            try {
+                const innerZip = new JSZip();
+                
+                let fps = parseInt(document.getElementById('input-fps').value) || 30;
+                fps = Math.min(60, Math.max(1, fps)); 
+
+                const largura = parseInt(document.getElementById('input-largura').value) || originalW;
+                const altura = parseInt(document.getElementById('input-altura').value) || originalH;
+                const formato = document.getElementById('input-formato').value;
+                const fabricante = document.getElementById('input-fabricante').value;
+                const isModuloMagisk = document.getElementById('input-gerar-modulo').checked;
+                const isSomAtivo = document.getElementById('input-usar-som').checked;
+                
+                let nomeEscolhido = document.getElementById('input-nome').value.trim();
+                if (!nomeEscolhido) nomeEscolhido = "bootanimation";
+                
+                canvasInvisivel.width = largura; canvasInvisivel.height = altura;
+
+                await paparazzoOtimizado(innerZip, largura, altura, fps, formato, t);
+                
+                innerZip.file("desc.txt", `${largura} ${altura} ${fps}\nc 1 0 part0\np 0 0 part1\nc 1 0 part2\n`);
+
+                if (isSomAtivo) {
+                    document.getElementById('texto-progresso').textContent = t.processandoAudio;
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    const p0 = document.getElementById('sel-audio-intro').value;
+                    const p1 = document.getElementById('sel-audio-loop').value;
+                    const p2 = document.getElementById('sel-audio-final').value;
+                    
+                    const v0 = (parseInt(document.getElementById('vol-intro').value) || 100) / 100.0;
+                    const v1 = (parseInt(document.getElementById('vol-loop').value) || 100) / 100.0;
+                    const v2 = (parseInt(document.getElementById('vol-final').value) || 100) / 100.0;
+
+                    if (p0 !== 'none') {
+                        const blob0 = await processarAudioMagico(p0 === 'file' ? 'file_intro' : p0, marcadores.m0, marcadores.m1, audioCtx, v0);
+                        if(blob0) { innerZip.folder("part0").file("audio.wav", blob0); previewAudios.m0.src = URL.createObjectURL(blob0); }
+                    }
+                    if (p1 !== 'none') {
+                        const blob1 = await processarAudioMagico(p1 === 'file' ? 'file_loop' : p1, marcadores.m1, marcadores.m2, audioCtx, v1);
+                        if(blob1) { innerZip.folder("part1").file("audio.wav", blob1); previewAudios.m1.src = URL.createObjectURL(blob1); }
+                    }
+                    if (p2 !== 'none') {
+                        const blob2 = await processarAudioMagico(p2 === 'file' ? 'file_final' : p2, marcadores.m2, marcadores.m3, audioCtx, v2);
+                        if(blob2) { innerZip.folder("part2").file("audio.wav", blob2); previewAudios.m2.src = URL.createObjectURL(blob2); }
+                    }
+                }
+                
+                document.getElementById('texto-progresso').textContent = t.compactandoZip;
+                btnGerar.textContent = t.fechandoZiper;
+                
+                const rawBootAnimBlob = await innerZip.generateAsync({ type: "blob", compression: "STORE" });
+                
+                if (isConnectedMode) {
+                    document.getElementById('texto-progresso').textContent = t.msgInjecting;
+                    
+                    const previewWebmBlob = await createMiniPreviewWebm();
+
+                    const formData = new FormData();
+                    formData.append('bootanimation', rawBootAnimBlob, 'bootanimation.zip');
+                    formData.append('preview', previewWebmBlob, 'preview.gif');
+
+                    try {
+                        await fetch(IP_LOCAL + "/upload", {
+                            method: "POST",
+                            body: formData
+                        });
+                        loadHistory(); 
+                    } catch (e) {
+                        alert(t.msgInjectError);
+                    }
+                } else {
+                    if (isModuloMagisk) {
+                        const magiskZip = new JSZip();
+                        magiskZip.file("module.prop", `id=custom_bootanim\nname=Custom Bootanimation Module\nversion=1.0\nversionCode=1\nauthor=BootAnimCreator\ndescription=Animacao de boot customizada gerada pelo site.`);
+                        
+                        const caminhosPorVariante = {
+                            standard: ["product/media", "system/media", "apex/com.android.bootanimation/etc"],
+                            miui: ["product/media", "system/media", "system_ext/media", "system/media/theme", "apex/com.android.bootanimation/etc"],
+                            mtk: ["product/media", "system/media", "custom/media", "apex/com.android.bootanimation/etc"],
+                            motorola: ["product/media", "system/media", "oem/media", "apex/com.android.bootanimation/etc"],
+                            emui: ["product/media", "system/media", "system/etc/media", "apex/com.android.bootanimation/etc"]
+                        };
+
+                        const caminhosAUsar = caminhosPorVariante[fabricante] || caminhosPorVariante['standard'];
+                        for (let caminho of caminhosAUsar) {
+                            let pastaAtual = magiskZip;
+                            for (let p of caminho.split('/')) { pastaAtual = pastaAtual.folder(p); }
+                            pastaAtual.file("bootanimation.zip", rawBootAnimBlob);
+                        }
+                        
+                        const rawFinalBlob = await magiskZip.generateAsync({ type: "blob", compression: "DEFLATE" });
+                        const linkDownload = document.createElement("a");
+                        linkDownload.href = URL.createObjectURL(rawFinalBlob);
+                        linkDownload.download = `${nomeEscolhido}.zip`; 
+                        linkDownload.click();
+                    } else {
+                        const linkDownload = document.createElement("a");
+                        linkDownload.href = URL.createObjectURL(rawBootAnimBlob);
+                        linkDownload.download = `${nomeEscolhido}.zip`; 
+                        linkDownload.click();
+                    }
+                }
+                
+                document.getElementById('texto-progresso').textContent = "OK!";
+                
+                btnGerar.style.display = 'none';
+                btnVerPreview.style.display = 'block';
+
+                setTimeout(() => { 
+                    btnGerar.classList.remove('btn-desativado'); 
+                    btnGerar.textContent = isConnectedMode ? t.btnInjectReady : t.btnGerarPronto;
+                    isGenerating = false;
+                    videoContainer.classList.remove('bloqueado');
+                    timelineWrapper.classList.remove('bloqueado');
+                    gridMarcadores.classList.remove('bloqueado');
+                    configuracoes.classList.remove('bloqueado');
+                }, 2000);
+                
+            } catch (erro) {
+                console.error(erro);
+                btnGerar.textContent = t.erro;
+                document.getElementById('texto-progresso').style.color = "#ff5555";
+                
+                setTimeout(() => {
+                    isGenerating = false;
+                    videoContainer.classList.remove('bloqueado');
+                    timelineWrapper.classList.remove('bloqueado');
+                    gridMarcadores.classList.remove('bloqueado');
+                    configuracoes.classList.remove('bloqueado');
+                    atualizarBotoesELinhas(); 
+                }, 2500);
+            }
+        });
+
+        async function paparazzoOtimizado(zip, largura, altura, fps, formato, t) {
+            return new Promise(async (resolve) => {
+                const pasta0 = zip.folder("part0"), pasta1 = zip.folder("part1"), pasta2 = zip.folder("part2");
+                let c0 = 0, c1 = 0, c2 = 0, fotosTiradas = 0;
+                
+                const intervalo = 1 / fps;
+                const meioFrame = intervalo / 2;
+                const totalFotos = Math.floor((marcadores.m3 - marcadores.m0) / intervalo) + 1;
+                
+                const mimeType = formato === 'jpeg' ? 'image/jpeg' : 'image/png';
+                const extensao = formato === 'jpeg' ? '.jpg' : '.png';
+
+                playerVideo.pause();
+
+                for (let tempo = marcadores.m0; tempo <= marcadores.m3; tempo += intervalo) {
+                    playerVideo.currentTime = tempo;
+                    await new Promise(res => {
+                        const cb = () => { playerVideo.removeEventListener('seeked', cb); res(); };
+                        playerVideo.addEventListener('seeked', cb);
+                    });
+
+                    contexto.fillStyle = "#000000";
+                    contexto.fillRect(0, 0, largura, altura);
+                    contexto.drawImage(playerVideo, 0, 0, largura, altura);
+
+                    let pastaAlvo = null; let numFoto = 0;
+                    
+                    if (tempo < marcadores.m1 + meioFrame) { pastaAlvo = pasta0; numFoto = c0++; } 
+                    else if (tempo < marcadores.m2 + meioFrame) { pastaAlvo = pasta1; numFoto = c1++; } 
+                    else { pastaAlvo = pasta2; numFoto = c2++; }
+
+                    const nome = String(numFoto).padStart(5, '0') + extensao;
+                    const blob = await new Promise(res => canvasInvisivel.toBlob(res, mimeType, 0.95));
+                    if (blob) pastaAlvo.file(nome, blob);
+
+                    fotosTiradas++;
+                    const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
+                    document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
+                    document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
+                }
+
+                resolve();
+            });
+        }
+    </script>
+</body>
+</html>
