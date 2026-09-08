@@ -663,7 +663,7 @@
                 tipM1: "Marca o primeiro frame do trecho que entrará em repetição contínua.",
                 tipM2: "Marca o último frame do trecho de repetição.",
                 tipM3: "Define o frame final absoluto do vídeo.",
-                hintTooltip: "👇 Segure o dedo (or pare o mouse) sobre um botão para ver sua explicação.",
+                hintTooltip: "👇 Segure o dedo (ou pare o mouse) sobre um botão para ver sua explicação.",
                 naoMarcado: "Não marcado",
                 lblFabricante: "Variante do Aparelho 📱",
                 optStandard: "Padrão (AOSP/Pixel/OnePlus)",
@@ -907,7 +907,7 @@
                 btnConnectIp: "🔌 Connecter",
                 scanningMsg: "Recherche sur les réseaux... Cela prend quelques secondes 🕵️‍♂️",
                 scanFound: "Trouvé ! 🎉 Connexion...",
-                scanNotFound: "Téléphone introuvable ! Assurez-vous que le serveur tourne et que vous êtes sur le même Wi-Fi.",
+                scanNotFound: "Téléphone introuvable ! Assurez-vous que le serveur tourne et que vous êtes sur le mesmo Wi-Fi.",
                 btnDownloadVideo: "🎬 Télécharger Vidéo",
                 btnDownloadZip: "📦 Télécharger .ZIP",
                 dicaVideo: "👆 Cliquez sur la vidéo pour Lire ou Mettre en pause !",
@@ -920,7 +920,7 @@
                 tipM2: "Marque la dernière image de la section en boucle.",
                 tipM3: "Définit l'image finale absolue de la vidéo.",
                 hintTooltip: "👇 Maintenez (ou survolez) un bouton pour voir son explication.",
-                naoMarque: "Non marqué",
+                naoMarcado: "Non marqué",
                 lblFabricante: "Variante d'Appareil 📱",
                 optStandard: "Standard (AOSP/Pixel/OnePlus)",
                 optMiui: "MIUI (Xiaomi)",
@@ -1516,7 +1516,6 @@
                 
                 if (!descFile) throw new Error(t.msgZipNoDesc);
                 
-                // Validação corrigida: verifica se existe pelo menos 1 imagem válida em qualquer subpasta do ZIP!
                 let temImagemValida = false;
                 zip.forEach(function (relativePath, file){
                     if (!file.dir && relativePath.includes('/') && /\.(png|jpg|jpeg)$/i.test(relativePath)) {
@@ -2320,52 +2319,57 @@
             return new Blob([bufferData], { type: "audio/wav" });
         }
 
-        async function processarAudioMagico(tipo, startSec, endSec, ctx, volume = 1.0) {
-            let bufferAlvo = null;
-            if (tipo === 'video') {
-                const vidFile = document.getElementById('upload-video').files[0];
-                try {
-                    const arrBuf = await vidFile.arrayBuffer();
-                    const fullBuf = await ctx.decodeAudioData(arrBuf);
-                    const duracao = endSec - startSec;
-                    if (duracao > 0) {
-                        const offlineCtx = new OfflineAudioContext(fullBuf.numberOfChannels, Math.floor(duracao * fullBuf.sampleRate), fullBuf.sampleRate);
-                        const source = offlineCtx.createBufferSource();
-                        source.buffer = fullBuf;
-                        
-                        const gainNode = offlineCtx.createGain();
-                        gainNode.gain.value = volume;
-                        source.connect(gainNode);
-                        gainNode.connect(offlineCtx.destination);
-                        
-                        source.start(0, startSec, duracao);
-                        bufferAlvo = await offlineCtx.startRendering();
-                    }
-                } catch(e) {}
-            } else if (tipo.startsWith('file_')) {
-                const idInput = tipo.split('_')[1];
-                const input = document.getElementById(`file-audio-${idInput}`);
-                if (input.files.length > 0) {
-                    try {
-                        const arrBuf = await input.files[0].arrayBuffer();
-                        const rawBuffer = await ctx.decodeAudioData(arrBuf);
-                        
-                        const offlineCtx = new OfflineAudioContext(rawBuffer.numberOfChannels, rawBuffer.length, rawBuffer.sampleRate);
-                        const source = offlineCtx.createBufferSource();
-                        source.buffer = rawBuffer;
-                        
-                        const gainNode = offlineCtx.createGain();
-                        gainNode.gain.value = volume;
-                        source.connect(gainNode);
-                        gainNode.connect(offlineCtx.destination);
-                        
-                        source.start(0);
-                        bufferAlvo = await offlineCtx.startRendering();
-                    } catch(e) {}
+        async function decodificarAudioFonte(fonte, audioCtx) {
+            try {
+                let arrBuf;
+                if (fonte instanceof File) {
+                    arrBuf = await fonte.arrayBuffer();
+                } else if (typeof fonte === 'string' && fonte.length > 0) {
+                    const res = await fetch(fonte);
+                    arrBuf = await res.arrayBuffer();
+                } else {
+                    return null;
                 }
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+                return await new Promise((resolve) => {
+                    const res = audioCtx.decodeAudioData(arrBuf, resolve, () => resolve(null));
+                    if (res && res.then) res.then(resolve).catch(() => resolve(null));
+                });
+            } catch (e) {
+                console.error("Erro ao decodificar fonte de áudio:", e);
+                return null;
             }
-            if (bufferAlvo) return audioBufferToWav(bufferAlvo);
-            return null;
+        }
+
+        async function fatiarEGerarWav(audioBuf, startSec, endSec, audioCtx, volume = 1.0) {
+            if (!audioBuf) return null;
+            try {
+                const sampleRate = audioBuf.sampleRate;
+                const duracao = endSec - startSec;
+                if (duracao <= 0) return null;
+
+                const totalFrames = Math.max(1, Math.floor(duracao * sampleRate));
+                const channels = Math.max(1, audioBuf.numberOfChannels);
+
+                const offlineCtx = new OfflineAudioContext(channels, totalFrames, sampleRate);
+                const source = offlineCtx.createBufferSource();
+                source.buffer = audioBuf;
+
+                const gainNode = offlineCtx.createGain();
+                gainNode.gain.value = volume;
+
+                source.connect(gainNode);
+                gainNode.connect(offlineCtx.destination);
+
+                source.start(0, Math.max(0, startSec), duracao);
+                const rendered = await offlineCtx.startRendering();
+                return audioBufferToWav(rendered);
+            } catch (e) {
+                console.error("Erro ao fatiar áudio:", e);
+                return null;
+            }
         }
 
         btnGerar.addEventListener('click', async () => {
@@ -2420,21 +2424,55 @@
                     document.getElementById('texto-progresso').textContent = t.processandoAudio;
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     
+                    let videoAudioBuffer = null;
+                    if (p0 === 'video' || p1 === 'video' || p2 === 'video') {
+                        videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
+                    }
+
                     const v0 = (parseInt(document.getElementById('vol-intro').value) || 100) / 100.0;
                     const v1 = (parseInt(document.getElementById('vol-loop').value) || 100) / 100.0;
                     const v2 = (parseInt(document.getElementById('vol-final').value) || 100) / 100.0;
 
                     if (p0 !== 'none') {
-                        const blob0 = await processarAudioMagico(p0 === 'file' ? 'file_intro' : p0, marcadores.m0, marcadores.m1, audioCtx, v0);
-                        if(blob0) { innerZip.folder("part0").file("audio.wav", blob0); previewAudios.m0.src = URL.createObjectURL(blob0); }
+                        let buf0 = (p0 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(document.getElementById('file-audio-intro').files[0], audioCtx);
+                        let blob0 = null;
+                        if (p0 === 'video') {
+                            blob0 = await fatiarEGerarWav(buf0, marcadores.m0, marcadores.m1, audioCtx, v0);
+                        } else if (buf0) {
+                            blob0 = await fatiarEGerarWav(buf0, 0, buf0.duration, audioCtx, v0);
+                        }
+                        if (blob0) {
+                            innerZip.folder("part0").file("audio.wav", blob0);
+                            previewAudios.m0.src = URL.createObjectURL(blob0);
+                        }
                     }
+
                     if (p1 !== 'none') {
-                        const blob1 = await processarAudioMagico(p1 === 'file' ? 'file_loop' : p1, marcadores.m1, marcadores.m2, audioCtx, v1);
-                        if(blob1) { innerZip.folder("part1").file("audio.wav", blob1); previewAudios.m1.src = URL.createObjectURL(blob1); }
+                        let buf1 = (p1 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(document.getElementById('file-audio-loop').files[0], audioCtx);
+                        let blob1 = null;
+                        if (p1 === 'video') {
+                            blob1 = await fatiarEGerarWav(buf1, marcadores.m1, marcadores.m2, audioCtx, v1);
+                        } else if (buf1) {
+                            blob1 = await fatiarEGerarWav(buf1, 0, buf1.duration, audioCtx, v1);
+                        }
+                        if (blob1) {
+                            innerZip.folder("part1").file("audio.wav", blob1);
+                            previewAudios.m1.src = URL.createObjectURL(blob1);
+                        }
                     }
+
                     if (p2 !== 'none') {
-                        const blob2 = await processarAudioMagico(p2 === 'file' ? 'file_final' : p2, marcadores.m2, marcadores.m3, audioCtx, v2);
-                        if(blob2) { innerZip.folder("part2").file("audio.wav", blob2); previewAudios.m2.src = URL.createObjectURL(blob2); }
+                        let buf2 = (p2 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(document.getElementById('file-audio-final').files[0], audioCtx);
+                        let blob2 = null;
+                        if (p2 === 'video') {
+                            blob2 = await fatiarEGerarWav(buf2, marcadores.m2, marcadores.m3, audioCtx, v2);
+                        } else if (buf2) {
+                            blob2 = await fatiarEGerarWav(buf2, 0, buf2.duration, audioCtx, v2);
+                        }
+                        if (blob2) {
+                            innerZip.folder("part2").file("audio.wav", blob2);
+                            previewAudios.m2.src = URL.createObjectURL(blob2);
+                        }
                     }
                 }
                 
