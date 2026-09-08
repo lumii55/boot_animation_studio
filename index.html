@@ -302,7 +302,7 @@
 
             <div class="video-container" id="video-container">
                 <video id="player-video" playsinline class="pausado"></video>
-                <p class="dica-video" id="txt-dicavideo">👆 Click video to Play or Pause!</p>
+                <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
             </div>
 
             <div class="timeline-wrapper" id="timeline-wrapper">
@@ -526,7 +526,7 @@
                 scanNotFound: "Couldn't find the phone! Make sure the server is running and you are on the SAME Wi-Fi.",
                 btnDownloadVideo: "🎬 Download Video",
                 btnDownloadZip: "📦 Download .ZIP",
-                dicaVideo: "👆 Click video to Play or Pause!",
+                dicaVideo: "👇 Click video to Play or Pause!",
                 m0: "1. Intro",
                 m1: "2. Loop Start",
                 m2: "3. Loop End",
@@ -608,7 +608,7 @@
                 msgApplyHistorySuccess: "✨ Animation restored successfully! Reboot your phone to see it!",
                 msgApplyHistoryError: "Error injecting history",
                 msgZipNoDesc: "This ZIP is missing the desc.txt file! It is not a valid bootanimation.",
-                msgZipNoParts: "Could not find any frame folders (like part0) inside the ZIP!",
+                msgZipNoParts: "Could not find any frame files inside the ZIP!",
                 msgZipInjectSuccess: "🎉 ZIP injected beautifully! Reboot your phone to see it!",
                 msgZipInjectRefused: "The server refused the file!",
                 msgGifEmpty: "The GIF is empty!",
@@ -663,7 +663,7 @@
                 tipM1: "Marca o primeiro frame do trecho que entrará em repetição contínua.",
                 tipM2: "Marca o último frame do trecho de repetição.",
                 tipM3: "Define o frame final absoluto do vídeo.",
-                hintTooltip: "👇 Segure o dedo (ou pare o mouse) sobre um botão para ver sua explicação.",
+                hintTooltip: "👇 Segure o dedo (or pare o mouse) sobre um botão para ver sua explicação.",
                 naoMarcado: "Não marcado",
                 lblFabricante: "Variante do Aparelho 📱",
                 optStandard: "Padrão (AOSP/Pixel/OnePlus)",
@@ -736,7 +736,7 @@
                 msgApplyHistorySuccess: "✨ Animação restaurada com sucesso! Reinicie o celular para ver!",
                 msgApplyHistoryError: "Erro ao injetar histórico",
                 msgZipNoDesc: "Esse ZIP não tem o arquivo desc.txt! Não é um bootanimation válido.",
-                msgZipNoParts: "Não achei nenhuma pasta de frames (tipo part0) dentro do ZIP!",
+                msgZipNoParts: "Não achei nenhum arquivo de imagem válido dentro do ZIP!",
                 msgZipInjectSuccess: "🎉 ZIP injetado lindamente! Reinicie o celular para ver!",
                 msgZipInjectRefused: "O servidor recusou o arquivo!",
                 msgGifEmpty: "O GIF está vazio!",
@@ -864,7 +864,7 @@
                 msgApplyHistorySuccess: "✨ ¡Animación restaurada con éxito! ¡Reinicia tu teléfono para verla!",
                 msgApplyHistoryError: "Error al inyectar historial",
                 msgZipNoDesc: "¡A este ZIP le falta el archivo desc.txt! No es un bootanimation válido.",
-                msgZipNoParts: "¡No se pudo encontrar ninguna carpeta de frames (como part0) dentro del ZIP!",
+                msgZipNoParts: "¡No se pudo encontrar ningún archivo de imagen dentro del ZIP!",
                 msgZipInjectSuccess: "🎉 ¡ZIP inyectado maravillosamente! ¡Reinicia el teléfono para verlo!",
                 msgZipInjectRefused: "¡El servidor rechazó el archivo!",
                 msgGifEmpty: "¡El GIF está vacío!",
@@ -920,7 +920,7 @@
                 tipM2: "Marque la dernière image de la section en boucle.",
                 tipM3: "Définit l'image finale absolue de la vidéo.",
                 hintTooltip: "👇 Maintenez (ou survolez) un bouton pour voir son explication.",
-                naoMarcado: "Non marqué",
+                naoMarque: "Non marqué",
                 lblFabricante: "Variante d'Appareil 📱",
                 optStandard: "Standard (AOSP/Pixel/OnePlus)",
                 optMiui: "MIUI (Xiaomi)",
@@ -992,7 +992,7 @@
                 msgApplyHistorySuccess: "✨ Animation restaurée avec succès ! Redémarrez votre téléphone pour la voir !",
                 msgApplyHistoryError: "Erreur lors de l'injection de l'historique",
                 msgZipNoDesc: "Ce fichier ZIP ne contient pas le fichier desc.txt ! Ce n'est pas un bootanimation valide.",
-                msgZipNoParts: "Impossible de trouver des dossiers de frames (comme part0) dans le ZIP !",
+                msgZipNoParts: "Impossible de trouver des fichiers d'images dans le ZIP !",
                 msgZipInjectSuccess: "🎉 ZIP injecté magnifiquement ! Redémarrez le téléphone pour le voir !",
                 msgZipInjectRefused: "Le serveur a refusé le fichier !",
                 msgGifEmpty: "Le GIF est vide !",
@@ -1411,7 +1411,7 @@
                 } else {
                     document.getElementById('history-wrapper').style.display = "none";
                 }
-            } catch(e) { console.log("No history found"); }
+            } catch(e) {}
         }
 
         async function deleteHistory(id) {
@@ -1516,14 +1516,15 @@
                 
                 if (!descFile) throw new Error(t.msgZipNoDesc);
                 
-                let temPastaPart = false;
+                // Validação corrigida: verifica se existe pelo menos 1 imagem válida em qualquer subpasta do ZIP!
+                let temImagemValida = false;
                 zip.forEach(function (relativePath, file){
-                    if (file.dir && (relativePath.includes("part") || relativePath.includes("folder"))) {
-                        temPastaPart = true;
+                    if (!file.dir && relativePath.includes('/') && /\.(png|jpg|jpeg)$/i.test(relativePath)) {
+                        temImagemValida = true;
                     }
                 });
 
-                if (!temPastaPart) throw new Error(t.msgZipNoParts);
+                if (!temImagemValida) throw new Error(t.msgZipNoParts);
 
                 document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPhone;
                 
@@ -1663,12 +1664,24 @@
                 if (!descFile) throw new Error(t.msgZipNoDesc);
                 
                 const descText = await descFile.async("string");
-                const linhas = descText.split('\n').map(l => l.trim()).filter(l => l);
+                const linhas = descText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
                 
-                const configTops = linhas[0].split(' ');
+                const configTops = linhas[0].split(/\s+/);
                 const zipW = parseInt(configTops[0]);
                 const zipH = parseInt(configTops[1]);
                 const zipFps = parseInt(configTops[2]) || 30;
+
+                let temSomNoZip = false;
+                for (let i = 1; i < linhas.length; i++) {
+                    if (linhas[i].startsWith('s ')) {
+                        temSomNoZip = true;
+                        break;
+                    }
+                }
+                if (temSomNoZip) {
+                    document.getElementById('input-usar-som').checked = true;
+                    verificarPainelAudio();
+                }
 
                 document.getElementById('txt-loading-timeline').textContent = t.msgOrgFrames;
                 
@@ -1676,13 +1689,14 @@
                 let contagemPorPasta = [];
 
                 for (let i = 1; i < linhas.length; i++) {
-                    const partes = linhas[i].split(' ');
+                    const partes = linhas[i].split(/\s+/);
                     if (partes[0] === 'c' || partes[0] === 'p') {
                         const nomePasta = partes[3];
+                        if (!nomePasta) continue;
                         const regex = new RegExp("^" + nomePasta + "/.*\\.(png|jpg|jpeg)$", "i");
                         const arquivosPasta = zip.file(regex);
                         
-                        arquivosPasta.sort((a, b) => a.name.localeCompare(b.name));
+                        arquivosPasta.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
                         
                         for (let arq of arquivosPasta) {
                             const imgBlob = await arq.async("blob");
@@ -1756,27 +1770,32 @@
                 document.getElementById('input-altura').value = zipH;
                 document.getElementById('input-qualidade').value = "custom";
                 
+                let totalFramesGerais = 0;
                 let m1_idx = 0;
                 let m2_idx = 0;
-                let totalFramesGerais = 0;
 
-                for (let c of contagemPorPasta) {
-                    if (c.nome.includes('0') || totalFramesGerais === 0) {
-                        m1_idx = totalFramesGerais + c.frames - 1; 
+                if (contagemPorPasta.length === 1) {
+                    totalFramesGerais = contagemPorPasta[0].frames;
+                    m1_idx = 0;
+                    m2_idx = totalFramesGerais - 1;
+                } else if (contagemPorPasta.length === 2) {
+                    m1_idx = contagemPorPasta[0].frames - 1;
+                    m2_idx = contagemPorPasta[0].frames + contagemPorPasta[1].frames - 1;
+                    totalFramesGerais = contagemPorPasta[0].frames + contagemPorPasta[1].frames;
+                } else {
+                    let acc = 0;
+                    for (let idx = 0; idx < contagemPorPasta.length; idx++) {
+                        acc += contagemPorPasta[idx].frames;
+                        if (idx === 0) m1_idx = acc - 1;
+                        if (idx === contagemPorPasta.length - 2) m2_idx = acc - 1;
                     }
-                    if (c.nome.includes('1') || (contagemPorPasta.length > 1 && totalFramesGerais > 0 && m2_idx === 0)) {
-                        m2_idx = totalFramesGerais + c.frames - 1; 
-                    }
-                    totalFramesGerais += c.frames;
+                    totalFramesGerais = acc;
                 }
 
-                if (m2_idx === 0) m2_idx = m1_idx; 
-                if (m2_idx < m1_idx) m2_idx = m1_idx; 
-
                 marcadores.m0 = 0;
-                marcadores.m1 = m1_idx / zipFps;
-                marcadores.m2 = m2_idx / zipFps;
-                marcadores.m3 = (totalFramesGerais - 1) / zipFps;
+                marcadores.m1 = Math.max(0, m1_idx / zipFps);
+                marcadores.m2 = Math.max(marcadores.m1, m2_idx / zipFps);
+                marcadores.m3 = Math.max(marcadores.m2, (totalFramesGerais - 1) / zipFps);
 
                 playerVideo.src = URL.createObjectURL(videoWebm);
                 
@@ -1941,7 +1960,7 @@
                     ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause());
                     if (previewAudios[part] && previewAudios[part].src) {
                         previewAudios[part].currentTime = 0;
-                        previewAudios[part].play().catch(e=>console.log("Audio block: ", e));
+                        previewAudios[part].play().catch(e=>{});
                     }
                     currentPreviewPart = part;
                 }
@@ -2322,7 +2341,7 @@
                         source.start(0, startSec, duracao);
                         bufferAlvo = await offlineCtx.startRendering();
                     }
-                } catch(e) { console.error("Error video audio:", e); }
+                } catch(e) {}
             } else if (tipo.startsWith('file_')) {
                 const idInput = tipo.split('_')[1];
                 const input = document.getElementById(`file-audio-${idInput}`);
@@ -2342,7 +2361,7 @@
                         
                         source.start(0);
                         bufferAlvo = await offlineCtx.startRendering();
-                    } catch(e) { console.error("Error file audio:", e); }
+                    } catch(e) {}
                 }
             }
             if (bufferAlvo) return audioBufferToWav(bufferAlvo);
@@ -2382,16 +2401,24 @@
                 canvasInvisivel.width = largura; canvasInvisivel.height = altura;
 
                 await paparazzoOtimizado(innerZip, largura, altura, fps, formato, t);
-                
-                innerZip.file("desc.txt", `${largura} ${altura} ${fps}\nc 1 0 part0\np 0 0 part1\nc 1 0 part2\n`);
+
+                const p0 = document.getElementById('sel-audio-intro').value;
+                const p1 = document.getElementById('sel-audio-loop').value;
+                const p2 = document.getElementById('sel-audio-final').value;
+
+                let conteudoDesc = `${largura} ${altura} ${fps}\n`;
+                conteudoDesc += "c 1 0 part0\n";
+                if (isSomAtivo && p0 !== 'none') conteudoDesc += "s audio.wav\n";
+                conteudoDesc += "p 0 0 part1\n";
+                if (isSomAtivo && p1 !== 'none') conteudoDesc += "s audio.wav\n";
+                conteudoDesc += "c 1 0 part2\n";
+                if (isSomAtivo && p2 !== 'none') conteudoDesc += "s audio.wav\n";
+
+                innerZip.file("desc.txt", conteudoDesc);
 
                 if (isSomAtivo) {
                     document.getElementById('texto-progresso').textContent = t.processandoAudio;
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    
-                    const p0 = document.getElementById('sel-audio-intro').value;
-                    const p1 = document.getElementById('sel-audio-loop').value;
-                    const p2 = document.getElementById('sel-audio-final').value;
                     
                     const v0 = (parseInt(document.getElementById('vol-intro').value) || 100) / 100.0;
                     const v1 = (parseInt(document.getElementById('vol-loop').value) || 100) / 100.0;
