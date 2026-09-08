@@ -2518,7 +2518,7 @@
                             pastaAtual.file("bootanimation.zip", rawBootAnimBlob);
                         }
                         
-                        const rawFinalBlob = await magiskZip.generateAsync({ type: "blob", compression: "DEFLATE" });
+                        const rawFinalBlob = await magiskZip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 1 } });
                         const linkDownload = document.createElement("a");
                         linkDownload.href = URL.createObjectURL(rawFinalBlob);
                         linkDownload.download = `${nomeEscolhido}.zip`; 
@@ -2573,8 +2573,11 @@
                 
                 const mimeType = formato === 'jpeg' ? 'image/jpeg' : 'image/png';
                 const extensao = formato === 'jpeg' ? '.jpg' : '.png';
+                const qualidade = formato === 'jpeg' ? 0.90 : undefined;
 
                 playerVideo.pause();
+
+                let promessasLote = [];
 
                 for (let tempo = marcadores.m0; tempo <= marcadores.m3; tempo += intervalo) {
                     playerVideo.currentTime = tempo;
@@ -2594,13 +2597,31 @@
                     else { pastaAlvo = pasta2; numFoto = c2++; }
 
                     const nome = String(numFoto).padStart(5, '0') + extensao;
-                    const blob = await new Promise(res => canvasInvisivel.toBlob(res, mimeType, 0.95));
-                    if (blob) pastaAlvo.file(nome, blob);
+                    
+                    const p = new Promise(res => {
+                        canvasInvisivel.toBlob((blob) => {
+                            if (blob) pastaAlvo.file(nome, blob);
+                            fotosTiradas++;
+                            
+                            if (fotosTiradas % 4 === 0 || fotosTiradas === totalFotos) {
+                                const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
+                                document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
+                                document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
+                            }
+                            res();
+                        }, mimeType, qualidade);
+                    });
 
-                    fotosTiradas++;
-                    const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
-                    document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
-                    document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
+                    promessasLote.push(p);
+
+                    if (promessasLote.length >= 10) {
+                        await Promise.all(promessasLote);
+                        promessasLote = [];
+                    }
+                }
+
+                if (promessasLote.length > 0) {
+                    await Promise.all(promessasLote);
                 }
 
                 resolve();
