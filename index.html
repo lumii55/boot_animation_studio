@@ -111,11 +111,28 @@
         .linha-m2 { background: #ffb86c; }
         .linha-m3 { background: #ff5555; }
 
+        .hint-tooltip {
+            font-size: 11px; color: rgba(170, 170, 170, 0.8); font-style: italic;
+            text-align: center; width: 100%; margin-bottom: -5px; pointer-events: none;
+            display: none; transition: 0.3s;
+        }
+
+        .tooltip-estiloso {
+            position: absolute; background: rgba(30, 30, 30, 0.95); border: 1px solid #bb86fc;
+            color: #fff; padding: 10px 15px; border-radius: 12px; font-size: 12px; font-weight: 500;
+            text-align: center; width: max-content; max-width: 200px; box-shadow: 0 8px 20px rgba(0,0,0,0.8);
+            z-index: 1000; pointer-events: none; opacity: 0; transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s; backdrop-filter: blur(4px);
+        }
+        .tooltip-estiloso.visivel {
+            opacity: 1; transform: translateY(0);
+        }
+
         .grid-marcadores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; display: none; transition: 0.3s; }
         .btn-marc {
             padding: 12px 5px; border-radius: 12px; font-weight: bold; border: none;
             font-family: 'Fredoka', sans-serif; cursor: pointer; color: #000; font-size: 13px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; position: relative;
         }
         .btn-marc:active { transform: scale(0.95); }
         .btn-m0 { background-color: #03dac6; }
@@ -216,6 +233,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
+    <div id="tooltip-flutuante" class="tooltip-estiloso"></div>
     <div class="container">
         <div class="topo-idioma">
             <span style="font-size: 13px; color: #888;">🌐</span>
@@ -297,11 +315,12 @@
                 </div>
             </div>
 
+            <p id="txt-hint-tooltip" class="hint-tooltip"></p>
             <div class="grid-marcadores" id="grid-marcadores">
-                <button class="btn-marc btn-m0" onclick="marcarTrecho('m0')">📍 <span id="lbl-m0">1. Start</span><span class="status-marc" id="st-m0">Not marked</span></button>
-                <button class="btn-marc btn-m1" onclick="marcarTrecho('m1')">✂️ <span id="lbl-m1">2. End Intro</span><span class="status-marc" id="st-m1">Not marked</span></button>
-                <button class="btn-marc btn-m2" onclick="marcarTrecho('m2')">🔁 <span id="lbl-m2">3. End Loop</span><span class="status-marc" id="st-m2">Not marked</span></button>
-                <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Final</span><span class="status-marc" id="st-m3">Not marked</span></button>
+                <button class="btn-marc btn-m0" onclick="marcarTrecho('m0')">📍 <span id="lbl-m0">1. Intro</span><br><span class="status-marc" id="st-m0">Not marked</span></button>
+                <button class="btn-marc btn-m1" onclick="marcarTrecho('m1')">🔁 <span id="lbl-m1">2. Loop Start</span><br><span class="status-marc" id="st-m1">Not marked</span></button>
+                <button class="btn-marc btn-m2" onclick="marcarTrecho('m2')">➡️ <span id="lbl-m2">3. Loop End</span><br><span class="status-marc" id="st-m2">Not marked</span></button>
+                <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Outro</span><br><span class="status-marc" id="st-m3">Not marked</span></button>
             </div>
 
             <div class="configuracoes" id="configuracoes">
@@ -507,10 +526,15 @@
                 btnDownloadVideo: "🎬 Download Video",
                 btnDownloadZip: "📦 Download .ZIP",
                 dicaVideo: "👆 Click video to Play or Pause!",
-                m0: "1. Start",
-                m1: "2. End Intro",
-                m2: "3. End Loop",
-                m3: "4. Final",
+                m0: "1. Intro",
+                m1: "2. Loop Start",
+                m2: "3. Loop End",
+                m3: "4. Outro",
+                tipM0: "Sets the absolute starting frame of the animation.",
+                tipM1: "Marks the first frame of the continuous loop section.",
+                tipM2: "Marks the last frame of the loop section.",
+                tipM3: "Sets the absolute final frame of the video.",
+                hintTooltip: "👆 Hold (or hover) over a button to see its explanation.",
                 naoMarcado: "Not marked",
                 lblFabricante: "Device Variant 📱",
                 optStandard: "Standard (AOSP/Pixel/OnePlus)",
@@ -630,10 +654,15 @@
                 btnDownloadVideo: "🎬 Baixar Vídeo",
                 btnDownloadZip: "📦 Baixar .ZIP",
                 dicaVideo: "👆 Clique no vídeo para dar Play ou Pausar!",
-                m0: "1. Início",
-                m1: "2. Fim Início",
-                m2: "3. Fim Loop",
-                m3: "4. Final",
+                m0: "1. Abertura",
+                m1: "2. Início do Loop",
+                m2: "3. Fim do Loop",
+                m3: "4. Encerramento",
+                tipM0: "Define o frame inicial absoluto da animação.",
+                tipM1: "Marca o primeiro frame do trecho que entrará em repetição contínua.",
+                tipM2: "Marca o último frame do trecho de repetição.",
+                tipM3: "Define o frame final absoluto do vídeo.",
+                hintTooltip: "👆 Segure o dedo (ou pare o mouse) sobre um botão para ver sua explicação.",
                 naoMarcado: "Não marcado",
                 lblFabricante: "Variante do Aparelho 📱",
                 optStandard: "Padrão (AOSP/Pixel/OnePlus)",
@@ -726,7 +755,7 @@
             },
             es: {
                 titulo: "✨ Boot Animation Studio ✨",
-                subtitulo: "¡Crea, edita o aplica un archivo de boot animation!",
+                subtitulo: "¡Crea, edite o aplica un archivo de boot animation!",
                 dicasTitulo: "Consejos para Principiantes",
                 dicaModuloPrefix: "Módulo Auxiliar:",
                 dicaModuloText: "La función 'Conectar al Celular' requiere nuestro módulo root opcional. El sitio funciona 100% sin él, pero para integración directa, descarga el módulo en nuestro",
@@ -753,10 +782,15 @@
                 btnDownloadVideo: "🎬 Descargar Video",
                 btnDownloadZip: "📦 Descargar .ZIP",
                 dicaVideo: "👆 ¡Haz clic en el video para Reproducir o Pausar!",
-                m0: "1. Inicio",
-                m1: "2. Fin Intro",
-                m2: "3. Fin Loop",
-                m3: "4. Final",
+                m0: "1. Apertura",
+                m1: "2. Inicio del Loop",
+                m2: "3. Fin del Loop",
+                m3: "4. Cierre",
+                tipM0: "Define el fotograma inicial absoluto de la animación.",
+                tipM1: "Marca el primer fotograma de la sección que entrará en repetición continua.",
+                tipM2: "Marca el último fotograma de la sección de repetición.",
+                tipM3: "Define el fotograma final absoluto del video.",
+                hintTooltip: "👆 Mantén presionado (o pasa el mouse) sobre un botón para ver su explicación.",
                 naoMarcado: "No marcado",
                 lblFabricante: "Variante del Dispositivo 📱",
                 optStandard: "Estándar (AOSP/Pixel/OnePlus)",
@@ -860,7 +894,7 @@
                 upload: "📂 Vidéo / GIF",
                 uploadZip: "📦 Éditer .ZIP",
                 btnInjectZip: "🚀 Injecter .ZIP",
-                btnPull: "📥 Extraire du Téléphone",
+                btnPull: "📥 Extraer du Téléphone",
                 modalPullTitle: "📥 Extraire l'Animation",
                 modalPullDesc: "Vous avez déjà une animation personnalisée installée ! Quelle version voulez-vous extraire vers l'éditeur ?",
                 btnPullModule: "🔧 Du Module",
@@ -876,10 +910,15 @@
                 btnDownloadVideo: "🎬 Télécharger Vidéo",
                 btnDownloadZip: "📦 Télécharger .ZIP",
                 dicaVideo: "👆 Cliquez sur la vidéo pour Lire ou Mettre en pause !",
-                m0: "1. Début",
-                m1: "2. Fin Intro",
-                m2: "3. Fin Boucle",
-                m3: "4. Fin",
+                m0: "1. Intro",
+                m1: "2. Début Loop",
+                m2: "3. Fin Loop",
+                m3: "4. Clôture",
+                tipM0: "Définit l'image de départ absolue de l'animation.",
+                tipM1: "Marque la première image de la section qui tournera en boucle continue.",
+                tipM2: "Marque la dernière image de la section en boucle.",
+                tipM3: "Définit l'image finale absolue de la vidéo.",
+                hintTooltip: "👆 Maintenez (ou survolez) un bouton pour voir son explication.",
                 naoMarcado: "Non marqué",
                 lblFabricante: "Variante d'Appareil 📱",
                 optStandard: "Standard (AOSP/Pixel/OnePlus)",
@@ -1044,6 +1083,7 @@
             document.getElementById('lbl-m1').textContent = t.m1;
             document.getElementById('lbl-m2').textContent = t.m2;
             document.getElementById('lbl-m3').textContent = t.m3;
+            document.getElementById('txt-hint-tooltip').textContent = t.hintTooltip;
             document.getElementById('lbl-fabricante').textContent = t.lblFabricante;
             document.getElementById('opt-standard').textContent = t.optStandard;
             document.getElementById('opt-miui').textContent = t.optMiui;
@@ -1600,6 +1640,7 @@
                 document.getElementById('configuracoes').style.display = 'grid';
                 document.getElementById('botoes-exportacao').style.display = 'none';
                 document.getElementById('btn-ver-preview').style.display = 'none';
+                document.getElementById('txt-hint-tooltip').style.display = 'block';
                 marcadores = { m0: null, m1: null, m2: null, m3: null };
                 atualizarBotoesELinhas();
                 
@@ -1707,6 +1748,7 @@
                 document.getElementById('configuracoes').style.display = 'grid';
                 document.getElementById('btn-gerar').style.display = 'block';
                 document.getElementById('btn-ver-preview').style.display = 'none';
+                document.getElementById('txt-hint-tooltip').style.display = 'block';
                 
                 document.getElementById('input-fps').value = zipFps;
                 document.getElementById('input-largura').value = zipW;
@@ -1865,6 +1907,7 @@
         const btnVerPreview = document.getElementById('btn-ver-preview');
         const dicasIniciais = document.getElementById('dicas-iniciais');
         const videoPreview = document.getElementById('video-preview');
+        const tooltipFlutuante = document.getElementById('tooltip-flutuante');
         
         const canvasInvisivel = document.createElement('canvas');
         const contexto = canvasInvisivel.getContext('2d', { alpha: false, willReadFrequently: true }); 
@@ -1873,6 +1916,7 @@
         let originalW = 0, originalH = 0;
         let isGenerating = false;
         let animationFrameId = null;
+        let tooltipTimeout;
 
         let isBuildingTimeline = false;
         let isProgrammaticScroll = false;
@@ -1938,6 +1982,39 @@
         }
         window.addEventListener('resize', ajustarPaddings);
 
+        function showTooltip(e, idBtn) {
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = setTimeout(() => {
+                const t = traducoes[idiomaAtual];
+                tooltipFlutuante.textContent = t['tipM' + idBtn];
+                
+                let rect = e.target.closest('button').getBoundingClientRect();
+                
+                let leftPos = rect.left + (rect.width / 2) - (tooltipFlutuante.offsetWidth / 2);
+                if (leftPos < 10) leftPos = 10;
+                if (leftPos + tooltipFlutuante.offsetWidth > window.innerWidth - 10) leftPos = window.innerWidth - tooltipFlutuante.offsetWidth - 10;
+                
+                tooltipFlutuante.style.left = leftPos + 'px';
+                tooltipFlutuante.style.top = (rect.top + window.scrollY - tooltipFlutuante.offsetHeight - 10) + 'px';
+                
+                tooltipFlutuante.classList.add('visivel');
+            }, 600);
+        }
+
+        function hideTooltip() {
+            clearTimeout(tooltipTimeout);
+            tooltipFlutuante.classList.remove('visivel');
+        }
+
+        document.querySelectorAll('.btn-marc').forEach(btn => {
+            const idBtn = btn.classList[1].split('-')[1].replace('m', ''); 
+            btn.addEventListener('mouseenter', (e) => showTooltip(e, idBtn));
+            btn.addEventListener('mouseleave', hideTooltip);
+            btn.addEventListener('touchstart', (e) => showTooltip(e, idBtn), {passive: true});
+            btn.addEventListener('touchend', hideTooltip);
+            btn.addEventListener('touchcancel', hideTooltip);
+        });
+
         inputVideo.addEventListener('change', function(evento) {
             const arquivo = evento.target.files[0];
             if (!arquivo) return;
@@ -1957,6 +2034,7 @@
                 configuracoes.style.display = 'grid';
                 btnVerPreview.style.display = 'none'; 
                 document.getElementById('botoes-exportacao').style.display = 'none';
+                document.getElementById('txt-hint-tooltip').style.display = 'block';
                 marcadores = { m0: null, m1: null, m2: null, m3: null };
                 atualizarBotoesELinhas();
             };
