@@ -6,6 +6,7 @@
     <title>✨ Boot Animation Studio ✨</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
     <div id="tooltip-flutuante" class="tooltip-estiloso"></div>
@@ -273,15 +274,41 @@
     </div>
 
     <div class="modal-overlay" id="modal-network">
-        <div class="modal-box">
+        <div class="modal-box network-box">
             <h2 id="lbl-modal-net-title">🌐 Connect via Network</h2>
-            <p id="lbl-modal-net-desc" style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #ccc;">Server not found on localhost. Enter your phone's IP address or scan the network!</p>
-            <input type="text" id="input-ip" value="192.168.0." style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; text-align: center; font-family: 'Fredoka', sans-serif;">
-            <div style="display: flex; gap: 10px; width: 100%;">
-                <button class="btn-upload" id="btn-connect-ip" style="background-color: #03dac6;" onclick="conectarPorIp()">🔌 Connect</button>
-                <button class="btn-upload" id="btn-scan-net" style="background-color: #bb86fc;" onclick="iniciarVarredura()">🔍 Auto-Scan</button>
+            <p id="lbl-modal-net-desc" class="network-desc">Server not found on localhost. Pair with QR or use another network method.</p>
+            <div class="pairing-card" id="pairing-card">
+                <div class="pairing-head">
+                    <div>
+                        <strong id="lbl-pair-title">📷 Pair with QR</strong>
+                        <span id="lbl-pair-desc">Scan this code with your phone camera, then approve pairing on the phone.</span>
+                    </div>
+                    <span class="pairing-badge">SECURE</span>
+                </div>
+                <div class="pairing-qr-wrap" id="pairing-qr-wrap">
+                    <div id="pairing-qr"></div>
+                </div>
+                <div class="pairing-code" id="pairing-code">------</div>
+                <div class="pairing-status" id="pairing-status">Preparing secure pairing...</div>
+                <button class="pairing-refresh" id="btn-pair-refresh" type="button" onclick="startQrPairing()">↻ New QR</button>
             </div>
-            <button class="btn-fechar-modal" id="btn-cancel-net" style="margin-top: 15px; background-color: #333;" onclick="fecharModalRede()">Cancel</button>
+            <div class="network-divider"><span id="lbl-network-other">Other methods</span></div>
+            <input type="text" id="input-ip" value="192.168.0." class="network-ip-input">
+            <div class="network-actions">
+                <button class="btn-upload" id="btn-connect-ip" onclick="conectarPorIp()">🔌 Connect by IP</button>
+                <button class="btn-upload" id="btn-scan-net" onclick="iniciarVarredura()">🔍 Auto-Scan</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-cancel-net" onclick="fecharModalRede()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-pair-handoff">
+        <div class="modal-box pair-handoff-box">
+            <div class="pair-handoff-icon">📱</div>
+            <h2 id="lbl-pair-handoff-title">Open the Module</h2>
+            <p id="lbl-pair-handoff-desc" class="confirm-message">Continue in the Boot Animation Studio Module to approve pairing.</p>
+            <button class="btn-upload" id="btn-pair-open" type="button">Open Boot Animation Studio Module</button>
+            <button class="btn-fechar-modal" id="btn-pair-back" type="button">Back to Studio</button>
         </div>
     </div>
 

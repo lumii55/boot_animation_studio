@@ -279,3 +279,29 @@
         .toast[data-type="success"] { border-color: #1f6f65; }
         .toast[data-type="error"] { border-color: #8b3030; }
         .toast[data-type="info"] { border-color: #6f4d98; }
+
+        .network-box { width: min(420px, 92%); }
+        .network-desc { text-align: center; margin: 0 0 14px; font-size: 13px; color: #bbb; line-height: 1.45; }
+        .pairing-card { width: 100%; background: linear-gradient(145deg, rgba(187,134,252,0.12), rgba(3,218,198,0.06)); border: 1px solid rgba(187,134,252,0.45); border-radius: 16px; padding: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .pairing-head { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .pairing-head div { display: flex; flex-direction: column; gap: 3px; }
+        .pairing-head strong { color: #fff; font-size: 14px; }
+        .pairing-head span:not(.pairing-badge) { color: #aaa; font-size: 11px; line-height: 1.35; }
+        .pairing-badge { background: rgba(187,134,252,0.2); border: 1px solid rgba(187,134,252,0.5); color: #d8b8ff; border-radius: 999px; padding: 3px 7px; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+        .pairing-qr-wrap { background: #fff; border-radius: 14px; padding: 10px; box-shadow: 0 8px 22px rgba(0,0,0,0.35); min-width: 184px; min-height: 184px; display: flex; align-items: center; justify-content: center; }
+        #pairing-qr img, #pairing-qr canvas { display: block; border-radius: 4px; }
+        .pairing-code { font-size: 13px; letter-spacing: 3px; color: #03dac6; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .pairing-status { min-height: 30px; text-align: center; color: #bbb; font-size: 11px; line-height: 1.35; }
+        .pairing-refresh { border: none; background: transparent; color: #bb86fc; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 11px; cursor: pointer; padding: 3px 7px; }
+        .network-divider { width: 100%; display: flex; align-items: center; gap: 10px; color: #777; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin: 13px 0; }
+        .network-divider::before, .network-divider::after { content: ''; height: 1px; flex: 1; background: #3a3a3a; }
+        .network-ip-input { width: 100%; margin-bottom: 10px; padding: 10px; border-radius: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; text-align: center; font-family: 'Fredoka', sans-serif; }
+        .network-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        .network-actions .btn-upload { margin: 0; }
+        #btn-connect-ip { background-color: #03dac6; color: #000; }
+        #btn-scan-net { background-color: #bb86fc; color: #000; }
+        #btn-cancel-net { margin-top: 15px; background-color: #333; }
+        .pair-handoff-box { width: min(360px, 90%); text-align: center; }
+        .pair-handoff-icon { width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center; font-size: 27px; background: rgba(187,134,252,0.14); border: 1px solid rgba(187,134,252,0.45); margin-bottom: 10px; }
+        #btn-pair-open { background: #bb86fc; color: #000; margin: 0 0 10px; }
+        #btn-pair-back { background: #333; }
