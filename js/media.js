@@ -423,7 +423,7 @@ function fecharModal() {
 }
 
 function chamarModalPreview() {
-    if (isConnectedMode) {
+    if (isConnectedMode && hasModuleFeature('test_animation')) {
         document.getElementById('modal-escolha-preview').style.display = 'flex';
     } else {
         abrirPreviewWeb();
@@ -443,6 +443,7 @@ function abrirPreviewWeb() {
 
 async function testarNoCelular() {
     const t = traducoes[idiomaAtual];
+    if (!ensureModuleFeature('test_animation')) return;
     document.getElementById('modal-escolha-preview').style.display = 'none';
     try {
         let res = await apiFetch('/test_anim', { method: 'POST' });

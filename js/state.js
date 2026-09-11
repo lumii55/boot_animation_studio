@@ -4,6 +4,24 @@ window.hasCustomAnimApplied = false;
 let IP_LOCAL = "http://127.0.0.1:4040";
 let sessionToken = '';
 
+const SITE_API_MIN = 1;
+const SITE_API_MAX = 1;
+const LEGACY_SECURE_FEATURES = new Set([
+    'session_auth',
+    'direct_upload',
+    'pull',
+    'history',
+    'history_webm',
+    'remove',
+    'reset',
+    'test_animation',
+    'device_resolution'
+]);
+let moduleInfo = null;
+let moduleApiVersion = null;
+let moduleFeatures = new Set();
+let moduleCompatibilityMode = 'unknown';
+
 const inputVideo = document.getElementById('upload-video');
 const playerVideo = document.getElementById('player-video');
 const videoContainer = document.getElementById('video-container');

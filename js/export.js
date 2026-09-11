@@ -107,6 +107,7 @@ btnGerar.addEventListener('click', async () => {
         const rawBootAnimBlob = await innerZip.generateAsync({ type: "blob", compression: "STORE" });
         
         if (isConnectedMode) {
+            if (!ensureModuleFeature('direct_upload')) throw new Error(t.msgFeatureUnavailable);
             document.getElementById('texto-progresso').textContent = t.msgInjecting;
             
             const previewWebmBlob = await createMiniPreviewWebm();

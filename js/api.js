@@ -4,6 +4,86 @@ function apiFetch(path, options = {}) {
     return fetch(IP_LOCAL + path, { ...options, headers });
 }
 
+function resetModuleCompatibility() {
+    moduleInfo = null;
+    moduleApiVersion = null;
+    moduleFeatures = new Set();
+    moduleCompatibilityMode = 'unknown';
+}
+
+function hasModuleFeature(feature) {
+    return moduleFeatures.has(feature);
+}
+
+function ensureModuleFeature(feature) {
+    if (hasModuleFeature(feature)) return true;
+    alert(traducoes[idiomaAtual].msgFeatureUnavailable);
+    return false;
+}
+
+async function detectModuleCompatibility() {
+    resetModuleCompatibility();
+    try {
+        const response = await fetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(1500) });
+        if (!response.ok) {
+            moduleCompatibilityMode = 'legacy_pending';
+            return true;
+        }
+
+        const data = await response.json();
+        const apiVersion = Number(data.api_version);
+        if (!Number.isInteger(apiVersion)) {
+            moduleCompatibilityMode = 'legacy_pending';
+            return true;
+        }
+
+        moduleInfo = data;
+        moduleApiVersion = apiVersion;
+        moduleFeatures = new Set(Array.isArray(data.features) ? data.features.filter(feature => typeof feature === 'string') : []);
+
+        if (apiVersion < SITE_API_MIN) {
+            moduleCompatibilityMode = 'incompatible_old';
+            alert(traducoes[idiomaAtual].msgModuleTooOld);
+            return false;
+        }
+
+        if (apiVersion > SITE_API_MAX) {
+            moduleCompatibilityMode = 'incompatible_new';
+            alert(traducoes[idiomaAtual].msgModuleTooNew);
+            return false;
+        }
+
+        if (!moduleFeatures.has('session_auth')) {
+            moduleCompatibilityMode = 'incompatible_old';
+            alert(traducoes[idiomaAtual].msgModuleTooOld);
+            return false;
+        }
+
+        moduleCompatibilityMode = 'versioned';
+        return true;
+    } catch (error) {
+        moduleCompatibilityMode = 'legacy_pending';
+        return true;
+    }
+}
+
+function activateLegacySecureCompatibility() {
+    moduleInfo = null;
+    moduleApiVersion = 0;
+    moduleFeatures = new Set(LEGACY_SECURE_FEATURES);
+    moduleCompatibilityMode = 'legacy_secure';
+}
+
+function applyConnectedCapabilities(data) {
+    const canRemove = hasModuleFeature('remove') && data.has_custom;
+    document.getElementById('btn-remove').style.display = canRemove ? 'block' : 'none';
+    window.hasCustomAnimApplied = Boolean(data.has_custom);
+    document.getElementById('btn-pull').style.display = hasModuleFeature('pull') ? 'block' : 'none';
+    document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') ? 'flex' : 'none';
+    document.getElementById('btn-reset').style.display = hasModuleFeature('reset') ? 'block' : 'none';
+    if (!hasModuleFeature('history')) document.getElementById('history-wrapper').style.display = 'none';
+}
+
 function forcarDesconexao() {
     if (isConnectedMode && sessionToken) {
         apiFetch('/disconnect', { method: 'POST', keepalive: true }).catch(()=>{});
@@ -37,6 +117,11 @@ async function tentaConexao() {
     btn.textContent = "Connecting... ⚡";
 
     try {
+        if (!await detectModuleCompatibility()) {
+            btn.textContent = t.btnConnect;
+            return;
+        }
+
         let response = await apiFetch('/ping');
         let data = await response.json();
 
@@ -62,7 +147,16 @@ async function tentaConexao() {
 
             if (data.status === 'ok' && data.token) {
                 sessionToken = data.token;
+                if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
             }
+        }
+
+        if (data.status === 'ok' && !sessionToken && moduleCompatibilityMode === 'legacy_pending') {
+            try { await fetch(IP_LOCAL + '/disconnect'); } catch (error) {}
+            moduleCompatibilityMode = 'incompatible_old';
+            alert(t.msgModuleTooOld);
+            btn.textContent = t.btnConnect;
+            return;
         }
 
         if (data.status === 'ok' && sessionToken) {
@@ -75,7 +169,7 @@ async function tentaConexao() {
             
             document.getElementById('status-connected').textContent = t.statusConnected.replace('!', ': ' + data.model);
             
-            if(data.resolution && data.resolution !== "Unknown") {
+            if(hasModuleFeature('device_resolution') && data.resolution && data.resolution !== "Unknown") {
                 const optAuto = document.getElementById('opt-auto');
                 optAuto.style.display = 'block';
                 optAuto.value = data.resolution;
@@ -83,21 +177,11 @@ async function tentaConexao() {
                 document.getElementById('input-qualidade').value = data.resolution;
             }
 
-            if (data.has_custom) {
-                document.getElementById('btn-remove').style.display = "block";
-                window.hasCustomAnimApplied = true;
-            } else {
-                document.getElementById('btn-remove').style.display = "none";
-                window.hasCustomAnimApplied = false;
-            }
-
-            document.getElementById('btn-pull').style.display = "block";
-            document.getElementById('lbl-upload-direto').style.display = "flex";
-            document.getElementById('btn-reset').style.display = "block";
+            applyConnectedCapabilities(data);
             document.getElementById('acoes-principais').style.gridTemplateColumns = "1fr 1fr";
             
             atualizarBotoesELinhas();
-            loadHistory(); 
+            if (hasModuleFeature('history')) loadHistory(); 
         } else {
             sessionToken = '';
             alert(t.msgNotFound);
@@ -186,6 +270,7 @@ async function iniciarVarredura() {
 
 function startManualMode() {
     sessionToken = '';
+    resetModuleCompatibility();
     isConnectedMode = false;
     document.getElementById('initial-state').style.display = 'none';
     document.getElementById('editor-section').style.display = 'flex';
@@ -204,6 +289,7 @@ function startManualMode() {
 async function disconnectPhone() {
     try { await apiFetch('/disconnect', { method: 'POST' }); } catch(e) {}
     sessionToken = '';
+    resetModuleCompatibility();
     isConnectedMode = false;
     document.getElementById('initial-state').style.display = 'flex';
     document.getElementById('connected-state').style.display = 'none';
@@ -213,6 +299,7 @@ async function disconnectPhone() {
 
 async function removeAnimation() {
     const t = traducoes[idiomaAtual];
+    if (!ensureModuleFeature('remove')) return;
     if(confirm(t.msgConfirmRemove)) {
         try {
             let res = await apiFetch('/remove', { method: 'POST' });
@@ -237,6 +324,7 @@ async function removeAnimation() {
 
 async function resetarModulo() {
     const t = traducoes[idiomaAtual];
+    if (!ensureModuleFeature('reset')) return;
     if(confirm(t.msgResetConfirm)) {
         try {
             let res = await apiFetch('/reset', { method: 'POST' });
@@ -262,6 +350,10 @@ function historyIdToDate(id) {
 }
 
 async function loadHistory() {
+    if (!hasModuleFeature('history')) {
+        document.getElementById('history-wrapper').style.display = 'none';
+        return;
+    }
     try {
         let res = await apiFetch('/history/list');
         if(!res.ok) return;
@@ -318,6 +410,7 @@ async function loadHistory() {
 
 async function deleteHistory(id) {
     const t = traducoes[idiomaAtual];
+    if (!ensureModuleFeature('history')) return;
     try {
         const res = await apiFetch('/history/delete?id=' + encodeURIComponent(id), { method: 'POST' });
         if (!res.ok) throw new Error();
@@ -327,6 +420,7 @@ async function deleteHistory(id) {
 
 async function applyHistory(id) {
     const t = traducoes[idiomaAtual];
+    if (!ensureModuleFeature('history')) return;
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPast;
     try {
@@ -381,6 +475,7 @@ function fecharModalPull() {
 }
 
 async function puxarAnimacao(source) {
+    if (!ensureModuleFeature('pull')) return;
     fecharModalPull();
     const t = traducoes[idiomaAtual];
     document.getElementById('texto-progresso').textContent = "Downloading from phone... 📥";
@@ -411,6 +506,10 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
     const arquivo = evento.target.files[0];
     const t = traducoes[idiomaAtual];
     if (!arquivo) return;
+    if (!ensureModuleFeature('direct_upload')) {
+        evento.target.value = '';
+        return;
+    }
 
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgCheckingZip;
