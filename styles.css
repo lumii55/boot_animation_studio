@@ -165,6 +165,24 @@
         .vol-slider { flex: 1; accent-color: #bb86fc; cursor: pointer; }
         .vol-label { font-size: 12px; color: #fff; min-width: 35px; text-align: right; }
 
+        .performance-estimate {
+            display: none; flex-direction: column; gap: 9px; background: #1a1a1a; border: 1px solid #444;
+            border-radius: 12px; padding: 12px; margin-top: 2px;
+        }
+        .performance-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .performance-header > span:first-child { color: #03dac6; font-size: 13px; font-weight: 700; }
+        .performance-badge {
+            border-radius: 999px; padding: 4px 9px; font-size: 10px; font-weight: 700; background: #263238; color: #fff;
+        }
+        .performance-badge[data-level="light"] { background: #153c38; color: #67e8d9; }
+        .performance-badge[data-level="moderate"] { background: #493716; color: #ffd180; }
+        .performance-badge[data-level="heavy"] { background: #4a2020; color: #ff8a80; }
+        .performance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .performance-grid > div { background: #242424; border-radius: 9px; padding: 8px; text-align: center; }
+        .performance-grid span { display: block; color: #aaa; font-size: 10px; margin-bottom: 3px; }
+        .performance-grid strong { display: block; color: #fff; font-size: 12px; font-weight: 700; }
+        .performance-note { color: #aaa; font-size: 10px; line-height: 1.35; text-align: center; }
+
         .hist-wrapper { display: none; flex-direction: column; width: 100%; margin-top: 10px; }
         .hist-title { color: #bb86fc; font-size: 14px; margin-bottom: 8px; text-align: center; font-weight: bold; }
         .hist-scroll { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 10px; scroll-snap-type: x mandatory; }
