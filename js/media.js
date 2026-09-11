@@ -124,7 +124,17 @@ async function converterGifParaVideo(file) {
     }
 }
 
-async function createFrameProjectPreview(project) {
+async function prepareFrameProjectPreviewBlobs(project, onProgress) {
+    const blobs = new Array(project.frames.length);
+    for (let i = 0; i < project.frames.length; i++) {
+        blobs[i] = await getProjectFrameBlob(project.frames[i]);
+        if (onProgress && (i % 8 === 0 || i === project.frames.length - 1)) onProgress(i + 1, project.frames.length);
+        if (i % 8 === 0) await cooperativeYield();
+    }
+    return blobs;
+}
+
+async function createFrameProjectPreview(project, preparedBlobs) {
     const maxPreviewWidth = 720;
     const maxPreviewHeight = 1280;
     const scale = Math.min(1, maxPreviewWidth / project.width, maxPreviewHeight / project.height);
@@ -138,38 +148,56 @@ async function createFrameProjectPreview(project) {
     const stream = tempCanvas.captureStream(previewFps);
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     const chunks = [];
+    const blobs = preparedBlobs || await prepareFrameProjectPreviewBlobs(project);
+    let stopped = false;
+    let readyResolve;
+    let readyReject;
+    const ready = new Promise((resolve, reject) => {
+        readyResolve = resolve;
+        readyReject = reject;
+    });
     recorder.ondataavailable = event => {
         if (event.data.size > 0) chunks.push(event.data);
     };
-    const ready = new Promise(resolve => {
-        recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
-    });
+    recorder.onstop = () => {
+        stopped = true;
+        readyResolve(new Blob(chunks, { type: 'video/webm' }));
+    };
+    recorder.onerror = event => {
+        stopped = true;
+        readyReject(event.error || new Error('Preview recording failed'));
+    };
 
     try {
-        recorder.start(1000);
+        recorder.start();
         const startTime = performance.now();
 
-        for (const frame of project.frames) {
-            const frameBlob = await getProjectFrameBlob(frame);
-            const drawable = await blobToDrawable(frameBlob);
+        for (let i = 0; i < project.frames.length; i++) {
+            const frame = project.frames[i];
+            const drawable = await blobToDrawable(blobs[i]);
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, previewWidth, previewHeight);
             ctx.drawImage(drawable, 0, 0, previewWidth, previewHeight);
             releaseDrawable(drawable);
+            blobs[i] = null;
 
             const expectedTime = startTime + ((frame.startTime + frame.duration) * 1000);
             const sleepTime = expectedTime - performance.now();
             if (sleepTime > 0) {
                 await new Promise(resolve => setTimeout(resolve, sleepTime));
             } else {
-                await cooperativeYield();
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
 
         recorder.stop();
-        return await ready;
+        return await Promise.race([
+            ready,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Preview recording timed out')), 10000))
+        ]);
     } finally {
-        if (recorder.state !== 'inactive') recorder.stop();
+        for (let i = 0; i < blobs.length; i++) blobs[i] = null;
+        if (!stopped && recorder.state !== 'inactive') recorder.stop();
         stream.getTracks().forEach(track => track.stop());
         tempCanvas.width = 1;
         tempCanvas.height = 1;
@@ -337,8 +365,12 @@ async function abrirZipNoEditor(zipBlob) {
             format: document.getElementById('input-formato').value
         }, captureAudioEditorState());
 
+        const previewBlobs = await prepareFrameProjectPreviewBlobs(project, (done, total) => {
+            const percent = total > 0 ? Math.floor((done / total) * 100) : 100;
+            document.getElementById('txt-loading-timeline').textContent = `${t.msgOrgFrames} ${done}/${total} (${percent}%)`;
+        });
         document.getElementById('txt-loading-timeline').textContent = t.msgStitching;
-        const videoWebm = await createFrameProjectPreview(project);
+        const videoWebm = await createFrameProjectPreview(project, previewBlobs);
         project.previewBlob = videoWebm;
         setPlayerBlob(videoWebm);
 

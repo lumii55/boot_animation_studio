@@ -1,5 +1,8 @@
 let performanceEstimateTimer = null;
+let performanceFrameSampleTimer = null;
+let performanceFrameSampleVersion = 0;
 let lastPerformanceEstimate = null;
+const performanceFrameSamples = new WeakMap();
 
 function formatByteEstimate(bytes) {
     if (!Number.isFinite(bytes) || bytes < 0) return '—';
@@ -79,8 +82,24 @@ function getImportedFormatFactor(targetFormat) {
     return 1;
 }
 
+function getPerformanceSampleKey(options) {
+    const source = getValidSourceMarkerRange();
+    const start = source ? source.m0.toFixed(3) : '0';
+    const end = source ? source.m3.toFixed(3) : '0';
+    return `${options.width}x${options.height}:${options.format}:${start}:${end}`;
+}
+
+function getCalibratedFrameBytes(options) {
+    if (!currentProject) return 0;
+    const samples = performanceFrameSamples.get(currentProject);
+    if (!samples) return 0;
+    return samples.get(getPerformanceSampleKey(options)) || 0;
+}
+
 function estimateEncodedFrameBytes(options) {
     const pixels = Math.max(1, options.width * options.height);
+    const calibrated = getCalibratedFrameBytes(options);
+    if (calibrated > 0) return calibrated;
     if (projectUsesFrames()) {
         const known = getKnownImportedFrameBytes();
         if (known.average > 0 && currentProject.width > 0 && currentProject.height > 0) {
@@ -89,7 +108,109 @@ function estimateEncodedFrameBytes(options) {
             return Math.max(2048, known.average * areaScale * getImportedFormatFactor(options.format));
         }
     }
-    return Math.max(2048, pixels * (options.format === 'jpeg' ? 0.18 : 0.62));
+    return Math.max(2048, pixels * (options.format === 'jpeg' ? 0.035 : 0.32));
+}
+
+function waitForSampleVideoEvent(video, eventName) {
+    return new Promise((resolve, reject) => {
+        const done = () => {
+            cleanup();
+            resolve();
+        };
+        const fail = () => {
+            cleanup();
+            reject(new Error('Unable to sample video'));
+        };
+        const cleanup = () => {
+            video.removeEventListener(eventName, done);
+            video.removeEventListener('error', fail);
+        };
+        video.addEventListener(eventName, done, { once: true });
+        video.addEventListener('error', fail, { once: true });
+    });
+}
+
+async function seekSampleVideo(video, time) {
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.001))) : Math.max(0, time);
+    if (video.readyState >= 2 && Math.abs(video.currentTime - target) < 0.001) return;
+    const ready = waitForSampleVideoEvent(video, 'seeked');
+    video.currentTime = target;
+    await ready;
+}
+
+async function sampleTemporalFrameBytes(options, project, version) {
+    if (!project || project !== currentProject || project.sourceMode !== 'temporal' || isGenerating) return;
+    const sourceBlob = project.sourceType === 'gif' ? project.previewBlob : (project.sourceBlob || project.previewBlob);
+    if (!sourceBlob) return;
+    const source = getValidSourceMarkerRange();
+    if (!source || source.m3 <= source.m0) return;
+
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    const url = URL.createObjectURL(sourceBlob);
+    const canvas = document.createElement('canvas');
+    canvas.width = options.width;
+    canvas.height = options.height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const quality = options.format === 'jpeg' ? 0.90 : undefined;
+
+    try {
+        const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
+        video.src = url;
+        video.load();
+        await metadataReady;
+        if (video.readyState < 2) await waitForSampleVideoEvent(video, 'loadeddata');
+
+        const span = source.m3 - source.m0;
+        const times = [0.2, 0.5, 0.8].map(fraction => source.m0 + span * fraction);
+        const sizes = [];
+
+        for (const time of times) {
+            if (version !== performanceFrameSampleVersion || project !== currentProject || isGenerating) return;
+            await seekSampleVideo(video, projectTimeToTimelineTime(time));
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, options.width, options.height);
+            ctx.drawImage(video, 0, 0, options.width, options.height);
+            const blob = await canvasToBlobAsync(canvas, mimeType, quality);
+            sizes.push(blob.size);
+            await cooperativeYield();
+        }
+
+        if (sizes.length > 0 && version === performanceFrameSampleVersion && project === currentProject) {
+            const average = sizes.reduce((sum, value) => sum + value, 0) / sizes.length;
+            const estimated = Math.max(2048, average * 1.08);
+            let samples = performanceFrameSamples.get(project);
+            if (!samples) {
+                samples = new Map();
+                performanceFrameSamples.set(project, samples);
+            }
+            samples.set(getPerformanceSampleKey(options), estimated);
+            updatePerformanceEstimate();
+        }
+    } catch (error) {
+    } finally {
+        video.removeAttribute('src');
+        video.load();
+        URL.revokeObjectURL(url);
+        canvas.width = 1;
+        canvas.height = 1;
+    }
+}
+
+function schedulePerformanceFrameSample() {
+    clearTimeout(performanceFrameSampleTimer);
+    const project = currentProject;
+    if (!project || project.sourceMode !== 'temporal' || isGenerating) return;
+    const options = getPerformanceOptions();
+    const key = getPerformanceSampleKey(options);
+    const existing = performanceFrameSamples.get(project);
+    if (existing && existing.has(key)) return;
+    const version = ++performanceFrameSampleVersion;
+    performanceFrameSampleTimer = setTimeout(() => sampleTemporalFrameBytes(options, project, version), 250);
 }
 
 function estimateAudioBytes(options, importedPreserve) {
@@ -226,7 +347,10 @@ function updatePerformanceEstimate() {
 
 function schedulePerformanceEstimate() {
     clearTimeout(performanceEstimateTimer);
-    performanceEstimateTimer = setTimeout(updatePerformanceEstimate, 80);
+    performanceEstimateTimer = setTimeout(() => {
+        updatePerformanceEstimate();
+        schedulePerformanceFrameSample();
+    }, 80);
 }
 
 function confirmHeavyExport(estimate) {
