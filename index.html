@@ -235,6 +235,8 @@
                 <button id="btn-baixar-zip" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="baixarZipEditado()">📦 Download .ZIP</button>
             </div>
 
+            <div class="output-intent" id="output-intent" style="display: none;"></div>
+
             <button id="btn-gerar" class="btn-gerar btn-desativado">Missing Markers...</button>
             
             <button id="btn-ver-preview" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="chamarModalPreview()">👀 Ver Preview</button>
@@ -283,6 +285,19 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="modal-confirm">
+        <div class="modal-box confirm-box">
+            <h2 id="confirm-title">Confirm action</h2>
+            <p id="confirm-message" class="confirm-message"></p>
+            <div class="confirm-actions">
+                <button class="btn-upload" id="confirm-cancel" type="button">Cancel</button>
+                <button class="btn-upload" id="confirm-accept" type="button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
     <div class="modal-overlay" id="loading-overlay" style="z-index: 200;">
         <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
             <div style="width: 50px; height: 50px; border: 5px solid #444; border-top: 5px solid #03dac6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
@@ -303,6 +318,7 @@
     <script src="js/state.js"></script>
     <script src="js/project.js"></script>
     <script src="js/i18n.js"></script>
+    <script src="js/ux.js"></script>
     <script src="js/api.js"></script>
     <script src="js/media.js"></script>
     <script src="js/timeline.js"></script>

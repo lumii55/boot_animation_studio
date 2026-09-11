@@ -254,3 +254,28 @@
         .btn-fechar-modal:active { transform: scale(0.95); }
 
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .output-intent {
+            width: 100%; background: #1a1a1a; border: 1px solid #444; border-radius: 12px; padding: 10px 12px;
+            color: #ccc; font-size: 11px; line-height: 1.4; text-align: center; margin-top: 4px;
+        }
+        .output-intent strong { color: #03dac6; }
+        .confirm-box { width: min(380px, 90%); }
+        .confirm-message { color: #ccc; text-align: center; font-size: 13px; line-height: 1.45; margin: 0 0 18px; }
+        .confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        .confirm-actions .btn-upload { margin: 0; }
+        #confirm-cancel { background: #333; color: #fff; }
+        #confirm-accept { background: #bb86fc; color: #000; }
+        #confirm-accept[data-danger="true"] { background: #ff5555; color: #fff; }
+        .toast-container {
+            position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 300; width: min(420px, calc(100% - 28px));
+            display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+        }
+        .toast {
+            background: #242424; border: 1px solid #444; border-radius: 14px; padding: 11px 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+            color: #fff; font-size: 12px; line-height: 1.4; text-align: center; opacity: 0; transform: translateY(8px); transition: 0.18s ease;
+        }
+        .toast.visible { opacity: 1; transform: translateY(0); }
+        .toast[data-type="success"] { border-color: #1f6f65; }
+        .toast[data-type="error"] { border-color: #8b3030; }
+        .toast[data-type="info"] { border-color: #6f4d98; }
