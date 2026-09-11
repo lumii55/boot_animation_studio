@@ -1016,10 +1016,17 @@
         let isConnectedMode = false;
         window.hasCustomAnimApplied = false;
         let IP_LOCAL = "http://127.0.0.1:4040";
+        let sessionToken = '';
+
+        function apiFetch(path, options = {}) {
+            const headers = new Headers(options.headers || {});
+            if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
+            return fetch(IP_LOCAL + path, { ...options, headers });
+        }
 
         function forcarDesconexao() {
-            if (isConnectedMode) {
-                fetch(IP_LOCAL + '/disconnect', { method: 'GET', keepalive: true }).catch(()=>{});
+            if (isConnectedMode && sessionToken) {
+                apiFetch('/disconnect', { method: 'POST', keepalive: true }).catch(()=>{});
             }
         }
         window.addEventListener('beforeunload', forcarDesconexao);
@@ -1147,7 +1154,7 @@
             btn.textContent = t.msgSearching;
 
             try {
-                let response = await fetch(IP_LOCAL + '/ping', { signal: AbortSignal.timeout(1500) });
+                let response = await apiFetch('/ping', { signal: AbortSignal.timeout(1500) });
                 if (response.ok) {
                     await tentaConexao();
                 } else {
@@ -1165,12 +1172,13 @@
             btn.textContent = "Connecting... ⚡";
 
             try {
-                let response = await fetch(IP_LOCAL + '/ping');
+                let response = await apiFetch('/ping');
                 let data = await response.json();
 
                 if (data.status === 'auth_required') {
+                    sessionToken = '';
                     btn.textContent = t.msgWaitingAuth;
-                    let authRes = await fetch(IP_LOCAL + '/request_auth');
+                    let authRes = await apiFetch('/request_auth', { method: 'POST' });
                     data = await authRes.json();
                     
                     if (data.status === 'denied') {
@@ -1181,10 +1189,18 @@
                         alert(t.msgAuthTimeout);
                         btn.textContent = t.btnConnect;
                         return;
+                    } else if (data.status === 'busy') {
+                        alert(t.msgWaitingAuth);
+                        btn.textContent = t.btnConnect;
+                        return;
+                    }
+
+                    if (data.status === 'ok' && data.token) {
+                        sessionToken = data.token;
                     }
                 }
 
-                if (data.status === 'ok') {
+                if (data.status === 'ok' && sessionToken) {
                     isConnectedMode = true;
                     document.getElementById('initial-state').style.display = 'none';
                     document.getElementById('connected-state').style.display = 'flex';
@@ -1218,10 +1234,12 @@
                     atualizarBotoesELinhas();
                     loadHistory(); 
                 } else {
+                    sessionToken = '';
                     alert(t.msgNotFound);
                     btn.textContent = t.btnConnect;
                 }
             } catch (error) {
+                sessionToken = '';
                 alert(t.msgNotFound);
                 btn.textContent = t.btnConnect;
             }
@@ -1230,6 +1248,7 @@
         async function conectarPorIp() {
             const ip = document.getElementById('input-ip').value.trim();
             if(!ip) return;
+            sessionToken = '';
             IP_LOCAL = `http://${ip}:4040`;
             fecharModalRede();
             tentaConexao();
@@ -1287,6 +1306,7 @@
             if (foundIp) {
                 desc.textContent = t.scanFound;
                 document.getElementById('input-ip').value = foundIp;
+                sessionToken = '';
                 IP_LOCAL = `http://${foundIp}:4040`;
                 setTimeout(() => {
                     fecharModalRede();
@@ -1300,6 +1320,7 @@
         }
 
         function startManualMode() {
+            sessionToken = '';
             isConnectedMode = false;
             document.getElementById('initial-state').style.display = 'none';
             document.getElementById('editor-section').style.display = 'flex';
@@ -1315,7 +1336,8 @@
         }
 
         async function disconnectPhone() {
-            try { await fetch(IP_LOCAL + '/disconnect'); } catch(e) {}
+            try { await apiFetch('/disconnect', { method: 'POST' }); } catch(e) {}
+            sessionToken = '';
             isConnectedMode = false;
             document.getElementById('initial-state').style.display = 'flex';
             document.getElementById('connected-state').style.display = 'none';
@@ -1327,7 +1349,7 @@
             const t = traducoes[idiomaAtual];
             if(confirm(t.msgConfirmRemove)) {
                 try {
-                    let res = await fetch(IP_LOCAL + '/remove', { method: 'POST' });
+                    let res = await apiFetch('/remove', { method: 'POST' });
                     
                     if (res.ok) {
                         let data = await res.json();
@@ -1351,7 +1373,7 @@
             const t = traducoes[idiomaAtual];
             if(confirm(t.msgResetConfirm)) {
                 try {
-                    let res = await fetch(IP_LOCAL + '/reset', { method: 'POST' });
+                    let res = await apiFetch('/reset', { method: 'POST' });
                     if (res.ok) {
                         let data = await res.json();
                         alert(data.message);
@@ -1368,24 +1390,31 @@
 
         async function loadHistory() {
             try {
-                let res = await fetch(IP_LOCAL + '/history/list');
+                let res = await apiFetch('/history/list');
                 if(!res.ok) return;
                 let ids = await res.json();
                 
                 const scroll = document.getElementById('history-scroll');
+                scroll.querySelectorAll('video[data-object-url]').forEach(video => URL.revokeObjectURL(video.dataset.objectUrl));
                 scroll.innerHTML = '';
                 
                 if(ids && ids.length > 0) {
                     document.getElementById('history-wrapper').style.display = "flex";
                     const t = traducoes[idiomaAtual];
                     
-                    ids.forEach(id => {
+                    for (const id of ids) {
                         const date = new Date(parseInt(id) * 1000).toLocaleString();
                         const card = document.createElement('div');
                         card.className = "hist-card";
                         
                         const vid = document.createElement('video');
-                        vid.src = IP_LOCAL + '/history/preview?id=' + id;
+                        const previewRes = await apiFetch('/history/preview?id=' + encodeURIComponent(id));
+                        if (previewRes.ok) {
+                            const previewBlob = await previewRes.blob();
+                            const previewUrl = URL.createObjectURL(previewBlob);
+                            vid.src = previewUrl;
+                            vid.dataset.objectUrl = previewUrl;
+                        }
                         vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
                         
                         const btnClose = document.createElement('button');
@@ -1407,7 +1436,7 @@
                         card.appendChild(label);
                         card.appendChild(btnApply);
                         scroll.appendChild(card);
-                    });
+                    }
                 } else {
                     document.getElementById('history-wrapper').style.display = "none";
                 }
@@ -1417,7 +1446,8 @@
         async function deleteHistory(id) {
             const t = traducoes[idiomaAtual];
             try {
-                await fetch(IP_LOCAL + '/history/delete?id=' + id, { method: 'POST' });
+                const res = await apiFetch('/history/delete?id=' + encodeURIComponent(id), { method: 'POST' });
+                if (!res.ok) throw new Error();
                 loadHistory();
             } catch(e) { alert(t.msgDelHistoryError); }
         }
@@ -1427,11 +1457,13 @@
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPast;
             try {
-                let res = await fetch(IP_LOCAL + '/history/apply?id=' + id, { method: 'POST' });
+                let res = await apiFetch('/history/apply?id=' + encodeURIComponent(id), { method: 'POST' });
                 if(res.ok) {
                     alert(t.msgApplyHistorySuccess);
                     document.getElementById('btn-remove').style.display = "block";
                     window.hasCustomAnimApplied = true;
+                } else {
+                    throw new Error();
                 }
             } catch(e) { alert(t.msgApplyHistoryError); }
             document.getElementById('loading-overlay').style.display = 'none';
@@ -1482,7 +1514,7 @@
             document.getElementById('container-progresso').style.display = 'flex';
             
             try {
-                let res = await fetch(IP_LOCAL + '/pull?source=' + source + '&t=' + Date.now());
+                let res = await apiFetch('/pull?source=' + encodeURIComponent(source) + '&t=' + Date.now());
                 if (!res.ok) throw new Error("Failed to pull");
                 
                 let blob = await res.blob();
@@ -1530,7 +1562,7 @@
                 const formData = new FormData();
                 formData.append('bootanimation', arquivo, 'bootanimation.zip');
                 
-                let res = await fetch(IP_LOCAL + "/upload", { method: "POST", body: formData });
+                let res = await apiFetch("/upload", { method: "POST", body: formData });
                 
                 if (res.ok) {
                     alert(t.msgZipInjectSuccess);
@@ -1903,7 +1935,7 @@
             const t = traducoes[idiomaAtual];
             document.getElementById('modal-escolha-preview').style.display = 'none';
             try {
-                let res = await fetch(IP_LOCAL + '/test_anim');
+                let res = await apiFetch('/test_anim', { method: 'POST' });
                 if(res.ok) {
                     alert(t.msgMagicSent);
                 } else {
@@ -2502,10 +2534,11 @@
                     formData.append('preview', previewWebmBlob, 'preview.gif');
 
                     try {
-                        await fetch(IP_LOCAL + "/upload", {
+                        const uploadRes = await apiFetch("/upload", {
                             method: "POST",
                             body: formData
                         });
+                        if (!uploadRes.ok) throw new Error("Upload failed");
                         loadHistory(); 
                     } catch (e) {
                         alert(t.msgInjectError);
