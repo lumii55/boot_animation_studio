@@ -70,6 +70,15 @@
             object-fit: contain; cursor: pointer; transition: opacity 0.3s;
         }
         .framing-preview #player-video { width: 100%; height: 100%; max-height: none; border-radius: 15px; box-shadow: none; box-sizing: border-box; }
+        .framing-preview.focus-draggable #player-video { cursor: grab; touch-action: none; user-select: none; }
+        .framing-preview.focus-dragging #player-video { cursor: grabbing; }
+        .focus-reset {
+            position: absolute; top: 8px; right: 8px; z-index: 5; width: 34px; height: 34px; display: none;
+            align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            background: rgba(20,18,27,0.82); color: #fff; font-size: 20px; font-family: 'Fredoka', sans-serif; cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.35); backdrop-filter: blur(6px);
+        }
+        .focus-reset.visible { display: flex; }
         video.pausado { border: 2px solid #03dac6; }
         .dica-video { font-size: 11px; color: #aaaaaa; margin-top: 5px; opacity: 0.8; }
 
