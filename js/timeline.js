@@ -1,3 +1,39 @@
+function getCurrentFramingSettings() {
+    const width = Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || playerVideo.videoWidth || 1);
+    const height = Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || playerVideo.videoHeight || 1);
+    const mode = normalizeFramingMode(document.getElementById('input-enquadramento').value);
+    return { width, height, mode };
+}
+
+function sizeFramingPreview(wrapper, maxWidth, maxHeight, width, height) {
+    if (!wrapper || maxWidth <= 0 || maxHeight <= 0) return;
+    const ratio = Math.max(0.01, width / height);
+    let boxWidth = maxWidth;
+    let boxHeight = boxWidth / ratio;
+    if (boxHeight > maxHeight) {
+        boxHeight = maxHeight;
+        boxWidth = boxHeight * ratio;
+    }
+    wrapper.style.width = `${Math.max(1, Math.floor(boxWidth))}px`;
+    wrapper.style.height = `${Math.max(1, Math.floor(boxHeight))}px`;
+}
+
+window.atualizarPreviewEnquadramento = function() {
+    const settings = getCurrentFramingSettings();
+    const objectFit = settings.mode === 'stretch' ? 'fill' : settings.mode;
+    const wrapper = document.getElementById('framing-preview');
+    const availableWidth = Math.max(1, videoContainer.clientWidth || 450);
+    sizeFramingPreview(wrapper, availableWidth, Math.max(120, window.innerHeight * 0.35), settings.width, settings.height);
+    playerVideo.style.objectFit = objectFit;
+
+    const modalWrapper = document.getElementById('modal-framing-preview');
+    sizeFramingPreview(modalWrapper, Math.max(1, Math.min(window.innerWidth * 0.8, 520)), Math.max(120, window.innerHeight * 0.55), settings.width, settings.height);
+    videoPreview.style.objectFit = objectFit;
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+}
+
+window.addEventListener('resize', () => atualizarPreviewEnquadramento());
+
 videoPreview.addEventListener('timeupdate', () => {
     let t = videoPreview.currentTime;
     
@@ -132,6 +168,7 @@ inputVideo.addEventListener('change', function(evento) {
 playerVideo.addEventListener('loadedmetadata', async function() {
     syncCurrentProjectWithPlayer();
     atualizarTamanho();
+    atualizarPreviewEnquadramento();
     ajustarPaddings();
     
     document.getElementById('loading-overlay').style.display = 'flex';
@@ -331,6 +368,7 @@ function atualizarTamanho() {
 
     w = Math.floor(w / 2) * 2; h = Math.floor(h / 2) * 2;
     document.getElementById('input-largura').value = w; document.getElementById('input-altura').value = h;
+    atualizarPreviewEnquadramento();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
@@ -359,5 +397,6 @@ window.aoMudarTamanhoManual = function() {
     else if (w === pAuto.w && h === pAuto.h && pAuto.w !== 0) seletor.value = optAuto.value;
     else if (w === wOrig && h === hOrig && wOrig !== 0) seletor.value = "1";
     else seletor.value = "custom";
+    atualizarPreviewEnquadramento();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }

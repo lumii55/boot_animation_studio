@@ -25,6 +25,7 @@ function getPerformanceOptions() {
         width: Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || 1),
         height: Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || 1),
         format: document.getElementById('input-formato').value,
+        framing: normalizeFramingMode(document.getElementById('input-enquadramento').value),
         manufacturer: document.getElementById('input-fabricante').value,
         generateModule: document.getElementById('input-gerar-modulo').checked,
         audio: captureAudioEditorState()
@@ -86,7 +87,7 @@ function getPerformanceSampleKey(options) {
     const source = getValidSourceMarkerRange();
     const start = source ? source.m0.toFixed(3) : '0';
     const end = source ? source.m3.toFixed(3) : '0';
-    return `${options.width}x${options.height}:${options.format}:${start}:${end}`;
+    return `${options.width}x${options.height}:${options.format}:${options.framing}:${start}:${end}`;
 }
 
 function getCalibratedFrameBytes(options) {
@@ -172,9 +173,7 @@ async function sampleTemporalFrameBytes(options, project, version) {
         for (const time of times) {
             if (version !== performanceFrameSampleVersion || project !== currentProject || isGenerating) return;
             await seekSampleVideo(video, projectTimeToTimelineTime(time));
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, options.width, options.height);
-            ctx.drawImage(video, 0, 0, options.width, options.height);
+            drawFramedDrawable(ctx, video, options.width, options.height, options.framing);
             const blob = await canvasToBlobAsync(canvas, mimeType, quality);
             sizes.push(blob.size);
             await cooperativeYield();

@@ -601,6 +601,7 @@ function chamarModalPreview() {
 function abrirPreviewWeb() {
     document.getElementById('modal-escolha-preview').style.display = 'none';
     videoPreview.src = playerVideo.src;
+    atualizarPreviewEnquadramento();
     videoPreview.currentTime = marcadores.m0;
     videoPreview.muted = true; 
     currentPreviewPart = -1;

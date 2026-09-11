@@ -436,10 +436,12 @@ async function applyHistory(id) {
     document.getElementById('loading-overlay').style.display = 'none';
 }
 
-async function createMiniPreviewWebm() {
+async function createMiniPreviewWebm(options = null) {
     return new Promise(async (resolve) => {
         const c = document.createElement('canvas');
-        c.width = 150; c.height = Math.floor(150 * (originalH/originalW));
+        const targetWidth = options && options.width ? options.width : originalW;
+        const targetHeight = options && options.height ? options.height : originalH;
+        c.width = 150; c.height = Math.max(2, Math.floor(150 * (targetHeight / targetWidth)));
         const ctx = c.getContext('2d');
         const stream = c.captureStream(10);
         const rec = new MediaRecorder(stream, {mimeType: 'video/webm'});
@@ -452,7 +454,7 @@ async function createMiniPreviewWebm() {
         for(let i=0; i<30; i++) {
             playerVideo.currentTime = t;
             await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });
-            ctx.drawImage(playerVideo, 0, 0, c.width, c.height);
+            drawFramedDrawable(ctx, playerVideo, c.width, c.height, options && options.framing ? options.framing : 'cover');
             t += step;
             await new Promise(r => setTimeout(r, 20));
         }

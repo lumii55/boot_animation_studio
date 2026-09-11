@@ -10,6 +10,7 @@ function getExportOptions() {
         width,
         height,
         format: document.getElementById('input-formato').value,
+        framing: normalizeFramingMode(document.getElementById('input-enquadramento').value),
         manufacturer: document.getElementById('input-fabricante').value,
         generateModule: document.getElementById('input-gerar-modulo').checked,
         audio: captureAudioEditorState(),
@@ -229,7 +230,7 @@ async function regenerateImportedPartFrames(zip, options, t) {
             if (sourceFrame && sourceFrame === lastSourceFrame && outputFormat === lastOutputFormat) {
                 blob = lastOutputBlob;
             } else {
-                blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, outputFormat);
+                blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, outputFormat, options.framing);
                 lastSourceFrame = sourceFrame;
                 lastOutputFormat = outputFormat;
                 lastOutputBlob = blob;
@@ -335,7 +336,7 @@ async function applySimpleAudio(zip, audioState, t) {
 
 async function buildSimpleBootanimation(options, t) {
     const zip = new JSZip();
-    await paparazzoOtimizado(zip, options.width, options.height, options.fps, options.format, t);
+    await paparazzoOtimizado(zip, options.width, options.height, options.fps, options.format, options.framing, t);
     zip.file('desc.txt', `${options.width} ${options.height} ${options.fps}\nc 1 0 part0\np 0 0 part1\nc 1 0 part2\n`);
     await applySimpleAudio(zip, options.audio, t);
     document.getElementById('texto-progresso').textContent = t.compactandoZip;
@@ -356,7 +357,7 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
     if (isConnectedMode) {
         if (!ensureModuleFeature('direct_upload')) throw new Error(t.msgFeatureUnavailable);
         document.getElementById('texto-progresso').textContent = t.msgInjecting;
-        const previewWebmBlob = await createMiniPreviewWebm();
+        const previewWebmBlob = await createMiniPreviewWebm(options);
         const formData = new FormData();
         formData.append('bootanimation', rawBootAnimBlob, 'bootanimation.zip');
         formData.append('preview', previewWebmBlob, 'preview.webm');
@@ -451,7 +452,7 @@ btnGerar.addEventListener('click', async () => {
     }
 });
 
-async function paparazzoOtimizado(zip, largura, altura, fps, formato, t) {
+async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, t) {
     const pasta0 = zip.folder('part0');
     const pasta1 = zip.folder('part1');
     const pasta2 = zip.folder('part2');
@@ -469,7 +470,7 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, t) {
 
     for (let i = 0; i < totalFotos; i++) {
         const sourceTime = sourceMarkers.m0 + (i * intervalo);
-        const blob = await getProjectFrameOutputBlob(sourceTime, largura, altura, formato);
+        const blob = await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing);
         let pastaAlvo;
         let numFoto;
 

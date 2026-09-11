@@ -8,7 +8,7 @@ const traducoes = {
         dicaModuloLink: "GitHub Repository",
         dica1: "Important (Samsung): Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.",
         dica2: "Size matters: Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.",
-        dica3: "Screen aspect: Phones are vertical! Prefer vertical videos (TikTok/Reels format) so your animation doesn't get stretched.",
+        dica3: "Screen aspect: Use Framing to choose how videos with a different aspect ratio are cropped, fitted or stretched.",
         upload: "📂 Video / GIF",
         uploadZip: "📦 Edit .ZIP",
         btnInjectZip: "🚀 Inject .ZIP",
@@ -55,6 +55,10 @@ const traducoes = {
         lblNome: "File Name 📝 (Without extension)",
         lblFormato: "Frames Format 🖼️",
         lblQualidade: "Resolution 📉",
+        lblEnquadramento: "Framing 🎯",
+        optCover: "Fill (Crop)",
+        optContain: "Fit (Bars)",
+        optStretch: "Stretch",
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Width",
         lblAltura: "Height",
@@ -162,7 +166,7 @@ const traducoes = {
         dicaModuloLink: "Repositório GitHub",
         dica1: "Aviso Samsung: Como o formato .qmg é fechado, o site não gera animações para Samsung de fábrica. Você DEVE usar uma Custom ROM/GSI! Requer acesso Root.",
         dica2: "Tamanho Importa: Evite arquivos maiores que 20MB. Animações pesadas podem engasgar o Android ou causar bootloops.",
-        dica3: "Formato da Tela: Celulares ficam em pé! Dê preferência a vídeos verticais (formato Reels/TikTok) para a imagem não ficar esticada.",
+        dica3: "Formato da Tela: Use o Enquadramento para escolher como vídeos com proporção diferente serão cortados, ajustados ou esticados.",
         upload: "📂 Vídeo / GIF",
         uploadZip: "📦 Editar .ZIP",
         btnInjectZip: "🚀 Injetar .ZIP",
@@ -209,6 +213,10 @@ const traducoes = {
         lblNome: "Nome do Arquivo 📝 (Sem extensão)",
         lblFormato: "Formato dos Frames 🖼️",
         lblQualidade: "Resolução 📉",
+        lblEnquadramento: "Enquadramento 🎯",
+        optCover: "Preencher (Cortar)",
+        optContain: "Ajustar (Barras)",
+        optStretch: "Esticar",
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Largura",
         lblAltura: "Altura",
@@ -316,7 +324,7 @@ const traducoes = {
         dicaModuloLink: "Repositorio de GitHub",
         dica1: "Aviso Samsung: Como .qmg es un formato cerrado, el sitio no genera animaciones para Samsung de fábrica. ¡DEBES usar una Custom ROM/GSI! Requiere Root.",
         dica2: "El Tamaño Importa: Evita archivos de más de 20MB. Los archivos muy pesados pueden trabar Android o causar bootloops.",
-        dica3: "Formato de Pantalla: ¡Los teléfonos son verticales! Prefiere videos verticales (formato TikTok/Reels) para que no se estiren.",
+        dica3: "Formato de Pantalla: Usa el Encuadre para elegir cómo se recortan, ajustan o estiran los videos con otra proporción.",
         upload: "📂 Video / GIF",
         uploadZip: "📦 Editar .ZIP",
         btnInjectZip: "🚀 Inyectar .ZIP",
@@ -363,6 +371,10 @@ const traducoes = {
         lblNome: "Nombre del Archivo 📝 (Sin extensión)",
         lblFormato: "Formato de Fotogramas 🖼️",
         lblQualidade: "Resolución 📉",
+        lblEnquadramento: "Encuadre 🎯",
+        optCover: "Rellenar (Recortar)",
+        optContain: "Ajustar (Barras)",
+        optStretch: "Estirar",
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Ancho",
         lblAltura: "Alto",
@@ -470,7 +482,7 @@ const traducoes = {
         dicaModuloLink: "Dépôt GitHub",
         dica1: "Avis Samsung : Le format .qmg étant fermé, le site ne génère pas d'animations pour Samsung d'origine. Vous DEVEZ être sur une Custom ROM/GSI ! Root requis.",
         dica2: "La Taille Compte : Évitez les fichiers de plus de 20 Mo. Les fichiers lourds peuvent faire ramer Android ou causer des bootloops.",
-        dica3: "Format d'Écran : Privilégiez les vidéos verticales (format TikTok/Reels) pour que votre animation ne soit pas déformée.",
+        dica3: "Format d'Écran : Utilisez le Cadrage pour choisir comment les vidéos d'un autre ratio sont recadrées, ajustées ou étirées.",
         upload: "📂 Vidéo / GIF",
         uploadZip: "📦 Éditer .ZIP",
         btnInjectZip: "🚀 Injecter .ZIP",
@@ -517,6 +529,10 @@ const traducoes = {
         lblNome: "Nom du Fichier 📝 (Sans extension)",
         lblFormato: "Format des Images 🖼️",
         lblQualidade: "Résolution 📉",
+        lblEnquadramento: "Cadrage 🎯",
+        optCover: "Remplir (Recadrer)",
+        optContain: "Ajuster (Bandes)",
+        optStretch: "Étirer",
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Largeur",
         lblAltura: "Hauteur",
@@ -686,6 +702,10 @@ function mudarIdioma(lang) {
     document.getElementById('lbl-nome').textContent = t.lblNome;
     document.getElementById('lbl-formato').textContent = t.lblFormato;
     document.getElementById('lbl-qualidade').textContent = t.lblQualidade;
+    document.getElementById('lbl-enquadramento').textContent = t.lblEnquadramento;
+    document.getElementById('opt-cover').textContent = t.optCover;
+    document.getElementById('opt-contain').textContent = t.optContain;
+    document.getElementById('opt-stretch').textContent = t.optStretch;
     document.getElementById('lbl-fps').textContent = t.lblFps;
     document.getElementById('lbl-largura').textContent = t.lblLargura;
     document.getElementById('lbl-altura').textContent = t.lblAltura;

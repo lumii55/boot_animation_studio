@@ -262,6 +262,57 @@ function releaseDrawable(drawable) {
     if (drawable && typeof drawable.close === 'function') drawable.close();
 }
 
+
+function normalizeFramingMode(mode) {
+    return ['cover', 'contain', 'stretch'].includes(mode) ? mode : 'cover';
+}
+
+function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight, mode) {
+    const sw = Math.max(1, sourceWidth || targetWidth || 1);
+    const sh = Math.max(1, sourceHeight || targetHeight || 1);
+    const tw = Math.max(1, targetWidth || sw);
+    const th = Math.max(1, targetHeight || sh);
+    const framing = normalizeFramingMode(mode);
+
+    if (framing === 'stretch') {
+        return { sx: 0, sy: 0, sw, sh, dx: 0, dy: 0, dw: tw, dh: th };
+    }
+
+    const sourceRatio = sw / sh;
+    const targetRatio = tw / th;
+
+    if (framing === 'cover') {
+        if (sourceRatio > targetRatio) {
+            const cropWidth = sh * targetRatio;
+            return { sx: (sw - cropWidth) / 2, sy: 0, sw: cropWidth, sh, dx: 0, dy: 0, dw: tw, dh: th };
+        }
+        const cropHeight = sw / targetRatio;
+        return { sx: 0, sy: (sh - cropHeight) / 2, sw, sh: cropHeight, dx: 0, dy: 0, dw: tw, dh: th };
+    }
+
+    if (sourceRatio > targetRatio) {
+        const drawHeight = tw / sourceRatio;
+        return { sx: 0, sy: 0, sw, sh, dx: 0, dy: (th - drawHeight) / 2, dw: tw, dh: drawHeight };
+    }
+    const drawWidth = th * sourceRatio;
+    return { sx: 0, sy: 0, sw, sh, dx: (tw - drawWidth) / 2, dy: 0, dw: drawWidth, dh: th };
+}
+
+function getDrawableSize(drawable) {
+    return {
+        width: drawable.videoWidth || drawable.naturalWidth || drawable.width || 1,
+        height: drawable.videoHeight || drawable.naturalHeight || drawable.height || 1
+    };
+}
+
+function drawFramedDrawable(ctx, drawable, targetWidth, targetHeight, mode) {
+    const size = getDrawableSize(drawable);
+    const rect = getFramingDrawRect(size.width, size.height, targetWidth, targetHeight, mode);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+    ctx.drawImage(drawable, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
+}
+
 function canvasToBlobAsync(canvas, mimeType, quality) {
     return new Promise((resolve, reject) => {
         canvas.toBlob(blob => {
@@ -292,7 +343,7 @@ async function seekPlayer(time) {
     });
 }
 
-async function getProjectFrameOutputBlob(sourceTime, width, height, format) {
+async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover') {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = format === 'jpeg' ? 0.90 : undefined;
 
@@ -306,17 +357,13 @@ async function getProjectFrameOutputBlob(sourceTime, width, height, format) {
         }
 
         const drawable = await blobToDrawable(frameBlob);
-        contexto.fillStyle = '#000000';
-        contexto.fillRect(0, 0, width, height);
-        contexto.drawImage(drawable, 0, 0, width, height);
+        drawFramedDrawable(contexto, drawable, width, height, framing);
         releaseDrawable(drawable);
         return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
     }
 
     const timelineTime = projectTimeToTimelineTime(sourceTime);
     await seekPlayer(timelineTime);
-    contexto.fillStyle = '#000000';
-    contexto.fillRect(0, 0, width, height);
-    contexto.drawImage(playerVideo, 0, 0, width, height);
+    drawFramedDrawable(contexto, playerVideo, width, height, framing);
     return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
 }
