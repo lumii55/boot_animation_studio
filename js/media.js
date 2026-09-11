@@ -1,112 +1,265 @@
-async function converterGifParaVideo(file) {
-    const t = traducoes[idiomaAtual];
-    document.getElementById('loading-overlay').style.display = 'flex';
-    document.getElementById('txt-loading-timeline').textContent = t.msgLoadingGif;
-    
+function atualizarProgressoGif(texto, atual, total) {
+    const elemento = document.getElementById('txt-loading-timeline');
+    if (!elemento) return;
+    if (!total || total <= 0) {
+        elemento.textContent = texto;
+        return;
+    }
+    const porcentagem = Math.min(100, Math.max(0, Math.round((atual / total) * 100)));
+    elemento.textContent = `${texto} ${atual}/${total} (${porcentagem}%)`;
+}
+
+function normalizarDuracaoGifSegundos(valor) {
+    if (!Number.isFinite(valor) || valor <= 0) return 0.1;
+    return Math.max(0.02, Math.min(60, valor));
+}
+
+function calcularFpsGif(frames, duracao) {
+    if (!frames || frames.length === 0 || !duracao) return 10;
+    return Math.max(1, Math.min(60, Math.round(frames.length / duracao)));
+}
+
+async function decoderGifNativoDisponivel() {
+    if (!globalThis.ImageDecoder || typeof ImageDecoder.isTypeSupported !== 'function') return false;
     try {
-        const { parseGIF, decompressFrames } = await import('https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm');
-        
-        const buffer = await file.arrayBuffer();
-        const gif = parseGIF(buffer);
-        const frames = decompressFrames(gif, true);
-        
-        if (!frames || frames.length === 0) throw new Error(t.msgGifEmpty);
+        return await ImageDecoder.isTypeSupported('image/gif');
+    } catch (error) {
+        return false;
+    }
+}
 
-        const w = frames[0].dims.width;
-        const h = frames[0].dims.height;
-        
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = w;
-        tempCanvas.height = h;
-        const ctx = tempCanvas.getContext('2d');
-        
-        let totalDelay = 0;
-        frames.forEach(frame => totalDelay += Math.max(20, frame.delay));
-        let fps = Math.round(1000 / (totalDelay / frames.length));
-        if (fps > 60) fps = 60;
-        if (fps < 1) fps = 10;
-        
-        document.getElementById('txt-loading-timeline').textContent = t.msgLoadingVid;
+async function decodificarGifNativo(file, t) {
+    if (!await decoderGifNativoDisponivel()) return null;
 
-        const stream = tempCanvas.captureStream(fps);
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        const pedacos = [];
-        recorder.ondataavailable = event => {
-            if (event.data.size > 0) pedacos.push(event.data);
-        };
-        
-        const gravacaoPronta = new Promise(resolve => {
-            recorder.onstop = () => resolve(new Blob(pedacos, { type: 'video/webm' }));
-        });
-        recorder.start(1000);
+    const buffer = await file.arrayBuffer();
+    const decoder = new ImageDecoder({
+        data: buffer,
+        type: 'image/gif',
+        preferAnimation: true
+    });
+    const frames = [];
+    let canvas = null;
+    let ctx = null;
+    let largura = 0;
+    let altura = 0;
+    let tempo = 0;
 
-        const gifCanvas = document.createElement('canvas');
-        gifCanvas.width = w;
-        gifCanvas.height = h;
-        const gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true });
-        const patchCanvas = document.createElement('canvas');
-        const patchCtx = patchCanvas.getContext('2d');
-        let prevImgData;
-        
-        const startTime = performance.now();
-        let accumulatedDelay = 0;
+    try {
+        await decoder.tracks.ready;
+        const track = decoder.tracks.selectedTrack;
+        const total = track && Number.isFinite(track.frameCount) ? track.frameCount : 0;
+        if (!total) throw new Error(t.msgGifEmpty);
 
-        for (let i = 0; i < frames.length; i++) {
-            const frame = frames[i];
-            
-            if (i > 0 && frames[i - 1].disposalType === 2) {
-                gifCtx.clearRect(frames[i - 1].dims.left, frames[i - 1].dims.top, frames[i - 1].dims.width, frames[i - 1].dims.height);
-            } else if (i > 0 && frames[i - 1].disposalType === 3 && prevImgData) {
-                gifCtx.putImageData(prevImgData, 0, 0);
+        for (let i = 0; i < total; i++) {
+            const resultado = await decoder.decode({ frameIndex: i, completeFramesOnly: true });
+            const imagem = resultado.image;
+            try {
+                if (!canvas) {
+                    largura = imagem.displayWidth || imagem.codedWidth || imagem.visibleRect && imagem.visibleRect.width || 0;
+                    altura = imagem.displayHeight || imagem.codedHeight || imagem.visibleRect && imagem.visibleRect.height || 0;
+                    if (!largura || !altura) throw new Error(t.msgGifEmpty);
+                    canvas = document.createElement('canvas');
+                    canvas.width = largura;
+                    canvas.height = altura;
+                    ctx = canvas.getContext('2d', { alpha: false });
+                }
+
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, largura, altura);
+                ctx.drawImage(imagem, 0, 0, largura, altura);
+
+                const blob = await canvasToBlobAsync(canvas, 'image/png');
+                const duracao = normalizarDuracaoGifSegundos(Number(imagem.duration) / 1000000);
+                frames.push({
+                    blob,
+                    byteSize: blob.size || 0,
+                    mimeType: 'image/png',
+                    format: 'png',
+                    sourceName: `gif_${String(i).padStart(5, '0')}.png`,
+                    partIndex: 0,
+                    startTime: tempo,
+                    duration: duracao
+                });
+                tempo += duracao;
+            } finally {
+                if (imagem && typeof imagem.close === 'function') imagem.close();
             }
-            
-            if (frame.disposalType === 3) {
-                prevImgData = gifCtx.getImageData(0, 0, w, h);
-            }
-            
-            patchCanvas.width = frame.dims.width;
-            patchCanvas.height = frame.dims.height;
-            const pData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
-            patchCtx.putImageData(pData, 0, 0);
-            gifCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
-            frame.patch = null;
-            
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, w, h);
-            ctx.drawImage(gifCanvas, 0, 0);
-            
-            accumulatedDelay += Math.max(20, frame.delay);
-            const expectedTime = startTime + accumulatedDelay;
-            const sleepTime = expectedTime - performance.now();
-            
-            if (sleepTime > 0) {
-                await new Promise(resolve => setTimeout(resolve, sleepTime));
-            } else {
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
+
+            if (i % 2 === 0 || i === total - 1) atualizarProgressoGif(t.msgLoadingGif, i + 1, total);
+            if (i % 4 === 0) await cooperativeYield();
         }
 
-        recorder.stop();
-        const videoWebm = await gravacaoPronta;
-        stream.getTracks().forEach(track => track.stop());
-        prevImgData = null;
-        frames.length = 0;
-        tempCanvas.width = 1;
-        tempCanvas.height = 1;
+        return {
+            frames,
+            width: largura,
+            height: altura,
+            duration: tempo,
+            fps: calcularFpsGif(frames, tempo),
+            decoder: 'native'
+        };
+    } finally {
+        if (decoder && typeof decoder.close === 'function') decoder.close();
+        if (canvas) {
+            canvas.width = 1;
+            canvas.height = 1;
+        }
+    }
+}
+
+async function carregarGifuct() {
+    let timer = null;
+    const carregamento = import('https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm');
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('GIF decoder loading timed out')), 12000);
+    });
+    try {
+        return await Promise.race([carregamento, timeout]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+async function decodificarGifFallback(file, t) {
+    const { parseGIF, decompressFrames } = await carregarGifuct();
+    const buffer = await file.arrayBuffer();
+    const gif = parseGIF(buffer);
+    const framesOriginais = decompressFrames(gif, true);
+    if (!framesOriginais || framesOriginais.length === 0) throw new Error(t.msgGifEmpty);
+
+    const largura = gif && gif.lsd && gif.lsd.width ? gif.lsd.width : Math.max(...framesOriginais.map(frame => frame.dims.left + frame.dims.width));
+    const altura = gif && gif.lsd && gif.lsd.height ? gif.lsd.height : Math.max(...framesOriginais.map(frame => frame.dims.top + frame.dims.height));
+    if (!largura || !altura) throw new Error(t.msgGifEmpty);
+
+    const gifCanvas = document.createElement('canvas');
+    gifCanvas.width = largura;
+    gifCanvas.height = altura;
+    const gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true });
+    const patchCanvas = document.createElement('canvas');
+    const patchCtx = patchCanvas.getContext('2d');
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = largura;
+    outputCanvas.height = altura;
+    const outputCtx = outputCanvas.getContext('2d', { alpha: false });
+    const frames = [];
+    let restauracao = null;
+    let tempo = 0;
+
+    try {
+        for (let i = 0; i < framesOriginais.length; i++) {
+            const frame = framesOriginais[i];
+            const anterior = i > 0 ? framesOriginais[i - 1] : null;
+
+            if (anterior && anterior.disposalType === 2) {
+                gifCtx.clearRect(anterior.dims.left, anterior.dims.top, anterior.dims.width, anterior.dims.height);
+            } else if (anterior && anterior.disposalType === 3 && restauracao) {
+                gifCtx.putImageData(restauracao, 0, 0);
+                restauracao = null;
+            }
+
+            if (frame.disposalType === 3) restauracao = gifCtx.getImageData(0, 0, largura, altura);
+
+            if (patchCanvas.width !== frame.dims.width) patchCanvas.width = frame.dims.width;
+            if (patchCanvas.height !== frame.dims.height) patchCanvas.height = frame.dims.height;
+            const patch = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+            patchCtx.putImageData(patch, 0, 0);
+            gifCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
+
+            outputCtx.fillStyle = '#000000';
+            outputCtx.fillRect(0, 0, largura, altura);
+            outputCtx.drawImage(gifCanvas, 0, 0);
+
+            const blob = await canvasToBlobAsync(outputCanvas, 'image/png');
+            const duracao = normalizarDuracaoGifSegundos(Math.max(20, Number(frame.delay) || 100) / 1000);
+            frames.push({
+                blob,
+                byteSize: blob.size || 0,
+                mimeType: 'image/png',
+                format: 'png',
+                sourceName: `gif_${String(i).padStart(5, '0')}.png`,
+                partIndex: 0,
+                startTime: tempo,
+                duration: duracao
+            });
+            tempo += duracao;
+            frame.patch = null;
+
+            if (i % 2 === 0 || i === framesOriginais.length - 1) atualizarProgressoGif(t.msgLoadingGif, i + 1, framesOriginais.length);
+            if (i % 4 === 0) await cooperativeYield();
+        }
+
+        return {
+            frames,
+            width: largura,
+            height: altura,
+            duration: tempo,
+            fps: calcularFpsGif(frames, tempo),
+            decoder: 'gifuct'
+        };
+    } finally {
+        restauracao = null;
+        framesOriginais.length = 0;
         gifCanvas.width = 1;
         gifCanvas.height = 1;
         patchCanvas.width = 1;
         patchCanvas.height = 1;
-        
+        outputCanvas.width = 1;
+        outputCanvas.height = 1;
+    }
+}
+
+async function decodificarGifEmFrames(file, t) {
+    try {
+        const nativo = await decodificarGifNativo(file, t);
+        if (nativo) return nativo;
+    } catch (error) {
+        console.warn('Native GIF decoding failed, using fallback decoder.', error);
+    }
+    return await decodificarGifFallback(file, t);
+}
+
+async function converterGifParaVideo(file) {
+    const t = traducoes[idiomaAtual];
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('txt-loading-timeline').textContent = t.msgLoadingGif;
+
+    try {
+        const gifData = await decodificarGifEmFrames(file, t);
+        if (!gifData.frames.length) throw new Error(t.msgGifEmpty);
+
+        const project = createFrameProject({
+            sourceType: 'gif',
+            sourceBlob: file,
+            width: gifData.width,
+            height: gifData.height,
+            fps: gifData.fps,
+            sourceDuration: gifData.duration,
+            frames: gifData.frames,
+            parts: [{
+                index: 0,
+                type: 'p',
+                repeat: 1,
+                pause: 0,
+                name: 'gif',
+                rawLine: 'p 1 0 gif',
+                startFrame: 0,
+                endFrame: gifData.frames.length - 1,
+                audioBlob: null
+            }]
+        });
+        project.initialMarkersApplied = true;
+
+        document.getElementById('txt-loading-timeline').textContent = t.msgLoadingVid;
+        const prepared = gifData.frames.map(frame => frame.blob);
+        const videoWebm = await createFrameProjectPreview(project, prepared, {
+            maxBuildSeconds: 4,
+            onProgress: (atual, total) => atualizarProgressoGif(t.msgLoadingVid, atual, total)
+        });
+        project.previewBlob = videoWebm;
+
         document.getElementById('dicas-iniciais').style.display = 'none';
         resetAudioState();
-        setCurrentProject(createTemporalProject('gif', file, {
-            previewBlob: videoWebm,
-            width: w,
-            height: h,
-            fps,
-            sourceDuration: totalDelay / 1000
-        }));
+        setCurrentProject(project);
+        document.getElementById('input-fps').value = gifData.fps;
         setPlayerBlob(videoWebm);
         document.getElementById('video-container').style.display = 'block';
         document.getElementById('timeline-wrapper').style.display = 'block';
@@ -116,7 +269,6 @@ async function converterGifParaVideo(file) {
         document.getElementById('btn-ver-preview').style.display = 'none';
         document.getElementById('txt-hint-tooltip').style.display = 'block';
         atualizarBotoesELinhas();
-        
     } catch (error) {
         console.error(error);
         alert(t.msgGifError + error.message);
@@ -134,7 +286,15 @@ async function prepareFrameProjectPreviewBlobs(project, onProgress) {
     return blobs;
 }
 
-async function createFrameProjectPreview(project, preparedBlobs) {
+function calcularEscalaTempoPreview(project, maxBuildSeconds) {
+    const duracao = Math.max(0, Number(project.sourceDuration) || 0);
+    if (!maxBuildSeconds || !duracao || duracao <= maxBuildSeconds) return 1;
+    const minimoPorFrames = project.frames.length > 0 ? project.frames.length / 60 : 0;
+    const alvo = Math.max(maxBuildSeconds, minimoPorFrames);
+    return Math.max(0.0625, Math.min(1, alvo / duracao));
+}
+
+async function createFrameProjectPreview(project, preparedBlobs, options = {}) {
     const maxPreviewWidth = 720;
     const maxPreviewHeight = 1280;
     const scale = Math.min(1, maxPreviewWidth / project.width, maxPreviewHeight / project.height);
@@ -144,11 +304,12 @@ async function createFrameProjectPreview(project, preparedBlobs) {
     tempCanvas.width = previewWidth;
     tempCanvas.height = previewHeight;
     const ctx = tempCanvas.getContext('2d', { alpha: false });
-    const previewFps = Math.max(1, Math.min(60, project.fps || 30));
+    const timingScale = calcularEscalaTempoPreview(project, options.maxBuildSeconds);
+    const previewFps = Math.max(1, Math.min(60, Math.ceil((project.fps || 30) / timingScale)));
     const stream = tempCanvas.captureStream(previewFps);
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     const chunks = [];
-    const blobs = preparedBlobs || await prepareFrameProjectPreviewBlobs(project);
+    const blobs = preparedBlobs || await prepareFrameProjectPreviewBlobs(project, options.onProgress);
     let stopped = false;
     let readyResolve;
     let readyReject;
@@ -181,12 +342,14 @@ async function createFrameProjectPreview(project, preparedBlobs) {
             releaseDrawable(drawable);
             blobs[i] = null;
 
-            const expectedTime = startTime + ((frame.startTime + frame.duration) * 1000);
+            if (options.onProgress && (i % 2 === 0 || i === project.frames.length - 1)) options.onProgress(i + 1, project.frames.length);
+
+            const expectedTime = startTime + ((frame.startTime + frame.duration) * 1000 * timingScale);
             const sleepTime = expectedTime - performance.now();
             if (sleepTime > 0) {
                 await new Promise(resolve => setTimeout(resolve, sleepTime));
             } else {
-                await new Promise(resolve => setTimeout(resolve, 0));
+                await cooperativeYield();
             }
         }
 

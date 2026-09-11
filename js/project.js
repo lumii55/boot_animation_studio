@@ -66,6 +66,8 @@ function setPlayerBlob(blob) {
         URL.revokeObjectURL(currentPlayerObjectUrl);
         currentPlayerObjectUrl = null;
     }
+    playerVideo.defaultPlaybackRate = 1;
+    playerVideo.playbackRate = 1;
     if (!blob) {
         playerVideo.removeAttribute('src');
         playerVideo.load();
@@ -95,6 +97,14 @@ function syncCurrentProjectWithPlayer() {
 
     originalW = currentProject.width || playerVideo.videoWidth || 0;
     originalH = currentProject.height || playerVideo.videoHeight || 0;
+
+    playerVideo.defaultPlaybackRate = 1;
+    playerVideo.playbackRate = 1;
+    if (currentProject.sourceType === 'gif' && currentProject.sourceMode === 'frames' && currentProject.previewDuration > 0 && currentProject.sourceDuration > 0) {
+        const rate = Math.max(0.0625, Math.min(16, currentProject.previewDuration / currentProject.sourceDuration));
+        playerVideo.defaultPlaybackRate = rate;
+        playerVideo.playbackRate = rate;
+    }
 
     if (currentProject.sourceMode === 'frames' && currentProject.initialMarkersSource && !currentProject.initialMarkersApplied) {
         Object.keys(currentProject.initialMarkersSource).forEach(key => {

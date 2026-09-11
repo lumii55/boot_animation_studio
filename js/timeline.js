@@ -144,10 +144,12 @@ document.querySelectorAll('.btn-marc').forEach(btn => {
 inputVideo.addEventListener('change', function(evento) {
     const arquivo = evento.target.files[0];
     if (!arquivo) return;
+    evento.target.value = '';
 
     resetAudioState();
 
-    if (arquivo.type === 'image/gif') {
+    const isGif = arquivo.type === 'image/gif' || /\.gif$/i.test(arquivo.name || '');
+    if (isGif) {
         converterGifParaVideo(arquivo);
         return;
     }
@@ -309,7 +311,8 @@ function atualizarBotoesELinhas() {
         const spanStatus = document.getElementById(`st-${id}`);
         
         if (tempo !== null) {
-            spanStatus.textContent = tempo.toFixed(2) + 's';
+            const tempoExibido = timelineTimeToProjectTime(tempo);
+            spanStatus.textContent = tempoExibido.toFixed(2) + 's';
             temposOrdem.push(tempo);
             
             const linha = document.createElement('div');
