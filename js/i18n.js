@@ -1,0 +1,629 @@
+const traducoes = {
+    en: { 
+        titulo: "✨ Boot Animation Studio ✨",
+        subtitulo: "Create, edit or apply a boot animation file!",
+        dicasTitulo: "Tips for Beginners",
+        dicaModuloPrefix: "Companion Module:",
+        dicaModuloText: "The 'Connect to Phone' feature requires our optional root module. The site works 100% perfectly without it, but for direct phone integration, download the module from our",
+        dicaModuloLink: "GitHub Repository",
+        dica1: "Important (Samsung): Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.",
+        dica2: "Size matters: Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.",
+        dica3: "Screen aspect: Phones are vertical! Prefer vertical videos (TikTok/Reels format) so your animation doesn't get stretched.",
+        upload: "📂 Video / GIF",
+        uploadZip: "📦 Edit .ZIP",
+        btnInjectZip: "🚀 Inject .ZIP",
+        btnPull: "📥 Pull from Phone",
+        modalPullTitle: "📥 Pull Animation",
+        modalPullDesc: "You already have a custom animation installed! Which version do you want to pull to the editor?",
+        btnPullModule: "🔧 From Module",
+        btnPullSystem: "📱 Original System",
+        btnPullCancel: "Cancel",
+        modalNetTitle: "🌐 Connect via Network",
+        modalNetDesc: "Server not found on PC. Enter your phone's IP address or scan the network!",
+        btnScan: "🔍 Auto-Scan",
+        btnConnectIp: "🔌 Connect",
+        scanningMsg: "Scanning common networks... This might take a few seconds 🕵️‍♂️",
+        scanFound: "Device found! Connecting...",
+        scanNotFound: "Device not found! Make sure the server is running and you are on the same Wi-Fi.",
+        btnDownloadVideo: "🎬 Download Video",
+        btnDownloadZip: "📦 Download .ZIP",
+        dicaVideo: "👇 Click video to Play or Pause!",
+        m0: "1. Intro",
+        m1: "2. Loop Start",
+        m2: "3. Loop End",
+        m3: "4. Outro",
+        tipM0: "Sets the absolute starting frame of the animation.",
+        tipM1: "Marks the first frame of the continuous loop section.",
+        tipM2: "Marks the last frame of the loop section.",
+        tipM3: "Sets the absolute final frame of the video.",
+        hintTooltip: "👇 Hold (or hover) over a button to see its explanation.",
+        naoMarcado: "Not marked",
+        lblFabricante: "Device Variant 📱",
+        optStandard: "Standard (AOSP/Pixel/OnePlus)",
+        optMiui: "MIUI (Xiaomi)",
+        optMtk: "MTK (MediaTek Stock)",
+        optMotorola: "Motorola",
+        optEmui: "EMUI (Huawei)",
+        lblGerarModulo: "Generate Root Module? 🧲",
+        lblUsarSom: "Use sound in animation? 🎵",
+        lblAudioIntro: "Intro Audio:",
+        lblAudioLoop: "Loop Audio:",
+        lblAudioFinal: "Outro Audio:",
+        optNone: "None",
+        optVid: "Video's Audio",
+        optFile: "Audio File...",
+        lblNome: "File Name 📝 (Without extension)",
+        lblFormato: "Frames Format 🖼️",
+        lblQualidade: "Resolution 📉",
+        lblFps: "FPS 🎬 (Global)",
+        lblLargura: "Width",
+        lblAltura: "Height",
+        btnFaltam: "Missing Markers...",
+        btnOrdem: "⚠️ Wrong order! Start (1) must come before Final (4)!",
+        btnGerarPronto: "🚀 GENERATE BOOT ANIMATION",
+        gerandoFrames: "Extracting frames... 📸",
+        fechandoZiper: "Closing zip... 📦",
+        msgSuccessDownload: "SUCCESS! FILES DOWNLOADED!",
+        erro: "An error occurred ❌",
+        carregandoTimeline: "Loading Timeline... ⌛",
+        extraindo: "Extracting Frames...",
+        processandoAudio: "Converting Audio to .WAV... 🎵",
+        compactandoZip: "Compressing final .ZIP...",
+        modalTitulo: "Preview of your Animation! 🎬",
+        btnFechar: "Close",
+        optJpeg: "JPEG (Lighter!)",
+        optPng: "PNG (Heavy)",
+        opt320: "320p",
+        opt480: "480p",
+        opt720: "720p",
+        optOrig: "Original",
+        optCustom: "Custom",
+        btnConnect: "🔌 Connect to Phone",
+        btnManual: "📦 Just Create .ZIP",
+        statusConnected: "🟢 Phone Connected!",
+        btnRemove: "🗑️ Remove Animation",
+        btnResetModule: "⚠️ Troubleshoot (Reset)",
+        btnInjectReady: "⚡ INJECT INTO PHONE",
+        msgSearching: "Searching... 🔍",
+        msgNotFound: "Module not found! Is the server running in the background?",
+        msgConfirmRemove: "Are you sure you want to remove the current animation and restore the default?",
+        msgInjecting: "Injecting... ⚡",
+        msgInjectError: "Error injecting animation! ❌",
+        msgWaitingAuth: "Please look at your phone screen to allow the connection...",
+        msgAuthDenied: "❌ Connection denied by the phone!",
+        msgAuthTimeout: "⏰ Timeout! You took too long to answer.",
+        btnDisconnect: "🚪 Disconnect",
+        msgRemoveSuccess: "Animation successfully removed! Boot restored to default.",
+        msgRemoveError: "Server error: ",
+        lblHistory: "Animations History (Max 5):",
+        lblHistFooter: "History keeps the 5 most recent animations! The oldest will be deleted automatically.",
+        btnApplyHist: "Inject",
+        btnVerPreview: "👀 See Preview",
+        modalEscolhaTitle: "👀 How do you want to test?",
+        modalEscolhaDesc: "Choose where you want to see your masterpiece!",
+        btnWeb: "💻 On Site",
+        btnPhone: "📱 On Phone",
+        msgResetConfirm: "This will force the module to rescan and update paths on the next boot! Continue?",
+        msgResetError: "Server error when trying to reset!",
+        msgDelHistoryError: "Error deleting history",
+        msgApplyHistorySuccess: "Animation restored successfully! Reboot your phone to see it.",
+        msgApplyHistoryError: "Error injecting history",
+        msgZipNoDesc: "This ZIP is missing the desc.txt file! It is not a valid bootanimation.",
+        msgZipNoParts: "Could not find any frame files inside the ZIP!",
+        msgZipInjectSuccess: "ZIP injected successfully! Reboot your phone to see it.",
+        msgZipInjectRefused: "The server refused the file!",
+        msgGifEmpty: "The GIF is empty!",
+        msgGifError: "Error converting GIF: ",
+        msgZipReadError: "Error reading ZIP: ",
+        msgMagicSent: "Command sent successfully! Check your device screen. (It will close automatically)",
+        msgMagicError: "An error occurred while sending the command to the phone!",
+        msgMagicConnError: "Connection error with the module!",
+        msgLoadingGif: "Reading GIF... ✨",
+        msgLoadingVid: "Recording Video... 🎬",
+        msgLoadingZip: "Opening .ZIP... 📦",
+        msgOrgFrames: "Organizing frames... 🖼️",
+        msgStitching: "Stitching Video... 🎬",
+        msgCheckingZip: "Verifying ZIP... 🕵️‍♂️",
+        msgInjectingPhone: "Injecting into phone... ⚡",
+        msgInjectingPast: "Injecting from the past... ✨"
+    },
+    pt: {
+        titulo: "✨ Boot Animation Studio ✨",
+        subtitulo: "Crie, edite ou aplique um arquivo de boot animation!",
+        dicasTitulo: "Dicas para Principiantes",
+        dicaModuloPrefix: "Módulo Auxiliar:",
+        dicaModuloText: "Para usar a função 'Conectar ao Celular' você precisa de um módulo root opcional. O site funciona 100% sem ele, mas caso queira integração direta, baixe o módulo no nosso",
+        dicaModuloLink: "Repositório GitHub",
+        dica1: "Aviso Samsung: Como o formato .qmg é fechado, o site não gera animações para Samsung de fábrica. Você DEVE usar uma Custom ROM/GSI! Requer acesso Root.",
+        dica2: "Tamanho Importa: Evite arquivos maiores que 20MB. Animações pesadas podem engasgar o Android ou causar bootloops.",
+        dica3: "Formato da Tela: Celulares ficam em pé! Dê preferência a vídeos verticais (formato Reels/TikTok) para a imagem não ficar esticada.",
+        upload: "📂 Vídeo / GIF",
+        uploadZip: "📦 Editar .ZIP",
+        btnInjectZip: "🚀 Injetar .ZIP",
+        btnPull: "📥 Puxar do Celular",
+        modalPullTitle: "📥 Puxar Animação",
+        modalPullDesc: "Você já possui uma animação customizada instalada! Qual versão você deseja puxar para o editor?",
+        btnPullModule: "🔧 Do Módulo",
+        btnPullSystem: "📱 Original do Sistema",
+        btnPullCancel: "Cancelar",
+        modalNetTitle: "🌐 Conectar pela Rede",
+        modalNetDesc: "Servidor não encontrado no PC. Digite o IP do celular ou faça uma varredura na rede!",
+        btnScan: "🔍 Varredura Auto",
+        btnConnectIp: "🔌 Conectar",
+        scanningMsg: "Vasculhando redes comuns... Isso leva uns segundinhos 🕵️‍♂️",
+        scanFound: "Dispositivo encontrado! Conectando...",
+        scanNotFound: "Celular não encontrado! Certifique-se de que o servidor está rodando e você está no mesmo Wi-Fi.",
+        btnDownloadVideo: "🎬 Baixar Vídeo",
+        btnDownloadZip: "📦 Baixar .ZIP",
+        dicaVideo: "👆 Clique no vídeo para dar Play ou Pausar!",
+        m0: "1. Abertura",
+        m1: "2. Início do Loop",
+        m2: "3. Fim do Loop",
+        m3: "4. Encerramento",
+        tipM0: "Define o frame inicial absoluto da animação.",
+        tipM1: "Marca o primeiro frame do trecho que entrará em repetição contínua.",
+        tipM2: "Marca o último frame do trecho de repetição.",
+        tipM3: "Define o frame final absoluto do vídeo.",
+        hintTooltip: "👇 Segure o dedo (ou pare o mouse) sobre um botão para ver sua explicação.",
+        naoMarcado: "Não marcado",
+        lblFabricante: "Variante do Aparelho 📱",
+        optStandard: "Padrão (AOSP/Pixel/OnePlus)",
+        optMiui: "MIUI (Xiaomi)",
+        optMtk: "MTK (MediaTek Stock)",
+        optMotorola: "Motorola",
+        optEmui: "EMUI (Huawei)",
+        lblGerarModulo: "Gerar Módulo Root? 🧲",
+        lblUsarSom: "Usar som na animação? 🎵",
+        lblAudioIntro: "Áudio do trecho de inicialização:",
+        lblAudioLoop: "Áudio do trecho de loop:",
+        lblAudioFinal: "Áudio do trecho de finalização:",
+        optNone: "Nenhum",
+        optVid: "Áudio do vídeo",
+        optFile: "Arquivo de áudio...",
+        lblNome: "Nome do Arquivo 📝 (Sem extensão)",
+        lblFormato: "Formato dos Frames 🖼️",
+        lblQualidade: "Resolução 📉",
+        lblFps: "FPS 🎬 (Global)",
+        lblLargura: "Largura",
+        lblAltura: "Altura",
+        btnFaltam: "Faltam Marcadores...",
+        btnOrdem: "⚠️ Ordem errada! O Início (1) deve vir antes do Fim (4)!",
+        btnGerarPronto: "🚀 GERAR ANIMAÇÃO DE BOOT",
+        gerandoFrames: "Extraindo os frames... 📸",
+        fechandoZiper: "Fechando o zíper... 📦",
+        msgSuccessDownload: "SUCESSO! ARQUIVOS BAIXADOS!",
+        erro: "Aconteceu um erro ❌",
+        carregandoTimeline: "Carregando a Timeline... ⌛",
+        extraindo: "Extraindo Frames...",
+        processandoAudio: "Convertendo Áudio para .WAV... 🎵",
+        compactandoZip: "Compactando o .ZIP final...",
+        modalTitulo: "Preview da sua Animação! 🎬",
+        btnFechar: "Fechar",
+        optJpeg: "JPEG (Mais leve!)",
+        optPng: "PNG (Pesado)",
+        opt320: "320p",
+        opt480: "480p",
+        opt720: "720p",
+        optOrig: "Original",
+        optCustom: "Personalizado",
+        btnConnect: "🔌 Conectar ao Celular",
+        btnManual: "📦 Apenas Criar .ZIP",
+        statusConnected: "🟢 Celular Conectado!",
+        btnRemove: "🗑️ Remover Animação",
+        btnResetModule: "⚠️ Troubleshoot (Reset)",
+        btnInjectReady: "⚡ INJETAR NO CELULAR",
+        msgSearching: "Procurando... 🔍",
+        msgNotFound: "Módulo não encontrado! O servidor está rodando no fundo?",
+        msgConfirmRemove: "Quer mesmo apagar a animação atual e voltar para a de fábrica?",
+        msgInjecting: "Injetando... ⚡",
+        msgInjectError: "Erro ao injetar a animação! ❌",
+        msgWaitingAuth: "Por favor, olhe para a tela do celular e permita a conexão...",
+        msgAuthDenied: "❌ Conexão negada pelo celular!",
+        msgAuthTimeout: "⏰ Tempo esgotado! Você demorou muito para responder.",
+        btnDisconnect: "🚪 Desconectar",
+        msgRemoveSuccess: "Animação removida com sucesso! O boot voltou ao original.",
+        msgRemoveError: "Erro do servidor: ",
+        lblHistory: "Histórico de Animações (Máx 5):",
+        lblHistFooter: "O histórico retém as 5 animações mais recentes! A mais antiga será apagada automaticamente.",
+        btnApplyHist: "Injetar",
+        btnVerPreview: "👀 Ver Preview",
+        modalEscolhaTitle: "👀 Como deseja testar?",
+        modalEscolhaDesc: "Escolha onde quer ver sua mais nova obra de arte!",
+        btnWeb: "💻 No Site",
+        btnPhone: "📱 No Celular",
+        msgResetConfirm: "Isso vai forçar o módulo a refazer a varredura e atualizar os caminhos no próximo boot! Continuar?",
+        msgResetError: "Erro no servidor ao tentar resetar!",
+        msgDelHistoryError: "Erro ao deletar histórico",
+        msgApplyHistorySuccess: "Animação restaurada com sucesso! Reinicie o celular para ver.",
+        msgApplyHistoryError: "Erro ao injetar histórico",
+        msgZipNoDesc: "Esse ZIP não tem o arquivo desc.txt! Não é um bootanimation válido.",
+        msgZipNoParts: "Não foi possível encontrar arquivos de imagem válidos dentro do ZIP.",
+        msgZipInjectSuccess: "ZIP injetado com sucesso! Reinicie o celular para ver.",
+        msgZipInjectRefused: "O servidor recusou o arquivo!",
+        msgGifEmpty: "O GIF está vazio!",
+        msgGifError: "Erro ao converter GIF: ",
+        msgZipReadError: "Erro ao ler o ZIP: ",
+        msgMagicSent: "Comando enviado com sucesso! Verifique a tela do seu dispositivo. (O aviso fechará automaticamente)",
+        msgMagicError: "Ocorreu um erro ao tentar enviar o comando para o celular.",
+        msgMagicConnError: "Erro de conexão com o módulo!",
+        msgLoadingGif: "Lendo GIF... ✨",
+        msgLoadingVid: "Gravando Vídeo... 🎬",
+        msgLoadingZip: "Abrindo .ZIP... 📦",
+        msgOrgFrames: "Organizando frames... 🖼️",
+        msgStitching: "Costurando Vídeo... 🎬",
+        msgCheckingZip: "Verificando ZIP... 🕵️‍♂️",
+        msgInjectingPhone: "Injetando no celular... ⚡",
+        msgInjectingPast: "Injetando do passado... ✨"
+    },
+    es: {
+        titulo: "✨ Boot Animation Studio ✨",
+        subtitulo: "¡Crea, edite o aplica un archivo de boot animation!",
+        dicasTitulo: "Consejos para Principiantes",
+        dicaModuloPrefix: "Módulo Auxiliar:",
+        dicaModuloText: "La función 'Conectar al Celular' requiere nuestro módulo root opcional. El sitio funciona 100% sin él, pero para integración directa, descarga el módulo en nuestro",
+        dicaModuloLink: "Repositorio de GitHub",
+        dica1: "Aviso Samsung: Como .qmg es un formato cerrado, el sitio no genera animaciones para Samsung de fábrica. ¡DEBES usar una Custom ROM/GSI! Requiere Root.",
+        dica2: "El Tamaño Importa: Evita archivos de más de 20MB. Los archivos muy pesados pueden trabar Android o causar bootloops.",
+        dica3: "Formato de Pantalla: ¡Los teléfonos son verticales! Prefiere videos verticales (formato TikTok/Reels) para que no se estiren.",
+        upload: "📂 Video / GIF",
+        uploadZip: "📦 Editar .ZIP",
+        btnInjectZip: "🚀 Inyectar .ZIP",
+        btnPull: "📥 Extraer del Celular",
+        modalPullTitle: "📥 Extraer Animación",
+        modalPullDesc: "¡Ya tienes una animación personalizada instalada! ¿Qué versión deseas extraer al editor?",
+        btnPullModule: "🔧 Del Módulo",
+        btnPullSystem: "📱 Original del Sistema",
+        btnPullCancel: "Cancelar",
+        modalNetTitle: "🌐 Conectar vía Red",
+        modalNetDesc: "Servidor no encontrado en la PC. ¡Ingresa la IP del celular o escanea la red!",
+        btnScan: "🔍 Escaneo Auto",
+        btnConnectIp: "🔌 Conectar",
+        scanningMsg: "Buscando en redes comunes... Esto tomará unos segundos 🕵️‍♂️",
+        scanFound: "¡Dispositivo encontrado! Conectando...",
+        scanNotFound: "¡Dispositivo no encontrado! Asegúrate de estar en el mismo Wi-Fi.",
+        btnDownloadVideo: "🎬 Descargar Video",
+        btnDownloadZip: "📦 Descargar .ZIP",
+        dicaVideo: "👆 ¡Haz clic en el video para Reproducir o Pausar!",
+        m0: "1. Apertura",
+        m1: "2. Inicio del Loop",
+        m2: "3. Fin del Loop",
+        m3: "4. Cierre",
+        tipM0: "Define el fotograma inicial absoluto de la animación.",
+        tipM1: "Marca el primer fotograma de la sección que entrará en repetición continua.",
+        tipM2: "Marca el último fotograma de la sección de repetición.",
+        tipM3: "Define el fotograma final absoluto del video.",
+        hintTooltip: "👇 Mantén presionado (o pasa el mouse) sobre un botón para ver su explicación.",
+        naoMarcado: "No marcado",
+        lblFabricante: "Variante del Dispositivo 📱",
+        optStandard: "Estándar (AOSP/Pixel/OnePlus)",
+        optMiui: "MIUI (Xiaomi)",
+        optMtk: "MTK (MediaTek Stock)",
+        optMotorola: "Motorola",
+        optEmui: "EMUI (Huawei)",
+        lblGerarModulo: "¿Generar Módulo Root? 🧲",
+        lblUsarSom: "¿Usar sonido en la animación? 🎵",
+        lblAudioIntro: "Audio del inicio:",
+        lblAudioLoop: "Audio del bucle:",
+        lblAudioFinal: "Audio final:",
+        optNone: "Ninguno",
+        optVid: "Audio del vídeo",
+        optFile: "Archivo de audio...",
+        lblNome: "Nombre del Archivo 📝 (Sin extensión)",
+        lblFormato: "Formato de Fotogramas 🖼️",
+        lblQualidade: "Resolución 📉",
+        lblFps: "FPS 🎬 (Global)",
+        lblLargura: "Ancho",
+        lblAltura: "Alto",
+        btnFaltam: "Faltan Marcadores...",
+        btnOrdem: "⚠️ ¡Orden incorrecto! ¡El Inicio (1) debe ir antes del Final (4)!",
+        btnGerarPronto: "🚀 GENERAR ANIMACIÓN DE BOOT",
+        gerandoFrames: "Extrayendo fotogramas... 📸",
+        fechandoZiper: "Cerrando el zip... 📦",
+        msgSuccessDownload: "¡ÉXITO! ARCHIVOS DESCARGADOS.",
+        erro: "Ocurrió un error ❌",
+        carregandoTimeline: "Cargando Línea de Tiempo... ⌛",
+        extraindo: "Extrayendo Fotogramas...",
+        processandoAudio: "Convirtiendo Audio a .WAV... 🎵",
+        compactandoZip: "Comprimiendo .ZIP final...",
+        modalTitulo: "¡Vista Previa de tu Animación! 🎬",
+        btnFechar: "Cerrar",
+        optJpeg: "JPEG (¡Más ligero!)",
+        optPng: "PNG (Pesado)",
+        opt320: "320p",
+        opt480: "480p",
+        opt720: "720p",
+        optOrig: "Original",
+        optCustom: "Personalizado",
+        btnConnect: "🔌 Conectar al Celular",
+        btnManual: "📦 Solo Crear .ZIP",
+        statusConnected: "🟢 ¡Celular Conectado!",
+        btnRemove: "🗑️ Eliminar Animación",
+        btnResetModule: "⚠️ Troubleshoot (Reset)",
+        btnInjectReady: "⚡ INYECTAR EN EL CELULAR",
+        msgSearching: "Buscando... 🔍",
+        msgNotFound: "¡Módulo no encontrado! ¿El servidor se está ejecutando en segundo plano?",
+        msgConfirmRemove: "¿Estás seguro de que quieres eliminar la animación actual y restaurar la de fábrica?",
+        msgInjecting: "Inyectando... ⚡",
+        msgInjectError: "¡Error al inyectar la animación! ❌",
+        msgWaitingAuth: "Por favor, mira la pantalla de tu celular y permite la conexión...",
+        msgAuthDenied: "❌ ¡Conexión denegada por el celular!",
+        msgAuthTimeout: "⏰ ¡Tiempo agotado! Tardaste mucho en responder.",
+        btnDisconnect: "🚪 Desconectar",
+        msgRemoveSuccess: "¡Animación eliminada con éxito! Arranque restaurado al original.",
+        msgRemoveError: "Error del servidor: ",
+        lblHistory: "Historial de Animaciones (Máx 5):",
+        lblHistFooter: "¡El historial conserva las 5 más recientes! La más antigua se borrará automáticamente.",
+        btnApplyHist: "Inyectar",
+        btnVerPreview: "👀 Ver Preview",
+        modalEscolhaTitle: "👀 ¿Cómo quieres probar?",
+        modalEscolhaDesc: "¡Elige dónde quieres ver tu obra maestra!",
+        btnWeb: "💻 En la web",
+        btnPhone: "📱 En el Celular",
+        msgResetConfirm: "¡Esto forzará al módulo a volver a escanear y actualizar las rutas en el próximo inicio! ¿Continuar?",
+        msgResetError: "¡Error en el servidor al intentar restablecer!",
+        msgDelHistoryError: "Error al borrar el historial",
+        msgApplyHistorySuccess: "¡Animación restaurada con éxito! Reinicie su teléfono para verla.",
+        msgApplyHistoryError: "Error al inyectar historial",
+        msgZipNoDesc: "¡A este ZIP le falta el archivo desc.txt! No es un bootanimation válido.",
+        msgZipNoParts: "No se encontraron archivos de imagen válidos dentro del ZIP.",
+        msgZipInjectSuccess: "¡ZIP inyectado con éxito! Reinicie el teléfono para verlo.",
+        msgZipInjectRefused: "¡El servidor rechazó el archivo!",
+        msgGifEmpty: "¡El GIF está vacío!",
+        msgGifError: "Error al convertir GIF: ",
+        msgZipReadError: "Error al leer ZIP: ",
+        msgMagicSent: "¡Comando enviado con éxito! Verifique la pantalla de su dispositivo. (Se cerrará automáticamente)",
+        msgMagicError: "¡Ocurrió un error al intentar enviar el comando al teléfono!",
+        msgMagicConnError: "¡Error de conexión con el módulo!",
+        msgLoadingGif: "Leyendo GIF... ✨",
+        msgLoadingVid: "Grabando Video... 🎬",
+        msgLoadingZip: "Abriendo .ZIP... 📦",
+        msgOrgFrames: "Organizando frames... 🖼️",
+        msgStitching: "Uniendo Video... 🎬",
+        msgCheckingZip: "Verificando ZIP... 🕵️‍♂️",
+        msgInjectingPhone: "Inyectando en el celular... ⚡",
+        msgInjectingPast: "Inyectando del pasado... ✨"
+    },
+    fr: {
+        titulo: "✨ Boot Animation Studio ✨",
+        subtitulo: "Créez, éditez ou appliquez un fichier boot animation !",
+        dicasTitulo: "Conseils pour Débutants",
+        dicaModuloPrefix: "Module Compagnon:",
+        dicaModuloText: "La fonction 'Connecter au Téléphone' nécessite notre module root optionnel. Le site fonctionne à 100% sans lui, mais pour une intégration directe, téléchargez-le sur notre",
+        dicaModuloLink: "Dépôt GitHub",
+        dica1: "Avis Samsung : Le format .qmg étant fermé, le site ne génère pas d'animations pour Samsung d'origine. Vous DEVEZ être sur une Custom ROM/GSI ! Root requis.",
+        dica2: "La Taille Compte : Évitez les fichiers de plus de 20 Mo. Les fichiers lourds peuvent faire ramer Android ou causer des bootloops.",
+        dica3: "Format d'Écran : Privilégiez les vidéos verticales (format TikTok/Reels) pour que votre animation ne soit pas déformée.",
+        upload: "📂 Vidéo / GIF",
+        uploadZip: "📦 Éditer .ZIP",
+        btnInjectZip: "🚀 Injecter .ZIP",
+        btnPull: "📥 Extraer du Téléphone",
+        modalPullTitle: "📥 Extraire l'Animation",
+        modalPullDesc: "Vous avez déjà une animation personnalisée installée ! Quelle version voulez-vous extraire vers l'éditeur ?",
+        btnPullModule: "🔧 Du Module",
+        btnPullSystem: "📱 Système d'Origine",
+        btnPullCancel: "Annuler",
+        modalNetTitle: "🌐 Connexion via Réseau",
+        modalNetDesc: "Serveur introuvable sur le PC. Entrez l'IP du téléphone ou scannez le réseau !",
+        btnScan: "🔍 Scan Auto",
+        btnConnectIp: "🔌 Connecter",
+        scanningMsg: "Recherche sur les réseaux... Cela prend quelques secondes 🕵️‍♂️",
+        scanFound: "Appareil trouvé ! Connexion...",
+        scanNotFound: "Appareil introuvable ! Assurez-vous d'être sur le même Wi-Fi.",
+        btnDownloadVideo: "🎬 Télécharger Vidéo",
+        btnDownloadZip: "📦 Télécharger .ZIP",
+        dicaVideo: "👆 Cliquez sur la vidéo pour Lire ou Mettre en pause !",
+        m0: "1. Intro",
+        m1: "2. Début Loop",
+        m2: "3. Fin Loop",
+        m3: "4. Clôture",
+        tipM0: "Définit l'image de départ absolue de l'animation.",
+        tipM1: "Marque la première image de la section qui tournera en boucle continue.",
+        tipM2: "Marque la dernière image de la section en boucle.",
+        tipM3: "Définit l'image finale absolue de la vidéo.",
+        hintTooltip: "👇 Maintenez (ou survolez) un bouton pour voir son explication.",
+        naoMarcado: "Non marqué",
+        lblFabricante: "Variante d'Appareil 📱",
+        optStandard: "Standard (AOSP/Pixel/OnePlus)",
+        optMiui: "MIUI (Xiaomi)",
+        optMtk: "MTK (MediaTek Stock)",
+        optMotorola: "Motorola",
+        optEmui: "EMUI (Huawei)",
+        lblGerarModulo: "Générer un Module Root ? 🧲",
+        lblUsarSom: "Utiliser du son ? 🎵",
+        lblAudioIntro: "Audio d'intro :",
+        lblAudioLoop: "Audio de boucle :",
+        lblAudioFinal: "Audio de fin :",
+        optNone: "Aucun",
+        optVid: "Audio de la vidéo",
+        optFile: "Fichier audio...",
+        lblNome: "Nom du Fichier 📝 (Sans extension)",
+        lblFormato: "Format des Images 🖼️",
+        lblQualidade: "Résolution 📉",
+        lblFps: "FPS 🎬 (Global)",
+        lblLargura: "Largeur",
+        lblAltura: "Hauteur",
+        btnFaltam: "Marqueurs manquants...",
+        btnOrdem: "⚠️ Mauvais ordre ! Le Début (1) doit précéder la Fin (4) !",
+        btnGerarPronto: "🚀 GÉNÉRER L'ANIMATION",
+        gerandoFrames: "Extraction des images... 📸",
+        fechandoZiper: "Fermeture du zip... 📦",
+        msgSuccessDownload: "SUCCÈS ! FICHIERS TÉLÉCHARGÉS.",
+        erro: "Une erreur est survenue ❌",
+        carregandoTimeline: "Chargement de la timeline... ⌛",
+        extraindo: "Extraction des Images...",
+        processandoAudio: "Conversion Audio en .WAV... 🎵",
+        compactandoZip: "Compression du .ZIP final...",
+        modalTitulo: "Aperçu de votre Animation ! 🎬",
+        btnFechar: "Fermer",
+        optJpeg: "JPEG (Plus léger !)",
+        optPng: "PNG (Lourd)",
+        opt320: "320p",
+        opt480: "480p",
+        opt720: "720p",
+        optOrig: "Original",
+        optCustom: "Personnalisé",
+        btnConnect: "🔌 Connecter au Téléphone",
+        btnManual: "📦 Juste Créer un .ZIP",
+        statusConnected: "🟢 Téléphone Connecté !",
+        btnRemove: "🗑️ Supprimer l'Anim",
+        btnResetModule: "⚠️ Troubleshoot (Reset)",
+        btnInjectReady: "⚡ INJECTER DANS LE TÉLÉPHONE",
+        msgSearching: "Recherche... 🔍",
+        msgNotFound: "Module introuvable ! Le serveur tourne-t-il en arrière-plan ?",
+        msgConfirmRemove: "Êtes-vous sûr de vouloir supprimer l'animation actuelle et restaurar celle par défaut ?",
+        msgInjecting: "Injection... ⚡",
+        msgInjectError: "Erreur lors de l'injection ! ❌",
+        msgWaitingAuth: "Veuillez regarder l'écran de votre téléphone pour autoriser...",
+        msgAuthDenied: "❌ Connexion refusée par le téléphone !",
+        msgAuthTimeout: "⏰ Délai d'attente dépassé ! Vous avez mis trop de temps à répondre.",
+        btnDisconnect: "🚪 Déconnecter",
+        msgRemoveSuccess: "Animation supprimée avec succès ! Démarrage restauré par défaut.",
+        msgRemoveError: "Erreur du serveur : ",
+        lblHistory: "Historique (Max 5):",
+        lblHistFooter: "L'historique conserve les 5 plus récentes ! La plus ancienne sera effacée automatiquement.",
+        btnApplyHist: "Injecter",
+        btnVerPreview: "👀 Voir Preview",
+        modalEscolhaTitle: "👀 Comment tester?",
+        modalEscolhaDesc: "Choisissez où vous voulez voir votre chef-d'œuvre!",
+        btnWeb: "💻 Sur le Site",
+        btnPhone: "📱 Sur le Téléphone",
+        msgResetConfirm: "Cela forcera le module à réanalyser et mettre à jour les chemins au prochain démarrage ! Continuer ?",
+        msgResetError: "Erreur du serveur lors de la tentative de réinitialisation !",
+        msgDelHistoryError: "Erreur lors de la suppression de l'historique",
+        msgApplyHistorySuccess: "Animation restaurée avec succès ! Redémarrez votre téléphone pour la voir.",
+        msgApplyHistoryError: "Erreur lors de l'injection de l'historique",
+        msgZipNoDesc: "Ce fichier ZIP ne contient pas le fichier desc.txt ! Ce n'est pas un bootanimation valide.",
+        msgZipNoParts: "Impossible de trouver des fichiers d'images dans le ZIP !",
+        msgZipInjectSuccess: "ZIP injecté avec succès ! Redémarrez le téléphone pour le voir.",
+        msgZipInjectRefused: "Le serveur a refusé le fichier !",
+        msgGifEmpty: "Le GIF est vide !",
+        msgGifError: "Erreur lors de la conversion du GIF : ",
+        msgZipReadError: "Erreur lors de la lecture du ZIP : ",
+        msgMagicSent: "Commande envoyée ! Vérifiez l'écran de votre appareil. (L'avis se fermera automatiquement)",
+        msgMagicError: "Une erreur est survenue lors de l'envoi de la commande au téléphone !",
+        msgMagicConnError: "Erreur de connexion avec le module !",
+        msgLoadingGif: "Lecture du GIF... ✨",
+        msgLoadingVid: "Enregistrement Vidéo... 🎬",
+        msgLoadingZip: "Ouverture .ZIP... 📦",
+        msgOrgFrames: "Organisation des frames... 🖼️",
+        msgStitching: "Assemblage Vidéo... 🎬",
+        msgCheckingZip: "Vérification du ZIP... 🕵️‍♂️",
+        msgInjectingPhone: "Injection dans le téléphone... ⚡",
+        msgInjectingPast: "Injection depuis le passé... ✨"
+    }
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+    let langDetectada = 'en';
+    const idiomasSuportados = ['en', 'pt', 'es', 'fr'];
+    try {
+        const linguasNavegador = navigator.languages || [navigator.language || navigator.userLanguage];
+        let idiomaSistema = null;
+        if (window.Intl && Intl.DateTimeFormat) { idiomaSistema = Intl.DateTimeFormat().resolvedOptions().locale; }
+        const todasPistas = [...linguasNavegador, idiomaSistema];
+        for (let pista of todasPistas) {
+            if (pista) {
+                const base = pista.split('-')[0];
+                if (idiomasSuportados.includes(base)) {
+                    langDetectada = base;
+                    if (base !== 'en') break; 
+                }
+            }
+        }
+    } catch (e) { langDetectada = 'en'; }
+    
+    idiomaAtual = langDetectada;
+    document.getElementById('select-idioma').value = idiomaAtual;
+    mudarIdioma(idiomaAtual);
+});
+
+function mudarIdioma(lang) {
+    idiomaAtual = lang;
+    const t = traducoes[lang];
+
+    document.getElementById('txt-titulo').textContent = t.titulo;
+    document.getElementById('txt-subtitulo').textContent = t.subtitulo;
+    document.getElementById('txt-dicas-titulo').innerHTML = t.dicasTitulo;
+    document.getElementById('txt-dica-modulo-prefix').textContent = t.dicaModuloPrefix;
+    document.getElementById('txt-dica-modulo-text').textContent = t.dicaModuloText;
+    document.getElementById('txt-dica-modulo-link').textContent = t.dicaModuloLink;
+    document.getElementById('txt-dica1').innerHTML = `<strong>${t.dica1.split(': ')[0]}:</strong> ${t.dica1.split(': ')[1]}`;
+    document.getElementById('txt-dica2').innerHTML = `<strong>${t.dica2.split(': ')[0]}:</strong> ${t.dica2.split(': ')[1]}`;
+    document.getElementById('txt-dica3').innerHTML = `<strong>${t.dica3.split(': ')[0]}:</strong> ${t.dica3.split(': ')[1]}`;
+    document.getElementById('lbl-upload').textContent = t.upload;
+    document.getElementById('lbl-upload-zip').textContent = t.uploadZip;
+    document.getElementById('lbl-upload-direto').textContent = t.btnInjectZip;
+    document.getElementById('btn-pull').textContent = t.btnPull;
+    document.getElementById('lbl-modal-pull-title').textContent = t.modalPullTitle;
+    document.getElementById('lbl-modal-pull-desc').textContent = t.modalPullDesc;
+    document.getElementById('btn-pull-module').textContent = t.btnPullModule;
+    document.getElementById('btn-pull-system').textContent = t.btnPullSystem;
+    document.getElementById('btn-pull-cancel').textContent = t.btnPullCancel;
+    document.getElementById('lbl-modal-net-title').textContent = t.modalNetTitle;
+    document.getElementById('lbl-modal-net-desc').textContent = t.modalNetDesc;
+    document.getElementById('btn-scan-net').textContent = t.btnScan;
+    document.getElementById('btn-connect-ip').textContent = t.btnConnectIp;
+    document.getElementById('btn-cancel-net').textContent = t.btnPullCancel;
+    document.getElementById('btn-baixar-video').textContent = t.btnDownloadVideo;
+    document.getElementById('btn-baixar-zip').textContent = t.btnDownloadZip;
+    document.getElementById('txt-dicavideo').textContent = t.dicaVideo;
+    document.getElementById('lbl-m0').textContent = t.m0;
+    document.getElementById('lbl-m1').textContent = t.m1;
+    document.getElementById('lbl-m2').textContent = t.m2;
+    document.getElementById('lbl-m3').textContent = t.m3;
+    document.getElementById('txt-hint-tooltip').textContent = t.hintTooltip;
+    document.getElementById('lbl-fabricante').textContent = t.lblFabricante;
+    document.getElementById('opt-standard').textContent = t.optStandard;
+    document.getElementById('opt-miui').textContent = t.optMiui;
+    document.getElementById('opt-mtk').textContent = t.optMtk;
+    document.getElementById('opt-motorola').textContent = t.optMotorola;
+    document.getElementById('opt-emui').textContent = t.optEmui;
+    document.getElementById('lbl-gerarmodulo').textContent = t.lblGerarModulo;
+    document.getElementById('lbl-nome').textContent = t.lblNome;
+    document.getElementById('lbl-formato').textContent = t.lblFormato;
+    document.getElementById('lbl-qualidade').textContent = t.lblQualidade;
+    document.getElementById('lbl-fps').textContent = t.lblFps;
+    document.getElementById('lbl-largura').textContent = t.lblLargura;
+    document.getElementById('lbl-altura').textContent = t.lblAltura;
+    document.getElementById('opt-jpeg').textContent = t.optJpeg;
+    document.getElementById('opt-png').textContent = t.optPng;
+    document.getElementById('opt-320').textContent = t.opt320;
+    document.getElementById('opt-480').textContent = t.opt480;
+    document.getElementById('opt-720').textContent = t.opt720;
+    document.getElementById('opt-orig').textContent = t.optOrig;
+    document.getElementById('opt-custom').textContent = t.optCustom;
+    document.getElementById('lbl-modal-titulo').textContent = t.modalTitulo;
+    document.getElementById('btn-fechar-modal').textContent = t.btnFechar;
+    document.getElementById('txt-loading-timeline').textContent = t.carregandoTimeline;
+    document.getElementById('lbl-usar-som').textContent = t.lblUsarSom;
+    document.getElementById('lbl-audio-intro').textContent = t.lblAudioIntro;
+    document.getElementById('lbl-audio-loop').textContent = t.lblAudioLoop;
+    document.getElementById('lbl-audio-final').textContent = t.lblAudioFinal;
+    
+    document.getElementById('btn-connect').textContent = t.btnConnect;
+    document.getElementById('btn-manual').textContent = t.btnManual;
+    document.getElementById('status-connected').textContent = t.statusConnected;
+    document.getElementById('btn-remove').textContent = t.btnRemove;
+    document.getElementById('btn-reset').textContent = t.btnResetModule;
+    document.getElementById('btn-disconnect').textContent = t.btnDisconnect;
+
+    document.getElementById('lbl-history').textContent = t.lblHistory;
+    document.getElementById('lbl-hist-footer').textContent = t.lblHistFooter;
+
+    document.getElementById('btn-ver-preview').textContent = t.btnVerPreview;
+    document.getElementById('lbl-modal-escolha-title').textContent = t.modalEscolhaTitle;
+    document.getElementById('lbl-modal-escolha-desc').textContent = t.modalEscolhaDesc;
+    document.getElementById('btn-web').textContent = t.btnWeb;
+    document.getElementById('btn-phone').textContent = t.btnPhone;
+    document.getElementById('btn-cancel-preview').textContent = t.btnPullCancel;
+
+    ['intro', 'loop', 'final'].forEach(part => {
+        const optNone = document.getElementById(`opt-none-${part}`);
+        const optVid = document.getElementById(`opt-vid-${part}`);
+        const optFile = document.getElementById(`opt-file-${part}`);
+        if(optNone.textContent !== optNone.getAttribute('data-custom')) optNone.textContent = t.optNone;
+        if(optVid.textContent !== optVid.getAttribute('data-custom')) optVid.textContent = t.optVid;
+        if(optFile.textContent !== optFile.getAttribute('data-custom')) optFile.textContent = t.optFile;
+    });
+    atualizarBotoesELinhas();
+}
