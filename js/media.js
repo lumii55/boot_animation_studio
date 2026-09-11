@@ -18,7 +18,7 @@ async function converterGifParaVideo(file) {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = w;
         tempCanvas.height = h;
-        const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        const ctx = tempCanvas.getContext('2d');
         
         let totalDelay = 0;
         frames.forEach(frame => totalDelay += Math.max(20, frame.delay));
@@ -38,12 +38,14 @@ async function converterGifParaVideo(file) {
         const gravacaoPronta = new Promise(resolve => {
             recorder.onstop = () => resolve(new Blob(pedacos, { type: 'video/webm' }));
         });
-        recorder.start();
+        recorder.start(1000);
 
         const gifCanvas = document.createElement('canvas');
         gifCanvas.width = w;
         gifCanvas.height = h;
-        const gifCtx = gifCanvas.getContext('2d');
+        const gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true });
+        const patchCanvas = document.createElement('canvas');
+        const patchCtx = patchCanvas.getContext('2d');
         let prevImgData;
         
         const startTime = performance.now();
@@ -62,13 +64,12 @@ async function converterGifParaVideo(file) {
                 prevImgData = gifCtx.getImageData(0, 0, w, h);
             }
             
-            const patchCanvas = document.createElement('canvas');
             patchCanvas.width = frame.dims.width;
             patchCanvas.height = frame.dims.height;
             const pData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
-            patchCanvas.getContext('2d').putImageData(pData, 0, 0);
-            
+            patchCtx.putImageData(pData, 0, 0);
             gifCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
+            frame.patch = null;
             
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, w, h);
@@ -87,6 +88,15 @@ async function converterGifParaVideo(file) {
 
         recorder.stop();
         const videoWebm = await gravacaoPronta;
+        stream.getTracks().forEach(track => track.stop());
+        prevImgData = null;
+        frames.length = 0;
+        tempCanvas.width = 1;
+        tempCanvas.height = 1;
+        gifCanvas.width = 1;
+        gifCanvas.height = 1;
+        patchCanvas.width = 1;
+        patchCanvas.height = 1;
         
         document.getElementById('dicas-iniciais').style.display = 'none';
         resetAudioState();
@@ -115,10 +125,15 @@ async function converterGifParaVideo(file) {
 }
 
 async function createFrameProjectPreview(project) {
+    const maxPreviewWidth = 720;
+    const maxPreviewHeight = 1280;
+    const scale = Math.min(1, maxPreviewWidth / project.width, maxPreviewHeight / project.height);
+    const previewWidth = Math.max(2, Math.floor((project.width * scale) / 2) * 2);
+    const previewHeight = Math.max(2, Math.floor((project.height * scale) / 2) * 2);
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = project.width;
-    tempCanvas.height = project.height;
-    const ctx = tempCanvas.getContext('2d');
+    tempCanvas.width = previewWidth;
+    tempCanvas.height = previewHeight;
+    const ctx = tempCanvas.getContext('2d', { alpha: false });
     const previewFps = Math.max(1, Math.min(60, project.fps || 30));
     const stream = tempCanvas.captureStream(previewFps);
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -130,27 +145,35 @@ async function createFrameProjectPreview(project) {
         recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
     });
 
-    recorder.start();
-    const startTime = performance.now();
+    try {
+        recorder.start(1000);
+        const startTime = performance.now();
 
-    for (const frame of project.frames) {
-        const drawable = await blobToDrawable(frame.blob);
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, project.width, project.height);
-        ctx.drawImage(drawable, 0, 0, project.width, project.height);
-        releaseDrawable(drawable);
+        for (const frame of project.frames) {
+            const frameBlob = await getProjectFrameBlob(frame);
+            const drawable = await blobToDrawable(frameBlob);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, previewWidth, previewHeight);
+            ctx.drawImage(drawable, 0, 0, previewWidth, previewHeight);
+            releaseDrawable(drawable);
 
-        const expectedTime = startTime + ((frame.startTime + frame.duration) * 1000);
-        const sleepTime = expectedTime - performance.now();
-        if (sleepTime > 0) {
-            await new Promise(resolve => setTimeout(resolve, sleepTime));
-        } else {
-            await new Promise(resolve => setTimeout(resolve, 0));
+            const expectedTime = startTime + ((frame.startTime + frame.duration) * 1000);
+            const sleepTime = expectedTime - performance.now();
+            if (sleepTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, sleepTime));
+            } else {
+                await cooperativeYield();
+            }
         }
-    }
 
-    recorder.stop();
-    return await ready;
+        recorder.stop();
+        return await ready;
+    } finally {
+        if (recorder.state !== 'inactive') recorder.stop();
+        stream.getTracks().forEach(track => track.stop());
+        tempCanvas.width = 1;
+        tempCanvas.height = 1;
+    }
 }
 
 async function abrirZipNoEditor(zipBlob) {
@@ -201,11 +224,11 @@ async function abrirZipNoEditor(zipBlob) {
             const frameStart = projectFrames.length;
             for (const arquivo of arquivosPasta) {
                 const type = inferFrameType(arquivo.name);
-                const data = await arquivo.async('arraybuffer');
-                const blob = new Blob([data], { type: type.mimeType });
                 const index = projectFrames.length;
                 projectFrames.push({
-                    blob,
+                    blob: null,
+                    sourceEntry: arquivo,
+                    byteSize: null,
                     name: arquivo.name,
                     mimeType: type.mimeType,
                     format: type.format,
@@ -219,8 +242,8 @@ async function abrirZipNoEditor(zipBlob) {
             let audioBlob = null;
             let audioName = null;
             if (arquivosAudio.length > 0) {
-                const data = await arquivosAudio[0].async('arraybuffer');
-                audioBlob = new Blob([data], { type: 'audio/wav' });
+                const rawAudioBlob = await arquivosAudio[0].async('blob');
+                audioBlob = rawAudioBlob.type === 'audio/wav' ? rawAudioBlob : rawAudioBlob.slice(0, rawAudioBlob.size, 'audio/wav');
                 audioName = arquivosAudio[0].name.split('/').pop() || 'audio.wav';
             }
 

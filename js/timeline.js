@@ -219,7 +219,7 @@ async function desenharFilmstrip() {
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = 100;
     tempCanvas.height = Math.floor((originalH / originalW) * 100);
-    const tempCtx = tempCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    const tempCtx = tempCanvas.getContext('2d', { alpha: false });
     
     for (let i = 0; i < numFrames; i++) {
         const tempoAlvo = Math.min(dur - 0.05, Math.max(0.01, ((i + 0.5) / numFrames) * dur));
@@ -315,6 +315,7 @@ function atualizarBotoesELinhas() {
     if (!temVideo) {
         btnGerar.style.display = 'none';
     }
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
 function atualizarTamanho() {
@@ -330,6 +331,7 @@ function atualizarTamanho() {
 
     w = Math.floor(w / 2) * 2; h = Math.floor(h / 2) * 2;
     document.getElementById('input-largura').value = w; document.getElementById('input-altura').value = h;
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
 window.aoMudarTamanhoManual = function() {
@@ -357,4 +359,5 @@ window.aoMudarTamanhoManual = function() {
     else if (w === pAuto.w && h === pAuto.h && pAuto.w !== 0) seletor.value = optAuto.value;
     else if (w === wOrig && h === hOrig && wOrig !== 0) seletor.value = "1";
     else seletor.value = "custom";
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }

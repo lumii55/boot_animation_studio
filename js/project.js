@@ -210,6 +210,32 @@ function getImportedProjectFormat() {
     return null;
 }
 
+async function getProjectFrameBlob(frame) {
+    if (!frame) throw new Error('Frame not found');
+    if (frame.blob) {
+        if (!Number.isFinite(frame.byteSize)) frame.byteSize = frame.blob.size || 0;
+        return frame.blob;
+    }
+    if (!frame.sourceEntry || typeof frame.sourceEntry.async !== 'function') throw new Error('Frame source unavailable');
+    const rawBlob = await frame.sourceEntry.async('blob');
+    const blob = rawBlob.type === frame.mimeType ? rawBlob : rawBlob.slice(0, rawBlob.size, frame.mimeType);
+    frame.byteSize = blob.size || 0;
+    return blob;
+}
+
+async function cooperativeYield() {
+    if (globalThis.scheduler && typeof globalThis.scheduler.yield === 'function') {
+        await globalThis.scheduler.yield();
+        return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 0));
+}
+
+function releaseExportCanvas() {
+    canvasInvisivel.width = 1;
+    canvasInvisivel.height = 1;
+}
+
 async function blobToDrawable(blob) {
     if (window.createImageBitmap) {
         try {
@@ -273,12 +299,13 @@ async function getProjectFrameOutputBlob(sourceTime, width, height, format) {
     if (projectUsesFrames()) {
         const frame = getProjectFrameAtTime(sourceTime);
         if (!frame) throw new Error('Frame not found');
+        const frameBlob = await getProjectFrameBlob(frame);
 
         if (width === currentProject.width && height === currentProject.height && frame.format === format) {
-            return frame.blob;
+            return frameBlob;
         }
 
-        const drawable = await blobToDrawable(frame.blob);
+        const drawable = await blobToDrawable(frameBlob);
         contexto.fillStyle = '#000000';
         contexto.fillRect(0, 0, width, height);
         contexto.drawImage(drawable, 0, 0, width, height);

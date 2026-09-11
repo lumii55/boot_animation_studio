@@ -116,52 +116,57 @@ async function applyImportedAudioEdits(zip, audioState) {
         return audioCtx;
     };
 
-    for (const role of ['intro', 'loop', 'final']) {
-        const state = audioState[role];
-        const previewKey = previewKeys[role];
-        const partIndex = currentProject.audioRolePartIndexes[role];
-        const part = Number.isInteger(partIndex) ? currentProject.parts[partIndex] : null;
+    try {
+        for (const role of ['intro', 'loop', 'final']) {
+            const state = audioState[role];
+            const previewKey = previewKeys[role];
+            const partIndex = currentProject.audioRolePartIndexes[role];
+            const part = Number.isInteger(partIndex) ? currentProject.parts[partIndex] : null;
 
-        if (audioRoleStatesEqual(state, baseline[role])) {
-            if (state.mode === 'file') {
-                const existing = getSelectedAudioFile(role);
-                if (existing) setPreviewAudio(previewKey, existing);
+            if (audioRoleStatesEqual(state, baseline[role])) {
+                if (state.mode === 'file') {
+                    const existing = getSelectedAudioFile(role);
+                    if (existing) setPreviewAudio(previewKey, existing);
+                }
+                continue;
             }
-            continue;
-        }
 
-        if (!part) {
-            clearPreviewAudio(previewKey);
-            continue;
-        }
+            if (!part) {
+                clearPreviewAudio(previewKey);
+                continue;
+            }
 
-        if (state.mode === 'none') {
-            removePartAudioEntries(zip, part.name);
-            clearPreviewAudio(previewKey);
-            continue;
-        }
+            if (state.mode === 'none') {
+                removePartAudioEntries(zip, part.name);
+                clearPreviewAudio(previewKey);
+                continue;
+            }
 
-        const ctx = getAudioContext();
-        const volume = state.volume / 100;
-        let outputBlob = null;
+            const ctx = getAudioContext();
+            const volume = state.volume / 100;
+            let outputBlob = null;
 
-        if (state.mode === 'video') {
-            if (!videoAudioBuffer) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, ctx);
-            const [start, end] = getAudioTimelineRange(role);
-            if (videoAudioBuffer) outputBlob = await fatiarEGerarWav(videoAudioBuffer, start, end, ctx, volume);
-        } else if (state.mode === 'file') {
-            const source = getSelectedAudioFile(role);
-            const decoded = await decodificarAudioFonte(source, ctx);
-            if (decoded) outputBlob = await fatiarEGerarWav(decoded, 0, decoded.duration, ctx, volume);
-        }
+            if (state.mode === 'video') {
+                if (!videoAudioBuffer) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, ctx);
+                const [start, end] = getAudioTimelineRange(role);
+                if (videoAudioBuffer) outputBlob = await fatiarEGerarWav(videoAudioBuffer, start, end, ctx, volume);
+            } else if (state.mode === 'file') {
+                const source = getSelectedAudioFile(role);
+                const decoded = await decodificarAudioFonte(source, ctx);
+                if (decoded) outputBlob = await fatiarEGerarWav(decoded, 0, decoded.duration, ctx, volume);
+            }
 
-        if (outputBlob) {
-            setZipPartAudio(zip, part, outputBlob);
-            setPreviewAudio(previewKey, outputBlob);
-        } else {
-            removePartAudioEntries(zip, part.name);
-            clearPreviewAudio(previewKey);
+            if (outputBlob) {
+                setZipPartAudio(zip, part, outputBlob);
+                setPreviewAudio(previewKey, outputBlob);
+            } else {
+                removePartAudioEntries(zip, part.name);
+                clearPreviewAudio(previewKey);
+            }
         }
+    } finally {
+        videoAudioBuffer = null;
+        if (audioCtx && audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
     }
 }
 
@@ -202,6 +207,9 @@ async function regenerateImportedPartFrames(zip, options, t) {
     }
 
     let completed = 0;
+    let lastSourceFrame = null;
+    let lastOutputFormat = null;
+    let lastOutputBlob = null;
     playerVideo.pause();
 
     for (const plan of plans) {
@@ -216,7 +224,16 @@ async function regenerateImportedPartFrames(zip, options, t) {
             const sourceTime = Math.min(Math.max(sourceStart, rawTime), Math.max(sourceStart, sourceEnd - (1 / sourceFps)));
             const sourceFrame = getProjectFrameAtTime(sourceTime);
             const outputFormat = forceFormat ? options.format : (sourceFrame && sourceFrame.format ? sourceFrame.format : options.format);
-            const blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, outputFormat);
+            let blob;
+
+            if (sourceFrame && sourceFrame === lastSourceFrame && outputFormat === lastOutputFormat) {
+                blob = lastOutputBlob;
+            } else {
+                blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, outputFormat);
+                lastSourceFrame = sourceFrame;
+                lastOutputFormat = outputFormat;
+                lastOutputBlob = blob;
+            }
 
             let path;
             if (sameCount && plan.partFrames[i]) {
@@ -233,8 +250,12 @@ async function regenerateImportedPartFrames(zip, options, t) {
                 document.getElementById('barra-preenchimento').style.width = percent + '%';
                 document.getElementById('texto-progresso').textContent = `${t.extraindo} ${completed}/${totalFrames} (${percent}%)`;
             }
+            if (completed % 8 === 0) await cooperativeYield();
         }
     }
+
+    lastSourceFrame = null;
+    lastOutputBlob = null;
 }
 
 async function buildImportedRoundTrip(options, t) {
@@ -276,33 +297,39 @@ async function applySimpleAudio(zip, audioState, t) {
     document.getElementById('texto-progresso').textContent = t.processandoAudio;
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let videoAudioBuffer = null;
-    const modes = ['intro', 'loop', 'final'].map(role => audioState[role].mode);
-    if (modes.includes('video')) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
 
-    const definitions = [
-        { role: 'intro', folder: 'part0', preview: 'm0', start: marcadores.m0, end: marcadores.m1 },
-        { role: 'loop', folder: 'part1', preview: 'm1', start: marcadores.m1, end: marcadores.m2 },
-        { role: 'final', folder: 'part2', preview: 'm2', start: marcadores.m2, end: marcadores.m3 }
-    ];
+    try {
+        const modes = ['intro', 'loop', 'final'].map(role => audioState[role].mode);
+        if (modes.includes('video')) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
 
-    for (const definition of definitions) {
-        const state = audioState[definition.role];
-        if (state.mode === 'none') continue;
-        const volume = state.volume / 100;
-        let blob = null;
+        const definitions = [
+            { role: 'intro', folder: 'part0', preview: 'm0', start: marcadores.m0, end: marcadores.m1 },
+            { role: 'loop', folder: 'part1', preview: 'm1', start: marcadores.m1, end: marcadores.m2 },
+            { role: 'final', folder: 'part2', preview: 'm2', start: marcadores.m2, end: marcadores.m3 }
+        ];
 
-        if (state.mode === 'video') {
-            if (videoAudioBuffer) blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, volume);
-        } else {
-            const source = getSelectedAudioFile(definition.role);
-            const decoded = await decodificarAudioFonte(source, audioCtx);
-            if (decoded) blob = await fatiarEGerarWav(decoded, 0, decoded.duration, audioCtx, volume);
+        for (const definition of definitions) {
+            const state = audioState[definition.role];
+            if (state.mode === 'none') continue;
+            const volume = state.volume / 100;
+            let blob = null;
+
+            if (state.mode === 'video') {
+                if (videoAudioBuffer) blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, volume);
+            } else {
+                const source = getSelectedAudioFile(definition.role);
+                const decoded = await decodificarAudioFonte(source, audioCtx);
+                if (decoded) blob = await fatiarEGerarWav(decoded, 0, decoded.duration, audioCtx, volume);
+            }
+
+            if (blob) {
+                zip.folder(definition.folder).file('audio.wav', blob);
+                setPreviewAudio(definition.preview, blob);
+            }
         }
-
-        if (blob) {
-            zip.folder(definition.folder).file('audio.wav', blob);
-            setPreviewAudio(definition.preview, blob);
-        }
+    } finally {
+        videoAudioBuffer = null;
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
     }
 }
 
@@ -314,6 +341,15 @@ async function buildSimpleBootanimation(options, t) {
     document.getElementById('texto-progresso').textContent = t.compactandoZip;
     btnGerar.textContent = t.fechandoZiper;
     return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+}
+
+function downloadGeneratedBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 async function deliverBootanimation(rawBootAnimBlob, options, t) {
@@ -348,22 +384,19 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
             folder.file('bootanimation.zip', rawBootAnimBlob);
         }
         const finalBlob = await magiskZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(finalBlob);
-        link.download = `${options.name}.zip`;
-        link.click();
+        downloadGeneratedBlob(finalBlob, `${options.name}.zip`);
         return;
     }
 
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(rawBootAnimBlob);
-    link.download = `${options.name}.zip`;
-    link.click();
+    downloadGeneratedBlob(rawBootAnimBlob, `${options.name}.zip`);
 }
 
 btnGerar.addEventListener('click', async () => {
     if (btnGerar.classList.contains('btn-desativado') || isGenerating) return;
     const t = traducoes[idiomaAtual];
+    const options = getExportOptions();
+    const estimate = typeof estimateExportPerformance === 'function' ? estimateExportPerformance(options) : null;
+    if (typeof confirmHeavyExport === 'function' && !confirmHeavyExport(estimate)) return;
 
     isGenerating = true;
     videoContainer.classList.add('bloqueado');
@@ -373,9 +406,10 @@ btnGerar.addEventListener('click', async () => {
     btnGerar.classList.add('btn-desativado');
     btnGerar.textContent = t.gerandoFrames;
     document.getElementById('container-progresso').style.display = 'flex';
+    document.getElementById('texto-progresso').style.color = '#03dac6';
+    document.getElementById('barra-preenchimento').style.width = '0%';
 
     try {
-        const options = getExportOptions();
         canvasInvisivel.width = options.width;
         canvasInvisivel.height = options.height;
 
@@ -383,6 +417,7 @@ btnGerar.addEventListener('click', async () => {
             ? await buildImportedRoundTrip(options, t)
             : await buildSimpleBootanimation(options, t);
 
+        releaseExportCanvas();
         await deliverBootanimation(rawBootAnimBlob, options, t);
         document.getElementById('texto-progresso').textContent = 'OK!';
         btnGerar.style.display = 'none';
@@ -396,6 +431,7 @@ btnGerar.addEventListener('click', async () => {
             timelineWrapper.classList.remove('bloqueado');
             gridMarcadores.classList.remove('bloqueado');
             configuracoes.classList.remove('bloqueado');
+            if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
         }, 2000);
     } catch (erro) {
         console.error(erro);
@@ -410,6 +446,8 @@ btnGerar.addEventListener('click', async () => {
             configuracoes.classList.remove('bloqueado');
             atualizarBotoesELinhas();
         }, 2500);
+    } finally {
+        releaseExportCanvas();
     }
 });
 
@@ -455,5 +493,7 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, t) {
             document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
             document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
         }
+        if (fotosTiradas % 8 === 0) await cooperativeYield();
     }
 }
+

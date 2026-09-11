@@ -458,7 +458,13 @@ async function createMiniPreviewWebm() {
         }
         
         rec.stop();
-        rec.onstop = () => resolve(new Blob(chunks, {type: 'video/webm'}));
+        rec.onstop = () => {
+            const blob = new Blob(chunks, {type: 'video/webm'});
+            stream.getTracks().forEach(track => track.stop());
+            c.width = 1;
+            c.height = 1;
+            resolve(blob);
+        };
     });
 }
 

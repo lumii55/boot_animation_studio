@@ -58,6 +58,20 @@ const traducoes = {
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Width",
         lblAltura: "Height",
+        perfTitle: "Generation Estimate 📊",
+        perfFrames: "Output frames",
+        perfProcess: "Frames to process",
+        perfSize: "Estimated output",
+        perfMemory: "Working memory",
+        perfLight: "Light",
+        perfModerate: "Moderate",
+        perfHeavy: "Heavy",
+        perfFastPath: "Lossless fast path: the original ZIP will be reused without regenerating frames.",
+        perfNoFrames: "No frame regeneration is required for these settings.",
+        perfLightNote: "This export should be comfortable for most devices.",
+        perfModerateNote: "This export may take longer and use noticeable memory.",
+        perfHeavyNote: "This export is heavy and may use a large amount of memory on mobile devices.",
+        perfConfirmHeavy: "This export is estimated to be heavy. Continuing may make the browser slow or cause the tab to close. Continue?",
         btnFaltam: "Missing Markers...",
         btnOrdem: "⚠️ Wrong order! Start (1) must come before Final (4)!",
         btnGerarPronto: "🚀 GENERATE BOOT ANIMATION",
@@ -189,6 +203,20 @@ const traducoes = {
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Largura",
         lblAltura: "Altura",
+        perfTitle: "Estimativa de Geração 📊",
+        perfFrames: "Frames finais",
+        perfProcess: "Frames a processar",
+        perfSize: "Saída estimada",
+        perfMemory: "Memória de trabalho",
+        perfLight: "Leve",
+        perfModerate: "Moderado",
+        perfHeavy: "Pesado",
+        perfFastPath: "Fast path sem perdas: o ZIP original será reutilizado sem regenerar frames.",
+        perfNoFrames: "Nenhuma regeneração de frames é necessária com estas configurações.",
+        perfLightNote: "Esta exportação deve ser tranquila para a maioria dos aparelhos.",
+        perfModerateNote: "Esta exportação pode demorar mais e usar uma quantidade perceptível de memória.",
+        perfHeavyNote: "Esta exportação é pesada e pode usar muita memória em dispositivos móveis.",
+        perfConfirmHeavy: "Esta exportação foi estimada como pesada. Continuar pode deixar o navegador lento ou fazer a aba fechar. Deseja continuar?",
         btnFaltam: "Faltam Marcadores...",
         btnOrdem: "⚠️ Ordem errada! O Início (1) deve vir antes do Fim (4)!",
         btnGerarPronto: "🚀 GERAR ANIMAÇÃO DE BOOT",
@@ -320,6 +348,20 @@ const traducoes = {
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Ancho",
         lblAltura: "Alto",
+        perfTitle: "Estimación de Generación 📊",
+        perfFrames: "Fotogramas finales",
+        perfProcess: "Fotogramas a procesar",
+        perfSize: "Salida estimada",
+        perfMemory: "Memoria de trabajo",
+        perfLight: "Ligero",
+        perfModerate: "Moderado",
+        perfHeavy: "Pesado",
+        perfFastPath: "Ruta rápida sin pérdidas: se reutilizará el ZIP original sin regenerar fotogramas.",
+        perfNoFrames: "No es necesario regenerar fotogramas con esta configuración.",
+        perfLightNote: "Esta exportación debería ser cómoda para la mayoría de los dispositivos.",
+        perfModerateNote: "Esta exportación puede tardar más y usar una cantidad notable de memoria.",
+        perfHeavyNote: "Esta exportación es pesada y puede usar mucha memoria en dispositivos móviles.",
+        perfConfirmHeavy: "Esta exportación se estima como pesada. Continuar puede ralentizar el navegador o cerrar la pestaña. ¿Deseas continuar?",
         btnFaltam: "Faltan Marcadores...",
         btnOrdem: "⚠️ ¡Orden incorrecto! ¡El Inicio (1) debe ir antes del Final (4)!",
         btnGerarPronto: "🚀 GENERAR ANIMACIÓN DE BOOT",
@@ -451,6 +493,20 @@ const traducoes = {
         lblFps: "FPS 🎬 (Global)",
         lblLargura: "Largeur",
         lblAltura: "Hauteur",
+        perfTitle: "Estimation de Génération 📊",
+        perfFrames: "Images finales",
+        perfProcess: "Images à traiter",
+        perfSize: "Sortie estimée",
+        perfMemory: "Mémoire de travail",
+        perfLight: "Léger",
+        perfModerate: "Modéré",
+        perfHeavy: "Lourd",
+        perfFastPath: "Chemin rapide sans perte : le ZIP original sera réutilisé sans régénérer les images.",
+        perfNoFrames: "Aucune régénération d'image n'est nécessaire avec ces paramètres.",
+        perfLightNote: "Cette exportation devrait être confortable pour la plupart des appareils.",
+        perfModerateNote: "Cette exportation peut prendre plus de temps et utiliser une quantité notable de mémoire.",
+        perfHeavyNote: "Cette exportation est lourde et peut utiliser beaucoup de mémoire sur mobile.",
+        perfConfirmHeavy: "Cette exportation est estimée comme lourde. Continuer peut ralentir le navigateur ou fermer l'onglet. Continuer ?",
         btnFaltam: "Marqueurs manquants...",
         btnOrdem: "⚠️ Mauvais ordre ! Le Début (1) doit précéder la Fin (4) !",
         btnGerarPronto: "🚀 GÉNÉRER L'ANIMATION",
@@ -597,6 +653,11 @@ function mudarIdioma(lang) {
     document.getElementById('lbl-fps').textContent = t.lblFps;
     document.getElementById('lbl-largura').textContent = t.lblLargura;
     document.getElementById('lbl-altura').textContent = t.lblAltura;
+    document.getElementById('lbl-perf-title').textContent = t.perfTitle;
+    document.getElementById('lbl-perf-frames').textContent = t.perfFrames;
+    document.getElementById('lbl-perf-process').textContent = t.perfProcess;
+    document.getElementById('lbl-perf-size').textContent = t.perfSize;
+    document.getElementById('lbl-perf-memory').textContent = t.perfMemory;
     document.getElementById('opt-jpeg').textContent = t.optJpeg;
     document.getElementById('opt-png').textContent = t.optPng;
     document.getElementById('opt-320').textContent = t.opt320;
@@ -638,4 +699,5 @@ function mudarIdioma(lang) {
         if(optFile.textContent !== optFile.getAttribute('data-custom')) optFile.textContent = t.optFile;
     });
     atualizarBotoesELinhas();
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }

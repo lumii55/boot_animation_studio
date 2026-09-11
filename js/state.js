@@ -39,7 +39,7 @@ const videoPreview = document.getElementById('video-preview');
 const tooltipFlutuante = document.getElementById('tooltip-flutuante');
 
 const canvasInvisivel = document.createElement('canvas');
-const contexto = canvasInvisivel.getContext('2d', { alpha: false, willReadFrequently: true }); 
+const contexto = canvasInvisivel.getContext('2d', { alpha: false });
 
 let marcadores = { m0: null, m1: null, m2: null, m3: null };
 let originalW = 0, originalH = 0;
