@@ -364,7 +364,7 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
         const uploadRes = await apiFetch('/upload', { method: 'POST', body: formData });
         if (!uploadRes.ok) throw new Error('Upload failed');
         await loadHistory();
-        return;
+        return { kind: 'installed', outputBytes: rawBootAnimBlob.size, bootBytes: rawBootAnimBlob.size, filename: 'bootanimation.zip' };
     }
 
     if (options.generateModule) {
@@ -385,11 +385,14 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
             folder.file('bootanimation.zip', rawBootAnimBlob);
         }
         const finalBlob = await magiskZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
-        downloadGeneratedBlob(finalBlob, `${options.name}.zip`);
-        return;
+        const filename = `${options.name}.zip`;
+        downloadGeneratedBlob(finalBlob, filename);
+        return { kind: 'module', outputBytes: finalBlob.size, bootBytes: rawBootAnimBlob.size, filename };
     }
 
-    downloadGeneratedBlob(rawBootAnimBlob, `${options.name}.zip`);
+    const filename = `${options.name}.zip`;
+    downloadGeneratedBlob(rawBootAnimBlob, filename);
+    return { kind: 'download', outputBytes: rawBootAnimBlob.size, bootBytes: rawBootAnimBlob.size, filename };
 }
 
 btnGerar.addEventListener('click', async () => {
@@ -419,14 +422,16 @@ btnGerar.addEventListener('click', async () => {
             : await buildSimpleBootanimation(options, t);
 
         releaseExportCanvas();
-        await deliverBootanimation(rawBootAnimBlob, options, t);
-        document.getElementById('texto-progresso').textContent = 'OK!';
-        btnGerar.style.display = 'none';
+        const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
+        const successText = typeof generationSuccessText === 'function' ? generationSuccessText(deliveryResult, t) : 'OK!';
+        document.getElementById('texto-progresso').textContent = successText;
+        if (typeof showToast === 'function') showToast(successText, 'success', 4200);
+        btnGerar.textContent = successText;
         btnVerPreview.style.display = 'block';
 
         setTimeout(() => {
             btnGerar.classList.remove('btn-desativado');
-            btnGerar.textContent = isConnectedMode ? t.btnInjectReady : t.btnGerarPronto;
+            btnGerar.textContent = typeof getGenerateReadyLabel === 'function' ? getGenerateReadyLabel(t) : (isConnectedMode ? t.btnInjectReady : t.btnGerarPronto);
             isGenerating = false;
             videoContainer.classList.remove('bloqueado');
             timelineWrapper.classList.remove('bloqueado');
@@ -436,8 +441,11 @@ btnGerar.addEventListener('click', async () => {
         }, 2000);
     } catch (erro) {
         console.error(erro);
+        const friendlyMessage = typeof friendlyExportError === 'function' ? friendlyExportError(erro, t) : t.erro;
         btnGerar.textContent = t.erro;
+        document.getElementById('texto-progresso').textContent = friendlyMessage;
         document.getElementById('texto-progresso').style.color = '#ff5555';
+        if (typeof showToast === 'function') showToast(friendlyMessage, 'error', 5200);
 
         setTimeout(() => {
             isGenerating = false;

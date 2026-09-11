@@ -300,14 +300,14 @@ async function disconnectPhone() {
 async function removeAnimation() {
     const t = traducoes[idiomaAtual];
     if (!ensureModuleFeature('remove')) return;
-    if(confirm(t.msgConfirmRemove)) {
+    if(await askConfirmation(t.msgConfirmRemove, true)) {
         try {
             let res = await apiFetch('/remove', { method: 'POST' });
             
             if (res.ok) {
                 let data = await res.json();
                 if (data.status === "success") {
-                    alert(t.msgRemoveSuccess);
+                    showToast(t.msgRemoveSuccess, 'success');
                     document.getElementById('btn-remove').style.display = "none";
                     window.hasCustomAnimApplied = false;
                 } else {
@@ -325,12 +325,12 @@ async function removeAnimation() {
 async function resetarModulo() {
     const t = traducoes[idiomaAtual];
     if (!ensureModuleFeature('reset')) return;
-    if(confirm(t.msgResetConfirm)) {
+    if(await askConfirmation(t.msgResetConfirm, true)) {
         try {
             let res = await apiFetch('/reset', { method: 'POST' });
             if (res.ok) {
                 let data = await res.json();
-                alert(data.message);
+                showToast(data.message, 'success');
                 document.getElementById('btn-remove').style.display = "none";
                 window.hasCustomAnimApplied = false;
                 await loadHistory();
@@ -411,28 +411,31 @@ async function loadHistory() {
 async function deleteHistory(id) {
     const t = traducoes[idiomaAtual];
     if (!ensureModuleFeature('history')) return;
+    if (!await askConfirmation(t.msgConfirmDeleteHistory, true)) return;
     try {
         const res = await apiFetch('/history/delete?id=' + encodeURIComponent(id), { method: 'POST' });
         if (!res.ok) throw new Error();
-        loadHistory();
-    } catch(e) { alert(t.msgDelHistoryError); }
+        await loadHistory();
+        showToast(t.msgHistoryDeleted, 'success');
+    } catch(e) { showToast(t.msgDelHistoryError, 'error'); }
 }
 
 async function applyHistory(id) {
     const t = traducoes[idiomaAtual];
     if (!ensureModuleFeature('history')) return;
+    if (!await askConfirmation(t.msgConfirmApplyHistory, false)) return;
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPast;
     try {
         let res = await apiFetch('/history/apply?id=' + encodeURIComponent(id), { method: 'POST' });
         if(res.ok) {
-            alert(t.msgApplyHistorySuccess);
+            showToast(t.msgApplyHistorySuccess, 'success');
             document.getElementById('btn-remove').style.display = "block";
             window.hasCustomAnimApplied = true;
         } else {
             throw new Error();
         }
-    } catch(e) { alert(t.msgApplyHistoryError); }
+    } catch(e) { showToast(t.msgApplyHistoryError, 'error'); }
     document.getElementById('loading-overlay').style.display = 'none';
 }
 
@@ -545,7 +548,7 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
         let res = await apiFetch("/upload", { method: "POST", body: formData });
         
         if (res.ok) {
-            alert(t.msgZipInjectSuccess);
+            showToast(t.msgZipInjectSuccess, 'success');
             document.getElementById('btn-remove').style.display = "block";
             window.hasCustomAnimApplied = true;
             loadHistory(); 

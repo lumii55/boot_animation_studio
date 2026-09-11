@@ -339,7 +339,7 @@ function atualizarBotoesELinhas() {
     if (tudoMarcado) {
         if (temposOrdem[0] <= temposOrdem[1] && temposOrdem[1] <= temposOrdem[2] && temposOrdem[2] <= temposOrdem[3]) {
             btnGerar.classList.remove('btn-desativado');
-            btnGerar.textContent = isConnectedMode ? t.btnInjectReady : t.btnGerarPronto;
+            btnGerar.textContent = typeof getGenerateReadyLabel === 'function' ? getGenerateReadyLabel(t) : (isConnectedMode ? t.btnInjectReady : t.btnGerarPronto);
             if(temVideo) btnGerar.style.display = 'block'; 
         } else {
             if(temVideo) btnGerar.style.display = 'block';
@@ -355,6 +355,7 @@ function atualizarBotoesELinhas() {
     if (!temVideo) {
         btnGerar.style.display = 'none';
     }
+    if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 

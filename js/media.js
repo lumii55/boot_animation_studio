@@ -638,6 +638,8 @@ function verificarModulo() {
     const isModulo = document.getElementById('input-gerar-modulo').checked;
     const containerFabricante = document.getElementById('container-fabricante');
     if (isModulo) { containerFabricante.style.display = "flex"; } else { containerFabricante.style.display = "none"; }
+    atualizarBotoesELinhas();
+    if (typeof updateOutputIntent === 'function') updateOutputIntent();
 }
 
 function verificarPainelAudio() {
