@@ -1,4 +1,170 @@
 
+
+function isPrivateIPv4(ip) {
+    const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip || '');
+    if (!match) return false;
+    const parts = match.slice(1).map(Number);
+    if (parts.some(part => part < 0 || part > 255)) return false;
+    return parts[0] === 10 ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        (parts[0] === 192 && parts[1] === 168);
+}
+
+function subnetFromIPv4(ip) {
+    if (!isPrivateIPv4(ip)) return '';
+    return ip.split('.').slice(0, 3).join('.');
+}
+
+function localNetworkFetch(url, options = {}) {
+    return fetch(url, { targetAddressSpace: 'local', ...options });
+}
+
+function rememberPhoneIp(ip) {
+    if (!isPrivateIPv4(ip)) return;
+    try {
+        localStorage.setItem('bootstudio_last_phone_ip', ip);
+    } catch (error) {
+    }
+}
+
+function rememberedPhoneIp() {
+    try {
+        const ip = localStorage.getItem('bootstudio_last_phone_ip') || '';
+        return isPrivateIPv4(ip) ? ip : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function currentPhoneIp() {
+    try {
+        const url = new URL(IP_LOCAL);
+        return isPrivateIPv4(url.hostname) ? url.hostname : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+async function discoverLocalIPv4s(timeout = 1200) {
+    if (typeof RTCPeerConnection !== 'function') return [];
+    const found = new Set();
+    let pc;
+    try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+        pc.createDataChannel('bootstudio-discovery');
+        await new Promise(async resolve => {
+            let finished = false;
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                resolve();
+            };
+            const timer = setTimeout(finish, timeout);
+            pc.onicecandidate = event => {
+                if (!event.candidate) {
+                    clearTimeout(timer);
+                    finish();
+                    return;
+                }
+                const candidate = event.candidate;
+                const values = [];
+                if (candidate.address) values.push(candidate.address);
+                if (candidate.candidate) {
+                    const parts = candidate.candidate.trim().split(/\s+/);
+                    if (parts.length >= 5) values.push(parts[4]);
+                }
+                for (const value of values) {
+                    if (isPrivateIPv4(value)) found.add(value);
+                }
+            };
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+            } catch (error) {
+                clearTimeout(timer);
+                finish();
+            }
+        });
+    } catch (error) {
+    } finally {
+        if (pc) pc.close();
+    }
+    return Array.from(found);
+}
+
+async function discoveryPlan() {
+    const exactIps = [];
+    const subnets = [];
+    const addIp = ip => {
+        if (!isPrivateIPv4(ip) || exactIps.includes(ip)) return;
+        exactIps.push(ip);
+        const subnet = subnetFromIPv4(ip);
+        if (subnet && !subnets.includes(subnet)) subnets.push(subnet);
+    };
+    const addSubnet = subnet => {
+        if (subnet && !subnets.includes(subnet)) subnets.push(subnet);
+    };
+
+    addIp(rememberedPhoneIp());
+    addIp(currentPhoneIp());
+
+    const localIps = await discoverLocalIPv4s();
+    localIps.forEach(ip => addSubnet(subnetFromIPv4(ip)));
+
+    const input = document.getElementById('input-ip');
+    if (input) {
+        const value = input.value.trim();
+        addIp(value);
+        const prefixMatch = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.$/.exec(value);
+        if (prefixMatch) {
+            const parts = prefixMatch.slice(1).map(Number);
+            if (parts.every(part => part >= 0 && part <= 255)) addSubnet(parts.join('.'));
+        }
+    }
+
+    [
+        '192.168.0', '192.168.1', '192.168.15', '192.168.2', '10.0.0', '192.168.3'
+    ].forEach(addSubnet);
+
+    return { exactIps, subnets };
+}
+
+function discoveryHostOrder(exactIps, subnet) {
+    const preferred = [];
+    const seen = new Set();
+    for (const ip of exactIps) {
+        if (subnetFromIPv4(ip) !== subnet) continue;
+        const host = Number(ip.split('.')[3]);
+        if (host >= 1 && host <= 254 && !seen.has(host)) {
+            seen.add(host);
+            preferred.push(host);
+        }
+    }
+    for (let host = 100; host <= 199; host++) {
+        if (!seen.has(host)) preferred.push(host);
+    }
+    for (let host = 2; host <= 99; host++) {
+        if (!seen.has(host)) preferred.push(host);
+    }
+    for (let host = 200; host <= 254; host++) {
+        if (!seen.has(host)) preferred.push(host);
+    }
+    if (!seen.has(1)) preferred.push(1);
+    return preferred;
+}
+
+async function scanDiscoverySubnet(subnet, exactIps, checker, generationCheck, chunkSize = 24) {
+    const hosts = discoveryHostOrder(exactIps, subnet);
+    for (let start = 0; start < hosts.length; start += chunkSize) {
+        if (generationCheck && !generationCheck()) return null;
+        const batch = hosts.slice(start, start + chunkSize);
+        const results = await Promise.all(batch.map(host => checker(`${subnet}.${host}`)));
+        const found = results.find(Boolean);
+        if (found) return found;
+    }
+    return null;
+}
+
 function randomPairingToken() {
     const bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
@@ -46,7 +212,7 @@ async function checkPairingIP(ip, token, timeout = 1400) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-        const response = await fetch(`http://${ip}:4040/pair_status?token=${encodeURIComponent(token)}`, { signal: controller.signal });
+        const response = await localNetworkFetch(`http://${ip}:4040/pair_status?token=${encodeURIComponent(token)}`, { signal: controller.signal });
         if (!response.ok) return null;
         const data = await response.json();
         return data.status === 'ready' ? ip : null;
@@ -57,28 +223,56 @@ async function checkPairingIP(ip, token, timeout = 1400) {
     }
 }
 
-async function findQrPairedPhone(token, generation) {
+async function checkQrCapableIP(ip, timeout = 2200) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await localNetworkFetch(`http://${ip}:4040/info`, { signal: controller.signal });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const features = Array.isArray(data.features) ? data.features : [];
+        return Number(data.api_version) === 1 && features.includes('qr_pairing') ? ip : null;
+    } catch (error) {
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function discoverQrCapablePhone(generation) {
+    const plan = await discoveryPlan();
+    const stillActive = () => pairingScanGeneration === generation;
+
+    for (const ip of plan.exactIps) {
+        if (!stillActive()) return null;
+        const found = await checkQrCapableIP(ip);
+        if (found) return found;
+    }
+
+    for (const subnet of plan.subnets) {
+        if (!stillActive()) return null;
+        const found = await scanDiscoverySubnet(
+            subnet,
+            plan.exactIps,
+            checkQrCapableIP,
+            stillActive,
+            24
+        );
+        if (found) return found;
+    }
+    return null;
+}
+
+async function waitForQrApproval(ip, token, generation) {
     const t = traducoes[idiomaAtual];
-    const subnets = ['192.168.0', '192.168.1', '192.168.15', '192.168.2', '10.0.0', '192.168.3'];
     const deadline = Date.now() + 120000;
     while (pairingScanGeneration === generation && pairingToken === token && Date.now() < deadline) {
-        for (const subnet of subnets) {
-            if (pairingScanGeneration !== generation || pairingToken !== token) return;
-            for (let start = 1; start <= 254; start += 48) {
-                if (pairingScanGeneration !== generation || pairingToken !== token) return;
-                const checks = [];
-                for (let host = start; host < start + 48 && host <= 254; host++) {
-                    checks.push(checkPairingIP(`${subnet}.${host}`, token));
-                }
-                const results = await Promise.all(checks);
-                const found = results.find(Boolean);
-                if (found) {
-                    await finishQrPairing(found, token, generation);
-                    return;
-                }
-            }
+        const found = await checkPairingIP(ip, token, 2600);
+        if (found) {
+            await finishQrPairing(found, token, generation);
+            return;
         }
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 700));
     }
     if (pairingScanGeneration === generation && pairingToken === token) {
         setPairingStatus(t.pairTimeout, 'error');
@@ -91,7 +285,7 @@ async function finishQrPairing(ip, token, generation) {
     setPairingStatus(t.pairFound, 'success');
     try {
         const base = `http://${ip}:4040`;
-        const response = await fetch(base + '/pair_exchange?token=' + encodeURIComponent(token), { method: 'POST', signal: AbortSignal.timeout(12000) });
+        const response = await localNetworkFetch(base + '/pair_exchange?token=' + encodeURIComponent(token), { method: 'POST', signal: AbortSignal.timeout(12000) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.status !== 'ok' || !data.token) throw new Error(data.message || 'pairing_failed');
         pairingScanGeneration++;
@@ -109,19 +303,36 @@ async function finishQrPairing(ip, token, generation) {
     }
 }
 
-function startQrPairing() {
+async function startQrPairing() {
     const t = traducoes[idiomaAtual];
     pairingScanGeneration++;
     const generation = pairingScanGeneration;
-    pairingToken = randomPairingToken();
+    pairingToken = '';
+    const qr = document.getElementById('pairing-qr');
     const code = document.getElementById('pairing-code');
+    if (qr) qr.innerHTML = '';
+    if (code) code.textContent = '------';
+    setPairingStatus(t.scanningMsg);
+
+    const targetIp = await discoverQrCapablePhone(generation);
+    if (pairingScanGeneration !== generation) return;
+    if (!targetIp) {
+        setPairingStatus(t.scanNotFound, 'error');
+        return;
+    }
+
+    rememberPhoneIp(targetIp);
+    const input = document.getElementById('input-ip');
+    if (input) input.value = targetIp;
+    pairingToken = randomPairingToken();
     if (code) code.textContent = pairingShortCode(pairingToken);
     if (!renderPairingQr(pairingToken)) {
+        pairingToken = '';
         setPairingStatus(t.pairQrUnavailable, 'error');
         return;
     }
     setPairingStatus(t.pairWaiting);
-    findQrPairedPhone(pairingToken, generation);
+    waitForQrApproval(targetIp, pairingToken, generation);
 }
 
 function handlePairingHandoff() {
@@ -159,6 +370,7 @@ function completeConnectedState(data) {
         optAuto.textContent = `Dispositivo (${data.resolution})`;
         document.getElementById('input-qualidade').value = data.resolution;
     }
+    rememberPhoneIp(currentPhoneIp());
     applyConnectedCapabilities(data);
     document.getElementById('acoes-principais').style.gridTemplateColumns = '1fr 1fr';
     atualizarBotoesELinhas();
@@ -168,7 +380,7 @@ function completeConnectedState(data) {
 function apiFetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
-    return fetch(IP_LOCAL + path, { ...options, headers });
+    return localNetworkFetch(IP_LOCAL + path, { ...options, headers });
 }
 
 function resetModuleCompatibility() {
@@ -191,7 +403,7 @@ function ensureModuleFeature(feature) {
 async function detectModuleCompatibility() {
     resetModuleCompatibility();
     try {
-        const response = await fetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(1500) });
+        const response = await localNetworkFetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(2200) });
         if (!response.ok) {
             moduleCompatibilityMode = 'legacy_pending';
             return true;
@@ -360,9 +572,9 @@ function fecharModalRede() {
 
 async function checkIP(ip) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200); 
+    const timeoutId = setTimeout(() => controller.abort(), 2200); 
     try {
-        const res = await fetch(`http://${ip}:4040/ping`, { signal: controller.signal });
+        const res = await localNetworkFetch(`http://${ip}:4040/ping`, { signal: controller.signal });
         if (res.ok) {
             const data = await res.json();
             if (data.status) return ip;
@@ -387,27 +599,23 @@ async function iniciarVarredura() {
     btn.style.pointerEvents = 'none';
     desc.textContent = t.scanningMsg;
 
-    const subnets = ['192.168.0', '192.168.1', '192.168.15', '192.168.2', '10.0.0', '192.168.3'];
+    const plan = await discoveryPlan();
     let foundIp = null;
 
-    for (let sub of subnets) {
+    for (const ip of plan.exactIps) {
+        foundIp = await checkIP(ip);
         if (foundIp) break;
-        
-        const chunkSize = 40;
-        for (let i = 1; i <= 254; i += chunkSize) {
-            let promises = [];
-            for (let j = i; j < i + chunkSize && j <= 254; j++) {
-                promises.push(checkIP(`${sub}.${j}`));
-            }
-            const results = await Promise.all(promises);
-            foundIp = results.find(ip => ip !== null);
-            if (foundIp) break;
-        }
+    }
+
+    for (const subnet of plan.subnets) {
+        if (foundIp) break;
+        foundIp = await scanDiscoverySubnet(subnet, plan.exactIps, checkIP, null, 24);
     }
 
     if (foundIp) {
         desc.textContent = t.scanFound;
         document.getElementById('input-ip').value = foundIp;
+        rememberPhoneIp(foundIp);
         sessionToken = '';
         IP_LOCAL = `http://${foundIp}:4040`;
         setTimeout(() => {
