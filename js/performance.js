@@ -88,7 +88,7 @@ function getPerformanceSampleKey(options) {
     const source = getValidSourceMarkerRange();
     const start = source ? source.m0.toFixed(3) : '0';
     const end = source ? source.m3.toFixed(3) : '0';
-    return `${options.width}x${options.height}:${options.format}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${start}:${end}`;
+    return `${options.width}x${options.height}:${options.format}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}`;
 }
 
 function getCalibratedFrameBytes(options) {

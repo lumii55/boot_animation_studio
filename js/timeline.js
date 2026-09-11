@@ -6,44 +6,94 @@ function getCurrentFramingSettings() {
     return { width, height, mode, focus };
 }
 
-function getCoverPreviewOverflow(wrapper, sourceWidth, sourceHeight) {
-    if (!wrapper || !sourceWidth || !sourceHeight) return { x: 0, y: 0 };
+function getCoverPreviewMetrics(wrapper, sourceWidth, sourceHeight, zoom = 1) {
+    if (!wrapper || !sourceWidth || !sourceHeight) return { x: 0, y: 0, width: 0, height: 0, targetWidth: 0, targetHeight: 0 };
     const targetWidth = Math.max(1, wrapper.clientWidth);
     const targetHeight = Math.max(1, wrapper.clientHeight);
-    const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
+    const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight) * normalizeFramingZoomValue(zoom);
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
     return {
-        x: Math.max(0, sourceWidth * scale - targetWidth),
-        y: Math.max(0, sourceHeight * scale - targetHeight)
+        x: Math.max(0, width - targetWidth),
+        y: Math.max(0, height - targetHeight),
+        width,
+        height,
+        targetWidth,
+        targetHeight
     };
 }
 
-function getCurrentCoverPreviewOverflow() {
+function getCurrentCoverPreviewMetrics(zoom = null) {
     const wrapper = document.getElementById('framing-preview');
     const sourceWidth = playerVideo.videoWidth || originalW || 1;
     const sourceHeight = playerVideo.videoHeight || originalH || 1;
-    return getCoverPreviewOverflow(wrapper, sourceWidth, sourceHeight);
+    const focus = getCurrentFramingFocus();
+    return getCoverPreviewMetrics(wrapper, sourceWidth, sourceHeight, zoom === null ? focus.zoom : zoom);
+}
+
+function clearCoverPreviewLayout(video) {
+    video.style.position = '';
+    video.style.left = '';
+    video.style.top = '';
+    video.style.width = '';
+    video.style.height = '';
+    video.style.maxHeight = '';
+    video.style.transform = '';
+    video.style.transformOrigin = '';
+    video.style.willChange = '';
+    video.style.objectPosition = '';
+}
+
+function applyCoverPreviewLayout(video, wrapper, sourceWidth, sourceHeight, focus) {
+    if (!video || !wrapper || wrapper.clientWidth <= 0 || wrapper.clientHeight <= 0) return;
+    const metrics = getCoverPreviewMetrics(wrapper, sourceWidth, sourceHeight, focus.zoom);
+    const offsetX = -metrics.x * focus.x;
+    const offsetY = -metrics.y * focus.y;
+    video.style.position = 'absolute';
+    video.style.left = '0';
+    video.style.top = '0';
+    video.style.width = `${metrics.width}px`;
+    video.style.height = `${metrics.height}px`;
+    video.style.maxHeight = 'none';
+    video.style.objectFit = 'fill';
+    video.style.objectPosition = '50% 50%';
+    video.style.transformOrigin = 'top left';
+    video.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
+    video.style.willChange = 'transform';
 }
 
 function applyFramingFocusVisuals(settings = getCurrentFramingSettings()) {
     const focus = settings.focus || getCurrentFramingFocus();
-    const objectPosition = `${(focus.x * 100).toFixed(3)}% ${(focus.y * 100).toFixed(3)}%`;
-    playerVideo.style.objectPosition = objectPosition;
-    videoPreview.style.objectPosition = objectPosition;
-
+    const sourceWidth = playerVideo.videoWidth || originalW || 1;
+    const sourceHeight = playerVideo.videoHeight || originalH || 1;
     const wrapper = document.getElementById('framing-preview');
-    const resetButton = document.getElementById('btn-reset-focus');
-    const overflow = getCurrentCoverPreviewOverflow();
-    const adjustable = settings.mode === 'cover' && (overflow.x > 0.5 || overflow.y > 0.5);
-    wrapper.classList.toggle('focus-draggable', adjustable);
-    if (!adjustable) wrapper.classList.remove('focus-dragging');
+    const modalWrapper = document.getElementById('modal-framing-preview');
+    const coverActive = settings.mode === 'cover' && sourceWidth > 0 && sourceHeight > 0;
 
-    const moved = (overflow.x > 0.5 && Math.abs(focus.x - 0.5) > 0.001) ||
-        (overflow.y > 0.5 && Math.abs(focus.y - 0.5) > 0.001);
-    if (resetButton) resetButton.classList.toggle('visible', adjustable && moved);
+    if (coverActive) {
+        applyCoverPreviewLayout(playerVideo, wrapper, sourceWidth, sourceHeight, focus);
+        applyCoverPreviewLayout(videoPreview, modalWrapper, sourceWidth, sourceHeight, focus);
+    } else {
+        clearCoverPreviewLayout(playerVideo);
+        clearCoverPreviewLayout(videoPreview);
+        const objectFit = settings.mode === 'stretch' ? 'fill' : settings.mode;
+        playerVideo.style.objectFit = objectFit;
+        videoPreview.style.objectFit = objectFit;
+    }
+
+    wrapper.classList.toggle('focus-draggable', coverActive);
+    if (!coverActive) wrapper.classList.remove('focus-dragging');
+
+    const metrics = getCurrentCoverPreviewMetrics();
+    const moved = Math.abs(focus.zoom - 1) > 0.001 ||
+        (metrics.x > 0.5 && Math.abs(focus.x - 0.5) > 0.001) ||
+        (metrics.y > 0.5 && Math.abs(focus.y - 0.5) > 0.001);
+    const resetButton = document.getElementById('btn-reset-focus');
+    if (resetButton) resetButton.classList.toggle('visible', coverActive && moved);
 
     const hint = document.getElementById('txt-dicavideo');
     const t = traducoes[idiomaAtual];
-    if (hint && t) hint.textContent = adjustable ? t.dicaVideoCover : t.dicaVideo;
+    if (hint && t) hint.textContent = coverActive ? t.dicaVideoCover : t.dicaVideo;
 }
 
 function sizeFramingPreview(wrapper, maxWidth, maxHeight, width, height) {
@@ -61,74 +111,200 @@ function sizeFramingPreview(wrapper, maxWidth, maxHeight, width, height) {
 
 window.atualizarPreviewEnquadramento = function() {
     const settings = getCurrentFramingSettings();
-    const objectFit = settings.mode === 'stretch' ? 'fill' : settings.mode;
     const wrapper = document.getElementById('framing-preview');
     const availableWidth = Math.max(1, videoContainer.clientWidth || 450);
     sizeFramingPreview(wrapper, availableWidth, Math.max(120, window.innerHeight * 0.35), settings.width, settings.height);
-    playerVideo.style.objectFit = objectFit;
 
     const modalWrapper = document.getElementById('modal-framing-preview');
     sizeFramingPreview(modalWrapper, Math.max(1, Math.min(window.innerWidth * 0.8, 520)), Math.max(120, window.innerHeight * 0.55), settings.width, settings.height);
-    videoPreview.style.objectFit = objectFit;
     applyFramingFocusVisuals(settings);
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
 window.addEventListener('resize', () => atualizarPreviewEnquadramento());
 
-let framingFocusPointerId = null;
-let framingFocusStartX = 0;
-let framingFocusStartY = 0;
-let framingFocusStart = { x: 0.5, y: 0.5 };
-let framingFocusDragMoved = false;
+const framingPointers = new Map();
+let framingGestureMode = '';
+let framingGestureMoved = false;
+let framingPanStartPoint = { x: 0, y: 0 };
+let framingPanStartFocus = { x: 0.5, y: 0.5, zoom: 1 };
+let framingPinchStartDistance = 1;
+let framingPinchStartZoom = 1;
+let framingPinchAnchor = { x: 0.5, y: 0.5 };
+let framingVisualFrame = 0;
+let framingWheelEstimateTimer = 0;
 let suppressFramingClickUntil = 0;
+
+function queueFramingVisualUpdate() {
+    if (framingVisualFrame) return;
+    framingVisualFrame = requestAnimationFrame(() => {
+        framingVisualFrame = 0;
+        applyFramingFocusVisuals();
+    });
+}
+
+function getFramingPointerPair() {
+    return Array.from(framingPointers.values()).slice(0, 2);
+}
+
+function getPointerDistance(a, b) {
+    return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function getPointerMidpoint(a, b) {
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function beginFramingPan(pointer) {
+    framingGestureMode = 'pan';
+    framingPanStartPoint = { x: pointer.x, y: pointer.y };
+    framingPanStartFocus = getCurrentFramingFocus();
+}
+
+function beginFramingPinch() {
+    const pair = getFramingPointerPair();
+    if (pair.length < 2) return;
+    const wrapper = document.getElementById('framing-preview');
+    const rect = wrapper.getBoundingClientRect();
+    const focus = getCurrentFramingFocus();
+    const metrics = getCurrentCoverPreviewMetrics(focus.zoom);
+    const midpoint = getPointerMidpoint(pair[0], pair[1]);
+    const localX = midpoint.x - rect.left;
+    const localY = midpoint.y - rect.top;
+    const left = -metrics.x * focus.x;
+    const top = -metrics.y * focus.y;
+    framingPinchAnchor = {
+        x: Math.max(0, Math.min(1, (localX - left) / Math.max(1, metrics.width))),
+        y: Math.max(0, Math.min(1, (localY - top) / Math.max(1, metrics.height)))
+    };
+    framingPinchStartDistance = Math.max(1, getPointerDistance(pair[0], pair[1]));
+    framingPinchStartZoom = focus.zoom;
+    framingGestureMode = 'pinch';
+    framingGestureMoved = true;
+    playerVideo.pause();
+    wrapper.classList.add('focus-dragging');
+}
+
+function updateFramingPan(pointer, event) {
+    const deltaX = pointer.x - framingPanStartPoint.x;
+    const deltaY = pointer.y - framingPanStartPoint.y;
+    if (!framingGestureMoved && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
+        framingGestureMoved = true;
+        playerVideo.pause();
+        document.getElementById('framing-preview').classList.add('focus-dragging');
+    }
+    if (!framingGestureMoved) return;
+    const metrics = getCurrentCoverPreviewMetrics(framingPanStartFocus.zoom);
+    const nextX = metrics.x > 0.5 ? framingPanStartFocus.x - (deltaX / metrics.x) : framingPanStartFocus.x;
+    const nextY = metrics.y > 0.5 ? framingPanStartFocus.y - (deltaY / metrics.y) : framingPanStartFocus.y;
+    setCurrentFramingFocus(nextX, nextY, framingPanStartFocus.zoom);
+    queueFramingVisualUpdate();
+    event.preventDefault();
+}
+
+function updateFramingPinch(event) {
+    const pair = getFramingPointerPair();
+    if (pair.length < 2) return;
+    const wrapper = document.getElementById('framing-preview');
+    const rect = wrapper.getBoundingClientRect();
+    const midpoint = getPointerMidpoint(pair[0], pair[1]);
+    const distance = Math.max(1, getPointerDistance(pair[0], pair[1]));
+    const nextZoom = normalizeFramingZoomValue(framingPinchStartZoom * (distance / framingPinchStartDistance));
+    const metrics = getCurrentCoverPreviewMetrics(nextZoom);
+    const localX = midpoint.x - rect.left;
+    const localY = midpoint.y - rect.top;
+    const left = localX - framingPinchAnchor.x * metrics.width;
+    const top = localY - framingPinchAnchor.y * metrics.height;
+    const nextX = metrics.x > 0.5 ? -left / metrics.x : 0.5;
+    const nextY = metrics.y > 0.5 ? -top / metrics.y : 0.5;
+    setCurrentFramingFocus(nextX, nextY, nextZoom);
+    queueFramingVisualUpdate();
+    event.preventDefault();
+}
+
+function finishFramingGesture(pointerId, cancelled = false) {
+    framingPointers.delete(pointerId);
+    if (playerVideo.hasPointerCapture(pointerId)) playerVideo.releasePointerCapture(pointerId);
+
+    if (framingPointers.size >= 2) {
+        beginFramingPinch();
+        return;
+    }
+
+    if (framingPointers.size === 1) {
+        const remaining = Array.from(framingPointers.values())[0];
+        beginFramingPan(remaining);
+        return;
+    }
+
+    document.getElementById('framing-preview').classList.remove('focus-dragging');
+    suppressFramingClickUntil = !cancelled && framingGestureMoved ? Date.now() + 350 : 0;
+    framingGestureMode = '';
+    if (framingGestureMoved && typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    framingGestureMoved = false;
+}
 
 playerVideo.addEventListener('pointerdown', event => {
     if (isGenerating || isBuildingTimeline) return;
     const settings = getCurrentFramingSettings();
-    if (settings.mode !== 'cover') return;
-    const overflow = getCurrentCoverPreviewOverflow();
-    if (overflow.x <= 0.5 && overflow.y <= 0.5) return;
+    if (settings.mode !== 'cover' || !(playerVideo.videoWidth || originalW)) return;
 
-    framingFocusPointerId = event.pointerId;
-    framingFocusStartX = event.clientX;
-    framingFocusStartY = event.clientY;
-    framingFocusStart = getCurrentFramingFocus();
-    framingFocusDragMoved = false;
-    suppressFramingClickUntil = 0;
+    framingPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     playerVideo.setPointerCapture(event.pointerId);
-    document.getElementById('framing-preview').classList.add('focus-dragging');
+    suppressFramingClickUntil = 0;
+
+    if (framingPointers.size === 1) {
+        framingGestureMoved = false;
+        beginFramingPan({ x: event.clientX, y: event.clientY });
+    } else if (framingPointers.size === 2) {
+        beginFramingPinch();
+    }
 });
 
 playerVideo.addEventListener('pointermove', event => {
-    if (framingFocusPointerId !== event.pointerId) return;
-    const overflow = getCurrentCoverPreviewOverflow();
-    const deltaX = event.clientX - framingFocusStartX;
-    const deltaY = event.clientY - framingFocusStartY;
-    if (!framingFocusDragMoved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
-        framingFocusDragMoved = true;
-        playerVideo.pause();
+    if (!framingPointers.has(event.pointerId)) return;
+    framingPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (framingPointers.size >= 2) {
+        if (framingGestureMode !== 'pinch') beginFramingPinch();
+        updateFramingPinch(event);
+    } else if (framingGestureMode === 'pan') {
+        updateFramingPan({ x: event.clientX, y: event.clientY }, event);
     }
-    if (!framingFocusDragMoved) return;
-
-    const nextX = overflow.x > 0.5 ? framingFocusStart.x - (deltaX / overflow.x) : framingFocusStart.x;
-    const nextY = overflow.y > 0.5 ? framingFocusStart.y - (deltaY / overflow.y) : framingFocusStart.y;
-    setCurrentFramingFocus(nextX, nextY);
-    applyFramingFocusVisuals();
-    event.preventDefault();
 });
 
-function finishFramingFocusDrag(event, cancelled = false) {
-    if (framingFocusPointerId !== event.pointerId) return;
-    if (playerVideo.hasPointerCapture(event.pointerId)) playerVideo.releasePointerCapture(event.pointerId);
-    document.getElementById('framing-preview').classList.remove('focus-dragging');
-    suppressFramingClickUntil = !cancelled && framingFocusDragMoved ? Date.now() + 350 : 0;
-    framingFocusPointerId = null;
-    if (framingFocusDragMoved && typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-}
+playerVideo.addEventListener('pointerup', event => finishFramingGesture(event.pointerId));
+playerVideo.addEventListener('pointercancel', event => finishFramingGesture(event.pointerId, true));
 
-playerVideo.addEventListener('pointerup', event => finishFramingFocusDrag(event));
-playerVideo.addEventListener('pointercancel', event => finishFramingFocusDrag(event, true));
+playerVideo.addEventListener('wheel', event => {
+    if (isGenerating || isBuildingTimeline) return;
+    const settings = getCurrentFramingSettings();
+    if (settings.mode !== 'cover' || !(playerVideo.videoWidth || originalW)) return;
+    event.preventDefault();
+
+    const wrapper = document.getElementById('framing-preview');
+    const rect = wrapper.getBoundingClientRect();
+    const focus = getCurrentFramingFocus();
+    const currentMetrics = getCurrentCoverPreviewMetrics(focus.zoom);
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    const currentLeft = -currentMetrics.x * focus.x;
+    const currentTop = -currentMetrics.y * focus.y;
+    const anchorX = Math.max(0, Math.min(1, (localX - currentLeft) / Math.max(1, currentMetrics.width)));
+    const anchorY = Math.max(0, Math.min(1, (localY - currentTop) / Math.max(1, currentMetrics.height)));
+    const nextZoom = normalizeFramingZoomValue(focus.zoom * Math.exp(-event.deltaY * 0.0015));
+    const nextMetrics = getCurrentCoverPreviewMetrics(nextZoom);
+    const nextLeft = localX - anchorX * nextMetrics.width;
+    const nextTop = localY - anchorY * nextMetrics.height;
+    const nextX = nextMetrics.x > 0.5 ? -nextLeft / nextMetrics.x : 0.5;
+    const nextY = nextMetrics.y > 0.5 ? -nextTop / nextMetrics.y : 0.5;
+    setCurrentFramingFocus(nextX, nextY, nextZoom);
+    queueFramingVisualUpdate();
+
+    clearTimeout(framingWheelEstimateTimer);
+    framingWheelEstimateTimer = setTimeout(() => {
+        if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    }, 180);
+}, { passive: false });
 
 const resetFramingFocusButton = document.getElementById('btn-reset-focus');
 if (resetFramingFocusButton) {
@@ -136,8 +312,7 @@ if (resetFramingFocusButton) {
         event.preventDefault();
         event.stopPropagation();
         resetCurrentFramingFocus();
-        const settings = getCurrentFramingSettings();
-        applyFramingFocusVisuals(settings);
+        applyFramingFocusVisuals();
         if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
     });
 }

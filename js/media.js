@@ -765,13 +765,13 @@ function chamarModalPreview() {
 
 function abrirPreviewWeb() {
     document.getElementById('modal-escolha-preview').style.display = 'none';
+    document.getElementById('modal-preview').style.display = 'flex';
     videoPreview.src = playerVideo.src;
     atualizarPreviewEnquadramento();
     videoPreview.currentTime = marcadores.m0;
-    videoPreview.muted = true; 
+    videoPreview.muted = true;
     currentPreviewPart = -1;
-    
-    document.getElementById('modal-preview').style.display = 'flex';
+    requestAnimationFrame(() => applyFramingFocusVisuals());
     videoPreview.play();
 }
 

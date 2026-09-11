@@ -22,7 +22,7 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         markers: createMarkerState(),
         initialMarkersSource: null,
         initialMarkersApplied: true,
-        framingFocus: { x: 0.5, y: 0.5 }
+        framingFocus: { x: 0.5, y: 0.5, zoom: 1 }
     };
 }
 
@@ -46,13 +46,14 @@ function createFrameProject(options) {
         markers: createMarkerState(),
         initialMarkersSource: options.initialMarkersSource || null,
         initialMarkersApplied: false,
-        framingFocus: options.framingFocus || { x: 0.5, y: 0.5 }
+        framingFocus: options.framingFocus || { x: 0.5, y: 0.5, zoom: 1 }
     };
 }
 
 function setCurrentProject(project) {
     currentProject = project;
-    if (currentProject && !currentProject.framingFocus) currentProject.framingFocus = { x: 0.5, y: 0.5 };
+    if (currentProject && !currentProject.framingFocus) currentProject.framingFocus = { x: 0.5, y: 0.5, zoom: 1 };
+    if (currentProject && currentProject.framingFocus && !Number.isFinite(Number(currentProject.framingFocus.zoom))) currentProject.framingFocus.zoom = 1;
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
@@ -180,10 +181,12 @@ function setProjectEditorBaseline(frameSettings, audioState) {
 function frameSettingsMatchProjectBaseline(settings) {
     const baseline = currentProject && currentProject.editorBaseline && currentProject.editorBaseline.frame;
     if (!baseline) return false;
+    const focus = settings.framingFocus || getCurrentFramingFocus();
     return baseline.width === settings.width &&
         baseline.height === settings.height &&
         baseline.fps === settings.fps &&
-        baseline.format === settings.format;
+        baseline.format === settings.format &&
+        normalizeFramingZoomValue(focus.zoom) === 1;
 }
 
 function getProjectFrameAtTime(time) {
@@ -286,28 +289,37 @@ function normalizeFramingFocusValue(value) {
     return Math.max(0, Math.min(1, numeric));
 }
 
+function normalizeFramingZoomValue(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 1;
+    return Math.max(1, Math.min(4, numeric));
+}
+
 function getCurrentFramingFocus() {
-    const focus = currentProject && currentProject.framingFocus ? currentProject.framingFocus : { x: 0.5, y: 0.5 };
+    const focus = currentProject && currentProject.framingFocus ? currentProject.framingFocus : { x: 0.5, y: 0.5, zoom: 1 };
     return {
         x: normalizeFramingFocusValue(focus.x),
-        y: normalizeFramingFocusValue(focus.y)
+        y: normalizeFramingFocusValue(focus.y),
+        zoom: normalizeFramingZoomValue(focus.zoom)
     };
 }
 
-function setCurrentFramingFocus(x, y) {
-    if (!currentProject) return { x: 0.5, y: 0.5 };
+function setCurrentFramingFocus(x, y, zoom = null) {
+    if (!currentProject) return { x: 0.5, y: 0.5, zoom: 1 };
+    const current = getCurrentFramingFocus();
     currentProject.framingFocus = {
         x: normalizeFramingFocusValue(x),
-        y: normalizeFramingFocusValue(y)
+        y: normalizeFramingFocusValue(y),
+        zoom: normalizeFramingZoomValue(zoom === null ? current.zoom : zoom)
     };
     return getCurrentFramingFocus();
 }
 
 function resetCurrentFramingFocus() {
-    return setCurrentFramingFocus(0.5, 0.5);
+    return setCurrentFramingFocus(0.5, 0.5, 1);
 }
 
-function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight, mode, focusX = 0.5, focusY = 0.5) {
+function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight, mode, focusX = 0.5, focusY = 0.5, focusZoom = 1) {
     const sw = Math.max(1, sourceWidth || targetWidth || 1);
     const sh = Math.max(1, sourceHeight || targetHeight || 1);
     const tw = Math.max(1, targetWidth || sw);
@@ -324,12 +336,28 @@ function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight
     if (framing === 'cover') {
         const fx = normalizeFramingFocusValue(focusX);
         const fy = normalizeFramingFocusValue(focusY);
+        const zoom = normalizeFramingZoomValue(focusZoom);
+        let baseCropWidth;
+        let baseCropHeight;
         if (sourceRatio > targetRatio) {
-            const cropWidth = sh * targetRatio;
-            return { sx: (sw - cropWidth) * fx, sy: 0, sw: cropWidth, sh, dx: 0, dy: 0, dw: tw, dh: th };
+            baseCropHeight = sh;
+            baseCropWidth = sh * targetRatio;
+        } else {
+            baseCropWidth = sw;
+            baseCropHeight = sw / targetRatio;
         }
-        const cropHeight = sw / targetRatio;
-        return { sx: 0, sy: (sh - cropHeight) * fy, sw, sh: cropHeight, dx: 0, dy: 0, dw: tw, dh: th };
+        const cropWidth = Math.min(sw, baseCropWidth / zoom);
+        const cropHeight = Math.min(sh, baseCropHeight / zoom);
+        return {
+            sx: (sw - cropWidth) * fx,
+            sy: (sh - cropHeight) * fy,
+            sw: cropWidth,
+            sh: cropHeight,
+            dx: 0,
+            dy: 0,
+            dw: tw,
+            dh: th
+        };
     }
 
     if (sourceRatio > targetRatio) {
@@ -350,7 +378,7 @@ function getDrawableSize(drawable) {
 function drawFramedDrawable(ctx, drawable, targetWidth, targetHeight, mode, focus = null) {
     const size = getDrawableSize(drawable);
     const activeFocus = focus || getCurrentFramingFocus();
-    const rect = getFramingDrawRect(size.width, size.height, targetWidth, targetHeight, mode, activeFocus.x, activeFocus.y);
+    const rect = getFramingDrawRect(size.width, size.height, targetWidth, targetHeight, mode, activeFocus.x, activeFocus.y, activeFocus.zoom);
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(drawable, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
@@ -395,7 +423,8 @@ async function getProjectFrameOutputBlob(sourceTime, width, height, format, fram
         if (!frame) throw new Error('Frame not found');
         const frameBlob = await getProjectFrameBlob(frame);
 
-        if (width === currentProject.width && height === currentProject.height && frame.format === format) {
+        const activeFocus = framingFocus || getCurrentFramingFocus();
+        if (width === currentProject.width && height === currentProject.height && frame.format === format && normalizeFramingZoomValue(activeFocus.zoom) === 1) {
             return frameBlob;
         }
 
