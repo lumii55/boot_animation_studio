@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✨ Boot Animation Studio ✨</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div id="tooltip-flutuante" class="tooltip-estiloso"></div>
+    <div class="container">
+        <div class="topo-idioma">
+            <span style="font-size: 13px; color: #888;">🌐</span>
+            <select id="select-idioma" onchange="mudarIdioma(this.value)">
+                <option value="en">English (US)</option>
+                <option value="pt">Português (BR)</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+            </select>
+        </div>
+
+        <h1 id="txt-titulo">✨ Boot Animation Studio ✨</h1>
+        <p id="txt-subtitulo">Create, edit or apply a boot animation file!</p>
+
+        <div class="dicas-container" id="dicas-iniciais">
+            <h3 id="txt-dicas-titulo">Tips for Beginners</h3>
+            <ul>
+                <li id="txt-dica-modulo" class="dica-destaque">
+                    <strong id="txt-dica-modulo-prefix">Companion Module:</strong> 
+                    <span id="txt-dica-modulo-text">The "Connect to Phone" feature requires our optional root module. The site works 100% perfectly without it, but for direct phone integration, download the module from our</span> 
+                    <a href="https://github.com/lumii55/boot_studio_module" id="txt-dica-modulo-link" style="color: #bb86fc; text-decoration: none; font-weight: bold;">GitHub Repository</a>.
+                </li>
+                <li id="txt-dica1"><strong>Important (Samsung):</strong> Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.</li>
+                <li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
+                <li id="txt-dica3"><strong>Screen aspect:</strong> Phones are vertical! Prefer vertical videos (TikTok/Reels format) so your animation doesn't get stretched.</li>
+            </ul>
+        </div>
+
+        <div id="initial-state" style="width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
+            <button class="btn-upload" id="btn-connect" onclick="connectToPhone()" style="background-color: #03dac6;">🔌 Connect to Phone</button>
+            <button class="btn-upload" id="btn-manual" onclick="startManualMode()" style="background-color: #333; color: #fff;">📦 Just Create .ZIP</button>
+        </div>
+
+        <div id="connected-state" style="width: 100%; display: none; flex-direction: column; gap: 10px; margin-bottom: 5px;">
+            <div style="background-color: #28a745; padding: 12px; border-radius: 15px; font-weight: bold; text-align: center; color: white; font-size: 15px;" id="status-connected">🟢 Phone Connected!</div>
+            
+            <div class="hist-wrapper" id="history-wrapper">
+                <div class="hist-title" id="lbl-history">Animations History (Max 5):</div>
+                <div class="hist-scroll" id="history-scroll">
+                </div>
+                <div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div>
+            </div>
+
+            <button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()" style="background-color: #333; color: #fff;">🚪 Disconnect</button>
+        </div>
+
+        <div id="editor-section" style="display: none; width: 100%; flex-direction: column; align-items: center; gap: 15px;">
+            
+            <div id="acoes-principais" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
+                <label for="upload-video" class="btn-upload" id="lbl-upload" style="margin: 0; display: flex; align-items: center; justify-content: center; height: 100%;">📂 Video / GIF</label>
+                <input type="file" id="upload-video" accept="video/*, image/gif" hidden>
+
+                <label for="upload-zip" class="btn-upload" id="lbl-upload-zip" style="margin: 0; display: flex; align-items: center; justify-content: center; height: 100%; background-color: #ffb86c; color: #000;">📦 Edit .ZIP</label>
+                <input type="file" id="upload-zip" accept=".zip" hidden>
+
+                <label for="upload-zip-direto" class="btn-upload" id="lbl-upload-direto" style="margin: 0; display: none; align-items: center; justify-content: center; height: 100%; background-color: #03dac6; color: #000; font-size: 14px;">🚀 Inject .ZIP</label>
+                <input type="file" id="upload-zip-direto" accept=".zip" hidden>
+
+                <button class="btn-upload" id="btn-pull" onclick="abrirModalPull()" style="background-color: #bb86fc; color: #000; margin: 0; height: 100%; display: none; font-size: 14px;">📥 Pull from Phone</button>
+
+                <button class="btn-upload" id="btn-remove" onclick="removeAnimation()" style="background-color: #ff5555; color: #fff; margin: 0; height: 100%; display: none; font-size: 14px; grid-column: span 2;">🗑️ Remove Animation</button>
+                
+                <button class="btn-upload" id="btn-reset" onclick="resetarModulo()" style="background-color: #ff5555; border: 2px solid #8b0000; color: #fff; margin: 0; height: 100%; display: none; font-size: 14px; grid-column: span 2;">⚠️ Troubleshoot (Reset)</button>
+            </div>
+
+            <div class="video-container" id="video-container">
+                <video id="player-video" playsinline class="pausado"></video>
+                <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
+            </div>
+
+            <div class="timeline-wrapper" id="timeline-wrapper">
+                <div class="playhead-centro"></div>
+                <div class="timeline-scroll" id="timeline-scroll">
+                    <div class="filmstrip-container">
+                        <div class="pad-spacer" id="pad-left"></div>
+                        <div class="filmstrip" id="filmstrip"></div>
+                        <div class="pad-spacer" id="pad-right"></div>
+                    </div>
+                </div>
+            </div>
+
+            <p id="txt-hint-tooltip" class="hint-tooltip"></p>
+            <div class="grid-marcadores" id="grid-marcadores">
+                <button class="btn-marc btn-m0" onclick="marcarTrecho('m0')">📍 <span id="lbl-m0">1. Intro</span><br><span class="status-marc" id="st-m0">Not marked</span></button>
+                <button class="btn-marc btn-m1" onclick="marcarTrecho('m1')">🔁 <span id="lbl-m1">2. Loop Start</span><br><span class="status-marc" id="st-m1">Not marked</span></button>
+                <button class="btn-marc btn-m2" onclick="marcarTrecho('m2')">➡️ <span id="lbl-m2">3. Loop End</span><br><span class="status-marc" id="st-m2">Not marked</span></button>
+                <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Outro</span><br><span class="status-marc" id="st-m3">Not marked</span></button>
+            </div>
+
+            <div class="configuracoes" id="configuracoes">
+                <div class="campo campo-full" id="wrap-gerar-modulo">
+                    <div class="checkbox-container">
+                        <label style="margin:0;" id="lbl-gerarmodulo">Generate Root Module? 🧲</label>
+                        <input type="checkbox" id="input-gerar-modulo" onchange="verificarModulo()">
+                    </div>
+                </div>
+
+                <div class="campo campo-full" id="container-fabricante" style="display: none;">
+                    <label id="lbl-fabricante">Device Variant 📱</label>
+                    <select id="input-fabricante">
+                        <option value="standard" id="opt-standard">Standard (AOSP/Pixel/OnePlus)</option>
+                        <option value="miui" id="opt-miui">MIUI (Xiaomi)</option>
+                        <option value="mtk" id="opt-mtk">MTK (MediaTek Stock)</option>
+                        <option value="motorola" id="opt-motorola">Motorola</option>
+                        <option value="emui" id="opt-emui">EMUI (Huawei)</option>
+                    </select>
+                </div>
+
+                <div class="campo campo-full">
+                    <div class="checkbox-container">
+                        <label style="margin:0;" id="lbl-usar-som">Use sound in animation? 🎵</label>
+                        <input type="checkbox" id="input-usar-som" onchange="verificarPainelAudio()">
+                    </div>
+                </div>
+                
+                <div class="painel-audio" id="painel-audio">
+                    <div class="campo">
+                        <label id="lbl-audio-intro">Intro Audio:</label>
+                        <select id="sel-audio-intro" onchange="handleAudioSelect('intro')">
+                            <option value="none" id="opt-none-intro">None</option>
+                            <option value="video" id="opt-vid-intro">Video's Audio</option>
+                            <option value="file" id="opt-file-intro">Audio File...</option>
+                        </select>
+                        <input type="file" id="file-audio-intro" accept="audio/*" hidden onchange="fileAudioSelecionado('intro')">
+                        <div class="vol-container" id="vol-wrap-intro">
+                            <input type="range" class="vol-slider" id="vol-intro" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-intro').textContent = this.value + '%'">
+                            <div class="vol-label" id="lbl-vol-intro">100%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="campo">
+                        <label id="lbl-audio-loop">Loop Audio:</label>
+                        <select id="sel-audio-loop" onchange="handleAudioSelect('loop')">
+                            <option value="none" id="opt-none-loop">None</option>
+                            <option value="video" id="opt-vid-loop">Video's Audio</option>
+                            <option value="file" id="opt-file-loop">Audio File...</option>
+                        </select>
+                        <input type="file" id="file-audio-loop" accept="audio/*" hidden onchange="fileAudioSelecionado('loop')">
+                        <div class="vol-container" id="vol-wrap-loop">
+                            <input type="range" class="vol-slider" id="vol-loop" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-loop').textContent = this.value + '%'">
+                            <div class="vol-label" id="lbl-vol-loop">100%</div>
+                        </div>
+                    </div>
+
+                    <div class="campo">
+                        <label id="lbl-audio-final">Outro Audio:</label>
+                        <select id="sel-audio-final" onchange="handleAudioSelect('final')">
+                            <option value="none" id="opt-none-final">None</option>
+                            <option value="video" id="opt-vid-final">Video's Audio</option>
+                            <option value="file" id="opt-file-final">Audio File...</option>
+                        </select>
+                        <input type="file" id="file-audio-final" accept="audio/*" hidden onchange="fileAudioSelecionado('final')">
+                        <div class="vol-container" id="vol-wrap-final">
+                            <input type="range" class="vol-slider" id="vol-final" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-final').textContent = this.value + '%'">
+                            <div class="vol-label" id="lbl-vol-final">100%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="campo campo-full" id="wrap-nome">
+                    <label id="lbl-nome">File Name 📝 (Without extension)</label>
+                    <input type="text" id="input-nome" value="bootanimation" placeholder="Ex: my_boot_animation">
+                </div>
+
+                <div class="campo campo-full">
+                    <label id="lbl-formato">Frames Format 🖼️</label>
+                    <select id="input-formato">
+                        <option value="jpeg" id="opt-jpeg">JPEG (Lighter!)</option>
+                        <option value="png" id="opt-png">PNG (Heavy)</option>
+                    </select>
+                </div>
+                <div class="campo campo-full">
+                    <label id="lbl-qualidade">Resolution 📉</label>
+                    <select id="input-qualidade" onchange="atualizarTamanho()">
+                        <option value="auto" id="opt-auto" style="display:none;"></option>
+                        <option value="320" id="opt-320">320p</option>
+                        <option value="480" id="opt-480">480p</option>
+                        <option value="720" id="opt-720">720p</option>
+                        <option value="1" id="opt-orig" selected>Original</option>
+                        <option value="custom" id="opt-custom">Custom</option>
+                    </select>
+                </div>
+                
+                <div class="campo campo-full">
+                    <label id="lbl-fps">FPS 🎬 (Global)</label>
+                    <input type="number" id="input-fps" value="30" min="1" max="60">
+                </div>
+
+                <div class="campo"><label id="lbl-largura">Width</label><input type="number" id="input-largura" oninput="aoMudarTamanhoManual()"></div>
+                <div class="campo"><label id="lbl-altura">Height</label><input type="number" id="input-altura" oninput="aoMudarTamanhoManual()"></div>
+            </div>
+
+            <div id="botoes-exportacao" style="display: none; flex-direction: column; gap: 10px; width: 100%; margin-top: 5px;">
+                <button id="btn-baixar-video" class="btn-gerar" style="background-color: #ffb86c; color: #000; display: none;" onclick="baixarVideo()">🎬 Download Video</button>
+                <button id="btn-baixar-zip" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="baixarZipEditado()">📦 Download .ZIP</button>
+            </div>
+
+            <button id="btn-gerar" class="btn-gerar btn-desativado">Missing Markers...</button>
+            
+            <button id="btn-ver-preview" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="chamarModalPreview()">👀 Ver Preview</button>
+
+            <div class="container-progresso" id="container-progresso">
+                <div class="texto-progresso" id="texto-progresso">0%</div>
+                <div class="barra-fundo"><div class="barra-preenchimento" id="barra-preenchimento"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-escolha-preview">
+        <div class="modal-box">
+            <h2 id="lbl-modal-escolha-title">👀 How do you want to test?</h2>
+            <p id="lbl-modal-escolha-desc" style="text-align: center; margin-bottom: 20px; font-size: 13px; color: #ccc;">Choose where you want to see your masterpiece!</p>
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-upload" id="btn-web" style="background-color: #bb86fc;" onclick="abrirPreviewWeb()">💻 On Site</button>
+                <button class="btn-upload" id="btn-phone" style="background-color: #03dac6;" onclick="testarNoCelular()">📱 On Phone</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-cancel-preview" style="margin-top: 15px; background-color: #333;" onclick="document.getElementById('modal-escolha-preview').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-pull">
+        <div class="modal-box">
+            <h2 id="lbl-modal-pull-title">📥 Pull Animation</h2>
+            <p id="lbl-modal-pull-desc" style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #ccc;">You already have a custom animation installed! Which version do you want to pull to the editor?</p>
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-upload" id="btn-pull-module" style="background-color: #bb86fc;" onclick="puxarAnimacao('module')">🔧 From Module</button>
+                <button class="btn-upload" id="btn-pull-system" style="background-color: #ffb86c;" onclick="puxarAnimacao('system')">📱 Original System</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-pull-cancel" style="margin-top: 15px; background-color: #333;" onclick="fecharModalPull()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-network">
+        <div class="modal-box">
+            <h2 id="lbl-modal-net-title">🌐 Connect via Network</h2>
+            <p id="lbl-modal-net-desc" style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #ccc;">Server not found on localhost. Enter your phone's IP address or scan the network!</p>
+            <input type="text" id="input-ip" value="192.168.0." style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; text-align: center; font-family: 'Fredoka', sans-serif;">
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-upload" id="btn-connect-ip" style="background-color: #03dac6;" onclick="conectarPorIp()">🔌 Connect</button>
+                <button class="btn-upload" id="btn-scan-net" style="background-color: #bb86fc;" onclick="iniciarVarredura()">🔍 Auto-Scan</button>
+            </div>
+            <button class="btn-fechar-modal" id="btn-cancel-net" style="margin-top: 15px; background-color: #333;" onclick="fecharModalRede()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="loading-overlay" style="z-index: 200;">
+        <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
+            <div style="width: 50px; height: 50px; border: 5px solid #444; border-top: 5px solid #03dac6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+            <h2 id="txt-loading-timeline" style="color: #03dac6; font-size: 16px; font-weight: bold; text-shadow: 0 2px 5px rgba(0,0,0,0.8);">Loading Timeline... ⌛</h2>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-preview">
+        <div class="modal-box">
+            <h2 id="lbl-modal-titulo">Preview of your Animation! 🎬</h2>
+            <video class="modal-img" id="video-preview" autoplay playsinline></video>
+            <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
+        </div>
+    </div>
+
+    <script src="js/state.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/media.js"></script>
+    <script src="js/timeline.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/export.js"></script>
+</body>
+</html>
