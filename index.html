@@ -337,7 +337,8 @@
         <div class="modal-box">
             <h2 id="lbl-modal-titulo">Preview of your Animation! 🎬</h2>
             <div class="modal-framing-preview" id="modal-framing-preview">
-                <video class="modal-img" id="video-preview" autoplay playsinline></video>
+                <canvas class="modal-img" id="video-preview-canvas"></canvas>
+                <video id="video-preview" autoplay playsinline></video>
             </div>
             <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
         </div>
