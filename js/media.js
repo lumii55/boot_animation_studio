@@ -235,7 +235,8 @@ async function abrirZipNoEditor(zipBlob) {
                 frameEnd: projectFrames.length - 1,
                 frameCount: projectFrames.length - frameStart,
                 audioBlob,
-                audioName
+                audioName,
+                audioEntryName: arquivosAudio.length > 0 ? arquivosAudio[0].name : null
             });
         }
 
@@ -260,6 +261,7 @@ async function abrirZipNoEditor(zipBlob) {
             m3: Math.max(0, (totalFramesGerais - 1) / zipFps)
         };
 
+        const audioRolePartIndexes = buildAudioRolePartIndexes(projectParts);
         const project = createFrameProject({
             sourceType: 'bootanimation',
             sourceBlob: zipBlob,
@@ -270,24 +272,20 @@ async function abrirZipNoEditor(zipBlob) {
             frames: projectFrames,
             parts: projectParts,
             descText,
+            descHasSoundDirectives: temSomNoDesc,
+            audioRolePartIndexes,
             initialMarkersSource
         });
         setCurrentProject(project);
 
         resetAudioState();
         const partesComAudio = projectParts.filter(parte => parte.audioBlob);
-        if (projectParts.length === 1) {
-            if (projectParts[0].audioBlob) setImportedAudio('loop', projectParts[0].audioBlob, projectParts[0].audioName);
-        } else if (projectParts.length === 2) {
-            if (projectParts[0].audioBlob) setImportedAudio('intro', projectParts[0].audioBlob, projectParts[0].audioName);
-            if (projectParts[1].audioBlob) setImportedAudio('loop', projectParts[1].audioBlob, projectParts[1].audioName);
-        } else if (projectParts.length >= 3) {
-            if (projectParts[0].audioBlob) setImportedAudio('intro', projectParts[0].audioBlob, projectParts[0].audioName);
-            const parteLoop = projectParts.slice(1, -1).find(parte => parte.audioBlob);
-            if (parteLoop) setImportedAudio('loop', parteLoop.audioBlob, parteLoop.audioName);
-            const parteFinal = projectParts[projectParts.length - 1];
-            if (parteFinal.audioBlob) setImportedAudio('final', parteFinal.audioBlob, parteFinal.audioName);
-        }
+        ['intro', 'loop', 'final'].forEach(role => {
+            const partIndex = audioRolePartIndexes[role];
+            if (Number.isInteger(partIndex) && projectParts[partIndex] && projectParts[partIndex].audioBlob) {
+                setImportedAudio(role, projectParts[partIndex].audioBlob, projectParts[partIndex].audioName);
+            }
+        });
         if (temSomNoDesc || partesComAudio.length > 0) {
             document.getElementById('input-usar-som').checked = true;
             verificarPainelAudio();
@@ -309,6 +307,12 @@ async function abrirZipNoEditor(zipBlob) {
         document.getElementById('input-qualidade').value = 'custom';
         const importedFormat = getImportedProjectFormat();
         if (importedFormat) document.getElementById('input-formato').value = importedFormat;
+        setProjectEditorBaseline({
+            width: zipW,
+            height: zipH,
+            fps: zipFps,
+            format: document.getElementById('input-formato').value
+        }, captureAudioEditorState());
 
         document.getElementById('txt-loading-timeline').textContent = t.msgStitching;
         const videoWebm = await createFrameProjectPreview(project);
@@ -320,6 +324,84 @@ async function abrirZipNoEditor(zipBlob) {
         alert(t.msgZipReadError + error.message);
         document.getElementById('loading-overlay').style.display = 'none';
     }
+}
+
+
+function buildAudioRolePartIndexes(parts) {
+    const result = { intro: null, loop: null, final: null };
+    if (parts.length === 1) {
+        result.loop = 0;
+    } else if (parts.length === 2) {
+        result.intro = 0;
+        result.loop = 1;
+    } else if (parts.length >= 3) {
+        result.intro = 0;
+        const middleWithAudio = parts.slice(1, -1).findIndex(part => !!part.audioBlob);
+        result.loop = middleWithAudio >= 0 ? middleWithAudio + 1 : 1;
+        result.final = parts.length - 1;
+    }
+    return result;
+}
+
+function captureAudioSourceState(part) {
+    const inputFile = document.getElementById(`file-audio-${part}`);
+    const selectedFile = inputFile.files[0] || null;
+    if (selectedFile) {
+        return {
+            kind: 'file',
+            name: selectedFile.name || '',
+            size: selectedFile.size || 0,
+            type: selectedFile.type || '',
+            lastModified: selectedFile.lastModified || 0,
+            ref: selectedFile
+        };
+    }
+    const imported = importedAudioFiles[part];
+    if (imported) {
+        return {
+            kind: 'imported',
+            name: '',
+            size: imported.size || 0,
+            type: imported.type || '',
+            lastModified: 0,
+            ref: imported
+        };
+    }
+    return { kind: 'none', name: '', size: 0, type: '', lastModified: 0, ref: null };
+}
+
+function captureAudioEditorState() {
+    const state = { enabled: document.getElementById('input-usar-som').checked };
+    ['intro', 'loop', 'final'].forEach(part => {
+        state[part] = {
+            mode: document.getElementById(`sel-audio-${part}`).value,
+            volume: parseInt(document.getElementById(`vol-${part}`).value) || 0,
+            source: captureAudioSourceState(part)
+        };
+    });
+    return state;
+}
+
+function audioSourceStatesEqual(a, b) {
+    if (!a || !b || a.kind !== b.kind) return false;
+    if (a.kind === 'none') return true;
+    if (a.kind === 'imported') return a.ref === b.ref && a.size === b.size && a.type === b.type;
+    return a.ref === b.ref || (
+        a.name === b.name &&
+        a.size === b.size &&
+        a.type === b.type &&
+        a.lastModified === b.lastModified
+    );
+}
+
+function audioRoleStatesEqual(a, b) {
+    if (!a || !b) return false;
+    return a.mode === b.mode && a.volume === b.volume && audioSourceStatesEqual(a.source, b.source);
+}
+
+function audioEditorStatesEqual(a, b) {
+    if (!a || !b || a.enabled !== b.enabled) return false;
+    return ['intro', 'loop', 'final'].every(part => audioRoleStatesEqual(a[part], b[part]));
 }
 
 function baixarVideo() {

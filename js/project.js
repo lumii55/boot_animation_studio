@@ -16,6 +16,9 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         frames: [],
         parts: [],
         descText: null,
+        descHasSoundDirectives: false,
+        audioRolePartIndexes: { intro: null, loop: null, final: null },
+        editorBaseline: null,
         markers: createMarkerState(),
         initialMarkersSource: null,
         initialMarkersApplied: true
@@ -36,6 +39,9 @@ function createFrameProject(options) {
         frames: options.frames || [],
         parts: options.parts || [],
         descText: options.descText || null,
+        descHasSoundDirectives: !!options.descHasSoundDirectives,
+        audioRolePartIndexes: options.audioRolePartIndexes || { intro: null, loop: null, final: null },
+        editorBaseline: options.editorBaseline || null,
         markers: createMarkerState(),
         initialMarkersSource: options.initialMarkersSource || null,
         initialMarkersApplied: false
@@ -122,6 +128,49 @@ function getProjectSourceMarkers() {
         m2: marcadores.m2 === null ? null : timelineTimeToProjectTime(marcadores.m2),
         m3: marcadores.m3 === null ? null : timelineTimeToProjectTime(marcadores.m3)
     };
+}
+
+
+function isImportedBootanimationProject() {
+    return !!currentProject && currentProject.sourceType === 'bootanimation' && currentProject.sourceMode === 'frames' && !!currentProject.sourceBlob;
+}
+
+function projectMarkersMatchInitial() {
+    if (!isImportedBootanimationProject() || !currentProject.initialMarkersSource) return false;
+    const current = getProjectSourceMarkers();
+    const initial = currentProject.initialMarkersSource;
+    const epsilon = 1 / (Math.max(1, currentProject.fps || 30) * 4);
+    return ['m0', 'm1', 'm2', 'm3'].every(key => {
+        if (current[key] === null || initial[key] === null) return current[key] === initial[key];
+        return Math.abs(current[key] - initial[key]) <= epsilon;
+    });
+}
+
+function getProjectPartFrames(partIndex) {
+    if (!projectUsesFrames()) return [];
+    return currentProject.frames.filter(frame => frame.partIndex === partIndex);
+}
+
+function setProjectEditorBaseline(frameSettings, audioState) {
+    if (!currentProject) return;
+    currentProject.editorBaseline = {
+        frame: {
+            width: frameSettings.width,
+            height: frameSettings.height,
+            fps: frameSettings.fps,
+            format: frameSettings.format
+        },
+        audio: audioState
+    };
+}
+
+function frameSettingsMatchProjectBaseline(settings) {
+    const baseline = currentProject && currentProject.editorBaseline && currentProject.editorBaseline.frame;
+    if (!baseline) return false;
+    return baseline.width === settings.width &&
+        baseline.height === settings.height &&
+        baseline.fps === settings.fps &&
+        baseline.format === settings.format;
 }
 
 function getProjectFrameAtTime(time) {
