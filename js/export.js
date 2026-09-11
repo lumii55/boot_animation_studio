@@ -189,67 +189,46 @@ btnGerar.addEventListener('click', async () => {
 });
 
 async function paparazzoOtimizado(zip, largura, altura, fps, formato, t) {
-    return new Promise(async (resolve) => {
-        const pasta0 = zip.folder("part0"), pasta1 = zip.folder("part1"), pasta2 = zip.folder("part2");
-        let c0 = 0, c1 = 0, c2 = 0, fotosTiradas = 0;
-        
-        const intervalo = 1 / fps;
-        const meioFrame = intervalo / 2;
-        const totalFotos = Math.floor((marcadores.m3 - marcadores.m0) / intervalo) + 1;
-        
-        const mimeType = formato === 'jpeg' ? 'image/jpeg' : 'image/png';
-        const extensao = formato === 'jpeg' ? '.jpg' : '.png';
-        const qualidade = formato === 'jpeg' ? 0.90 : undefined;
+    const pasta0 = zip.folder('part0');
+    const pasta1 = zip.folder('part1');
+    const pasta2 = zip.folder('part2');
+    let c0 = 0;
+    let c1 = 0;
+    let c2 = 0;
+    let fotosTiradas = 0;
+    const intervalo = 1 / fps;
+    const meioFrame = intervalo / 2;
+    const sourceMarkers = getProjectSourceMarkers();
+    const totalFotos = Math.floor((sourceMarkers.m3 - sourceMarkers.m0) / intervalo) + 1;
+    const extensao = formato === 'jpeg' ? '.jpg' : '.png';
 
-        playerVideo.pause();
+    playerVideo.pause();
 
-        let promessasLote = [];
+    for (let i = 0; i < totalFotos; i++) {
+        const sourceTime = sourceMarkers.m0 + (i * intervalo);
+        const blob = await getProjectFrameOutputBlob(sourceTime, largura, altura, formato);
+        let pastaAlvo;
+        let numFoto;
 
-        for (let tempo = marcadores.m0; tempo <= marcadores.m3; tempo += intervalo) {
-            playerVideo.currentTime = tempo;
-            await new Promise(res => {
-                const cb = () => { playerVideo.removeEventListener('seeked', cb); res(); };
-                playerVideo.addEventListener('seeked', cb);
-            });
-
-            contexto.fillStyle = "#000000";
-            contexto.fillRect(0, 0, largura, altura);
-            contexto.drawImage(playerVideo, 0, 0, largura, altura);
-
-            let pastaAlvo = null; let numFoto = 0;
-            
-            if (tempo < marcadores.m1 + meioFrame) { pastaAlvo = pasta0; numFoto = c0++; } 
-            else if (tempo < marcadores.m2 + meioFrame) { pastaAlvo = pasta1; numFoto = c1++; } 
-            else { pastaAlvo = pasta2; numFoto = c2++; }
-
-            const nome = String(numFoto).padStart(5, '0') + extensao;
-            
-            const p = new Promise(res => {
-                canvasInvisivel.toBlob((blob) => {
-                    if (blob) pastaAlvo.file(nome, blob);
-                    fotosTiradas++;
-                    
-                    if (fotosTiradas % 4 === 0 || fotosTiradas === totalFotos) {
-                        const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
-                        document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
-                        document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
-                    }
-                    res();
-                }, mimeType, qualidade);
-            });
-
-            promessasLote.push(p);
-
-            if (promessasLote.length >= 10) {
-                await Promise.all(promessasLote);
-                promessasLote = [];
-            }
+        if (sourceTime < sourceMarkers.m1 + meioFrame) {
+            pastaAlvo = pasta0;
+            numFoto = c0++;
+        } else if (sourceTime < sourceMarkers.m2 + meioFrame) {
+            pastaAlvo = pasta1;
+            numFoto = c1++;
+        } else {
+            pastaAlvo = pasta2;
+            numFoto = c2++;
         }
 
-        if (promessasLote.length > 0) {
-            await Promise.all(promessasLote);
-        }
+        const nome = String(numFoto).padStart(5, '0') + extensao;
+        pastaAlvo.file(nome, blob);
+        fotosTiradas++;
 
-        resolve();
-    });
+        if (fotosTiradas % 4 === 0 || fotosTiradas === totalFotos) {
+            const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
+            document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
+            document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
+        }
+    }
 }

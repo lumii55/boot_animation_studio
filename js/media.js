@@ -16,28 +16,33 @@ async function converterGifParaVideo(file) {
         const h = frames[0].dims.height;
         
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = w; tempCanvas.height = h;
+        tempCanvas.width = w;
+        tempCanvas.height = h;
         const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
         
         let totalDelay = 0;
-        frames.forEach(f => totalDelay += Math.max(20, f.delay));
-        let avgDelay = totalDelay / frames.length;
-        let fps = Math.round(1000 / avgDelay);
-        if(fps > 60) fps = 60; 
-        if(fps < 1) fps = 10;
+        frames.forEach(frame => totalDelay += Math.max(20, frame.delay));
+        let fps = Math.round(1000 / (totalDelay / frames.length));
+        if (fps > 60) fps = 60;
+        if (fps < 1) fps = 10;
         
         document.getElementById('txt-loading-timeline').textContent = t.msgLoadingVid;
 
         const stream = tempCanvas.captureStream(fps);
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
         const pedacos = [];
-        recorder.ondataavailable = e => { if (e.data.size > 0) pedacos.push(e.data); };
+        recorder.ondataavailable = event => {
+            if (event.data.size > 0) pedacos.push(event.data);
+        };
         
-        const gravacaoPronta = new Promise(res => recorder.onstop = () => res(new Blob(pedacos, {type: 'video/webm'})));
+        const gravacaoPronta = new Promise(resolve => {
+            recorder.onstop = () => resolve(new Blob(pedacos, { type: 'video/webm' }));
+        });
         recorder.start();
 
         const gifCanvas = document.createElement('canvas');
-        gifCanvas.width = w; gifCanvas.height = h;
+        gifCanvas.width = w;
+        gifCanvas.height = h;
         const gifCtx = gifCanvas.getContext('2d');
         let prevImgData;
         
@@ -47,9 +52,9 @@ async function converterGifParaVideo(file) {
         for (let i = 0; i < frames.length; i++) {
             const frame = frames[i];
             
-            if (i > 0 && frames[i-1].disposalType === 2) {
-                gifCtx.clearRect(frames[i-1].dims.left, frames[i-1].dims.top, frames[i-1].dims.width, frames[i-1].dims.height);
-            } else if (i > 0 && frames[i-1].disposalType === 3 && prevImgData) {
+            if (i > 0 && frames[i - 1].disposalType === 2) {
+                gifCtx.clearRect(frames[i - 1].dims.left, frames[i - 1].dims.top, frames[i - 1].dims.width, frames[i - 1].dims.height);
+            } else if (i > 0 && frames[i - 1].disposalType === 3 && prevImgData) {
                 gifCtx.putImageData(prevImgData, 0, 0);
             }
             
@@ -58,25 +63,25 @@ async function converterGifParaVideo(file) {
             }
             
             const patchCanvas = document.createElement('canvas');
-            patchCanvas.width = frame.dims.width; patchCanvas.height = frame.dims.height;
+            patchCanvas.width = frame.dims.width;
+            patchCanvas.height = frame.dims.height;
             const pData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
             patchCanvas.getContext('2d').putImageData(pData, 0, 0);
             
             gifCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
             
-            ctx.fillStyle = "#000000";
+            ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, w, h);
             ctx.drawImage(gifCanvas, 0, 0);
             
             accumulatedDelay += Math.max(20, frame.delay);
             const expectedTime = startTime + accumulatedDelay;
-            const now = performance.now();
-            const sleepTime = expectedTime - now;
+            const sleepTime = expectedTime - performance.now();
             
             if (sleepTime > 0) {
-                await new Promise(r => setTimeout(r, sleepTime));
+                await new Promise(resolve => setTimeout(resolve, sleepTime));
             } else {
-                await new Promise(r => setTimeout(r, 0));
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
 
@@ -85,7 +90,14 @@ async function converterGifParaVideo(file) {
         
         document.getElementById('dicas-iniciais').style.display = 'none';
         resetAudioState();
-        playerVideo.src = URL.createObjectURL(videoWebm); 
+        setCurrentProject(createTemporalProject('gif', file, {
+            previewBlob: videoWebm,
+            width: w,
+            height: h,
+            fps,
+            sourceDuration: totalDelay / 1000
+        }));
+        setPlayerBlob(videoWebm);
         document.getElementById('video-container').style.display = 'block';
         document.getElementById('timeline-wrapper').style.display = 'block';
         document.getElementById('grid-marcadores').style.display = 'grid';
@@ -93,7 +105,6 @@ async function converterGifParaVideo(file) {
         document.getElementById('botoes-exportacao').style.display = 'none';
         document.getElementById('btn-ver-preview').style.display = 'none';
         document.getElementById('txt-hint-tooltip').style.display = 'block';
-        marcadores = { m0: null, m1: null, m2: null, m3: null };
         atualizarBotoesELinhas();
         
     } catch (error) {
@@ -103,6 +114,45 @@ async function converterGifParaVideo(file) {
     }
 }
 
+async function createFrameProjectPreview(project) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = project.width;
+    tempCanvas.height = project.height;
+    const ctx = tempCanvas.getContext('2d');
+    const previewFps = Math.max(1, Math.min(60, project.fps || 30));
+    const stream = tempCanvas.captureStream(previewFps);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks = [];
+    recorder.ondataavailable = event => {
+        if (event.data.size > 0) chunks.push(event.data);
+    };
+    const ready = new Promise(resolve => {
+        recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+    });
+
+    recorder.start();
+    const startTime = performance.now();
+
+    for (const frame of project.frames) {
+        const drawable = await blobToDrawable(frame.blob);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, project.width, project.height);
+        ctx.drawImage(drawable, 0, 0, project.width, project.height);
+        releaseDrawable(drawable);
+
+        const expectedTime = startTime + ((frame.startTime + frame.duration) * 1000);
+        const sleepTime = expectedTime - performance.now();
+        if (sleepTime > 0) {
+            await new Promise(resolve => setTimeout(resolve, sleepTime));
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    recorder.stop();
+    return await ready;
+}
+
 async function abrirZipNoEditor(zipBlob) {
     const t = traducoes[idiomaAtual];
     document.getElementById('loading-overlay').style.display = 'flex';
@@ -110,16 +160,18 @@ async function abrirZipNoEditor(zipBlob) {
 
     try {
         const zip = await JSZip.loadAsync(zipBlob);
-        const descFile = zip.file("desc.txt");
+        const descFile = zip.file('desc.txt');
         if (!descFile) throw new Error(t.msgZipNoDesc);
         
-        const descText = await descFile.async("string");
-        const linhas = descText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+        const descText = await descFile.async('string');
+        const linhas = descText.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+        if (linhas.length === 0) throw new Error(t.msgZipNoDesc);
         
         const configTops = linhas[0].split(/\s+/);
         const zipW = parseInt(configTops[0]);
         const zipH = parseInt(configTops[1]);
         const zipFps = parseInt(configTops[2]) || 30;
+        if (!zipW || !zipH) throw new Error(t.msgZipReadError);
 
         let temSomNoDesc = false;
         for (let i = 1; i < linhas.length; i++) {
@@ -131,103 +183,115 @@ async function abrirZipNoEditor(zipBlob) {
 
         document.getElementById('txt-loading-timeline').textContent = t.msgOrgFrames;
         
-        let todasImagens = [];
-        let contagemPorPasta = [];
+        const projectFrames = [];
+        const projectParts = [];
 
         for (let i = 1; i < linhas.length; i++) {
-            const partes = linhas[i].split(/\s+/);
-            if (partes[0] === 'c' || partes[0] === 'p') {
-                const nomePasta = partes[3];
-                if (!nomePasta) continue;
-                const nomeSeguro = escapeRegExp(nomePasta);
-                const regex = new RegExp("^" + nomeSeguro + "/.*\\.(png|jpg|jpeg)$", "i");
-                const arquivosPasta = zip.file(regex);
-                const arquivosAudio = zip.file(new RegExp("^" + nomeSeguro + "/audio\\.wav$", "i"));
-                
-                arquivosPasta.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-                
-                for (let arq of arquivosPasta) {
-                    const imgBlob = await arq.async("blob");
-                    todasImagens.push(imgBlob);
-                }
+            const tokens = linhas[i].split(/\s+/);
+            if (tokens[0] !== 'c' && tokens[0] !== 'p') continue;
 
-                let audioBlob = null;
-                let audioName = null;
-                if (arquivosAudio.length > 0) {
-                    audioBlob = await arquivosAudio[0].async("blob");
-                    audioName = arquivosAudio[0].name.split('/').pop() || 'audio.wav';
-                }
-                
-                contagemPorPasta.push({ nome: nomePasta, frames: arquivosPasta.length, audioBlob, audioName });
+            const nomePasta = tokens[3];
+            if (!nomePasta) continue;
+            const nomeSeguro = escapeRegExp(nomePasta);
+            const regex = new RegExp('^' + nomeSeguro + '/.*\\.(png|jpg|jpeg)$', 'i');
+            const arquivosPasta = zip.file(regex);
+            const arquivosAudio = zip.file(new RegExp('^' + nomeSeguro + '/audio\\.wav$', 'i'));
+            arquivosPasta.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+            const frameStart = projectFrames.length;
+            for (const arquivo of arquivosPasta) {
+                const type = inferFrameType(arquivo.name);
+                const data = await arquivo.async('arraybuffer');
+                const blob = new Blob([data], { type: type.mimeType });
+                const index = projectFrames.length;
+                projectFrames.push({
+                    blob,
+                    name: arquivo.name,
+                    mimeType: type.mimeType,
+                    format: type.format,
+                    partIndex: projectParts.length,
+                    partName: nomePasta,
+                    startTime: index / zipFps,
+                    duration: 1 / zipFps
+                });
             }
+
+            let audioBlob = null;
+            let audioName = null;
+            if (arquivosAudio.length > 0) {
+                const data = await arquivosAudio[0].async('arraybuffer');
+                audioBlob = new Blob([data], { type: 'audio/wav' });
+                audioName = arquivosAudio[0].name.split('/').pop() || 'audio.wav';
+            }
+
+            projectParts.push({
+                name: nomePasta,
+                type: tokens[0],
+                repeat: Number.isFinite(parseInt(tokens[1])) ? parseInt(tokens[1]) : 1,
+                pause: Number.isFinite(parseInt(tokens[2])) ? parseInt(tokens[2]) : 0,
+                rawLine: linhas[i],
+                tokens: [...tokens],
+                frameStart,
+                frameEnd: projectFrames.length - 1,
+                frameCount: projectFrames.length - frameStart,
+                audioBlob,
+                audioName
+            });
         }
 
-        if (todasImagens.length === 0) throw new Error(t.msgZipNoParts);
+        if (projectFrames.length === 0) throw new Error(t.msgZipNoParts);
+
+        let totalFramesGerais = projectFrames.length;
+        let m1Idx = 0;
+        let m2Idx = totalFramesGerais - 1;
+
+        if (projectParts.length === 2) {
+            m1Idx = Math.max(0, projectParts[0].frameEnd);
+            m2Idx = Math.max(m1Idx, projectParts[1].frameEnd);
+        } else if (projectParts.length >= 3) {
+            m1Idx = Math.max(0, projectParts[0].frameEnd);
+            m2Idx = Math.max(m1Idx, projectParts[projectParts.length - 2].frameEnd);
+        }
+
+        const initialMarkersSource = {
+            m0: 0,
+            m1: Math.max(0, m1Idx / zipFps),
+            m2: Math.max(0, m2Idx / zipFps),
+            m3: Math.max(0, (totalFramesGerais - 1) / zipFps)
+        };
+
+        const project = createFrameProject({
+            sourceType: 'bootanimation',
+            sourceBlob: zipBlob,
+            width: zipW,
+            height: zipH,
+            fps: zipFps,
+            sourceDuration: totalFramesGerais / zipFps,
+            frames: projectFrames,
+            parts: projectParts,
+            descText,
+            initialMarkersSource
+        });
+        setCurrentProject(project);
 
         resetAudioState();
-        const partesComAudio = contagemPorPasta.filter(parte => parte.audioBlob);
-        if (contagemPorPasta.length === 1) {
-            if (contagemPorPasta[0].audioBlob) setImportedAudio('loop', contagemPorPasta[0].audioBlob, contagemPorPasta[0].audioName);
-        } else if (contagemPorPasta.length === 2) {
-            if (contagemPorPasta[0].audioBlob) setImportedAudio('intro', contagemPorPasta[0].audioBlob, contagemPorPasta[0].audioName);
-            if (contagemPorPasta[1].audioBlob) setImportedAudio('loop', contagemPorPasta[1].audioBlob, contagemPorPasta[1].audioName);
-        } else if (contagemPorPasta.length >= 3) {
-            if (contagemPorPasta[0].audioBlob) setImportedAudio('intro', contagemPorPasta[0].audioBlob, contagemPorPasta[0].audioName);
-            const parteLoop = contagemPorPasta.slice(1, -1).find(parte => parte.audioBlob);
+        const partesComAudio = projectParts.filter(parte => parte.audioBlob);
+        if (projectParts.length === 1) {
+            if (projectParts[0].audioBlob) setImportedAudio('loop', projectParts[0].audioBlob, projectParts[0].audioName);
+        } else if (projectParts.length === 2) {
+            if (projectParts[0].audioBlob) setImportedAudio('intro', projectParts[0].audioBlob, projectParts[0].audioName);
+            if (projectParts[1].audioBlob) setImportedAudio('loop', projectParts[1].audioBlob, projectParts[1].audioName);
+        } else if (projectParts.length >= 3) {
+            if (projectParts[0].audioBlob) setImportedAudio('intro', projectParts[0].audioBlob, projectParts[0].audioName);
+            const parteLoop = projectParts.slice(1, -1).find(parte => parte.audioBlob);
             if (parteLoop) setImportedAudio('loop', parteLoop.audioBlob, parteLoop.audioName);
-            const parteFinal = contagemPorPasta[contagemPorPasta.length - 1];
+            const parteFinal = projectParts[projectParts.length - 1];
             if (parteFinal.audioBlob) setImportedAudio('final', parteFinal.audioBlob, parteFinal.audioName);
         }
         if (temSomNoDesc || partesComAudio.length > 0) {
             document.getElementById('input-usar-som').checked = true;
             verificarPainelAudio();
         }
-
-        document.getElementById('txt-loading-timeline').textContent = t.msgStitching;
-        
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = zipW;
-        tempCanvas.height = zipH;
-        const ctx = tempCanvas.getContext('2d');
-
-        const stream = tempCanvas.captureStream(zipFps);
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        const pedacosVideo = [];
-
-        recorder.ondataavailable = e => { if (e.data.size > 0) pedacosVideo.push(e.data); };
-        
-        const gravacaoPronta = new Promise(resolve => {
-            recorder.onstop = () => resolve(new Blob(pedacosVideo, { type: 'video/webm' }));
-        });
-
-        recorder.start();
-
-        const frameTime = 1000 / zipFps;
-        const startTime = performance.now();
-        
-        for (let i = 0; i < todasImagens.length; i++) {
-            const img = new Image();
-            img.src = URL.createObjectURL(todasImagens[i]);
-            await new Promise(r => img.onload = r);
-            
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(0, 0, zipW, zipH);
-            ctx.drawImage(img, 0, 0, zipW, zipH);
-            URL.revokeObjectURL(img.src);
-
-            const expectedTime = startTime + ((i + 1) * frameTime);
-            const now = performance.now();
-            const sleepTime = expectedTime - now;
-            
-            if (sleepTime > 0) {
-                await new Promise(r => setTimeout(r, sleepTime));
-            } else {
-                await new Promise(r => setTimeout(r, 0));
-            }
-        }
-
-        recorder.stop();
-        const videoWebm = await gravacaoPronta;
 
         document.getElementById('dicas-iniciais').style.display = 'none';
         document.getElementById('botoes-exportacao').style.display = 'flex';
@@ -242,47 +306,14 @@ async function abrirZipNoEditor(zipBlob) {
         document.getElementById('input-fps').value = zipFps;
         document.getElementById('input-largura').value = zipW;
         document.getElementById('input-altura').value = zipH;
-        document.getElementById('input-qualidade').value = "custom";
-        
-        let totalFramesGerais = 0;
-        let m1_idx = 0;
-        let m2_idx = 0;
+        document.getElementById('input-qualidade').value = 'custom';
+        const importedFormat = getImportedProjectFormat();
+        if (importedFormat) document.getElementById('input-formato').value = importedFormat;
 
-        if (contagemPorPasta.length === 1) {
-            totalFramesGerais = contagemPorPasta[0].frames;
-            m1_idx = 0;
-            m2_idx = totalFramesGerais - 1;
-        } else if (contagemPorPasta.length === 2) {
-            m1_idx = contagemPorPasta[0].frames - 1;
-            m2_idx = contagemPorPasta[0].frames + contagemPorPasta[1].frames - 1;
-            totalFramesGerais = contagemPorPasta[0].frames + contagemPorPasta[1].frames;
-        } else {
-            let acc = 0;
-            for (let idx = 0; idx < contagemPorPasta.length; idx++) {
-                acc += contagemPorPasta[idx].frames;
-                if (idx === 0) m1_idx = acc - 1;
-                if (idx === contagemPorPasta.length - 2) m2_idx = acc - 1;
-            }
-            totalFramesGerais = acc;
-        }
-
-        marcadores.m0 = 0;
-        marcadores.m1 = Math.max(0, m1_idx / zipFps);
-        marcadores.m2 = Math.max(marcadores.m1, m2_idx / zipFps);
-        marcadores.m3 = Math.max(marcadores.m2, (totalFramesGerais - 1) / zipFps);
-
-        playerVideo.src = URL.createObjectURL(videoWebm);
-        
-        playerVideo.onloadedmetadata = async () => {
-            originalW = zipW;
-            originalH = zipH;
-            atualizarTamanho();
-            ajustarPaddings();
-            await desenharFilmstrip(); 
-            atualizarBotoesELinhas(); 
-            document.getElementById('loading-overlay').style.display = 'none';
-            playerVideo.onloadedmetadata = null;
-        };
+        document.getElementById('txt-loading-timeline').textContent = t.msgStitching;
+        const videoWebm = await createFrameProjectPreview(project);
+        project.previewBlob = videoWebm;
+        setPlayerBlob(videoWebm);
 
     } catch (error) {
         console.error(error);

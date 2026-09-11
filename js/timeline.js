@@ -116,33 +116,29 @@ inputVideo.addEventListener('change', function(evento) {
         return;
     }
 
-    const leitor = new FileReader();
-    leitor.onload = function(e) {
-        dicasIniciais.style.display = 'none';
-        playerVideo.src = e.target.result; 
-        videoContainer.style.display = 'block';
-        timelineWrapper.style.display = 'block';
-        gridMarcadores.style.display = 'grid';
-        configuracoes.style.display = 'grid';
-        btnVerPreview.style.display = 'none'; 
-        document.getElementById('botoes-exportacao').style.display = 'none';
-        document.getElementById('txt-hint-tooltip').style.display = 'block';
-        marcadores = { m0: null, m1: null, m2: null, m3: null };
-        atualizarBotoesELinhas();
-    };
-    leitor.readAsDataURL(arquivo);
+    setCurrentProject(createTemporalProject('video', arquivo));
+    dicasIniciais.style.display = 'none';
+    setPlayerBlob(arquivo);
+    videoContainer.style.display = 'block';
+    timelineWrapper.style.display = 'block';
+    gridMarcadores.style.display = 'grid';
+    configuracoes.style.display = 'grid';
+    btnVerPreview.style.display = 'none';
+    document.getElementById('botoes-exportacao').style.display = 'none';
+    document.getElementById('txt-hint-tooltip').style.display = 'block';
+    atualizarBotoesELinhas();
 });
 
 playerVideo.addEventListener('loadedmetadata', async function() {
-    originalW = playerVideo.videoWidth;
-    originalH = playerVideo.videoHeight;
+    syncCurrentProjectWithPlayer();
     atualizarTamanho();
     ajustarPaddings();
     
     document.getElementById('loading-overlay').style.display = 'flex';
-    playerVideo.style.opacity = '0'; 
+    playerVideo.style.opacity = '0';
     
     await desenharFilmstrip();
+    atualizarBotoesELinhas();
     
     playerVideo.style.opacity = '1';
     document.getElementById('loading-overlay').style.display = 'none';

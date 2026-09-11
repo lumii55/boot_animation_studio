@@ -3,6 +3,8 @@ let isConnectedMode = false;
 window.hasCustomAnimApplied = false;
 let IP_LOCAL = "http://127.0.0.1:4040";
 let sessionToken = '';
+let currentProject = null;
+let currentPlayerObjectUrl = null;
 
 const SITE_API_MIN = 1;
 const SITE_API_MAX = 1;
