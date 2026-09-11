@@ -69,6 +69,11 @@ const traducoes = {
         optNone: "None",
         optVid: "Video's Audio",
         optFile: "Audio File...",
+        audioAdvanced: "Advanced audio",
+        audioFadeIn: "Fade in",
+        audioFadeOut: "Fade out",
+        audioOffset: "Offset (+ later / − earlier)",
+        audioNormalize: "Normalize peak",
         lblNome: "File Name 📝 (Without extension)",
         lblFormato: "Frames Format 🖼️",
         lblQualidade: "Resolution 📉",
@@ -264,6 +269,11 @@ const traducoes = {
         optNone: "Nenhum",
         optVid: "Áudio do vídeo",
         optFile: "Arquivo de áudio...",
+        audioAdvanced: "Áudio avançado",
+        audioFadeIn: "Fade de entrada",
+        audioFadeOut: "Fade de saída",
+        audioOffset: "Offset (+ atrasa / − adianta)",
+        audioNormalize: "Normalizar pico",
         lblNome: "Nome do Arquivo 📝 (Sem extensão)",
         lblFormato: "Formato dos Frames 🖼️",
         lblQualidade: "Resolução 📉",
@@ -459,6 +469,11 @@ const traducoes = {
         optNone: "Ninguno",
         optVid: "Audio del vídeo",
         optFile: "Archivo de audio...",
+        audioAdvanced: "Audio avanzado",
+        audioFadeIn: "Fundido de entrada",
+        audioFadeOut: "Fundido de salida",
+        audioOffset: "Desfase (+ retrasa / − adelanta)",
+        audioNormalize: "Normalizar pico",
         lblNome: "Nombre del Archivo 📝 (Sin extensión)",
         lblFormato: "Formato de Fotogramas 🖼️",
         lblQualidade: "Resolución 📉",
@@ -654,6 +669,11 @@ const traducoes = {
         optNone: "Aucun",
         optVid: "Audio de la vidéo",
         optFile: "Fichier audio...",
+        audioAdvanced: "Audio avancé",
+        audioFadeIn: "Fondu d’entrée",
+        audioFadeOut: "Fondu de sortie",
+        audioOffset: "Décalage (+ retarde / − avance)",
+        audioNormalize: "Normaliser le pic",
         lblNome: "Nom du Fichier 📝 (Sans extension)",
         lblFormato: "Format des Images 🖼️",
         lblQualidade: "Résolution 📉",
@@ -919,6 +939,13 @@ function mudarIdioma(lang) {
         if(optNone.textContent !== optNone.getAttribute('data-custom')) optNone.textContent = t.optNone;
         if(optVid.textContent !== optVid.getAttribute('data-custom')) optVid.textContent = t.optVid;
         if(optFile.textContent !== optFile.getAttribute('data-custom')) optFile.textContent = t.optFile;
+        document.getElementById(`audio-advanced-summary-${part}`).textContent = t.audioAdvanced;
+        document.getElementById(`lbl-fade-in-${part}`).textContent = t.audioFadeIn;
+        document.getElementById(`lbl-fade-out-${part}`).textContent = t.audioFadeOut;
+        document.getElementById(`lbl-offset-${part}`).textContent = t.audioOffset;
+        document.getElementById(`lbl-normalize-${part}`).textContent = t.audioNormalize;
+        if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(part);
+        if (typeof syncAudioAdvancedVisibility === 'function') syncAudioAdvancedVisibility(part);
     });
     atualizarBotoesELinhas();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();

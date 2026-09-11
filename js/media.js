@@ -588,13 +588,29 @@ function captureAudioSourceState(part) {
     return { kind: 'none', name: '', size: 0, type: '', lastModified: 0, ref: null };
 }
 
+function clampAudioControlValue(value, min, max, fallback = 0) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(min, Math.min(max, numeric));
+}
+
+function getAudioAdvancedState(part) {
+    return {
+        fadeIn: clampAudioControlValue(document.getElementById(`fade-in-${part}`).value, 0, 5, 0),
+        fadeOut: clampAudioControlValue(document.getElementById(`fade-out-${part}`).value, 0, 5, 0),
+        offset: clampAudioControlValue(document.getElementById(`audio-offset-${part}`).value, -5, 5, 0),
+        normalize: document.getElementById(`audio-normalize-${part}`).checked
+    };
+}
+
 function captureAudioEditorState() {
     const state = { enabled: document.getElementById('input-usar-som').checked };
     ['intro', 'loop', 'final'].forEach(part => {
         state[part] = {
             mode: document.getElementById(`sel-audio-${part}`).value,
             volume: parseInt(document.getElementById(`vol-${part}`).value) || 0,
-            source: captureAudioSourceState(part)
+            source: captureAudioSourceState(part),
+            ...getAudioAdvancedState(part)
         };
     });
     return state;
@@ -614,7 +630,13 @@ function audioSourceStatesEqual(a, b) {
 
 function audioRoleStatesEqual(a, b) {
     if (!a || !b) return false;
-    return a.mode === b.mode && a.volume === b.volume && audioSourceStatesEqual(a.source, b.source);
+    return a.mode === b.mode &&
+        a.volume === b.volume &&
+        clampAudioControlValue(a.fadeIn, 0, 5, 0) === clampAudioControlValue(b.fadeIn, 0, 5, 0) &&
+        clampAudioControlValue(a.fadeOut, 0, 5, 0) === clampAudioControlValue(b.fadeOut, 0, 5, 0) &&
+        clampAudioControlValue(a.offset, -5, 5, 0) === clampAudioControlValue(b.offset, -5, 5, 0) &&
+        !!a.normalize === !!b.normalize &&
+        audioSourceStatesEqual(a.source, b.source);
 }
 
 function audioEditorStatesEqual(a, b) {
@@ -670,6 +692,44 @@ function setPreviewAudio(part, blob) {
     previewAudios[part].src = url;
 }
 
+function formatAudioSeconds(value, signed = false) {
+    const numeric = Math.abs(Number(value)) < 0.0001 ? 0 : Number(value);
+    if (signed && numeric > 0) return `+${numeric.toFixed(1)}s`;
+    return `${numeric.toFixed(1)}s`;
+}
+
+function syncAudioAdvancedLabels(part) {
+    const state = getAudioAdvancedState(part);
+    document.getElementById(`val-fade-in-${part}`).textContent = formatAudioSeconds(state.fadeIn);
+    document.getElementById(`val-fade-out-${part}`).textContent = formatAudioSeconds(state.fadeOut);
+    document.getElementById(`val-offset-${part}`).textContent = formatAudioSeconds(state.offset, true);
+}
+
+function syncAudioAdvancedVisibility(part) {
+    const select = document.getElementById(`sel-audio-${part}`);
+    const details = document.getElementById(`audio-advanced-${part}`);
+    if (!select || !details) return;
+    const visible = select.value !== 'none';
+    details.classList.toggle('visible', visible);
+    if (!visible) details.open = false;
+}
+
+function handleAudioAdvancedInput(part) {
+    syncAudioAdvancedLabels(part);
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+}
+
+function resetAudioAdvancedState(part) {
+    document.getElementById(`fade-in-${part}`).value = 0;
+    document.getElementById(`fade-out-${part}`).value = 0;
+    document.getElementById(`audio-offset-${part}`).value = 0;
+    document.getElementById(`audio-normalize-${part}`).checked = false;
+    const details = document.getElementById(`audio-advanced-${part}`);
+    details.open = false;
+    details.classList.remove('visible');
+    syncAudioAdvancedLabels(part);
+}
+
 function resetAudioState() {
     const t = traducoes[idiomaAtual];
     document.getElementById('input-usar-som').checked = false;
@@ -688,6 +748,7 @@ function resetAudioState() {
         wrap.style.display = 'none';
         volume.value = 100;
         volumeLabel.textContent = '100%';
+        resetAudioAdvancedState(part);
     });
     ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
     currentPreviewPart = -1;
@@ -704,6 +765,7 @@ function setImportedAudio(part, blob, name) {
     optFile.textContent = label;
     optFile.setAttribute('data-custom', label);
     wrap.style.display = 'flex';
+    syncAudioAdvancedVisibility(part);
 }
 
 function getSelectedAudioFile(part) {
@@ -727,6 +789,7 @@ function handleAudioSelect(part) {
         document.getElementById(`opt-file-${part}`).textContent = t.optFile;
         document.getElementById(`opt-file-${part}`).removeAttribute('data-custom');
     }
+    syncAudioAdvancedVisibility(part);
 }
 
 function fileAudioSelecionado(part) {
@@ -747,9 +810,11 @@ function fileAudioSelecionado(part) {
         optFile.removeAttribute('data-custom');
         wrap.style.display = "none";
     }
+    syncAudioAdvancedVisibility(part);
 }
 
 function fecharModal() {
+    if (typeof cancelPreviewAudioBuild === 'function') cancelPreviewAudioBuild();
     stopModalPreviewRenderer();
     videoPreview.pause();
     ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause()); 
@@ -764,7 +829,7 @@ function chamarModalPreview() {
     }
 }
 
-function abrirPreviewWeb() {
+async function abrirPreviewWeb() {
     document.getElementById('modal-escolha-preview').style.display = 'none';
     document.getElementById('modal-preview').style.display = 'flex';
     videoPreview.src = playerVideo.src;
@@ -776,7 +841,12 @@ function abrirPreviewWeb() {
         applyFramingFocusVisuals();
         startModalPreviewRenderer();
     });
-    videoPreview.play();
+    if (typeof preparePreviewAudioFromCurrentState === 'function') {
+        await preparePreviewAudioFromCurrentState().catch(() => {});
+    }
+    if (document.getElementById('modal-preview').style.display !== 'none') {
+        videoPreview.play().catch(() => {});
+    }
 }
 
 async function testarNoCelular() {

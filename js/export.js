@@ -151,11 +151,11 @@ async function applyImportedAudioEdits(zip, audioState) {
             if (state.mode === 'video') {
                 if (!videoAudioBuffer) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, ctx);
                 const [start, end] = getAudioTimelineRange(role);
-                if (videoAudioBuffer) outputBlob = await fatiarEGerarWav(videoAudioBuffer, start, end, ctx, volume);
+                if (videoAudioBuffer) outputBlob = await fatiarEGerarWav(videoAudioBuffer, start, end, ctx, volume, state);
             } else if (state.mode === 'file') {
                 const source = getSelectedAudioFile(role);
                 const decoded = await decodificarAudioFonte(source, ctx);
-                if (decoded) outputBlob = await fatiarEGerarWav(decoded, 0, decoded.duration, ctx, volume);
+                if (decoded) outputBlob = await fatiarEGerarWav(decoded, 0, decoded.duration, ctx, volume, state);
             }
 
             if (outputBlob) {
@@ -317,11 +317,11 @@ async function applySimpleAudio(zip, audioState, t) {
             let blob = null;
 
             if (state.mode === 'video') {
-                if (videoAudioBuffer) blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, volume);
+                if (videoAudioBuffer) blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, volume, state);
             } else {
                 const source = getSelectedAudioFile(definition.role);
                 const decoded = await decodificarAudioFonte(source, audioCtx);
-                if (decoded) blob = await fatiarEGerarWav(decoded, 0, decoded.duration, audioCtx, volume);
+                if (decoded) blob = await fatiarEGerarWav(decoded, 0, decoded.duration, audioCtx, volume, state);
             }
 
             if (blob) {
