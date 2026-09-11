@@ -1,3 +1,170 @@
+
+function randomPairingToken() {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    let binary = '';
+    bytes.forEach(byte => binary += String.fromCharCode(byte));
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function pairingShortCode(token) {
+    return token.slice(0, 3).toUpperCase() + '-' + token.slice(-3).toUpperCase();
+}
+
+function buildPairingLink(token) {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = 'bootstudio-pair=' + encodeURIComponent(token);
+    return url.toString();
+}
+
+function setPairingStatus(text, type = 'normal') {
+    const el = document.getElementById('pairing-status');
+    if (!el) return;
+    el.textContent = text;
+    el.dataset.type = type;
+    el.style.color = type === 'success' ? '#5ed7a1' : type === 'error' ? '#ff6b81' : '#bbb';
+}
+
+function renderPairingQr(token) {
+    const target = document.getElementById('pairing-qr');
+    if (!target) return false;
+    target.innerHTML = '';
+    if (typeof QRCode !== 'function') return false;
+    new QRCode(target, {
+        text: buildPairingLink(token),
+        width: 164,
+        height: 164,
+        colorDark: '#111111',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+    });
+    return true;
+}
+
+async function checkPairingIP(ip, token, timeout = 1400) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(`http://${ip}:4040/pair_status?token=${encodeURIComponent(token)}`, { signal: controller.signal });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.status === 'ready' ? ip : null;
+    } catch (error) {
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function findQrPairedPhone(token, generation) {
+    const t = traducoes[idiomaAtual];
+    const subnets = ['192.168.0', '192.168.1', '192.168.15', '192.168.2', '10.0.0', '192.168.3'];
+    const deadline = Date.now() + 120000;
+    while (pairingScanGeneration === generation && pairingToken === token && Date.now() < deadline) {
+        for (const subnet of subnets) {
+            if (pairingScanGeneration !== generation || pairingToken !== token) return;
+            for (let start = 1; start <= 254; start += 48) {
+                if (pairingScanGeneration !== generation || pairingToken !== token) return;
+                const checks = [];
+                for (let host = start; host < start + 48 && host <= 254; host++) {
+                    checks.push(checkPairingIP(`${subnet}.${host}`, token));
+                }
+                const results = await Promise.all(checks);
+                const found = results.find(Boolean);
+                if (found) {
+                    await finishQrPairing(found, token, generation);
+                    return;
+                }
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    if (pairingScanGeneration === generation && pairingToken === token) {
+        setPairingStatus(t.pairTimeout, 'error');
+    }
+}
+
+async function finishQrPairing(ip, token, generation) {
+    if (pairingScanGeneration !== generation || pairingToken !== token) return;
+    const t = traducoes[idiomaAtual];
+    setPairingStatus(t.pairFound, 'success');
+    try {
+        const base = `http://${ip}:4040`;
+        const response = await fetch(base + '/pair_exchange?token=' + encodeURIComponent(token), { method: 'POST', signal: AbortSignal.timeout(12000) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== 'ok' || !data.token) throw new Error(data.message || 'pairing_failed');
+        pairingScanGeneration++;
+        pairingToken = '';
+        sessionToken = data.token;
+        IP_LOCAL = base;
+        resetModuleCompatibility();
+        await detectModuleCompatibility();
+        if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
+        fecharModalRede();
+        completeConnectedState(data);
+        showToast(t.pairSuccess, 'success');
+    } catch (error) {
+        setPairingStatus(t.pairFailed, 'error');
+    }
+}
+
+function startQrPairing() {
+    const t = traducoes[idiomaAtual];
+    pairingScanGeneration++;
+    const generation = pairingScanGeneration;
+    pairingToken = randomPairingToken();
+    const code = document.getElementById('pairing-code');
+    if (code) code.textContent = pairingShortCode(pairingToken);
+    if (!renderPairingQr(pairingToken)) {
+        setPairingStatus(t.pairQrUnavailable, 'error');
+        return;
+    }
+    setPairingStatus(t.pairWaiting);
+    findQrPairedPhone(pairingToken, generation);
+}
+
+function handlePairingHandoff() {
+    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const params = new URLSearchParams(rawHash);
+    const token = params.get('bootstudio-pair');
+    if (!token || !/^[A-Za-z0-9_-]{40,64}$/.test(token)) return;
+    pairingHandoffUrl = 'bootstudio://pair?token=' + encodeURIComponent(token);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    const modal = document.getElementById('modal-pair-handoff');
+    const openBtn = document.getElementById('btn-pair-open');
+    const backBtn = document.getElementById('btn-pair-back');
+    if (!modal || !openBtn || !backBtn) return;
+    openBtn.onclick = () => { window.location.href = pairingHandoffUrl; };
+    backBtn.onclick = () => { modal.style.display = 'none'; };
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        if (document.visibilityState === 'visible') window.location.href = pairingHandoffUrl;
+    }, 120);
+}
+
+function completeConnectedState(data) {
+    const t = traducoes[idiomaAtual];
+    isConnectedMode = true;
+    document.getElementById('initial-state').style.display = 'none';
+    document.getElementById('connected-state').style.display = 'flex';
+    document.getElementById('editor-section').style.display = 'flex';
+    document.getElementById('wrap-gerar-modulo').style.display = 'none';
+    document.getElementById('wrap-nome').style.display = 'none';
+    document.getElementById('status-connected').textContent = t.statusConnected.replace('!', ': ' + data.model);
+    if (hasModuleFeature('device_resolution') && data.resolution && data.resolution !== 'Unknown') {
+        const optAuto = document.getElementById('opt-auto');
+        optAuto.style.display = 'block';
+        optAuto.value = data.resolution;
+        optAuto.textContent = `Dispositivo (${data.resolution})`;
+        document.getElementById('input-qualidade').value = data.resolution;
+    }
+    applyConnectedCapabilities(data);
+    document.getElementById('acoes-principais').style.gridTemplateColumns = '1fr 1fr';
+    atualizarBotoesELinhas();
+    if (hasModuleFeature('history')) loadHistory();
+}
+
 function apiFetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
@@ -108,6 +275,7 @@ async function connectToPhone() {
     } catch (error) {
         btn.textContent = t.btnConnect; 
         document.getElementById('modal-network').style.display = 'flex';
+        startQrPairing();
     }
 }
 
@@ -160,28 +328,7 @@ async function tentaConexao() {
         }
 
         if (data.status === 'ok' && sessionToken) {
-            isConnectedMode = true;
-            document.getElementById('initial-state').style.display = 'none';
-            document.getElementById('connected-state').style.display = 'flex';
-            document.getElementById('editor-section').style.display = 'flex';
-            document.getElementById('wrap-gerar-modulo').style.display = 'none';
-            document.getElementById('wrap-nome').style.display = 'none'; 
-            
-            document.getElementById('status-connected').textContent = t.statusConnected.replace('!', ': ' + data.model);
-            
-            if(hasModuleFeature('device_resolution') && data.resolution && data.resolution !== "Unknown") {
-                const optAuto = document.getElementById('opt-auto');
-                optAuto.style.display = 'block';
-                optAuto.value = data.resolution;
-                optAuto.textContent = `Dispositivo (${data.resolution})`;
-                document.getElementById('input-qualidade').value = data.resolution;
-            }
-
-            applyConnectedCapabilities(data);
-            document.getElementById('acoes-principais').style.gridTemplateColumns = "1fr 1fr";
-            
-            atualizarBotoesELinhas();
-            if (hasModuleFeature('history')) loadHistory(); 
+            completeConnectedState(data);
         } else {
             sessionToken = '';
             alert(t.msgNotFound);
@@ -195,6 +342,8 @@ async function tentaConexao() {
 }
 
 async function conectarPorIp() {
+    pairingScanGeneration++;
+    pairingToken = '';
     const ip = document.getElementById('input-ip').value.trim();
     if(!ip) return;
     sessionToken = '';
@@ -204,6 +353,8 @@ async function conectarPorIp() {
 }
 
 function fecharModalRede() {
+    pairingScanGeneration++;
+    pairingToken = '';
     document.getElementById('modal-network').style.display = 'none';
 }
 
@@ -225,6 +376,8 @@ async function checkIP(ip) {
 }
 
 async function iniciarVarredura() {
+    pairingScanGeneration++;
+    pairingToken = '';
     const btn = document.getElementById('btn-scan-net');
     const desc = document.getElementById('lbl-modal-net-desc');
     const originalText = btn.textContent;
@@ -562,3 +715,5 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
         evento.target.value = ''; 
     }
 });
+
+window.addEventListener('DOMContentLoaded', handlePairingHandoff);
