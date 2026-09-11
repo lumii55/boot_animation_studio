@@ -33,7 +33,7 @@
                 </li>
                 <li id="txt-dica1"><strong>Important (Samsung):</strong> Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.</li>
                 <li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
-                <li id="txt-dica3"><strong>Screen aspect:</strong> Phones are vertical! Prefer vertical videos (TikTok/Reels format) so your animation doesn't get stretched.</li>
+                <li id="txt-dica3"><strong>Screen aspect:</strong> Use Framing to choose how videos with a different aspect ratio are cropped, fitted or stretched.</li>
             </ul>
         </div>
 
@@ -75,7 +75,9 @@
             </div>
 
             <div class="video-container" id="video-container">
-                <video id="player-video" playsinline class="pausado"></video>
+                <div class="framing-preview" id="framing-preview">
+                    <video id="player-video" playsinline class="pausado"></video>
+                </div>
                 <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
             </div>
 
@@ -191,6 +193,15 @@
                         <option value="custom" id="opt-custom">Custom</option>
                     </select>
                 </div>
+
+                <div class="campo campo-full">
+                    <label id="lbl-enquadramento">Framing 🎯</label>
+                    <select id="input-enquadramento" onchange="atualizarPreviewEnquadramento()">
+                        <option value="cover" id="opt-cover" selected>Fill (Crop)</option>
+                        <option value="contain" id="opt-contain">Fit (Bars)</option>
+                        <option value="stretch" id="opt-stretch">Stretch</option>
+                    </select>
+                </div>
                 
                 <div class="campo campo-full">
                     <label id="lbl-fps">FPS 🎬 (Global)</label>
@@ -282,7 +293,9 @@
     <div class="modal-overlay" id="modal-preview">
         <div class="modal-box">
             <h2 id="lbl-modal-titulo">Preview of your Animation! 🎬</h2>
-            <video class="modal-img" id="video-preview" autoplay playsinline></video>
+            <div class="modal-framing-preview" id="modal-framing-preview">
+                <video class="modal-img" id="video-preview" autoplay playsinline></video>
+            </div>
             <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
         </div>
     </div>

@@ -60,11 +60,16 @@
         .btn-upload:active { transform: scale(0.96); }
 
         .video-container { position: relative; width: 100%; text-align: center; display: none; transition: 0.3s; }
+        .framing-preview {
+            position: relative; margin: 0 auto; overflow: hidden; border-radius: 15px; background: #000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: width 0.2s, height 0.2s;
+        }
         video { 
             width: 100%; max-height: 35vh; border-radius: 15px; 
             background-color: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
             object-fit: contain; cursor: pointer; transition: opacity 0.3s;
         }
+        .framing-preview #player-video { width: 100%; height: 100%; max-height: none; border-radius: 15px; box-shadow: none; box-sizing: border-box; }
         video.pausado { border: 2px solid #03dac6; }
         .dica-video { font-size: 11px; color: #aaaaaa; margin-top: 5px; opacity: 0.8; }
 
@@ -238,6 +243,8 @@
         }
         .modal-box h2 { color: #03dac6; font-size: 18px; margin-bottom: 15px; text-align: center; }
         .modal-img { max-width: 100%; max-height: 60vh; border-radius: 10px; margin-bottom: 15px; background: #000; }
+        .modal-framing-preview { overflow: hidden; border-radius: 10px; background: #000; margin-bottom: 15px; flex-shrink: 0; }
+        .modal-framing-preview .modal-img { width: 100%; height: 100%; max-width: none; max-height: none; margin-bottom: 0; border-radius: 10px; box-shadow: none; }
         
         .btn-fechar-modal {
             background-color: #ff5555; color: #fff; padding: 10px 30px; border-radius: 15px;
