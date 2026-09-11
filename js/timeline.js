@@ -72,14 +72,13 @@ function applyFramingFocusVisuals(settings = getCurrentFramingSettings()) {
 
     if (coverActive) {
         applyCoverPreviewLayout(playerVideo, wrapper, sourceWidth, sourceHeight, focus);
-        applyCoverPreviewLayout(videoPreview, modalWrapper, sourceWidth, sourceHeight, focus);
     } else {
         clearCoverPreviewLayout(playerVideo);
-        clearCoverPreviewLayout(videoPreview);
         const objectFit = settings.mode === 'stretch' ? 'fill' : settings.mode;
         playerVideo.style.objectFit = objectFit;
-        videoPreview.style.objectFit = objectFit;
     }
+    clearCoverPreviewLayout(videoPreview);
+    renderModalPreviewFrame(settings);
 
     wrapper.classList.toggle('focus-draggable', coverActive);
     if (!coverActive) wrapper.classList.remove('focus-dragging');
@@ -122,6 +121,58 @@ window.atualizarPreviewEnquadramento = function() {
 }
 
 window.addEventListener('resize', () => atualizarPreviewEnquadramento());
+
+let modalPreviewFrame = 0;
+
+function getModalPreviewCanvas() {
+    return document.getElementById('video-preview-canvas');
+}
+
+function syncModalPreviewCanvas(settings = getCurrentFramingSettings()) {
+    const canvas = getModalPreviewCanvas();
+    if (!canvas) return null;
+    const width = Math.max(1, settings.width);
+    const height = Math.max(1, settings.height);
+    const maxDimension = 960;
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+    if (canvas.width !== targetWidth) canvas.width = targetWidth;
+    if (canvas.height !== targetHeight) canvas.height = targetHeight;
+    return canvas;
+}
+
+function renderModalPreviewFrame(settings = getCurrentFramingSettings()) {
+    const modal = document.getElementById('modal-preview');
+    if (!modal || modal.style.display === 'none') return;
+    const canvas = syncModalPreviewCanvas(settings);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (videoPreview.readyState >= 2 && videoPreview.videoWidth > 0 && videoPreview.videoHeight > 0) {
+        drawFramedDrawable(ctx, videoPreview, canvas.width, canvas.height, settings.mode, settings.focus);
+    }
+}
+
+function modalPreviewRenderLoop() {
+    renderModalPreviewFrame();
+    modalPreviewFrame = requestAnimationFrame(modalPreviewRenderLoop);
+}
+
+function startModalPreviewRenderer() {
+    if (modalPreviewFrame) cancelAnimationFrame(modalPreviewFrame);
+    modalPreviewFrame = requestAnimationFrame(modalPreviewRenderLoop);
+}
+
+function stopModalPreviewRenderer() {
+    if (modalPreviewFrame) cancelAnimationFrame(modalPreviewFrame);
+    modalPreviewFrame = 0;
+}
+
+videoPreview.addEventListener('loadeddata', () => renderModalPreviewFrame());
+videoPreview.addEventListener('seeked', () => renderModalPreviewFrame());
 
 const framingPointers = new Map();
 let framingGestureMode = '';

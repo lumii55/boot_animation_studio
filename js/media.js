@@ -750,6 +750,7 @@ function fileAudioSelecionado(part) {
 }
 
 function fecharModal() {
+    stopModalPreviewRenderer();
     videoPreview.pause();
     ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause()); 
     document.getElementById('modal-preview').style.display = 'none';
@@ -771,7 +772,10 @@ function abrirPreviewWeb() {
     videoPreview.currentTime = marcadores.m0;
     videoPreview.muted = true;
     currentPreviewPart = -1;
-    requestAnimationFrame(() => applyFramingFocusVisuals());
+    requestAnimationFrame(() => {
+        applyFramingFocusVisuals();
+        startModalPreviewRenderer();
+    });
     videoPreview.play();
 }
 
