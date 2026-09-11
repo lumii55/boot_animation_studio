@@ -129,7 +129,7 @@
                 </div>
                 
                 <div class="painel-audio" id="painel-audio">
-                    <div class="campo">
+                    <div class="campo audio-role-card">
                         <label id="lbl-audio-intro">Intro Audio:</label>
                         <select id="sel-audio-intro" onchange="handleAudioSelect('intro')">
                             <option value="none" id="opt-none-intro">None</option>
@@ -141,9 +141,29 @@
                             <input type="range" class="vol-slider" id="vol-intro" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-intro').textContent = this.value + '%'">
                             <div class="vol-label" id="lbl-vol-intro">100%</div>
                         </div>
+                        <details class="audio-advanced" id="audio-advanced-intro">
+                            <summary id="audio-advanced-summary-intro">Advanced audio</summary>
+                            <div class="audio-advanced-grid">
+                                <div class="audio-advanced-control">
+                                    <div class="audio-advanced-heading"><span id="lbl-fade-in-intro">Fade in</span><strong id="val-fade-in-intro">0.0s</strong></div>
+                                    <input type="range" id="fade-in-intro" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('intro')">
+                                </div>
+                                <div class="audio-advanced-control">
+                                    <div class="audio-advanced-heading"><span id="lbl-fade-out-intro">Fade out</span><strong id="val-fade-out-intro">0.0s</strong></div>
+                                    <input type="range" id="fade-out-intro" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('intro')">
+                                </div>
+                                <div class="audio-advanced-control audio-advanced-wide">
+                                    <div class="audio-advanced-heading"><span id="lbl-offset-intro">Offset (+ later / − earlier)</span><strong id="val-offset-intro">0.0s</strong></div>
+                                    <input type="range" id="audio-offset-intro" min="-5" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('intro')">
+                                </div>
+                                <label class="audio-normalize audio-advanced-wide">
+                                    <input type="checkbox" id="audio-normalize-intro" onchange="handleAudioAdvancedInput('intro')">
+                                    <span id="lbl-normalize-intro">Normalize peak</span>
+                                </label>
+                            </div>
+                        </details>
                     </div>
-                    
-                    <div class="campo">
+                    <div class="campo audio-role-card">
                         <label id="lbl-audio-loop">Loop Audio:</label>
                         <select id="sel-audio-loop" onchange="handleAudioSelect('loop')">
                             <option value="none" id="opt-none-loop">None</option>
@@ -155,9 +175,29 @@
                             <input type="range" class="vol-slider" id="vol-loop" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-loop').textContent = this.value + '%'">
                             <div class="vol-label" id="lbl-vol-loop">100%</div>
                         </div>
+                        <details class="audio-advanced" id="audio-advanced-loop">
+                            <summary id="audio-advanced-summary-loop">Advanced audio</summary>
+                            <div class="audio-advanced-grid">
+                                <div class="audio-advanced-control">
+                                    <div class="audio-advanced-heading"><span id="lbl-fade-in-loop">Fade in</span><strong id="val-fade-in-loop">0.0s</strong></div>
+                                    <input type="range" id="fade-in-loop" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('loop')">
+                                </div>
+                                <div class="audio-advanced-control">
+                                    <div class="audio-advanced-heading"><span id="lbl-fade-out-loop">Fade out</span><strong id="val-fade-out-loop">0.0s</strong></div>
+                                    <input type="range" id="fade-out-loop" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('loop')">
+                                </div>
+                                <div class="audio-advanced-control audio-advanced-wide">
+                                    <div class="audio-advanced-heading"><span id="lbl-offset-loop">Offset (+ later / − earlier)</span><strong id="val-offset-loop">0.0s</strong></div>
+                                    <input type="range" id="audio-offset-loop" min="-5" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('loop')">
+                                </div>
+                                <label class="audio-normalize audio-advanced-wide">
+                                    <input type="checkbox" id="audio-normalize-loop" onchange="handleAudioAdvancedInput('loop')">
+                                    <span id="lbl-normalize-loop">Normalize peak</span>
+                                </label>
+                            </div>
+                        </details>
                     </div>
-
-                    <div class="campo">
+                    <div class="campo audio-role-card">
                         <label id="lbl-audio-final">Outro Audio:</label>
                         <select id="sel-audio-final" onchange="handleAudioSelect('final')">
                             <option value="none" id="opt-none-final">None</option>
@@ -169,6 +209,27 @@
                             <input type="range" class="vol-slider" id="vol-final" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-final').textContent = this.value + '%'">
                             <div class="vol-label" id="lbl-vol-final">100%</div>
                         </div>
+                        <details class="audio-advanced" id="audio-advanced-final">
+                            <summary id="audio-advanced-summary-final">Advanced audio</summary>
+                            <div class="audio-advanced-grid">
+                                <div class="audio-advanced-control">
+                                    <div class="audio-advanced-heading"><span id="lbl-fade-in-final">Fade in</span><strong id="val-fade-in-final">0.0s</strong></div>
+                                    <input type="range" id="fade-in-final" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('final')">
+                                </div>
+                                <div class="audio-advanced-control">
+                                    <div class="audio-advanced-heading"><span id="lbl-fade-out-final">Fade out</span><strong id="val-fade-out-final">0.0s</strong></div>
+                                    <input type="range" id="fade-out-final" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('final')">
+                                </div>
+                                <div class="audio-advanced-control audio-advanced-wide">
+                                    <div class="audio-advanced-heading"><span id="lbl-offset-final">Offset (+ later / − earlier)</span><strong id="val-offset-final">0.0s</strong></div>
+                                    <input type="range" id="audio-offset-final" min="-5" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('final')">
+                                </div>
+                                <label class="audio-normalize audio-advanced-wide">
+                                    <input type="checkbox" id="audio-normalize-final" onchange="handleAudioAdvancedInput('final')">
+                                    <span id="lbl-normalize-final">Normalize peak</span>
+                                </label>
+                            </div>
+                        </details>
                     </div>
                 </div>
 
