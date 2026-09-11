@@ -16,6 +16,14 @@ function subnetFromIPv4(ip) {
 }
 
 function localNetworkFetch(url, options = {}) {
+    try {
+        const parsed = new URL(url, window.location.href);
+        const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+        const loopback = hostname === 'localhost' || hostname === '::1' || hostname.startsWith('127.');
+        if (loopback) return fetch(url, options);
+    } catch (error) {
+        return fetch(url, options);
+    }
     return fetch(url, { targetAddressSpace: 'local', ...options });
 }
 
