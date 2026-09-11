@@ -826,7 +826,7 @@ async function createMiniPreviewWebm(options = null) {
         for(let i=0; i<30; i++) {
             playerVideo.currentTime = t;
             await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });
-            drawFramedDrawable(ctx, playerVideo, c.width, c.height, options && options.framing ? options.framing : 'cover');
+            drawFramedDrawable(ctx, playerVideo, c.width, c.height, options && options.framing ? options.framing : 'cover', options && options.framingFocus ? options.framingFocus : getCurrentFramingFocus());
             t += step;
             await new Promise(r => setTimeout(r, 20));
         }

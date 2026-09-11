@@ -21,7 +21,8 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         editorBaseline: null,
         markers: createMarkerState(),
         initialMarkersSource: null,
-        initialMarkersApplied: true
+        initialMarkersApplied: true,
+        framingFocus: { x: 0.5, y: 0.5 }
     };
 }
 
@@ -44,12 +45,14 @@ function createFrameProject(options) {
         editorBaseline: options.editorBaseline || null,
         markers: createMarkerState(),
         initialMarkersSource: options.initialMarkersSource || null,
-        initialMarkersApplied: false
+        initialMarkersApplied: false,
+        framingFocus: options.framingFocus || { x: 0.5, y: 0.5 }
     };
 }
 
 function setCurrentProject(project) {
     currentProject = project;
+    if (currentProject && !currentProject.framingFocus) currentProject.framingFocus = { x: 0.5, y: 0.5 };
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
@@ -277,7 +280,34 @@ function normalizeFramingMode(mode) {
     return ['cover', 'contain', 'stretch'].includes(mode) ? mode : 'cover';
 }
 
-function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight, mode) {
+function normalizeFramingFocusValue(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0.5;
+    return Math.max(0, Math.min(1, numeric));
+}
+
+function getCurrentFramingFocus() {
+    const focus = currentProject && currentProject.framingFocus ? currentProject.framingFocus : { x: 0.5, y: 0.5 };
+    return {
+        x: normalizeFramingFocusValue(focus.x),
+        y: normalizeFramingFocusValue(focus.y)
+    };
+}
+
+function setCurrentFramingFocus(x, y) {
+    if (!currentProject) return { x: 0.5, y: 0.5 };
+    currentProject.framingFocus = {
+        x: normalizeFramingFocusValue(x),
+        y: normalizeFramingFocusValue(y)
+    };
+    return getCurrentFramingFocus();
+}
+
+function resetCurrentFramingFocus() {
+    return setCurrentFramingFocus(0.5, 0.5);
+}
+
+function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight, mode, focusX = 0.5, focusY = 0.5) {
     const sw = Math.max(1, sourceWidth || targetWidth || 1);
     const sh = Math.max(1, sourceHeight || targetHeight || 1);
     const tw = Math.max(1, targetWidth || sw);
@@ -292,12 +322,14 @@ function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight
     const targetRatio = tw / th;
 
     if (framing === 'cover') {
+        const fx = normalizeFramingFocusValue(focusX);
+        const fy = normalizeFramingFocusValue(focusY);
         if (sourceRatio > targetRatio) {
             const cropWidth = sh * targetRatio;
-            return { sx: (sw - cropWidth) / 2, sy: 0, sw: cropWidth, sh, dx: 0, dy: 0, dw: tw, dh: th };
+            return { sx: (sw - cropWidth) * fx, sy: 0, sw: cropWidth, sh, dx: 0, dy: 0, dw: tw, dh: th };
         }
         const cropHeight = sw / targetRatio;
-        return { sx: 0, sy: (sh - cropHeight) / 2, sw, sh: cropHeight, dx: 0, dy: 0, dw: tw, dh: th };
+        return { sx: 0, sy: (sh - cropHeight) * fy, sw, sh: cropHeight, dx: 0, dy: 0, dw: tw, dh: th };
     }
 
     if (sourceRatio > targetRatio) {
@@ -315,9 +347,10 @@ function getDrawableSize(drawable) {
     };
 }
 
-function drawFramedDrawable(ctx, drawable, targetWidth, targetHeight, mode) {
+function drawFramedDrawable(ctx, drawable, targetWidth, targetHeight, mode, focus = null) {
     const size = getDrawableSize(drawable);
-    const rect = getFramingDrawRect(size.width, size.height, targetWidth, targetHeight, mode);
+    const activeFocus = focus || getCurrentFramingFocus();
+    const rect = getFramingDrawRect(size.width, size.height, targetWidth, targetHeight, mode, activeFocus.x, activeFocus.y);
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(drawable, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
@@ -353,7 +386,7 @@ async function seekPlayer(time) {
     });
 }
 
-async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover') {
+async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover', framingFocus = null) {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = format === 'jpeg' ? 0.90 : undefined;
 
@@ -367,13 +400,13 @@ async function getProjectFrameOutputBlob(sourceTime, width, height, format, fram
         }
 
         const drawable = await blobToDrawable(frameBlob);
-        drawFramedDrawable(contexto, drawable, width, height, framing);
+        drawFramedDrawable(contexto, drawable, width, height, framing, framingFocus);
         releaseDrawable(drawable);
         return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
     }
 
     const timelineTime = projectTimeToTimelineTime(sourceTime);
     await seekPlayer(timelineTime);
-    drawFramedDrawable(contexto, playerVideo, width, height, framing);
+    drawFramedDrawable(contexto, playerVideo, width, height, framing, framingFocus);
     return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
 }

@@ -2,7 +2,48 @@ function getCurrentFramingSettings() {
     const width = Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || playerVideo.videoWidth || 1);
     const height = Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || playerVideo.videoHeight || 1);
     const mode = normalizeFramingMode(document.getElementById('input-enquadramento').value);
-    return { width, height, mode };
+    const focus = getCurrentFramingFocus();
+    return { width, height, mode, focus };
+}
+
+function getCoverPreviewOverflow(wrapper, sourceWidth, sourceHeight) {
+    if (!wrapper || !sourceWidth || !sourceHeight) return { x: 0, y: 0 };
+    const targetWidth = Math.max(1, wrapper.clientWidth);
+    const targetHeight = Math.max(1, wrapper.clientHeight);
+    const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
+    return {
+        x: Math.max(0, sourceWidth * scale - targetWidth),
+        y: Math.max(0, sourceHeight * scale - targetHeight)
+    };
+}
+
+function getCurrentCoverPreviewOverflow() {
+    const wrapper = document.getElementById('framing-preview');
+    const sourceWidth = playerVideo.videoWidth || originalW || 1;
+    const sourceHeight = playerVideo.videoHeight || originalH || 1;
+    return getCoverPreviewOverflow(wrapper, sourceWidth, sourceHeight);
+}
+
+function applyFramingFocusVisuals(settings = getCurrentFramingSettings()) {
+    const focus = settings.focus || getCurrentFramingFocus();
+    const objectPosition = `${(focus.x * 100).toFixed(3)}% ${(focus.y * 100).toFixed(3)}%`;
+    playerVideo.style.objectPosition = objectPosition;
+    videoPreview.style.objectPosition = objectPosition;
+
+    const wrapper = document.getElementById('framing-preview');
+    const resetButton = document.getElementById('btn-reset-focus');
+    const overflow = getCurrentCoverPreviewOverflow();
+    const adjustable = settings.mode === 'cover' && (overflow.x > 0.5 || overflow.y > 0.5);
+    wrapper.classList.toggle('focus-draggable', adjustable);
+    if (!adjustable) wrapper.classList.remove('focus-dragging');
+
+    const moved = (overflow.x > 0.5 && Math.abs(focus.x - 0.5) > 0.001) ||
+        (overflow.y > 0.5 && Math.abs(focus.y - 0.5) > 0.001);
+    if (resetButton) resetButton.classList.toggle('visible', adjustable && moved);
+
+    const hint = document.getElementById('txt-dicavideo');
+    const t = traducoes[idiomaAtual];
+    if (hint && t) hint.textContent = adjustable ? t.dicaVideoCover : t.dicaVideo;
 }
 
 function sizeFramingPreview(wrapper, maxWidth, maxHeight, width, height) {
@@ -29,10 +70,77 @@ window.atualizarPreviewEnquadramento = function() {
     const modalWrapper = document.getElementById('modal-framing-preview');
     sizeFramingPreview(modalWrapper, Math.max(1, Math.min(window.innerWidth * 0.8, 520)), Math.max(120, window.innerHeight * 0.55), settings.width, settings.height);
     videoPreview.style.objectFit = objectFit;
+    applyFramingFocusVisuals(settings);
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
 window.addEventListener('resize', () => atualizarPreviewEnquadramento());
+
+let framingFocusPointerId = null;
+let framingFocusStartX = 0;
+let framingFocusStartY = 0;
+let framingFocusStart = { x: 0.5, y: 0.5 };
+let framingFocusDragMoved = false;
+let suppressFramingClickUntil = 0;
+
+playerVideo.addEventListener('pointerdown', event => {
+    if (isGenerating || isBuildingTimeline) return;
+    const settings = getCurrentFramingSettings();
+    if (settings.mode !== 'cover') return;
+    const overflow = getCurrentCoverPreviewOverflow();
+    if (overflow.x <= 0.5 && overflow.y <= 0.5) return;
+
+    framingFocusPointerId = event.pointerId;
+    framingFocusStartX = event.clientX;
+    framingFocusStartY = event.clientY;
+    framingFocusStart = getCurrentFramingFocus();
+    framingFocusDragMoved = false;
+    suppressFramingClickUntil = 0;
+    playerVideo.setPointerCapture(event.pointerId);
+    document.getElementById('framing-preview').classList.add('focus-dragging');
+});
+
+playerVideo.addEventListener('pointermove', event => {
+    if (framingFocusPointerId !== event.pointerId) return;
+    const overflow = getCurrentCoverPreviewOverflow();
+    const deltaX = event.clientX - framingFocusStartX;
+    const deltaY = event.clientY - framingFocusStartY;
+    if (!framingFocusDragMoved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+        framingFocusDragMoved = true;
+        playerVideo.pause();
+    }
+    if (!framingFocusDragMoved) return;
+
+    const nextX = overflow.x > 0.5 ? framingFocusStart.x - (deltaX / overflow.x) : framingFocusStart.x;
+    const nextY = overflow.y > 0.5 ? framingFocusStart.y - (deltaY / overflow.y) : framingFocusStart.y;
+    setCurrentFramingFocus(nextX, nextY);
+    applyFramingFocusVisuals();
+    event.preventDefault();
+});
+
+function finishFramingFocusDrag(event, cancelled = false) {
+    if (framingFocusPointerId !== event.pointerId) return;
+    if (playerVideo.hasPointerCapture(event.pointerId)) playerVideo.releasePointerCapture(event.pointerId);
+    document.getElementById('framing-preview').classList.remove('focus-dragging');
+    suppressFramingClickUntil = !cancelled && framingFocusDragMoved ? Date.now() + 350 : 0;
+    framingFocusPointerId = null;
+    if (framingFocusDragMoved && typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+}
+
+playerVideo.addEventListener('pointerup', event => finishFramingFocusDrag(event));
+playerVideo.addEventListener('pointercancel', event => finishFramingFocusDrag(event, true));
+
+const resetFramingFocusButton = document.getElementById('btn-reset-focus');
+if (resetFramingFocusButton) {
+    resetFramingFocusButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        resetCurrentFramingFocus();
+        const settings = getCurrentFramingSettings();
+        applyFramingFocusVisuals(settings);
+        if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    });
+}
 
 videoPreview.addEventListener('timeupdate', () => {
     let t = videoPreview.currentTime;
@@ -60,6 +168,10 @@ videoPreview.addEventListener('timeupdate', () => {
 });
 
 playerVideo.addEventListener('click', () => {
+    if (Date.now() <= suppressFramingClickUntil) {
+        suppressFramingClickUntil = 0;
+        return;
+    }
     if (isGenerating || isBuildingTimeline) return; 
     if (playerVideo.paused) { playerVideo.play(); } 
     else { playerVideo.pause(); }

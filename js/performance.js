@@ -26,6 +26,7 @@ function getPerformanceOptions() {
         height: Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || 1),
         format: document.getElementById('input-formato').value,
         framing: normalizeFramingMode(document.getElementById('input-enquadramento').value),
+        framingFocus: getCurrentFramingFocus(),
         manufacturer: document.getElementById('input-fabricante').value,
         generateModule: document.getElementById('input-gerar-modulo').checked,
         audio: captureAudioEditorState()
@@ -87,7 +88,7 @@ function getPerformanceSampleKey(options) {
     const source = getValidSourceMarkerRange();
     const start = source ? source.m0.toFixed(3) : '0';
     const end = source ? source.m3.toFixed(3) : '0';
-    return `${options.width}x${options.height}:${options.format}:${options.framing}:${start}:${end}`;
+    return `${options.width}x${options.height}:${options.format}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${start}:${end}`;
 }
 
 function getCalibratedFrameBytes(options) {
@@ -173,7 +174,7 @@ async function sampleTemporalFrameBytes(options, project, version) {
         for (const time of times) {
             if (version !== performanceFrameSampleVersion || project !== currentProject || isGenerating) return;
             await seekSampleVideo(video, projectTimeToTimelineTime(time));
-            drawFramedDrawable(ctx, video, options.width, options.height, options.framing);
+            drawFramedDrawable(ctx, video, options.width, options.height, options.framing, options.framingFocus);
             const blob = await canvasToBlobAsync(canvas, mimeType, quality);
             sizes.push(blob.size);
             await cooperativeYield();
@@ -200,16 +201,68 @@ async function sampleTemporalFrameBytes(options, project, version) {
     }
 }
 
+
+async function sampleFrameProjectBytes(options, project, version) {
+    if (!project || project !== currentProject || project.sourceMode !== 'frames' || isGenerating) return;
+    const source = getValidSourceMarkerRange();
+    if (!source || source.m3 <= source.m0) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = options.width;
+    canvas.height = options.height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const quality = options.format === 'jpeg' ? 0.90 : undefined;
+
+    try {
+        const span = source.m3 - source.m0;
+        const times = [0.2, 0.5, 0.8].map(fraction => source.m0 + span * fraction);
+        const sizes = [];
+
+        for (const time of times) {
+            if (version !== performanceFrameSampleVersion || project !== currentProject || isGenerating) return;
+            const frame = getProjectFrameAtTime(time);
+            if (!frame) continue;
+            const blob = await getProjectFrameBlob(frame);
+            const drawable = await blobToDrawable(blob);
+            drawFramedDrawable(ctx, drawable, options.width, options.height, options.framing, options.framingFocus);
+            releaseDrawable(drawable);
+            const encoded = await canvasToBlobAsync(canvas, mimeType, quality);
+            sizes.push(encoded.size);
+            await cooperativeYield();
+        }
+
+        if (sizes.length > 0 && version === performanceFrameSampleVersion && project === currentProject) {
+            const average = sizes.reduce((sum, value) => sum + value, 0) / sizes.length;
+            const estimated = Math.max(2048, average * 1.08);
+            let samples = performanceFrameSamples.get(project);
+            if (!samples) {
+                samples = new Map();
+                performanceFrameSamples.set(project, samples);
+            }
+            samples.set(getPerformanceSampleKey(options), estimated);
+            updatePerformanceEstimate();
+        }
+    } catch (error) {
+    } finally {
+        canvas.width = 1;
+        canvas.height = 1;
+    }
+}
+
 function schedulePerformanceFrameSample() {
     clearTimeout(performanceFrameSampleTimer);
     const project = currentProject;
-    if (!project || project.sourceMode !== 'temporal' || isGenerating) return;
+    if (!project || isGenerating) return;
     const options = getPerformanceOptions();
     const key = getPerformanceSampleKey(options);
     const existing = performanceFrameSamples.get(project);
     if (existing && existing.has(key)) return;
     const version = ++performanceFrameSampleVersion;
-    performanceFrameSampleTimer = setTimeout(() => sampleTemporalFrameBytes(options, project, version), 250);
+    performanceFrameSampleTimer = setTimeout(() => {
+        if (project.sourceMode === 'frames') sampleFrameProjectBytes(options, project, version);
+        else sampleTemporalFrameBytes(options, project, version);
+    }, 250);
 }
 
 function estimateAudioBytes(options, importedPreserve) {

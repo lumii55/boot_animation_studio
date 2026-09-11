@@ -43,6 +43,8 @@ const traducoes = {
         btnDownloadVideo: "🎬 Download Video",
         btnDownloadZip: "📦 Download .ZIP",
         dicaVideo: "👇 Click video to Play or Pause!",
+        dicaVideoCover: "✥ Drag to reposition the crop • tap to Play or Pause",
+        focusReset: "Center crop",
         m0: "1. Intro",
         m1: "2. Loop Start",
         m2: "3. Loop End",
@@ -236,6 +238,8 @@ const traducoes = {
         btnDownloadVideo: "🎬 Baixar Vídeo",
         btnDownloadZip: "📦 Baixar .ZIP",
         dicaVideo: "👆 Clique no vídeo para dar Play ou Pausar!",
+        dicaVideoCover: "✥ Arraste para reposicionar o corte • toque para dar Play ou Pausar",
+        focusReset: "Centralizar corte",
         m0: "1. Abertura",
         m1: "2. Início do Loop",
         m2: "3. Fim do Loop",
@@ -429,6 +433,8 @@ const traducoes = {
         btnDownloadVideo: "🎬 Descargar Video",
         btnDownloadZip: "📦 Descargar .ZIP",
         dicaVideo: "👆 ¡Haz clic en el video para Reproducir o Pausar!",
+        dicaVideoCover: "✥ Arrastra para reposicionar el recorte • toca para reproducir o pausar",
+        focusReset: "Centrar recorte",
         m0: "1. Apertura",
         m1: "2. Inicio del Loop",
         m2: "3. Fin del Loop",
@@ -622,6 +628,8 @@ const traducoes = {
         btnDownloadVideo: "🎬 Télécharger Vidéo",
         btnDownloadZip: "📦 Télécharger .ZIP",
         dicaVideo: "👆 Cliquez sur la vidéo pour Lire ou Mettre en pause !",
+        dicaVideoCover: "✥ Faites glisser pour repositionner le recadrage • touchez pour lire ou mettre en pause",
+        focusReset: "Centrer le recadrage",
         m0: "1. Intro",
         m1: "2. Début Loop",
         m2: "3. Fin Loop",
@@ -835,6 +843,12 @@ function mudarIdioma(lang) {
     document.getElementById('btn-baixar-video').textContent = t.btnDownloadVideo;
     document.getElementById('btn-baixar-zip').textContent = t.btnDownloadZip;
     document.getElementById('txt-dicavideo').textContent = t.dicaVideo;
+    const resetFocusButton = document.getElementById('btn-reset-focus');
+    if (resetFocusButton) {
+        resetFocusButton.setAttribute('aria-label', t.focusReset);
+        resetFocusButton.title = t.focusReset;
+    }
+    if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
     document.getElementById('lbl-m0').textContent = t.m0;
     document.getElementById('lbl-m1').textContent = t.m1;
     document.getElementById('lbl-m2').textContent = t.m2;
