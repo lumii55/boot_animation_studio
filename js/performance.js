@@ -287,6 +287,9 @@ function estimateExportPerformance(options = getPerformanceOptions()) {
     if (framesToProcess > 1800 || estimatedMemoryBytes > 768 * 1024 * 1024 || deliveredBytes > 300 * 1024 * 1024 || workPixels > 2500000000) level = 'heavy';
     if (untouched && copies === 1) level = 'light';
     const exactOutputSize = exactBootSize && copies === 1;
+    let bootLevel = 'recommended';
+    if (bootBytes > 20 * 1024 * 1024) bootLevel = 'caution';
+    if (bootBytes > 25 * 1024 * 1024) bootLevel = 'large';
 
     return {
         totalFrames,
@@ -300,6 +303,7 @@ function estimateExportPerformance(options = getPerformanceOptions()) {
         importedPreserve,
         frameSettingsChanged,
         level,
+        bootLevel,
         copies
     };
 }
@@ -308,6 +312,18 @@ function getPerformanceLevelLabel(level, t) {
     if (level === 'heavy') return t.perfHeavy;
     if (level === 'moderate') return t.perfModerate;
     return t.perfLight;
+}
+
+function getBootSizeLevelLabel(level, t) {
+    if (level === 'large') return t.perfBootLarge;
+    if (level === 'caution') return t.perfBootCaution;
+    return t.perfBootRecommended;
+}
+
+function getBootSizeNote(level, t) {
+    if (level === 'large') return t.perfBootLargeNote;
+    if (level === 'caution') return t.perfBootCautionNote;
+    return t.perfBootRecommendedNote;
 }
 
 function updatePerformanceEstimate() {
@@ -324,25 +340,31 @@ function updatePerformanceEstimate() {
     panel.style.display = 'flex';
     document.getElementById('perf-frames').textContent = estimate.totalFrames.toLocaleString();
     document.getElementById('perf-process').textContent = estimate.framesToProcess.toLocaleString();
+    document.getElementById('perf-boot-size').textContent = `${estimate.exactBootSize ? '' : '≈ '}${formatByteEstimate(estimate.bootBytes)}`;
     document.getElementById('perf-size').textContent = `${estimate.exactOutputSize ? '' : '≈ '}${formatByteEstimate(estimate.deliveredBytes)}`;
     document.getElementById('perf-memory').textContent = `≈ ${formatByteEstimate(estimate.estimatedMemoryBytes)}`;
 
     const badge = document.getElementById('perf-risk');
-    badge.textContent = getPerformanceLevelLabel(estimate.level, t);
+    badge.textContent = `${t.perfGenerationPrefix}: ${getPerformanceLevelLabel(estimate.level, t)}`;
     badge.dataset.level = estimate.level;
 
-    const note = document.getElementById('perf-note');
+    const bootBadge = document.getElementById('perf-boot-risk');
+    bootBadge.textContent = `${t.perfBootPrefix}: ${getBootSizeLevelLabel(estimate.bootLevel, t)}`;
+    bootBadge.dataset.level = estimate.bootLevel;
+
+    let generationNote;
     if (estimate.untouched && estimate.copies === 1) {
-        note.textContent = t.perfFastPath;
+        generationNote = t.perfFastPath;
     } else if (estimate.level === 'heavy') {
-        note.textContent = t.perfHeavyNote;
+        generationNote = t.perfHeavyNote;
     } else if (estimate.level === 'moderate') {
-        note.textContent = t.perfModerateNote;
+        generationNote = t.perfModerateNote;
     } else if (estimate.framesToProcess === 0) {
-        note.textContent = t.perfNoFrames;
+        generationNote = t.perfNoFrames;
     } else {
-        note.textContent = t.perfLightNote;
+        generationNote = t.perfLightNote;
     }
+    document.getElementById('perf-note').textContent = `${generationNote} ${getBootSizeNote(estimate.bootLevel, t)}`;
 }
 
 function schedulePerformanceEstimate() {
