@@ -1324,6 +1324,7 @@
             isConnectedMode = false;
             document.getElementById('initial-state').style.display = 'none';
             document.getElementById('editor-section').style.display = 'flex';
+            document.getElementById('wrap-gerar-modulo').style.display = 'flex';
             document.getElementById('wrap-nome').style.display = 'flex';
             
             document.getElementById('acoes-principais').style.gridTemplateColumns = "1fr 1fr";
@@ -1379,6 +1380,7 @@
                         alert(data.message);
                         document.getElementById('btn-remove').style.display = "none";
                         window.hasCustomAnimApplied = false;
+                        await loadHistory();
                     } else {
                         alert(t.msgResetError);
                     }
@@ -1386,6 +1388,12 @@
                     alert(t.msgResetError);
                 }
             }
+        }
+
+        function historyIdToDate(id) {
+            const numericId = Number(id);
+            if (!Number.isFinite(numericId)) return new Date();
+            return new Date(String(id).length >= 13 ? numericId : numericId * 1000);
         }
 
         async function loadHistory() {
@@ -1403,7 +1411,7 @@
                     const t = traducoes[idiomaAtual];
                     
                     for (const id of ids) {
-                        const date = new Date(parseInt(id) * 1000).toLocaleString();
+                        const date = historyIdToDate(id).toLocaleString();
                         const card = document.createElement('div');
                         card.className = "hist-card";
                         
@@ -1666,6 +1674,7 @@
                 const videoWebm = await gravacaoPronta;
                 
                 document.getElementById('dicas-iniciais').style.display = 'none';
+                resetAudioState();
                 playerVideo.src = URL.createObjectURL(videoWebm); 
                 document.getElementById('video-container').style.display = 'block';
                 document.getElementById('timeline-wrapper').style.display = 'block';
@@ -1702,16 +1711,12 @@
                 const zipH = parseInt(configTops[1]);
                 const zipFps = parseInt(configTops[2]) || 30;
 
-                let temSomNoZip = false;
+                let temSomNoDesc = false;
                 for (let i = 1; i < linhas.length; i++) {
                     if (linhas[i].startsWith('s ')) {
-                        temSomNoZip = true;
+                        temSomNoDesc = true;
                         break;
                     }
-                }
-                if (temSomNoZip) {
-                    document.getElementById('input-usar-som').checked = true;
-                    verificarPainelAudio();
                 }
 
                 document.getElementById('txt-loading-timeline').textContent = t.msgOrgFrames;
@@ -1724,8 +1729,10 @@
                     if (partes[0] === 'c' || partes[0] === 'p') {
                         const nomePasta = partes[3];
                         if (!nomePasta) continue;
-                        const regex = new RegExp("^" + nomePasta + "/.*\\.(png|jpg|jpeg)$", "i");
+                        const nomeSeguro = escapeRegExp(nomePasta);
+                        const regex = new RegExp("^" + nomeSeguro + "/.*\\.(png|jpg|jpeg)$", "i");
                         const arquivosPasta = zip.file(regex);
+                        const arquivosAudio = zip.file(new RegExp("^" + nomeSeguro + "/audio\\.wav$", "i"));
                         
                         arquivosPasta.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
                         
@@ -1733,12 +1740,38 @@
                             const imgBlob = await arq.async("blob");
                             todasImagens.push(imgBlob);
                         }
+
+                        let audioBlob = null;
+                        let audioName = null;
+                        if (arquivosAudio.length > 0) {
+                            audioBlob = await arquivosAudio[0].async("blob");
+                            audioName = arquivosAudio[0].name.split('/').pop() || 'audio.wav';
+                        }
                         
-                        contagemPorPasta.push({ nome: nomePasta, frames: arquivosPasta.length });
+                        contagemPorPasta.push({ nome: nomePasta, frames: arquivosPasta.length, audioBlob, audioName });
                     }
                 }
 
                 if (todasImagens.length === 0) throw new Error(t.msgZipNoParts);
+
+                resetAudioState();
+                const partesComAudio = contagemPorPasta.filter(parte => parte.audioBlob);
+                if (contagemPorPasta.length === 1) {
+                    if (contagemPorPasta[0].audioBlob) setImportedAudio('loop', contagemPorPasta[0].audioBlob, contagemPorPasta[0].audioName);
+                } else if (contagemPorPasta.length === 2) {
+                    if (contagemPorPasta[0].audioBlob) setImportedAudio('intro', contagemPorPasta[0].audioBlob, contagemPorPasta[0].audioName);
+                    if (contagemPorPasta[1].audioBlob) setImportedAudio('loop', contagemPorPasta[1].audioBlob, contagemPorPasta[1].audioName);
+                } else if (contagemPorPasta.length >= 3) {
+                    if (contagemPorPasta[0].audioBlob) setImportedAudio('intro', contagemPorPasta[0].audioBlob, contagemPorPasta[0].audioName);
+                    const parteLoop = contagemPorPasta.slice(1, -1).find(parte => parte.audioBlob);
+                    if (parteLoop) setImportedAudio('loop', parteLoop.audioBlob, parteLoop.audioName);
+                    const parteFinal = contagemPorPasta[contagemPorPasta.length - 1];
+                    if (parteFinal.audioBlob) setImportedAudio('final', parteFinal.audioBlob, parteFinal.audioName);
+                }
+                if (temSomNoDesc || partesComAudio.length > 0) {
+                    document.getElementById('input-usar-som').checked = true;
+                    verificarPainelAudio();
+                }
 
                 document.getElementById('txt-loading-timeline').textContent = t.msgStitching;
                 
@@ -1871,6 +1904,70 @@
             document.getElementById('painel-audio').style.display = usaAudio ? "flex" : "none";
         }
 
+        function escapeRegExp(value) {
+            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function clearPreviewAudio(part) {
+            const audio = previewAudios[part];
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+            if (previewAudioUrls[part]) {
+                URL.revokeObjectURL(previewAudioUrls[part]);
+                previewAudioUrls[part] = null;
+            }
+        }
+
+        function setPreviewAudio(part, blob) {
+            clearPreviewAudio(part);
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            previewAudioUrls[part] = url;
+            previewAudios[part].src = url;
+        }
+
+        function resetAudioState() {
+            const t = traducoes[idiomaAtual];
+            document.getElementById('input-usar-som').checked = false;
+            ['intro', 'loop', 'final'].forEach(part => {
+                importedAudioFiles[part] = null;
+                const select = document.getElementById(`sel-audio-${part}`);
+                const inputFile = document.getElementById(`file-audio-${part}`);
+                const optFile = document.getElementById(`opt-file-${part}`);
+                const wrap = document.getElementById(`vol-wrap-${part}`);
+                const volume = document.getElementById(`vol-${part}`);
+                const volumeLabel = document.getElementById(`lbl-vol-${part}`);
+                select.value = 'none';
+                inputFile.value = '';
+                optFile.textContent = t.optFile;
+                optFile.removeAttribute('data-custom');
+                wrap.style.display = 'none';
+                volume.value = 100;
+                volumeLabel.textContent = '100%';
+            });
+            ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
+            currentPreviewPart = -1;
+            verificarPainelAudio();
+        }
+
+        function setImportedAudio(part, blob, name) {
+            importedAudioFiles[part] = blob;
+            const select = document.getElementById(`sel-audio-${part}`);
+            const optFile = document.getElementById(`opt-file-${part}`);
+            const wrap = document.getElementById(`vol-wrap-${part}`);
+            const label = `🎵 ${name || 'audio.wav'}`;
+            select.value = 'file';
+            optFile.textContent = label;
+            optFile.setAttribute('data-custom', label);
+            wrap.style.display = 'flex';
+        }
+
+        function getSelectedAudioFile(part) {
+            const inputFile = document.getElementById(`file-audio-${part}`);
+            return inputFile.files[0] || importedAudioFiles[part] || null;
+        }
+
         function handleAudioSelect(part) {
             const select = document.getElementById(`sel-audio-${part}`);
             const wrap = document.getElementById(`vol-wrap-${part}`);
@@ -1878,8 +1975,10 @@
                 document.getElementById(`file-audio-${part}`).click();
                 wrap.style.display = "flex";
             } else if (select.value === 'video') {
+                importedAudioFiles[part] = null;
                 wrap.style.display = "flex";
             } else {
+                importedAudioFiles[part] = null;
                 wrap.style.display = "none";
                 const t = traducoes[idiomaAtual];
                 document.getElementById(`opt-file-${part}`).textContent = t.optFile;
@@ -1893,11 +1992,12 @@
             const optFile = document.getElementById(`opt-file-${part}`);
             const wrap = document.getElementById(`vol-wrap-${part}`);
             if (inputFile.files.length > 0) {
+                importedAudioFiles[part] = null;
                 const nome = inputFile.files[0].name;
                 optFile.textContent = `🎵 ${nome}`;
                 optFile.setAttribute('data-custom', `🎵 ${nome}`);
                 wrap.style.display = "flex";
-            } else {
+            } else if (!importedAudioFiles[part]) {
                 select.value = "none";
                 const t = traducoes[idiomaAtual];
                 optFile.textContent = t.optFile;
@@ -1924,7 +2024,7 @@
             document.getElementById('modal-escolha-preview').style.display = 'none';
             videoPreview.src = playerVideo.src;
             videoPreview.currentTime = marcadores.m0;
-            videoPreview.muted = !document.getElementById('input-usar-som').checked; 
+            videoPreview.muted = true; 
             currentPreviewPart = -1;
             
             document.getElementById('modal-preview').style.display = 'flex';
@@ -1973,13 +2073,17 @@
         let isProgrammaticScroll = false;
 
         const previewAudios = { m0: new Audio(), m1: new Audio(), m2: new Audio() };
+        const previewAudioUrls = { m0: null, m1: null, m2: null };
+        const importedAudioFiles = { intro: null, loop: null, final: null };
         let currentPreviewPart = -1;
         
         videoPreview.addEventListener('timeupdate', () => {
-            const t = videoPreview.currentTime;
+            let t = videoPreview.currentTime;
             
             if (t >= marcadores.m3) { 
-                videoPreview.currentTime = marcadores.m0; 
+                videoPreview.currentTime = marcadores.m0;
+                t = marcadores.m0;
+                currentPreviewPart = -1;
             }
 
             if (document.getElementById('input-usar-som').checked) {
@@ -2083,6 +2187,8 @@
         inputVideo.addEventListener('change', function(evento) {
             const arquivo = evento.target.files[0];
             if (!arquivo) return;
+
+            resetAudioState();
 
             if (arquivo.type === 'image/gif') {
                 converterGifParaVideo(arquivo);
@@ -2368,7 +2474,7 @@
         async function decodificarAudioFonte(fonte, audioCtx) {
             try {
                 let arrBuf;
-                if (fonte instanceof File) {
+                if (fonte instanceof Blob) {
                     arrBuf = await fonte.arrayBuffer();
                 } else if (typeof fonte === 'string' && fonte.length > 0) {
                     const res = await fetch(fonte);
@@ -2384,7 +2490,7 @@
                     if (res && res.then) res.then(resolve).catch(() => resolve(null));
                 });
             } catch (e) {
-                console.error("Erro ao decodificar fonte de áudio:", e);
+                console.error("Failed to decode audio source:", e);
                 return null;
             }
         }
@@ -2413,7 +2519,7 @@
                 const rendered = await offlineCtx.startRendering();
                 return audioBufferToWav(rendered);
             } catch (e) {
-                console.error("Erro ao fatiar áudio:", e);
+                console.error("Failed to process audio segment:", e);
                 return null;
             }
         }
@@ -2463,6 +2569,8 @@
 
                 innerZip.file("desc.txt", conteudoDesc);
 
+                ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
+
                 if (isSomAtivo) {
                     document.getElementById('texto-progresso').textContent = t.processandoAudio;
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -2472,12 +2580,12 @@
                         videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
                     }
 
-                    const v0 = (parseInt(document.getElementById('vol-intro').value) || 100) / 100.0;
-                    const v1 = (parseInt(document.getElementById('vol-loop').value) || 100) / 100.0;
-                    const v2 = (parseInt(document.getElementById('vol-final').value) || 100) / 100.0;
+                    const v0 = parseInt(document.getElementById('vol-intro').value) / 100.0;
+                    const v1 = parseInt(document.getElementById('vol-loop').value) / 100.0;
+                    const v2 = parseInt(document.getElementById('vol-final').value) / 100.0;
 
                     if (p0 !== 'none') {
-                        let buf0 = (p0 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(document.getElementById('file-audio-intro').files[0], audioCtx);
+                        let buf0 = (p0 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(getSelectedAudioFile('intro'), audioCtx);
                         let blob0 = null;
                         if (p0 === 'video') {
                             blob0 = await fatiarEGerarWav(buf0, marcadores.m0, marcadores.m1, audioCtx, v0);
@@ -2486,12 +2594,12 @@
                         }
                         if (blob0) {
                             innerZip.folder("part0").file("audio.wav", blob0);
-                            previewAudios.m0.src = URL.createObjectURL(blob0);
+                            setPreviewAudio('m0', blob0);
                         }
                     }
 
                     if (p1 !== 'none') {
-                        let buf1 = (p1 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(document.getElementById('file-audio-loop').files[0], audioCtx);
+                        let buf1 = (p1 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(getSelectedAudioFile('loop'), audioCtx);
                         let blob1 = null;
                         if (p1 === 'video') {
                             blob1 = await fatiarEGerarWav(buf1, marcadores.m1, marcadores.m2, audioCtx, v1);
@@ -2500,12 +2608,12 @@
                         }
                         if (blob1) {
                             innerZip.folder("part1").file("audio.wav", blob1);
-                            previewAudios.m1.src = URL.createObjectURL(blob1);
+                            setPreviewAudio('m1', blob1);
                         }
                     }
 
                     if (p2 !== 'none') {
-                        let buf2 = (p2 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(document.getElementById('file-audio-final').files[0], audioCtx);
+                        let buf2 = (p2 === 'video') ? videoAudioBuffer : await decodificarAudioFonte(getSelectedAudioFile('final'), audioCtx);
                         let blob2 = null;
                         if (p2 === 'video') {
                             blob2 = await fatiarEGerarWav(buf2, marcadores.m2, marcadores.m3, audioCtx, v2);
@@ -2514,7 +2622,7 @@
                         }
                         if (blob2) {
                             innerZip.folder("part2").file("audio.wav", blob2);
-                            previewAudios.m2.src = URL.createObjectURL(blob2);
+                            setPreviewAudio('m2', blob2);
                         }
                     }
                 }
@@ -2531,18 +2639,14 @@
 
                     const formData = new FormData();
                     formData.append('bootanimation', rawBootAnimBlob, 'bootanimation.zip');
-                    formData.append('preview', previewWebmBlob, 'preview.gif');
+                    formData.append('preview', previewWebmBlob, 'preview.webm');
 
-                    try {
-                        const uploadRes = await apiFetch("/upload", {
-                            method: "POST",
-                            body: formData
-                        });
-                        if (!uploadRes.ok) throw new Error("Upload failed");
-                        loadHistory(); 
-                    } catch (e) {
-                        alert(t.msgInjectError);
-                    }
+                    const uploadRes = await apiFetch("/upload", {
+                        method: "POST",
+                        body: formData
+                    });
+                    if (!uploadRes.ok) throw new Error("Upload failed");
+                    await loadHistory();
                 } else {
                     if (isModuloMagisk) {
                         const magiskZip = new JSZip();
