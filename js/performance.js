@@ -34,6 +34,12 @@ function getPerformanceOptions() {
 }
 
 function getValidSourceMarkerRange() {
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedPerformanceRange === 'function') {
+        const range = getAdvancedPerformanceRange();
+        if (range && Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > range.start) {
+            return { m0: range.start, m1: range.start, m2: range.end, m3: range.end };
+        }
+    }
     const source = getProjectSourceMarkers();
     if (!source || ['m0', 'm1', 'm2', 'm3'].some(key => !Number.isFinite(source[key]))) return null;
     if (!(source.m0 <= source.m1 && source.m1 <= source.m2 && source.m2 <= source.m3)) return null;
@@ -41,6 +47,7 @@ function getValidSourceMarkerRange() {
 }
 
 function getSimpleFrameCount(fps) {
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedOutputFrameCount === 'function' && !(typeof advancedPartsCanUseSimpleExport === 'function' && advancedPartsCanUseSimpleExport())) return getAdvancedOutputFrameCount(fps);
     const source = getValidSourceMarkerRange();
     if (!source) return 0;
     return Math.max(1, Math.floor((source.m3 - source.m0) * fps) + 1);
@@ -88,7 +95,10 @@ function getPerformanceSampleKey(options) {
     const source = getValidSourceMarkerRange();
     const start = source ? source.m0.toFixed(3) : '0';
     const end = source ? source.m3.toFixed(3) : '0';
-    return `${options.width}x${options.height}:${options.format}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}`;
+    const advancedSignature = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedParts === 'function'
+        ? getAdvancedParts().map(part => `${part.start.toFixed(3)}-${part.end.toFixed(3)}`).join(',')
+        : '';
+    return `${options.width}x${options.height}:${options.format}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}:${advancedSignature}`;
 }
 
 function getCalibratedFrameBytes(options) {
@@ -266,6 +276,9 @@ function schedulePerformanceFrameSample() {
 }
 
 function estimateAudioBytes(options, importedPreserve) {
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && !importedPreserve && typeof getAdvancedAudioDurationSeconds === 'function') {
+        return getAdvancedAudioDurationSeconds() * 192000;
+    }
     if (!options.audio.enabled) return 0;
     if (importedPreserve && currentProject && currentProject.parts) {
         const seen = new Set();

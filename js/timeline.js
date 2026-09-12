@@ -369,6 +369,7 @@ if (resetFramingFocusButton) {
 }
 
 videoPreview.addEventListener('timeupdate', () => {
+    if (typeof handleAdvancedPreviewTimeUpdate === 'function' && handleAdvancedPreviewTimeUpdate()) return;
     let t = videoPreview.currentTime;
     
     if (t >= marcadores.m3) { 
@@ -515,6 +516,7 @@ playerVideo.addEventListener('loadedmetadata', async function() {
     playerVideo.style.opacity = '0';
     
     await desenharFilmstrip();
+    if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
     atualizarBotoesELinhas();
     
     playerVideo.style.opacity = '1';
@@ -636,7 +638,27 @@ window.marcarTrecho = function(id) {
 
 function atualizarBotoesELinhas() {
     document.querySelectorAll('.linha-marcador').forEach(el => el.remove());
+    document.querySelectorAll('.linha-parte-avancada').forEach(el => el.remove());
     const t = traducoes[idiomaAtual];
+
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
+        const temVideo = document.getElementById('video-container').style.display === 'block';
+        btnVerPreview.style.display = 'none';
+        if (typeof renderAdvancedPartLines === 'function') renderAdvancedPartLines();
+        const validation = typeof validateAdvancedParts === 'function' ? validateAdvancedParts() : { valid: false, message: t.advInvalidParts || t.btnFaltam };
+        if (temVideo) btnGerar.style.display = 'block';
+        else btnGerar.style.display = 'none';
+        if (validation.valid) {
+            btnGerar.classList.remove('btn-desativado');
+            btnGerar.textContent = typeof getGenerateReadyLabel === 'function' ? getGenerateReadyLabel(t) : (isConnectedMode ? t.btnInjectReady : t.btnGerarPronto);
+        } else {
+            btnGerar.classList.add('btn-desativado');
+            btnGerar.textContent = validation.message || t.advInvalidParts || t.btnFaltam;
+        }
+        if (typeof updateOutputIntent === 'function') updateOutputIntent();
+        if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+        return;
+    }
     let tudoMarcado = true;
     let temposOrdem = [];
 

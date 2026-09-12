@@ -815,6 +815,7 @@ function fileAudioSelecionado(part) {
 
 function fecharModal() {
     if (typeof cancelPreviewAudioBuild === 'function') cancelPreviewAudioBuild();
+    if (typeof stopAdvancedPartsPreview === 'function') stopAdvancedPartsPreview();
     stopModalPreviewRenderer();
     videoPreview.pause();
     ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause()); 
@@ -834,13 +835,19 @@ async function abrirPreviewWeb() {
     document.getElementById('modal-preview').style.display = 'flex';
     videoPreview.src = playerVideo.src;
     atualizarPreviewEnquadramento();
-    videoPreview.currentTime = marcadores.m0;
+    const advancedActive = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive();
+    const firstAdvancedPart = advancedActive && typeof getAdvancedParts === 'function' ? getAdvancedParts()[0] : null;
+    videoPreview.currentTime = firstAdvancedPart ? projectTimeToTimelineTime(firstAdvancedPart.start) : (marcadores.m0 || 0);
     videoPreview.muted = true;
     currentPreviewPart = -1;
     requestAnimationFrame(() => {
         applyFramingFocusVisuals();
         startModalPreviewRenderer();
     });
+    if (advancedActive && typeof startAdvancedPartsPreview === 'function') {
+        await startAdvancedPartsPreview().catch(() => {});
+        return;
+    }
     if (typeof preparePreviewAudioFromCurrentState === 'function') {
         await preparePreviewAudioFromCurrentState().catch(() => {});
     }

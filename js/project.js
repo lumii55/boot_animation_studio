@@ -22,7 +22,13 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         markers: createMarkerState(),
         initialMarkersSource: null,
         initialMarkersApplied: true,
-        framingFocus: { x: 0.5, y: 0.5, zoom: 1 }
+        framingFocus: { x: 0.5, y: 0.5, zoom: 1 },
+        advancedParts: [],
+        advancedPartsEnabled: false,
+        advancedPartsDirty: false,
+        advancedPartsBaseline: null,
+        advancedExpandedId: null,
+        advancedPartCounter: 0
     };
 }
 
@@ -46,7 +52,13 @@ function createFrameProject(options) {
         markers: createMarkerState(),
         initialMarkersSource: options.initialMarkersSource || null,
         initialMarkersApplied: false,
-        framingFocus: options.framingFocus || { x: 0.5, y: 0.5, zoom: 1 }
+        framingFocus: options.framingFocus || { x: 0.5, y: 0.5, zoom: 1 },
+        advancedParts: options.advancedParts || [],
+        advancedPartsEnabled: !!options.advancedPartsEnabled,
+        advancedPartsDirty: !!options.advancedPartsDirty,
+        advancedPartsBaseline: options.advancedPartsBaseline || null,
+        advancedExpandedId: options.advancedExpandedId || null,
+        advancedPartCounter: options.advancedPartCounter || 0
     };
 }
 
@@ -54,6 +66,10 @@ function setCurrentProject(project) {
     currentProject = project;
     if (currentProject && !currentProject.framingFocus) currentProject.framingFocus = { x: 0.5, y: 0.5, zoom: 1 };
     if (currentProject && currentProject.framingFocus && !Number.isFinite(Number(currentProject.framingFocus.zoom))) currentProject.framingFocus.zoom = 1;
+    if (currentProject && !Array.isArray(currentProject.advancedParts)) currentProject.advancedParts = [];
+    if (currentProject && typeof currentProject.advancedPartsEnabled !== 'boolean') currentProject.advancedPartsEnabled = false;
+    if (currentProject && typeof currentProject.advancedPartsDirty !== 'boolean') currentProject.advancedPartsDirty = false;
+    if (currentProject && !Number.isInteger(currentProject.advancedPartCounter)) currentProject.advancedPartCounter = 0;
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;

@@ -821,8 +821,11 @@ async function createMiniPreviewWebm(options = null) {
         rec.ondataavailable = e => chunks.push(e.data);
         rec.start();
         
-        let t = marcadores.m1;
-        let step = (marcadores.m2 - marcadores.m1) / 30; 
+        const advancedPart = typeof getAdvancedPreviewSamplePart === 'function' ? getAdvancedPreviewSamplePart() : null;
+        const sampleStart = advancedPart ? projectTimeToTimelineTime(advancedPart.start) : marcadores.m1;
+        const sampleEnd = advancedPart ? projectTimeToTimelineTime(advancedPart.end) : marcadores.m2;
+        let t = Number.isFinite(sampleStart) ? sampleStart : 0;
+        let step = Math.max(0.0001, ((Number.isFinite(sampleEnd) ? sampleEnd : t) - t) / 30); 
         for(let i=0; i<30; i++) {
             playerVideo.currentTime = t;
             await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });

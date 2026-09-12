@@ -34,6 +34,7 @@ function canPreserveImportedAudioChanges(audioState) {
 
 function canPreserveImportedRoundTrip(options) {
     return isImportedBootanimationProject() &&
+        !(typeof isAdvancedPartsDirty === 'function' && isAdvancedPartsDirty()) &&
         projectMarkersMatchInitial() &&
         canPreserveImportedAudioChanges(options.audio);
 }
@@ -43,6 +44,7 @@ function importedExportIsUntouched(options) {
     return !!baseline &&
         frameSettingsMatchProjectBaseline(options) &&
         audioEditorStatesEqual(options.audio, baseline.audio) &&
+        !(typeof isAdvancedPartsDirty === 'function' && isAdvancedPartsDirty()) &&
         projectMarkersMatchInitial();
 }
 
@@ -335,6 +337,96 @@ async function applySimpleAudio(zip, audioState, t) {
     }
 }
 
+function getAdvancedPartFrameCount(part, fps) {
+    return Math.max(1, Math.ceil(Math.max(0, part.end - part.start) * fps));
+}
+
+function removeAdvancedFolderMedia(zip, folderName) {
+    const safeName = escapeRegExp(folderName);
+    zip.file(new RegExp('^' + safeName + '/.*\\.(png|jpg|jpeg)$', 'i')).forEach(entry => zip.remove(entry.name));
+    zip.file(new RegExp('^' + safeName + '/audio\\.wav$', 'i')).forEach(entry => zip.remove(entry.name));
+}
+
+async function createAdvancedBaseZip() {
+    if (!isImportedBootanimationProject() || !currentProject.sourceBlob) return new JSZip();
+    const zip = await JSZip.loadAsync(currentProject.sourceBlob);
+    const folders = new Set();
+    currentProject.parts.forEach(part => folders.add(part.name));
+    getAdvancedParts().forEach(part => folders.add(part.folder));
+    folders.forEach(folder => removeAdvancedFolderMedia(zip, folder));
+    return zip;
+}
+
+function buildAdvancedDesc(options) {
+    const lines = [`${options.width} ${options.height} ${options.fps}`];
+    getAdvancedParts().forEach(part => {
+        const extras = Array.isArray(part.extraTokens) && part.extraTokens.length ? ` ${part.extraTokens.join(' ')}` : '';
+        lines.push(`${part.type} ${part.repeat} ${part.pause} ${part.folder}${extras}`);
+    });
+    return lines.join('\n') + '\n';
+}
+
+async function generateAdvancedPartFrames(zip, options, t) {
+    const parts = getAdvancedParts();
+    const extension = options.format === 'jpeg' ? '.jpg' : '.png';
+    const totalFrames = parts.reduce((sum, part) => sum + getAdvancedPartFrameCount(part, options.fps), 0);
+    let completed = 0;
+    playerVideo.pause();
+
+    for (const part of parts) {
+        const folder = zip.folder(part.folder);
+        const count = getAdvancedPartFrameCount(part, options.fps);
+        const endLimit = Math.max(part.start, part.end - (1 / Math.max(options.fps, currentProject.fps || options.fps, 1)));
+        for (let i = 0; i < count; i++) {
+            const sourceTime = Math.min(endLimit, part.start + (i / options.fps));
+            const blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus);
+            folder.file(`${String(i).padStart(5, '0')}${extension}`, blob);
+            completed++;
+            if (completed % 4 === 0 || completed === totalFrames) {
+                const percent = totalFrames > 0 ? Math.min(100, Math.floor((completed / totalFrames) * 100)) : 100;
+                document.getElementById('barra-preenchimento').style.width = `${percent}%`;
+                document.getElementById('texto-progresso').textContent = `${t.extraindo} ${completed}/${totalFrames} (${percent}%)`;
+            }
+            if (completed % 8 === 0) await cooperativeYield();
+        }
+    }
+}
+
+async function applyAdvancedPartAudio(zip, t) {
+    const parts = getAdvancedParts();
+    const hasAudio = parts.some(part => part.audio && part.audio.mode !== 'none');
+    if (!hasAudio) return;
+    document.getElementById('texto-progresso').textContent = t.processandoAudio;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    let videoAudioBuffer = null;
+    try {
+        if (parts.some(part => part.audio.mode === 'video')) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
+        for (const part of parts) {
+            removePartAudioEntries(zip, part.folder);
+            if (!part.audio || part.audio.mode === 'none') continue;
+            const blob = await buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer);
+            if (blob) zip.folder(part.folder).file('audio.wav', blob);
+        }
+    } finally {
+        videoAudioBuffer = null;
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
+    }
+}
+
+async function buildAdvancedBootanimation(options, t) {
+    const validation = validateAdvancedParts();
+    if (!validation.valid) throw new Error(validation.message || t.advInvalidParts);
+    const zip = await createAdvancedBaseZip();
+    await generateAdvancedPartFrames(zip, options, t);
+    zip.file('desc.txt', buildAdvancedDesc(options));
+    await applyAdvancedPartAudio(zip, t);
+    document.getElementById('texto-progresso').textContent = t.compactandoZip;
+    btnGerar.textContent = t.fechandoZiper;
+    return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+}
+
 async function buildSimpleBootanimation(options, t) {
     const zip = new JSZip();
     await paparazzoOtimizado(zip, options.width, options.height, options.fps, options.format, options.framing, options.framingFocus, t);
@@ -408,6 +500,7 @@ btnGerar.addEventListener('click', async () => {
     timelineWrapper.classList.add('bloqueado');
     gridMarcadores.classList.add('bloqueado');
     configuracoes.classList.add('bloqueado');
+    document.getElementById('advanced-parts-editor')?.classList.add('bloqueado');
     btnGerar.classList.add('btn-desativado');
     btnGerar.textContent = t.gerandoFrames;
     document.getElementById('container-progresso').style.display = 'flex';
@@ -418,9 +511,15 @@ btnGerar.addEventListener('click', async () => {
         canvasInvisivel.width = options.width;
         canvasInvisivel.height = options.height;
 
-        const rawBootAnimBlob = canPreserveImportedRoundTrip(options)
-            ? await buildImportedRoundTrip(options, t)
-            : await buildSimpleBootanimation(options, t);
+        const advancedActive = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive();
+        const advancedDirty = advancedActive && typeof isAdvancedPartsDirty === 'function' && isAdvancedPartsDirty();
+        const rawBootAnimBlob = advancedDirty
+            ? await buildAdvancedBootanimation(options, t)
+            : canPreserveImportedRoundTrip(options)
+                ? await buildImportedRoundTrip(options, t)
+                : advancedActive && !(typeof advancedPartsCanUseSimpleExport === 'function' && advancedPartsCanUseSimpleExport())
+                    ? await buildAdvancedBootanimation(options, t)
+                    : await buildSimpleBootanimation(options, t);
 
         releaseExportCanvas();
         const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
@@ -438,6 +537,7 @@ btnGerar.addEventListener('click', async () => {
             timelineWrapper.classList.remove('bloqueado');
             gridMarcadores.classList.remove('bloqueado');
             configuracoes.classList.remove('bloqueado');
+            document.getElementById('advanced-parts-editor')?.classList.remove('bloqueado');
             if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
         }, 2000);
     } catch (erro) {
@@ -454,6 +554,7 @@ btnGerar.addEventListener('click', async () => {
             timelineWrapper.classList.remove('bloqueado');
             gridMarcadores.classList.remove('bloqueado');
             configuracoes.classList.remove('bloqueado');
+            document.getElementById('advanced-parts-editor')?.classList.remove('bloqueado');
             atualizarBotoesELinhas();
         }, 2500);
     } finally {
