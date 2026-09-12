@@ -10,6 +10,15 @@
 </head>
 <body>
     <div id="tooltip-flutuante" class="tooltip-estiloso"></div>
+    <div id="advanced-time-popover" class="advanced-time-popover" role="dialog" aria-modal="false" aria-hidden="true">
+        <strong id="advanced-time-popover-title"></strong>
+        <span id="advanced-time-popover-prompt"></span>
+        <div class="advanced-time-popover-actions">
+            <button type="button" class="advanced-time-choice advanced-time-start" id="advanced-time-start">◀ <span id="advanced-time-start-label">Start</span></button>
+            <button type="button" class="advanced-time-choice advanced-time-end" id="advanced-time-end"><span id="advanced-time-end-label">End</span> ▶</button>
+        </div>
+        <button type="button" class="advanced-time-cancel" id="advanced-time-cancel">Cancel</button>
+    </div>
     <div class="container">
         <div class="topo-idioma">
             <span style="font-size: 13px; color: #888;">🌐</span>
@@ -81,6 +90,12 @@
                     <button type="button" class="focus-reset" id="btn-reset-focus" aria-label="Reset crop" title="Reset crop">◎</button>
                 </div>
                 <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
+                <div class="video-time-readout" id="video-time-readout" role="status" aria-live="off" style="display: none;">
+                    <span class="video-time-icon">⏱️</span>
+                    <strong id="video-current-time">0.00s</strong>
+                    <span class="video-time-separator">/</span>
+                    <span id="video-total-time">0.00s</span>
+                </div>
             </div>
 
             <div class="timeline-wrapper" id="timeline-wrapper">
@@ -116,6 +131,7 @@
                     <span class="advanced-parts-count" id="advanced-parts-count"></span>
                 </div>
                 <div class="advanced-parts-flow" id="advanced-parts-flow"></div>
+                <div class="advanced-hold-hint" id="advanced-hold-hint"></div>
                 <div class="advanced-parts-list" id="advanced-parts-list"></div>
                 <div class="advanced-parts-actions">
                     <button type="button" class="advanced-action advanced-action-primary" id="btn-advanced-add">＋ <span id="lbl-advanced-add">Add Part</span></button>
