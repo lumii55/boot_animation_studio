@@ -102,6 +102,29 @@
                 <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Outro</span><br><span class="status-marc" id="st-m3">Not marked</span></button>
             </div>
 
+            <div class="advanced-parts-launch" id="advanced-parts-launch">
+                <button type="button" class="advanced-parts-launch-btn" id="btn-open-advanced-parts">✨ Advanced Parts Editor</button>
+                <span id="advanced-parts-launch-hint">Optional: create more than Intro / Loop / Outro.</span>
+            </div>
+
+            <section class="advanced-parts-editor" id="advanced-parts-editor" aria-live="polite">
+                <div class="advanced-parts-header">
+                    <div>
+                        <h2 id="advanced-parts-title">✨ Advanced Parts Editor ✨</h2>
+                        <p id="advanced-parts-subtitle">Build the animation as a sequence of simple parts.</p>
+                    </div>
+                    <span class="advanced-parts-count" id="advanced-parts-count"></span>
+                </div>
+                <div class="advanced-parts-flow" id="advanced-parts-flow"></div>
+                <div class="advanced-parts-list" id="advanced-parts-list"></div>
+                <div class="advanced-parts-actions">
+                    <button type="button" class="advanced-action advanced-action-primary" id="btn-advanced-add">＋ <span id="lbl-advanced-add">Add Part</span></button>
+                    <button type="button" class="advanced-action advanced-action-secondary" id="btn-advanced-split">✂ <span id="lbl-advanced-split">Split at Playhead</span></button>
+                </div>
+                <button type="button" class="advanced-back-simple" id="btn-advanced-back">← <span id="lbl-advanced-back">Back to Simple Mode</span></button>
+                <div class="advanced-parts-note" id="advanced-parts-note"></div>
+            </section>
+
             <div class="configuracoes" id="configuracoes">
                 <div class="campo campo-full" id="wrap-gerar-modulo">
                     <div class="checkbox-container">
@@ -121,7 +144,7 @@
                     </select>
                 </div>
 
-                <div class="campo campo-full">
+                <div class="campo campo-full" id="simple-audio-toggle-wrap">
                     <div class="checkbox-container">
                         <label style="margin:0;" id="lbl-usar-som">Use sound in animation? 🎵</label>
                         <input type="checkbox" id="input-usar-som" onchange="verificarPainelAudio()">
@@ -413,6 +436,7 @@
     <script src="js/media.js"></script>
     <script src="js/timeline.js"></script>
     <script src="js/audio.js"></script>
+    <script src="js/parts.js"></script>
     <script src="js/performance.js"></script>
     <script src="js/export.js"></script>
 </body>
