@@ -253,6 +253,14 @@ function getAdvancedRepeatSelectValue(repeat) {
     return [0, 1, 2, 3].includes(repeat) ? String(repeat) : 'custom';
 }
 
+function updateAdvancedHoldHint(sourceTime = getAdvancedPlayheadSourceTime()) {
+    const hint = document.getElementById('advanced-hold-hint');
+    if (!hint) return;
+    const t = traducoes[idiomaAtual];
+    if (!t || !t.advHoldHint) return;
+    hint.textContent = t.advHoldHint.replace('{time}', `${formatTimelineSecondsExact(sourceTime)}s`);
+}
+
 function renderAdvancedFlow() {
     const flow = document.getElementById('advanced-parts-flow');
     if (!flow) return;
@@ -393,6 +401,7 @@ function renderAdvancedPartsEditor() {
     document.getElementById('advanced-parts-count').textContent = t.advPartCount.replace('{count}', String(getAdvancedParts().length));
     document.getElementById('advanced-parts-note').textContent = t.advEditorNote;
     renderAdvancedFlow();
+    updateAdvancedHoldHint();
     document.getElementById('advanced-parts-list').innerHTML = getAdvancedParts().map(renderAdvancedPartCard).join('');
     renderAdvancedPartLines();
 }
@@ -404,6 +413,7 @@ function syncAdvancedPartsUi() {
     const hasMedia = !!currentProject && document.getElementById('video-container').style.display === 'block';
     const active = isAdvancedPartsActive();
     const t = traducoes[idiomaAtual];
+    if (!active) closeAdvancedTimePopover();
     document.getElementById('btn-open-advanced-parts').textContent = t.advOpen;
     document.getElementById('advanced-parts-launch-hint').textContent = t.advOpenHint;
     launch.style.display = hasMedia && !active ? 'flex' : 'none';
@@ -440,6 +450,57 @@ function seekToAdvancedPart(part) {
 
 function getAdvancedPlayheadSourceTime() {
     return timelineTimeToProjectTime(playerVideo.currentTime || 0);
+}
+
+function setAdvancedPartBoundaryToTime(part, boundary, sourceTime) {
+    if (!part || !currentProject || !['start', 'end'].includes(boundary)) return false;
+    const t = traducoes[idiomaAtual];
+    const parts = getAdvancedParts();
+    const index = parts.findIndex(item => item.id === part.id);
+    if (index < 0) return false;
+    const duration = getAdvancedSourceDuration();
+    const fps = Math.max(1, Number(currentProject.fps) || 30);
+    const minSpan = Math.max(0.02, 0.5 / fps);
+    const epsilon = Math.max(0.02, 0.5 / fps);
+    const oldStart = part.start;
+    const oldEnd = part.end;
+    const oldSpan = Math.max(minSpan, oldEnd - oldStart);
+    const target = Math.max(0, Math.min(duration, Number(sourceTime) || 0));
+
+    if (boundary === 'start') {
+        let nextStart = target;
+        if (nextStart >= part.end - minSpan) {
+            part.end = Math.min(duration, nextStart + oldSpan);
+            if (part.end <= nextStart + minSpan * 0.5) nextStart = Math.max(0, part.end - minSpan);
+        }
+        nextStart = Math.max(0, Math.min(nextStart, Math.max(0, part.end - minSpan)));
+        const previous = index > 0 ? parts[index - 1] : null;
+        if (previous && Math.abs(previous.end - oldStart) <= epsilon && nextStart > previous.start + minSpan) previous.end = nextStart;
+        part.start = nextStart;
+    } else {
+        let nextEnd = target;
+        if (nextEnd <= part.start + minSpan) {
+            part.start = Math.max(0, nextEnd - oldSpan);
+            if (nextEnd <= part.start + minSpan * 0.5) nextEnd = Math.min(duration, part.start + minSpan);
+        }
+        nextEnd = Math.min(duration, Math.max(nextEnd, Math.min(duration, part.start + minSpan)));
+        const next = index < parts.length - 1 ? parts[index + 1] : null;
+        if (next && Math.abs(next.start - oldEnd) <= epsilon && nextEnd < next.end - minSpan) next.start = nextEnd;
+        part.end = nextEnd;
+    }
+
+    normalizeAdvancedPartRange(part);
+    currentProject.advancedExpandedId = part.id;
+    markAdvancedPartsDirty();
+    renderAdvancedPartsEditor();
+    atualizarBotoesELinhas();
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(24);
+    if (typeof showToast === 'function') {
+        const key = boundary === 'start' ? 'advHoldDone' : 'advHoldEndDone';
+        const applied = boundary === 'start' ? part.start : part.end;
+        showToast(t[key].replace('{name}', part.label || part.folder).replace('{time}', `${formatTimelineSecondsExact(applied)}s`), 'success');
+    }
+    return true;
 }
 
 function createNewAdvancedPartAtPlayhead() {
@@ -884,6 +945,93 @@ function getAdvancedPreviewSamplePart() {
     return getAdvancedParts().find(part => part.repeat === 0) || getAdvancedParts()[0] || null;
 }
 
+let advancedHoldTimer = 0;
+let advancedHoldTarget = null;
+let advancedHoldPointerId = null;
+let advancedHoldStartX = 0;
+let advancedHoldStartY = 0;
+let advancedHoldTriggered = false;
+let advancedSuppressClickId = null;
+let advancedSuppressClickUntil = 0;
+let advancedHoldMenuPartId = null;
+let advancedHoldMenuTime = 0;
+let advancedHoldMenuAnchor = null;
+
+function closeAdvancedTimePopover() {
+    const popover = document.getElementById('advanced-time-popover');
+    if (!popover) return;
+    popover.classList.remove('visible');
+    popover.setAttribute('aria-hidden', 'true');
+    advancedHoldMenuPartId = null;
+    advancedHoldMenuAnchor = null;
+}
+
+function positionAdvancedTimePopover(anchor) {
+    const popover = document.getElementById('advanced-time-popover');
+    if (!popover || !anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const gap = 10;
+    const width = popover.offsetWidth;
+    const height = popover.offsetHeight;
+    let left = rect.left + rect.width / 2 - width / 2;
+    left = Math.max(12, Math.min(window.innerWidth - width - 12, left));
+    let top = rect.top - height - gap;
+    if (top < 12) top = Math.min(window.innerHeight - height - 12, rect.bottom + gap);
+    popover.style.left = `${left}px`;
+    popover.style.top = `${Math.max(12, top)}px`;
+}
+
+function openAdvancedTimePopover(part, anchor, sourceTime) {
+    const popover = document.getElementById('advanced-time-popover');
+    if (!popover || !part || !anchor) return;
+    const t = traducoes[idiomaAtual];
+    advancedHoldMenuPartId = part.id;
+    advancedHoldMenuTime = Math.max(0, Math.min(getAdvancedSourceDuration(), Number(sourceTime) || 0));
+    advancedHoldMenuAnchor = anchor;
+    document.getElementById('advanced-time-popover-title').textContent = t.advHoldMenuTitle;
+    document.getElementById('advanced-time-popover-prompt').textContent = t.advHoldMenuPrompt
+        .replace('{time}', `${formatTimelineSecondsExact(advancedHoldMenuTime)}s`)
+        .replace('{name}', part.label || part.folder);
+    document.getElementById('advanced-time-start-label').textContent = t.advHoldSetStart;
+    document.getElementById('advanced-time-end-label').textContent = t.advHoldSetEnd;
+    document.getElementById('advanced-time-cancel').textContent = t.advHoldCancel;
+    popover.classList.add('visible');
+    popover.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => positionAdvancedTimePopover(anchor));
+}
+
+function applyAdvancedHoldBoundary(boundary) {
+    const part = getAdvancedPartById(advancedHoldMenuPartId);
+    const sourceTime = advancedHoldMenuTime;
+    closeAdvancedTimePopover();
+    if (part) setAdvancedPartBoundaryToTime(part, boundary, sourceTime);
+}
+
+function cancelAdvancedPartHold(clearComplete = true) {
+    clearTimeout(advancedHoldTimer);
+    advancedHoldTimer = 0;
+    if (advancedHoldTarget) {
+        advancedHoldTarget.classList.remove('hold-arming');
+        if (clearComplete) advancedHoldTarget.classList.remove('hold-complete');
+    }
+    advancedHoldTarget = null;
+    advancedHoldPointerId = null;
+}
+
+const advancedTimePopover = document.getElementById('advanced-time-popover');
+if (advancedTimePopover) {
+    document.getElementById('advanced-time-start')?.addEventListener('click', () => applyAdvancedHoldBoundary('start'));
+    document.getElementById('advanced-time-end')?.addEventListener('click', () => applyAdvancedHoldBoundary('end'));
+    document.getElementById('advanced-time-cancel')?.addEventListener('click', closeAdvancedTimePopover);
+    window.addEventListener('resize', closeAdvancedTimePopover);
+    window.addEventListener('scroll', closeAdvancedTimePopover, true);
+    document.addEventListener('pointerdown', event => {
+        if (!advancedTimePopover.classList.contains('visible')) return;
+        if (advancedTimePopover.contains(event.target)) return;
+        closeAdvancedTimePopover();
+    });
+}
+
 const advancedEditor = document.getElementById('advanced-parts-editor');
 if (advancedEditor) {
     advancedEditor.addEventListener('click', event => {
@@ -891,6 +1039,10 @@ if (advancedEditor) {
         if (!target) return;
         const action = target.dataset.advancedAction;
         const id = target.dataset.partId;
+        if (id && id === advancedSuppressClickId && Date.now() < advancedSuppressClickUntil) {
+            event.preventDefault();
+            return;
+        }
         const part = getAdvancedPartById(id);
         if (action === 'toggle') {
             currentProject.advancedExpandedId = currentProject.advancedExpandedId === id ? null : id;
@@ -907,6 +1059,57 @@ if (advancedEditor) {
         else if (action === 'duplicate') duplicateAdvancedPart(id);
         else if (action === 'merge-next') mergeAdvancedPartWithNext(id);
         else if (action === 'delete') deleteAdvancedPart(id);
+    });
+
+    advancedEditor.addEventListener('pointerdown', event => {
+        const chip = event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary[data-part-id]');
+        if (!chip || isGenerating || isBuildingTimeline) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        cancelAdvancedPartHold();
+        advancedHoldTarget = chip;
+        advancedHoldPointerId = event.pointerId;
+        advancedHoldStartX = event.clientX;
+        advancedHoldStartY = event.clientY;
+        advancedHoldTriggered = false;
+        chip.classList.add('hold-arming');
+        advancedHoldTimer = setTimeout(() => {
+            if (!advancedHoldTarget || advancedHoldPointerId !== event.pointerId) return;
+            const id = advancedHoldTarget.dataset.partId;
+            const part = getAdvancedPartById(id);
+            if (!part) {
+                cancelAdvancedPartHold();
+                return;
+            }
+            advancedHoldTriggered = true;
+            advancedSuppressClickId = id;
+            advancedSuppressClickUntil = Date.now() + 700;
+            const held = advancedHoldTarget;
+            held.classList.remove('hold-arming');
+            held.classList.add('hold-complete');
+            if (typeof navigator.vibrate === 'function') navigator.vibrate(18);
+            openAdvancedTimePopover(part, held, getAdvancedPlayheadSourceTime());
+            setTimeout(() => held?.classList.remove('hold-complete'), 220);
+        }, 620);
+    });
+
+    advancedEditor.addEventListener('pointermove', event => {
+        if (!advancedHoldTarget || advancedHoldPointerId !== event.pointerId || advancedHoldTriggered) return;
+        if (Math.hypot(event.clientX - advancedHoldStartX, event.clientY - advancedHoldStartY) > 12) cancelAdvancedPartHold();
+    });
+
+    advancedEditor.addEventListener('pointerup', event => {
+        if (advancedHoldPointerId !== event.pointerId) return;
+        const keepSuppress = advancedHoldTriggered;
+        cancelAdvancedPartHold();
+        if (keepSuppress) advancedSuppressClickUntil = Date.now() + 550;
+    });
+
+    advancedEditor.addEventListener('pointercancel', event => {
+        if (advancedHoldPointerId === event.pointerId) cancelAdvancedPartHold();
+    });
+
+    advancedEditor.addEventListener('contextmenu', event => {
+        if (event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary[data-part-id]')) event.preventDefault();
     });
 
     advancedEditor.addEventListener('change', event => {

@@ -1,3 +1,37 @@
+
+function formatTimelineSecondsExact(value) {
+    const safe = Math.max(0, Number(value) || 0);
+    const fixed = safe.toFixed(2);
+    return ['pt', 'es', 'fr'].includes(idiomaAtual) ? fixed.replace('.', ',') : fixed;
+}
+
+function getPlayerSourceDurationExact() {
+    const projectDuration = currentProject ? Number(currentProject.sourceDuration) : 0;
+    if (Number.isFinite(projectDuration) && projectDuration > 0) return projectDuration;
+    return Math.max(0, timelineTimeToProjectTime(playerVideo.duration || 0));
+}
+
+function updatePlayerTimeReadout(timelineTime = playerVideo.currentTime || 0) {
+    const readout = document.getElementById('video-time-readout');
+    const currentEl = document.getElementById('video-current-time');
+    const totalEl = document.getElementById('video-total-time');
+    if (!readout || !currentEl || !totalEl) return;
+    const total = getPlayerSourceDurationExact();
+    if (!(total > 0)) {
+        readout.style.display = 'none';
+        return;
+    }
+    const current = Math.max(0, Math.min(total, timelineTimeToProjectTime(Number(timelineTime) || 0)));
+    const currentText = `${formatTimelineSecondsExact(current)}s`;
+    const totalText = `${formatTimelineSecondsExact(total)}s`;
+    currentEl.textContent = currentText;
+    totalEl.textContent = totalText;
+    readout.style.display = 'flex';
+    const t = traducoes[idiomaAtual];
+    if (t && t.timeReadoutAria) readout.setAttribute('aria-label', t.timeReadoutAria.replace('{current}', currentText).replace('{total}', totalText));
+    if (typeof updateAdvancedHoldHint === 'function') updateAdvancedHoldHint(current);
+}
+
 function getCurrentFramingSettings() {
     const width = Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || playerVideo.videoWidth || 1);
     const height = Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || playerVideo.videoHeight || 1);
@@ -417,6 +451,7 @@ playerVideo.addEventListener('play', () => {
 function animarTimelineSmooth() {
     if (!playerVideo.paused && !isGenerating && !isBuildingTimeline && playerVideo.duration) {
         const percent = playerVideo.currentTime / playerVideo.duration;
+        updatePlayerTimeReadout();
         isProgrammaticScroll = true;
         scrollTimeline.scrollLeft = percent * filmstrip.offsetWidth;
         setTimeout(() => { isProgrammaticScroll = false; }, 20);
@@ -518,6 +553,7 @@ playerVideo.addEventListener('loadedmetadata', async function() {
     await desenharFilmstrip();
     if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
     atualizarBotoesELinhas();
+    updatePlayerTimeReadout();
     
     playerVideo.style.opacity = '1';
     document.getElementById('loading-overlay').style.display = 'none';
@@ -568,6 +604,7 @@ scrollTimeline.addEventListener('scroll', () => {
     let percent = scrollTimeline.scrollLeft / filmstrip.offsetWidth;
     percent = Math.max(0, Math.min(1, percent));
     targetTime = percent * playerVideo.duration;
+    updatePlayerTimeReadout(targetTime);
 
     if (!isSeeking && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
         isSeeking = true;
@@ -576,11 +613,19 @@ scrollTimeline.addEventListener('scroll', () => {
 });
 
 playerVideo.addEventListener('seeked', () => {
+    updatePlayerTimeReadout();
     isSeeking = false;
     if (playerVideo.paused && !isGenerating && !isBuildingTimeline && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
         isSeeking = true;
         playerVideo.currentTime = targetTime;
     }
+});
+
+playerVideo.addEventListener('timeupdate', () => updatePlayerTimeReadout());
+playerVideo.addEventListener('durationchange', () => updatePlayerTimeReadout());
+playerVideo.addEventListener('emptied', () => {
+    const readout = document.getElementById('video-time-readout');
+    if (readout) readout.style.display = 'none';
 });
 
 async function desenharFilmstrip() {
@@ -621,6 +666,7 @@ async function desenharFilmstrip() {
     }
 
     playerVideo.currentTime = 0;
+    updatePlayerTimeReadout(0);
     isProgrammaticScroll = true;
     scrollTimeline.scrollLeft = 0;
     
