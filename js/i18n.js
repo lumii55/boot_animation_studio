@@ -1,6 +1,6 @@
 const traducoes = {
     en: { 
-        titulo: "✨ Boot Animation Studio ✨",
+        titulo: "Boot Animation Studio",
         subtitulo: "Create, edit or apply a boot animation file!",
         dicasTitulo: "Tips for Beginners",
         dicaModuloPrefix: "Companion Module:",
@@ -75,6 +75,12 @@ const traducoes = {
         audioFadeOut: "Fade out",
         audioOffset: "Offset (+ later / − earlier)",
         audioNormalize: "Normalize peak",
+        p11VisualTitle: "Visual",
+        p11AudioTitle: "Audio",
+        p11OutputTitle: "Output",
+        p11AudioOff: "No audio",
+        p11AudioOn: "Audio enabled",
+        p11OutputPreparing: "Preparing estimate",
         advOptions: "Advanced options",
         advOpen: "Advanced Parts Editor",
         advOpenHint: "Optional: create more than Intro / Loop / Outro.",
@@ -280,7 +286,7 @@ const traducoes = {
         msgInjectingPast: "Injecting from the past... ✨"
     },
     pt: {
-        titulo: "✨ Boot Animation Studio ✨",
+        titulo: "Boot Animation Studio",
         subtitulo: "Crie, edite ou aplique um arquivo de boot animation!",
         dicasTitulo: "Dicas para Principiantes",
         dicaModuloPrefix: "Módulo Auxiliar:",
@@ -355,6 +361,12 @@ const traducoes = {
         audioFadeOut: "Fade de saída",
         audioOffset: "Offset (+ atrasa / − adianta)",
         audioNormalize: "Normalizar pico",
+        p11VisualTitle: "Visual",
+        p11AudioTitle: "Áudio",
+        p11OutputTitle: "Saída",
+        p11AudioOff: "Sem áudio",
+        p11AudioOn: "Áudio ativado",
+        p11OutputPreparing: "Preparando estimativa",
         advOptions: "Opções avançadas",
         advOpen: "Editor Avançado de Partes",
         advOpenHint: "Opcional: crie mais partes além de Abertura / Loop / Encerramento.",
@@ -560,7 +572,7 @@ const traducoes = {
         msgInjectingPast: "Injetando do passado... ✨"
     },
     es: {
-        titulo: "✨ Boot Animation Studio ✨",
+        titulo: "Boot Animation Studio",
         subtitulo: "¡Crea, edite o aplica un archivo de boot animation!",
         dicasTitulo: "Consejos para Principiantes",
         dicaModuloPrefix: "Módulo Auxiliar:",
@@ -635,6 +647,12 @@ const traducoes = {
         audioFadeOut: "Fundido de salida",
         audioOffset: "Desfase (+ retrasa / − adelanta)",
         audioNormalize: "Normalizar pico",
+        p11VisualTitle: "Visual",
+        p11AudioTitle: "Audio",
+        p11OutputTitle: "Salida",
+        p11AudioOff: "Sin audio",
+        p11AudioOn: "Audio activado",
+        p11OutputPreparing: "Preparando estimación",
         advOptions: "Opciones avanzadas",
         advOpen: "Editor Avanzado de Partes",
         advOpenHint: "Opcional: crea más partes además de Intro / Bucle / Final.",
@@ -840,7 +858,7 @@ const traducoes = {
         msgInjectingPast: "Inyectando del pasado... ✨"
     },
     fr: {
-        titulo: "✨ Boot Animation Studio ✨",
+        titulo: "Boot Animation Studio",
         subtitulo: "Créez, éditez ou appliquez un fichier boot animation !",
         dicasTitulo: "Conseils pour Débutants",
         dicaModuloPrefix: "Module Compagnon:",
@@ -915,6 +933,12 @@ const traducoes = {
         audioFadeOut: "Fondu de sortie",
         audioOffset: "Décalage (+ retarde / − avance)",
         audioNormalize: "Normaliser le pic",
+        p11VisualTitle: "Visuel",
+        p11AudioTitle: "Audio",
+        p11OutputTitle: "Sortie",
+        p11AudioOff: "Sans audio",
+        p11AudioOn: "Audio activé",
+        p11OutputPreparing: "Préparation de l’estimation",
         advOptions: "Options avancées",
         advOpen: "Éditeur Avancé des Parties",
         advOpenHint: "Optionnel : créez plus de parties que Intro / Boucle / Fin.",
@@ -1273,5 +1297,6 @@ function mudarIdioma(lang) {
     atualizarBotoesELinhas();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof syncOptimizerText === 'function') syncOptimizerText();
+    if (typeof syncP11UiText === 'function') syncP11UiText();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
