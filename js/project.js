@@ -63,7 +63,9 @@ function createFrameProject(options) {
 }
 
 function setCurrentProject(project) {
+    const projectChanged = project !== currentProject;
     currentProject = project;
+    if (projectChanged) jpegExportQuality = 0.90;
     if (currentProject && !currentProject.framingFocus) currentProject.framingFocus = { x: 0.5, y: 0.5, zoom: 1 };
     if (currentProject && currentProject.framingFocus && !Number.isFinite(Number(currentProject.framingFocus.zoom))) currentProject.framingFocus.zoom = 1;
     if (currentProject && !Array.isArray(currentProject.advancedParts)) currentProject.advancedParts = [];
@@ -188,20 +190,31 @@ function setProjectEditorBaseline(frameSettings, audioState) {
             width: frameSettings.width,
             height: frameSettings.height,
             fps: frameSettings.fps,
-            format: frameSettings.format
+            format: frameSettings.format,
+            jpegQuality: 0.90
         },
         audio: audioState
     };
+}
+
+function normalizeJpegExportQuality(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0.90;
+    return Math.max(0.55, Math.min(0.95, numeric));
 }
 
 function frameSettingsMatchProjectBaseline(settings) {
     const baseline = currentProject && currentProject.editorBaseline && currentProject.editorBaseline.frame;
     if (!baseline) return false;
     const focus = settings.framingFocus || getCurrentFramingFocus();
+    const baselineQuality = normalizeJpegExportQuality(baseline.jpegQuality);
+    const activeQuality = normalizeJpegExportQuality(settings.jpegQuality);
+    const qualityMatches = settings.format !== 'jpeg' || Math.abs(activeQuality - baselineQuality) < 0.0001;
     return baseline.width === settings.width &&
         baseline.height === settings.height &&
         baseline.fps === settings.fps &&
         baseline.format === settings.format &&
+        qualityMatches &&
         normalizeFramingZoomValue(focus.zoom) === 1;
 }
 
@@ -430,9 +443,9 @@ async function seekPlayer(time) {
     });
 }
 
-async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover', framingFocus = null) {
+async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover', framingFocus = null, jpegQuality = 0.90) {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = format === 'jpeg' ? 0.90 : undefined;
+    const quality = format === 'jpeg' ? normalizeJpegExportQuality(jpegQuality) : undefined;
 
     if (projectUsesFrames()) {
         const frame = getProjectFrameAtTime(sourceTime);
@@ -440,7 +453,7 @@ async function getProjectFrameOutputBlob(sourceTime, width, height, format, fram
         const frameBlob = await getProjectFrameBlob(frame);
 
         const activeFocus = framingFocus || getCurrentFramingFocus();
-        if (width === currentProject.width && height === currentProject.height && frame.format === format && normalizeFramingZoomValue(activeFocus.zoom) === 1) {
+        if (width === currentProject.width && height === currentProject.height && frame.format === format && normalizeFramingZoomValue(activeFocus.zoom) === 1 && (format !== 'jpeg' || Math.abs(quality - 0.90) < 0.0001)) {
             return frameBlob;
         }
 

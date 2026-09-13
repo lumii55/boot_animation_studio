@@ -25,6 +25,7 @@ function getPerformanceOptions() {
         width: Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || 1),
         height: Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || 1),
         format: document.getElementById('input-formato').value,
+        jpegQuality: normalizeJpegExportQuality(jpegExportQuality),
         framing: normalizeFramingMode(document.getElementById('input-enquadramento').value),
         framingFocus: getCurrentFramingFocus(),
         manufacturer: document.getElementById('input-fabricante').value,
@@ -98,7 +99,7 @@ function getPerformanceSampleKey(options) {
     const advancedSignature = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedParts === 'function'
         ? getAdvancedParts().map(part => `${part.start.toFixed(3)}-${part.end.toFixed(3)}`).join(',')
         : '';
-    return `${options.width}x${options.height}:${options.format}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}:${advancedSignature}`;
+    return `${options.width}x${options.height}:${options.format}:${options.jpegQuality.toFixed(3)}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}:${advancedSignature}`;
 }
 
 function getCalibratedFrameBytes(options) {
@@ -168,7 +169,7 @@ async function sampleTemporalFrameBytes(options, project, version) {
     canvas.height = options.height;
     const ctx = canvas.getContext('2d', { alpha: false });
     const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = options.format === 'jpeg' ? 0.90 : undefined;
+    const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
 
     try {
         const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
@@ -222,7 +223,7 @@ async function sampleFrameProjectBytes(options, project, version) {
     canvas.height = options.height;
     const ctx = canvas.getContext('2d', { alpha: false });
     const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = options.format === 'jpeg' ? 0.90 : undefined;
+    const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
 
     try {
         const span = source.m3 - source.m0;
@@ -309,7 +310,7 @@ function getGeneratedModuleCopyCount(manufacturer) {
     return counts[manufacturer] || counts.standard;
 }
 
-function estimateExportPerformance(options = getPerformanceOptions()) {
+function estimateExportPerformance(options = getPerformanceOptions(), frameBytesOverride = 0) {
     const sourceMarkers = getValidSourceMarkerRange();
     if (!sourceMarkers) return null;
 
@@ -319,7 +320,7 @@ function estimateExportPerformance(options = getPerformanceOptions()) {
     const simpleFrames = getSimpleFrameCount(options.fps);
     const totalFrames = importedPreserve ? (frameSettingsChanged ? getImportedRoundTripFrameCount(options.fps) : currentProject.frames.length) : simpleFrames;
     const framesToProcess = untouched || (importedPreserve && !frameSettingsChanged) ? 0 : totalFrames;
-    const frameBytes = estimateEncodedFrameBytes(options);
+    const frameBytes = frameBytesOverride > 0 ? frameBytesOverride : estimateEncodedFrameBytes(options);
     const audioBytes = estimateAudioBytes(options, importedPreserve);
 
     let bootBytes;
@@ -447,11 +448,399 @@ function confirmHeavyExport(estimate) {
     return window.confirm(message);
 }
 
+
+let optimizerAnalysisVersion = 0;
+let optimizerRecommendation = null;
+let optimizerBaseEstimate = null;
+let optimizerApplying = false;
+
+function getOptimizationSourceRange() {
+    const source = getValidSourceMarkerRange();
+    if (!source || source.m3 <= source.m0) return null;
+    return source;
+}
+
+function cloneOptimizationOptions(options) {
+    return {
+        ...options,
+        framingFocus: { ...options.framingFocus },
+        audio: options.audio
+    };
+}
+
+function evenDimension(value) {
+    return Math.max(2, Math.floor(Math.max(2, value) / 2) * 2);
+}
+
+function getOptimizationResolution(options) {
+    const largest = Math.max(options.width, options.height);
+    if (largest <= 600) return null;
+    const scale = largest > 1600 ? 0.78 : largest > 1000 ? 0.82 : 0.86;
+    const width = evenDimension(options.width * scale);
+    const height = evenDimension(options.height * scale);
+    if (width >= options.width || height >= options.height) return null;
+    return { width, height };
+}
+
+function getOptimizationFps(fps) {
+    if (fps >= 55) return 48;
+    if (fps >= 45) return 40;
+    if (fps > 30) return 30;
+    if (fps === 30) return 25;
+    if (fps >= 26) return 24;
+    if (fps >= 23) return 20;
+    return null;
+}
+
+function getOptimizationQuality(options) {
+    if (options.format !== 'jpeg') return 0.88;
+    const quality = normalizeJpegExportQuality(options.jpegQuality);
+    if (quality > 0.86) return 0.84;
+    if (quality > 0.80) return 0.78;
+    if (quality > 0.74) return 0.72;
+    return null;
+}
+
+function addOptimizationCandidate(list, seen, base, patch) {
+    const candidate = cloneOptimizationOptions(base);
+    Object.assign(candidate, patch);
+    candidate.jpegQuality = normalizeJpegExportQuality(candidate.jpegQuality);
+    candidate.width = evenDimension(candidate.width);
+    candidate.height = evenDimension(candidate.height);
+    candidate.fps = Math.max(1, Math.min(60, Math.round(candidate.fps)));
+    const key = `${candidate.width}x${candidate.height}:${candidate.fps}:${candidate.format}:${candidate.jpegQuality.toFixed(3)}`;
+    const baseKey = `${base.width}x${base.height}:${base.fps}:${base.format}:${base.jpegQuality.toFixed(3)}`;
+    if (key === baseKey || seen.has(key)) return;
+    seen.add(key);
+    list.push(candidate);
+}
+
+function buildOptimizationCandidates(base) {
+    const list = [];
+    const seen = new Set();
+    const resolution = getOptimizationResolution(base);
+    const fps = getOptimizationFps(base.fps);
+    const quality = getOptimizationQuality(base);
+    const imagePatch = base.format === 'png'
+        ? { format: 'jpeg', jpegQuality: quality || 0.88 }
+        : quality ? { jpegQuality: quality } : null;
+
+    if (imagePatch) addOptimizationCandidate(list, seen, base, imagePatch);
+    if (fps) addOptimizationCandidate(list, seen, base, { fps });
+    if (resolution) addOptimizationCandidate(list, seen, base, resolution);
+    if (imagePatch && fps) addOptimizationCandidate(list, seen, base, { ...imagePatch, fps });
+    if (imagePatch && resolution) addOptimizationCandidate(list, seen, base, { ...imagePatch, ...resolution });
+    if (fps && resolution) addOptimizationCandidate(list, seen, base, { fps, ...resolution });
+    if (imagePatch && fps && resolution) addOptimizationCandidate(list, seen, base, { ...imagePatch, fps, ...resolution });
+    return list;
+}
+
+function getOptimizationPenalty(base, candidate) {
+    let penalty = 0;
+    if (base.format !== candidate.format) penalty += 0.9;
+    if (candidate.format === 'jpeg') {
+        const baseQuality = base.format === 'jpeg' ? base.jpegQuality : 0.90;
+        penalty += Math.max(0, baseQuality - candidate.jpegQuality) * 8;
+    }
+    if (candidate.fps < base.fps) penalty += (1 - candidate.fps / base.fps) * 2.5;
+    const basePixels = Math.max(1, base.width * base.height);
+    const candidatePixels = Math.max(1, candidate.width * candidate.height);
+    if (candidatePixels < basePixels) penalty += (1 - candidatePixels / basePixels) * 2.5;
+    return penalty;
+}
+
+function getOptimizationImpact(penalty) {
+    if (penalty <= 1.0) return 'low';
+    if (penalty <= 1.8) return 'medium';
+    return 'high';
+}
+
+function getOptimizationChanges(base, candidate) {
+    const changes = [];
+    if (base.format !== candidate.format) changes.push(candidate.format.toUpperCase());
+    if (candidate.format === 'jpeg' && (base.format !== 'jpeg' || Math.abs(candidate.jpegQuality - base.jpegQuality) >= 0.005)) {
+        changes.push(`JPEG ${Math.round(candidate.jpegQuality * 100)}%`);
+    }
+    if (candidate.fps !== base.fps) changes.push(`${candidate.fps} FPS`);
+    if (candidate.width !== base.width || candidate.height !== base.height) changes.push(`${candidate.width}×${candidate.height}`);
+    return changes;
+}
+
+async function measureOptimizationFrameBytes(options, version) {
+    const project = currentProject;
+    if (!project || version !== optimizerAnalysisVersion) throw new Error('cancelled');
+    const cached = getCalibratedFrameBytes(options);
+    if (cached > 0) return cached;
+    const source = getOptimizationSourceRange();
+    if (!source) throw new Error('range');
+    const canvas = document.createElement('canvas');
+    canvas.width = options.width;
+    canvas.height = options.height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
+    const span = source.m3 - source.m0;
+    const times = [0.2, 0.5, 0.8].map(fraction => source.m0 + span * fraction);
+    const sizes = [];
+    let video = null;
+    let url = null;
+
+    try {
+        if (project.sourceMode === 'temporal') {
+            const sourceBlob = project.sourceType === 'gif' ? project.previewBlob : (project.sourceBlob || project.previewBlob);
+            if (!sourceBlob) throw new Error('source');
+            video = document.createElement('video');
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'auto';
+            url = URL.createObjectURL(sourceBlob);
+            const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
+            video.src = url;
+            video.load();
+            await metadataReady;
+            if (video.readyState < 2) await waitForSampleVideoEvent(video, 'loadeddata');
+        }
+
+        for (const time of times) {
+            if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
+            if (project.sourceMode === 'frames') {
+                const frame = getProjectFrameAtTime(time);
+                if (!frame) continue;
+                const blob = await getProjectFrameBlob(frame);
+                const drawable = await blobToDrawable(blob);
+                drawFramedDrawable(ctx, drawable, options.width, options.height, options.framing, options.framingFocus);
+                releaseDrawable(drawable);
+            } else {
+                await seekSampleVideo(video, projectTimeToTimelineTime(time));
+                drawFramedDrawable(ctx, video, options.width, options.height, options.framing, options.framingFocus);
+            }
+            const encoded = await canvasToBlobAsync(canvas, mimeType, quality);
+            sizes.push(encoded.size);
+            await cooperativeYield();
+        }
+    } finally {
+        if (video) {
+            video.removeAttribute('src');
+            video.load();
+        }
+        if (url) URL.revokeObjectURL(url);
+        canvas.width = 1;
+        canvas.height = 1;
+    }
+
+    if (!sizes.length) throw new Error('sample');
+    const average = Math.max(2048, (sizes.reduce((sum, size) => sum + size, 0) / sizes.length) * 1.08);
+    let samples = performanceFrameSamples.get(project);
+    if (!samples) {
+        samples = new Map();
+        performanceFrameSamples.set(project, samples);
+    }
+    samples.set(getPerformanceSampleKey(options), average);
+    return average;
+}
+
+function chooseOptimizationRecommendation(baseEstimate, results) {
+    const useful = results.filter(item => item.savingPercent >= 5 && item.estimate.bootBytes < baseEstimate.bootBytes);
+    if (!useful.length) return null;
+    if (baseEstimate.bootBytes > 20 * 1024 * 1024) {
+        const underTarget = useful.filter(item => item.estimate.bootBytes <= 20 * 1024 * 1024 && item.impact !== 'high');
+        if (underTarget.length) return underTarget.sort((a, b) => a.penalty - b.penalty || b.savingPercent - a.savingPercent)[0];
+    }
+    const low = useful.filter(item => item.impact === 'low').sort((a, b) => b.savingPercent - a.savingPercent);
+    if (low.length) return low[0];
+    const medium = useful.filter(item => item.impact === 'medium').sort((a, b) => b.savingPercent - a.savingPercent);
+    if (medium.length) return medium[0];
+    return useful.sort((a, b) => b.savingPercent - a.savingPercent)[0];
+}
+
+function setOptimizerBusy(busy) {
+    const button = document.getElementById('btn-optimize');
+    if (!button) return;
+    button.disabled = busy;
+    button.classList.toggle('is-busy', busy);
+}
+
+function setOptimizerStatus(text) {
+    const status = document.getElementById('optimizer-status');
+    if (status) status.textContent = text || '';
+}
+
+function updateOptimizerQualityBadge() {
+    const badge = document.getElementById('optimizer-quality-badge');
+    if (!badge) return;
+    const t = traducoes[idiomaAtual];
+    if (document.getElementById('input-formato')?.value === 'jpeg' && Math.abs(jpegExportQuality - 0.90) >= 0.005) {
+        badge.textContent = t.optimizeQualityActive.replace('{value}', Math.round(jpegExportQuality * 100));
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function renderOptimizerRecommendation(recommendation, baseEstimate) {
+    const result = document.getElementById('optimizer-result');
+    if (!result) return;
+    const t = traducoes[idiomaAtual];
+    if (!recommendation) {
+        result.style.display = 'none';
+        setOptimizerStatus(t.optimizeNoGain);
+        return;
+    }
+    optimizerRecommendation = recommendation;
+    result.style.display = 'flex';
+    document.getElementById('optimizer-current-size').textContent = `≈ ${formatByteEstimate(baseEstimate.bootBytes)}`;
+    document.getElementById('optimizer-new-size').textContent = `≈ ${formatByteEstimate(recommendation.estimate.bootBytes)}`;
+    document.getElementById('optimizer-saving').textContent = t.optimizeSaving.replace('{percent}', recommendation.savingPercent.toFixed(0));
+    const impactText = recommendation.impact === 'low' ? t.optimizeImpactLow : recommendation.impact === 'medium' ? t.optimizeImpactMedium : t.optimizeImpactHigh;
+    const impact = document.getElementById('optimizer-impact');
+    impact.textContent = `${t.optimizeImpact}: ${impactText}`;
+    impact.dataset.level = recommendation.impact;
+    const changes = document.getElementById('optimizer-changes');
+    changes.innerHTML = '';
+    recommendation.changes.forEach(change => {
+        const chip = document.createElement('span');
+        chip.textContent = change;
+        changes.appendChild(chip);
+    });
+    document.getElementById('btn-optimizer-apply').disabled = false;
+    document.getElementById('btn-optimizer-apply').textContent = t.optimizeApply;
+    setOptimizerStatus(t.optimizeReady);
+}
+
+function invalidateOptimizerResult() {
+    if (optimizerApplying) return;
+    optimizerAnalysisVersion++;
+    optimizerRecommendation = null;
+    optimizerBaseEstimate = null;
+    const result = document.getElementById('optimizer-result');
+    if (result) result.style.display = 'none';
+    setOptimizerStatus('');
+    setOptimizerBusy(false);
+    updateOptimizerQualityBadge();
+}
+
+async function runSmartOptimizer() {
+    if (!currentProject || isGenerating) return;
+    const t = traducoes[idiomaAtual];
+    const base = getPerformanceOptions();
+    const candidates = buildOptimizationCandidates(base);
+    const version = ++optimizerAnalysisVersion;
+    optimizerRecommendation = null;
+    const panel = document.getElementById('optimizer-panel');
+    const result = document.getElementById('optimizer-result');
+    if (panel) panel.style.display = 'flex';
+    if (result) result.style.display = 'none';
+    setOptimizerBusy(true);
+
+    try {
+        setOptimizerStatus(t.optimizeAnalyzing.replace('{current}', '1').replace('{total}', String(candidates.length + 1)));
+        const baseFrameBytes = await measureOptimizationFrameBytes(base, version);
+        if (version !== optimizerAnalysisVersion) return;
+        const baseEstimate = estimateExportPerformance(base, baseFrameBytes);
+        optimizerBaseEstimate = baseEstimate;
+        const results = [];
+
+        for (let i = 0; i < candidates.length; i++) {
+            if (version !== optimizerAnalysisVersion) return;
+            setOptimizerStatus(t.optimizeAnalyzing.replace('{current}', String(i + 2)).replace('{total}', String(candidates.length + 1)));
+            const candidate = candidates[i];
+            const frameBytes = await measureOptimizationFrameBytes(candidate, version);
+            const estimate = estimateExportPerformance(candidate, frameBytes);
+            const savingPercent = Math.max(0, (1 - estimate.bootBytes / Math.max(1, baseEstimate.bootBytes)) * 100);
+            const penalty = getOptimizationPenalty(base, candidate);
+            results.push({
+                options: candidate,
+                estimate,
+                savingPercent,
+                penalty,
+                impact: getOptimizationImpact(penalty),
+                changes: getOptimizationChanges(base, candidate)
+            });
+        }
+
+        if (version !== optimizerAnalysisVersion) return;
+        renderOptimizerRecommendation(chooseOptimizationRecommendation(baseEstimate, results), baseEstimate);
+    } catch (error) {
+        if (version !== optimizerAnalysisVersion || error.message === 'cancelled') return;
+        setOptimizerStatus(t.optimizeFailed);
+        if (typeof showToast === 'function') showToast(t.optimizeFailed, 'error', 4200);
+    } finally {
+        if (version === optimizerAnalysisVersion) setOptimizerBusy(false);
+    }
+}
+
+function applyOptimizerRecommendation() {
+    if (!optimizerRecommendation) return;
+    const t = traducoes[idiomaAtual];
+    const options = optimizerRecommendation.options;
+    optimizerApplying = true;
+    document.getElementById('input-formato').value = options.format;
+    document.getElementById('input-fps').value = options.fps;
+    document.getElementById('input-largura').value = options.width;
+    document.getElementById('input-altura').value = options.height;
+    jpegExportQuality = normalizeJpegExportQuality(options.jpegQuality);
+    if (typeof aoMudarTamanhoManual === 'function') aoMudarTamanhoManual();
+    if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
+    optimizerApplying = false;
+    updateOptimizerQualityBadge();
+    schedulePerformanceEstimate();
+    const button = document.getElementById('btn-optimizer-apply');
+    if (button) {
+        button.disabled = true;
+        button.textContent = t.optimizeAppliedButton;
+    }
+    setOptimizerStatus(t.optimizeApplied);
+    if (typeof showToast === 'function') showToast(t.optimizeApplied, 'success', 3400);
+}
+
+function syncOptimizerText() {
+    const t = traducoes[idiomaAtual];
+    const button = document.getElementById('btn-optimize');
+    const title = document.getElementById('optimizer-title');
+    const hint = document.getElementById('optimizer-hint');
+    const current = document.getElementById('optimizer-current-label');
+    const suggested = document.getElementById('optimizer-new-label');
+    const apply = document.getElementById('btn-optimizer-apply');
+    if (button) button.textContent = t.optimizeButton;
+    if (title) title.textContent = t.optimizeTitle;
+    if (hint) hint.textContent = t.optimizeHint;
+    if (current) current.textContent = t.optimizeCurrent;
+    if (suggested) suggested.textContent = t.optimizeSuggested;
+    if (apply && !apply.disabled) apply.textContent = t.optimizeApply;
+    updateOptimizerQualityBadge();
+    if (optimizerRecommendation) {
+        const saving = document.getElementById('optimizer-saving');
+        const impact = document.getElementById('optimizer-impact');
+        const apply = document.getElementById('btn-optimizer-apply');
+        if (saving) saving.textContent = t.optimizeSaving.replace('{percent}', optimizerRecommendation.savingPercent.toFixed(0));
+        if (impact) {
+            const impactText = optimizerRecommendation.impact === 'low' ? t.optimizeImpactLow : optimizerRecommendation.impact === 'medium' ? t.optimizeImpactMedium : t.optimizeImpactHigh;
+            impact.textContent = `${t.optimizeImpact}: ${impactText}`;
+        }
+        if (apply) apply.textContent = apply.disabled ? t.optimizeAppliedButton : t.optimizeApply;
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     const config = document.getElementById('configuracoes');
     if (config) {
-        config.addEventListener('input', schedulePerformanceEstimate);
-        config.addEventListener('change', schedulePerformanceEstimate);
+        config.addEventListener('input', event => {
+            schedulePerformanceEstimate();
+            if (event.target && event.target.id !== 'btn-optimize') invalidateOptimizerResult();
+        });
+        config.addEventListener('change', event => {
+            schedulePerformanceEstimate();
+            if (event.target && event.target.id === 'input-formato' && !optimizerApplying) jpegExportQuality = 0.90;
+            invalidateOptimizerResult();
+        });
     }
+    document.getElementById('btn-optimize')?.addEventListener('click', runSmartOptimizer);
+    document.getElementById('btn-optimizer-apply')?.addEventListener('click', applyOptimizerRecommendation);
+    document.getElementById('optimizer-quality-badge')?.addEventListener('click', () => {
+        jpegExportQuality = 0.90;
+        invalidateOptimizerResult();
+        schedulePerformanceEstimate();
+    });
+    syncOptimizerText();
     schedulePerformanceEstimate();
 });

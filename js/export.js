@@ -10,6 +10,7 @@ function getExportOptions() {
         width,
         height,
         format: document.getElementById('input-formato').value,
+        jpegQuality: normalizeJpegExportQuality(jpegExportQuality),
         framing: normalizeFramingMode(document.getElementById('input-enquadramento').value),
         framingFocus: getCurrentFramingFocus(),
         manufacturer: document.getElementById('input-fabricante').value,
@@ -233,7 +234,7 @@ async function regenerateImportedPartFrames(zip, options, t) {
             if (sourceFrame && sourceFrame === lastSourceFrame && outputFormat === lastOutputFormat) {
                 blob = lastOutputBlob;
             } else {
-                blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, outputFormat, options.framing, options.framingFocus);
+                blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, outputFormat, options.framing, options.framingFocus, options.jpegQuality);
                 lastSourceFrame = sourceFrame;
                 lastOutputFormat = outputFormat;
                 lastOutputBlob = blob;
@@ -379,7 +380,7 @@ async function generateAdvancedPartFrames(zip, options, t) {
         const endLimit = Math.max(part.start, part.end - (1 / Math.max(options.fps, currentProject.fps || options.fps, 1)));
         for (let i = 0; i < count; i++) {
             const sourceTime = Math.min(endLimit, part.start + (i / options.fps));
-            const blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus);
+            const blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality);
             folder.file(`${String(i).padStart(5, '0')}${extension}`, blob);
             completed++;
             if (completed % 4 === 0 || completed === totalFrames) {
@@ -429,7 +430,7 @@ async function buildAdvancedBootanimation(options, t) {
 
 async function buildSimpleBootanimation(options, t) {
     const zip = new JSZip();
-    await paparazzoOtimizado(zip, options.width, options.height, options.fps, options.format, options.framing, options.framingFocus, t);
+    await paparazzoOtimizado(zip, options.width, options.height, options.fps, options.format, options.framing, options.framingFocus, options.jpegQuality, t);
     zip.file('desc.txt', `${options.width} ${options.height} ${options.fps}\nc 1 0 part0\np 0 0 part1\nc 1 0 part2\n`);
     await applySimpleAudio(zip, options.audio, t);
     document.getElementById('texto-progresso').textContent = t.compactandoZip;
@@ -562,7 +563,7 @@ btnGerar.addEventListener('click', async () => {
     }
 });
 
-async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, framingFocus, t) {
+async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, framingFocus, jpegQuality, t) {
     const pasta0 = zip.folder('part0');
     const pasta1 = zip.folder('part1');
     const pasta2 = zip.folder('part2');
@@ -580,7 +581,7 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, f
 
     for (let i = 0; i < totalFotos; i++) {
         const sourceTime = sourceMarkers.m0 + (i * intervalo);
-        const blob = await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing, framingFocus);
+        const blob = await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality);
         let pastaAlvo;
         let numFoto;
 
