@@ -146,7 +146,9 @@ window.atualizarPreviewEnquadramento = function() {
     const settings = getCurrentFramingSettings();
     const wrapper = document.getElementById('framing-preview');
     const availableWidth = Math.max(1, videoContainer.clientWidth || 450);
-    sizeFramingPreview(wrapper, availableWidth, Math.max(120, window.innerHeight * 0.35), settings.width, settings.height);
+    const dedicatedFraming = videoContainer.classList.contains('p11-framing-active');
+    const previewHeightRatio = dedicatedFraming ? 0.52 : 0.35;
+    sizeFramingPreview(wrapper, availableWidth, Math.max(120, window.innerHeight * previewHeightRatio), settings.width, settings.height);
 
     const modalWrapper = document.getElementById('modal-framing-preview');
     sizeFramingPreview(modalWrapper, Math.max(1, Math.min(window.innerWidth * 0.8, 520)), Math.max(120, window.innerHeight * 0.55), settings.width, settings.height);
@@ -460,7 +462,7 @@ function animarTimelineSmooth() {
 }
 
 function ajustarPaddings() {
-    const pad = (timelineWrapper.clientWidth / 2) + "px";
+    const pad = (Math.max(1, scrollTimeline.clientWidth || timelineWrapper.clientWidth) / 2) + "px";
     document.getElementById('pad-left').style.width = pad;
     document.getElementById('pad-left').style.minWidth = pad;
     document.getElementById('pad-right').style.width = pad;
@@ -716,6 +718,8 @@ function atualizarBotoesELinhas() {
         const tempo = marcadores[id];
         const spanStatus = document.getElementById(`st-${id}`);
         
+        const markerButton = document.querySelector(`.btn-${id}`);
+        if (markerButton) markerButton.classList.toggle('p11-marker-set', tempo !== null);
         if (tempo !== null) {
             const tempoExibido = timelineTimeToProjectTime(tempo);
             spanStatus.textContent = tempoExibido.toFixed(2) + 's';
