@@ -92,30 +92,75 @@
             </div>
 
             <div class="video-container" id="video-container">
+                <div class="p11-preview-head">
+                    <div class="p11-preview-copy">
+                        <span id="p11-preview-kicker">Preview</span>
+                        <strong id="p11-preview-title">Your boot animation</strong>
+                    </div>
+                    <button type="button" class="p11-framing-open" id="p11-framing-open">
+                        <span aria-hidden="true">⌗</span>
+                        <span id="p11-framing-open-label">Adjust framing</span>
+                    </button>
+                </div>
                 <div class="framing-preview" id="framing-preview">
                     <video id="player-video" playsinline class="pausado"></video>
                     <button type="button" class="focus-reset" id="btn-reset-focus" aria-label="Reset crop" title="Reset crop">◎</button>
                 </div>
-                <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
-                <div class="video-time-readout" id="video-time-readout" role="status" aria-live="off" style="display: none;">
-                    <span class="video-time-icon">⏱️</span>
-                    <strong id="video-current-time">0.00s</strong>
-                    <span class="video-time-separator">/</span>
-                    <span id="video-total-time">0.00s</span>
+                <div class="p11-player-bar">
+                    <button type="button" class="p11-play-toggle" id="p11-play-toggle" aria-label="Play">
+                        <span id="p11-play-icon" aria-hidden="true">▶</span>
+                        <span id="p11-play-label">Play</span>
+                    </button>
+                    <div class="video-time-readout" id="video-time-readout" role="status" aria-live="off" style="display: none;">
+                        <span class="video-time-icon">⏱</span>
+                        <strong id="video-current-time">0.00s</strong>
+                        <span class="video-time-separator">/</span>
+                        <span id="video-total-time">0.00s</span>
+                    </div>
                 </div>
+                <div class="p11-framing-session" id="p11-framing-session" aria-hidden="true">
+                    <div class="p11-framing-session-head">
+                        <div>
+                            <strong id="p11-framing-title">Framing</strong>
+                            <small id="p11-framing-hint">Drag to position · pinch to zoom in Fill mode.</small>
+                        </div>
+                        <button type="button" class="p11-framing-done" id="p11-framing-done">Done</button>
+                    </div>
+                    <div class="p11-framing-mode-row" role="group" aria-label="Framing mode">
+                        <button type="button" class="p11-framing-mode" data-framing-mode="cover" id="p11-framing-cover">Fill</button>
+                        <button type="button" class="p11-framing-mode" data-framing-mode="contain" id="p11-framing-contain">Fit</button>
+                        <button type="button" class="p11-framing-mode" data-framing-mode="stretch" id="p11-framing-stretch">Stretch</button>
+                    </div>
+                </div>
+                <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
             </div>
 
             <div class="timeline-wrapper" id="timeline-wrapper">
-                <div class="playhead-centro"></div>
-                <div class="timeline-scroll" id="timeline-scroll">
-                    <div class="filmstrip-container">
-                        <div class="pad-spacer" id="pad-left"></div>
-                        <div class="filmstrip" id="filmstrip"></div>
-                        <div class="pad-spacer" id="pad-right"></div>
+                <div class="p11-timeline-head">
+                    <div class="p11-timeline-copy">
+                        <strong id="p11-timeline-title">Timeline</strong>
+                        <small id="p11-timeline-hint">Swipe to choose the exact moment.</small>
+                    </div>
+                    <span class="p11-timeline-readout" id="p11-timeline-readout">0.00s / 0.00s</span>
+                </div>
+                <div class="p11-timeline-stage">
+                    <div class="playhead-centro"></div>
+                    <div class="timeline-scroll" id="timeline-scroll">
+                        <div class="filmstrip-container">
+                            <div class="pad-spacer" id="pad-left"></div>
+                            <div class="filmstrip" id="filmstrip"></div>
+                            <div class="pad-spacer" id="pad-right"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <div class="p11-marker-head" id="p11-marker-head">
+                <div>
+                    <strong id="p11-marker-title">Mark sections</strong>
+                    <small id="p11-marker-hint">Use the current time to set each boundary.</small>
+                </div>
+            </div>
             <p id="txt-hint-tooltip" class="hint-tooltip"></p>
             <div class="grid-marcadores" id="grid-marcadores">
                 <button class="btn-marc btn-m0" onclick="marcarTrecho('m0')">📍 <span id="lbl-m0">1. Intro</span><br><span class="status-marc" id="st-m0">Not marked</span></button>
