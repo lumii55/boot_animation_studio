@@ -126,6 +126,7 @@ function estimateEncodedFrameBytes(options) {
 
 function waitForSampleVideoEvent(video, eventName) {
     return new Promise((resolve, reject) => {
+        let timeoutId = null;
         const done = () => {
             cleanup();
             resolve();
@@ -135,11 +136,13 @@ function waitForSampleVideoEvent(video, eventName) {
             reject(new Error('Unable to sample video'));
         };
         const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId);
             video.removeEventListener(eventName, done);
             video.removeEventListener('error', fail);
         };
         video.addEventListener(eventName, done, { once: true });
         video.addEventListener('error', fail, { once: true });
+        timeoutId = setTimeout(fail, 10000);
     });
 }
 
@@ -566,58 +569,129 @@ function getOptimizationChanges(base, candidate) {
     return changes;
 }
 
-async function measureOptimizationFrameBytes(options, version) {
+function getOptimizationEncodingWeight(options) {
+    const pixels = Math.max(1, options.width * options.height);
+    if (options.format === 'png') return pixels * 0.32;
+    const quality = normalizeJpegExportQuality(options.jpegQuality);
+    const qualityFactor = Math.pow(Math.max(0.45, quality) / 0.90, 1.7);
+    return pixels * 0.035 * qualityFactor;
+}
+
+function getOptimizationFallbackFrameBytes(base, options, baseFrameBytes) {
+    const calibrated = getCalibratedFrameBytes(options);
+    if (calibrated > 0) return calibrated;
+    const baseWeight = getOptimizationEncodingWeight(base);
+    const optionWeight = getOptimizationEncodingWeight(options);
+    if (baseFrameBytes > 0 && baseWeight > 0) {
+        return Math.max(2048, baseFrameBytes * optionWeight / baseWeight);
+    }
+    const estimated = estimateEncodedFrameBytes(options);
+    if (options.format !== 'jpeg') return estimated;
+    const quality = normalizeJpegExportQuality(options.jpegQuality);
+    return Math.max(2048, estimated * Math.pow(quality / 0.90, 1.7));
+}
+
+function storeOptimizationRealSample(project, options, sizes) {
+    if (!project || !sizes.length) return 0;
+    const average = Math.max(2048, (sizes.reduce((sum, size) => sum + size, 0) / sizes.length) * 1.08);
+    let samples = performanceFrameSamples.get(project);
+    if (!samples) {
+        samples = new Map();
+        performanceFrameSamples.set(project, samples);
+    }
+    samples.set(getPerformanceSampleKey(options), average);
+    return average;
+}
+
+async function measureOptimizationFrameBytesBatch(optionsList, version) {
     const project = currentProject;
     if (!project || version !== optimizerAnalysisVersion) throw new Error('cancelled');
-    const cached = getCalibratedFrameBytes(options);
-    if (cached > 0) return cached;
+    const values = new Map();
+    const pending = [];
+    const sizes = new Map();
+
+    optionsList.forEach(options => {
+        const cached = getCalibratedFrameBytes(options);
+        if (cached > 0) values.set(options, cached);
+        else {
+            pending.push(options);
+            sizes.set(options, []);
+        }
+    });
+
+    if (!pending.length) return { values, approximate: false };
+
     const source = getOptimizationSourceRange();
     if (!source) throw new Error('range');
     const canvas = document.createElement('canvas');
-    canvas.width = options.width;
-    canvas.height = options.height;
     const ctx = canvas.getContext('2d', { alpha: false });
-    const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
+    if (!ctx) throw new Error('canvas');
     const span = source.m3 - source.m0;
-    const times = [0.2, 0.5, 0.8].map(fraction => source.m0 + span * fraction);
-    const sizes = [];
+    const largestPixels = pending.reduce((max, options) => Math.max(max, options.width * options.height), 0);
+    const fractions = largestPixels > 2400000 ? [0.32, 0.68] : [0.22, 0.50, 0.78];
+    const times = fractions.map(fraction => source.m0 + span * fraction);
     let video = null;
     let url = null;
+    let sourceAvailable = true;
 
     try {
         if (project.sourceMode === 'temporal') {
             const sourceBlob = project.sourceType === 'gif' ? project.previewBlob : (project.sourceBlob || project.previewBlob);
-            if (!sourceBlob) throw new Error('source');
-            video = document.createElement('video');
-            video.muted = true;
-            video.playsInline = true;
-            video.preload = 'auto';
-            url = URL.createObjectURL(sourceBlob);
-            const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
-            video.src = url;
-            video.load();
-            await metadataReady;
-            if (video.readyState < 2) await waitForSampleVideoEvent(video, 'loadeddata');
+            if (!sourceBlob) sourceAvailable = false;
+            else {
+                video = document.createElement('video');
+                video.muted = true;
+                video.playsInline = true;
+                video.preload = 'auto';
+                url = URL.createObjectURL(sourceBlob);
+                const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
+                video.src = url;
+                video.load();
+                await metadataReady;
+                if (video.readyState < 2) await waitForSampleVideoEvent(video, 'loadeddata');
+            }
         }
 
-        for (const time of times) {
-            if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
-            if (project.sourceMode === 'frames') {
-                const frame = getProjectFrameAtTime(time);
-                if (!frame) continue;
-                const blob = await getProjectFrameBlob(frame);
-                const drawable = await blobToDrawable(blob);
-                drawFramedDrawable(ctx, drawable, options.width, options.height, options.framing, options.framingFocus);
-                releaseDrawable(drawable);
-            } else {
-                await seekSampleVideo(video, projectTimeToTimelineTime(time));
-                drawFramedDrawable(ctx, video, options.width, options.height, options.framing, options.framingFocus);
+        if (sourceAvailable) {
+            for (const time of times) {
+                if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
+                let drawable = null;
+                try {
+                    if (project.sourceMode === 'frames') {
+                        const frame = getProjectFrameAtTime(time);
+                        if (!frame) continue;
+                        const blob = await getProjectFrameBlob(frame);
+                        drawable = await blobToDrawable(blob);
+                    } else {
+                        await seekSampleVideo(video, projectTimeToTimelineTime(time));
+                        drawable = video;
+                    }
+
+                    for (const options of pending) {
+                        if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
+                        try {
+                            if (canvas.width !== options.width) canvas.width = options.width;
+                            if (canvas.height !== options.height) canvas.height = options.height;
+                            drawFramedDrawable(ctx, drawable, options.width, options.height, options.framing, options.framingFocus);
+                            const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
+                            const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
+                            const encoded = await canvasToBlobAsync(canvas, mimeType, quality);
+                            sizes.get(options).push(encoded.size);
+                        } catch (error) {
+                            if (error && error.message === 'cancelled') throw error;
+                        }
+                        await cooperativeYield();
+                    }
+                } catch (error) {
+                    if (error && error.message === 'cancelled') throw error;
+                } finally {
+                    if (project.sourceMode === 'frames' && drawable) releaseDrawable(drawable);
+                }
             }
-            const encoded = await canvasToBlobAsync(canvas, mimeType, quality);
-            sizes.push(encoded.size);
-            await cooperativeYield();
         }
+    } catch (error) {
+        if (error && error.message === 'cancelled') throw error;
+        sourceAvailable = false;
     } finally {
         if (video) {
             video.removeAttribute('src');
@@ -628,15 +702,30 @@ async function measureOptimizationFrameBytes(options, version) {
         canvas.height = 1;
     }
 
-    if (!sizes.length) throw new Error('sample');
-    const average = Math.max(2048, (sizes.reduce((sum, size) => sum + size, 0) / sizes.length) * 1.08);
-    let samples = performanceFrameSamples.get(project);
-    if (!samples) {
-        samples = new Map();
-        performanceFrameSamples.set(project, samples);
+    let approximate = !sourceAvailable;
+    pending.forEach(options => {
+        const optionSizes = sizes.get(options) || [];
+        if (optionSizes.length) {
+            values.set(options, storeOptimizationRealSample(project, options, optionSizes));
+            if (optionSizes.length < times.length) approximate = true;
+        } else approximate = true;
+    });
+
+    const base = optionsList[0];
+    let baseFrameBytes = values.get(base) || 0;
+    if (!(baseFrameBytes > 0)) {
+        baseFrameBytes = getOptimizationFallbackFrameBytes(base, base, 0);
+        values.set(base, baseFrameBytes);
+        approximate = true;
     }
-    samples.set(getPerformanceSampleKey(options), average);
-    return average;
+
+    optionsList.slice(1).forEach(options => {
+        if (values.has(options)) return;
+        values.set(options, getOptimizationFallbackFrameBytes(base, options, baseFrameBytes));
+        approximate = true;
+    });
+
+    return { values, approximate };
 }
 
 function chooseOptimizationRecommendation(baseEstimate, results) {
@@ -733,19 +822,21 @@ async function runSmartOptimizer() {
     setOptimizerBusy(true);
 
     try {
-        setOptimizerStatus(t.optimizeAnalyzing.replace('{current}', '1').replace('{total}', String(candidates.length + 1)));
-        const baseFrameBytes = await measureOptimizationFrameBytes(base, version);
+        setOptimizerStatus(t.optimizeSampling || t.optimizeAnalyzing.replace('{current}', '1').replace('{total}', String(candidates.length + 1)));
+        const measured = await measureOptimizationFrameBytesBatch([base, ...candidates], version);
         if (version !== optimizerAnalysisVersion) return;
+        const baseFrameBytes = measured.values.get(base) || getOptimizationFallbackFrameBytes(base, base, 0);
         const baseEstimate = estimateExportPerformance(base, baseFrameBytes);
+        if (!baseEstimate) throw new Error('estimate');
         optimizerBaseEstimate = baseEstimate;
         const results = [];
 
         for (let i = 0; i < candidates.length; i++) {
             if (version !== optimizerAnalysisVersion) return;
-            setOptimizerStatus(t.optimizeAnalyzing.replace('{current}', String(i + 2)).replace('{total}', String(candidates.length + 1)));
             const candidate = candidates[i];
-            const frameBytes = await measureOptimizationFrameBytes(candidate, version);
+            const frameBytes = measured.values.get(candidate) || getOptimizationFallbackFrameBytes(base, candidate, baseFrameBytes);
             const estimate = estimateExportPerformance(candidate, frameBytes);
+            if (!estimate) continue;
             const savingPercent = Math.max(0, (1 - estimate.bootBytes / Math.max(1, baseEstimate.bootBytes)) * 100);
             const penalty = getOptimizationPenalty(base, candidate);
             results.push({
@@ -759,7 +850,9 @@ async function runSmartOptimizer() {
         }
 
         if (version !== optimizerAnalysisVersion) return;
-        renderOptimizerRecommendation(chooseOptimizationRecommendation(baseEstimate, results), baseEstimate);
+        const recommendation = chooseOptimizationRecommendation(baseEstimate, results);
+        renderOptimizerRecommendation(recommendation, baseEstimate);
+        if (recommendation && measured.approximate) setOptimizerStatus(t.optimizeReadyApproximate || t.optimizeReady);
     } catch (error) {
         if (version !== optimizerAnalysisVersion || error.message === 'cancelled') return;
         setOptimizerStatus(t.optimizeFailed);
