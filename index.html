@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#090b14">
     <title>✨ Boot Animation Studio ✨</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
-<body>
+<body class="p11-redesign">
     <div id="tooltip-flutuante" class="tooltip-estiloso"></div>
     <div id="advanced-time-popover" class="advanced-time-popover" role="dialog" aria-modal="false" aria-hidden="true">
         <strong id="advanced-time-popover-title"></strong>
@@ -20,18 +21,24 @@
         <button type="button" class="advanced-time-cancel" id="advanced-time-cancel">Cancel</button>
     </div>
     <div class="container">
-        <div class="topo-idioma">
-            <span style="font-size: 13px; color: #888;">🌐</span>
-            <select id="select-idioma" onchange="mudarIdioma(this.value)">
-                <option value="en">English (US)</option>
-                <option value="pt">Português (BR)</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-            </select>
-        </div>
-
-        <h1 id="txt-titulo">✨ Boot Animation Studio ✨</h1>
-        <p id="txt-subtitulo">Create, edit or apply a boot animation file!</p>
+        <header class="studio-header">
+            <div class="studio-brand">
+                <span class="studio-brand-mark" aria-hidden="true">✦</span>
+                <div class="studio-brand-copy">
+                    <h1 id="txt-titulo">✨ Boot Animation Studio ✨</h1>
+                    <p id="txt-subtitulo">Create, edit or apply a boot animation file!</p>
+                </div>
+            </div>
+            <div class="topo-idioma">
+                <span class="language-globe" aria-hidden="true">🌐</span>
+                <select id="select-idioma" onchange="mudarIdioma(this.value)">
+                    <option value="en">English (US)</option>
+                    <option value="pt">Português (BR)</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                </select>
+            </div>
+        </header>
 
         <div class="dicas-container" id="dicas-iniciais">
             <h3 id="txt-dicas-titulo">Tips for Beginners</h3>
