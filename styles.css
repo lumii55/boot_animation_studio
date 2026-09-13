@@ -1478,3 +1478,335 @@ body.p11-redesign::before {
     .p11-redesign .container-progresso { grid-column: 1 / -1; }
     .p11-redesign .framing-preview { max-height: 430px; }
 }
+
+.p11-redesign .studio-brand-mark {
+    background: linear-gradient(145deg, #a970ff, #7252ed 68%, #273e76);
+    font-size: 22px;
+}
+
+.p11-redesign h1#txt-titulo {
+    white-space: nowrap;
+}
+
+.p11-redesign .configuracoes.p11-control-stack {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.p11-redesign .p11-control-section {
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--p11-border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(20,24,39,.92), rgba(13,16,27,.92));
+    box-shadow: 0 10px 28px rgba(0,0,0,.19);
+    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.p11-redesign .p11-control-section[open] {
+    border-color: rgba(169,112,255,.28);
+    background: linear-gradient(180deg, rgba(22,26,43,.97), rgba(13,16,27,.97));
+    box-shadow: 0 14px 34px rgba(0,0,0,.24);
+}
+
+.p11-redesign .p11-control-section.p11-section-active:not([open]) {
+    border-color: rgba(53,226,208,.23);
+}
+
+.p11-redesign .p11-control-summary {
+    min-height: 64px;
+    display: grid;
+    grid-template-columns: 38px minmax(0,1fr) 26px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    list-style: none;
+}
+
+.p11-redesign .p11-control-summary::-webkit-details-marker {
+    display: none;
+}
+
+.p11-redesign .p11-control-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    font-size: 19px;
+    font-weight: 800;
+    border: 1px solid rgba(255,255,255,.08);
+}
+
+.p11-redesign .p11-control-icon-visual {
+    color: #d8c2ff;
+    background: rgba(169,112,255,.12);
+}
+
+.p11-redesign .p11-control-icon-audio {
+    color: #72eee2;
+    background: rgba(53,226,208,.10);
+}
+
+.p11-redesign .p11-control-icon-output {
+    color: #ffc985;
+    background: rgba(255,185,108,.10);
+}
+
+.p11-redesign .p11-control-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+}
+
+.p11-redesign .p11-control-copy strong {
+    color: var(--p11-text);
+    font-size: 14px;
+    line-height: 1.15;
+}
+
+.p11-redesign .p11-control-copy small {
+    color: var(--p11-muted);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.p11-redesign .p11-control-chevron {
+    color: #7f8aa6;
+    font-size: 18px;
+    transform: rotate(0deg);
+    transition: transform .18s ease, color .18s ease;
+}
+
+.p11-redesign .p11-control-section[open] .p11-control-chevron {
+    color: #cbb1ff;
+    transform: rotate(180deg);
+}
+
+.p11-redesign .p11-control-body {
+    border-top: 1px solid rgba(151,163,205,.1);
+    padding: 10px;
+}
+
+.p11-redesign .p11-visual-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 8px;
+}
+
+.p11-redesign .p11-visual-grid > .campo.campo-full {
+    grid-column: auto;
+}
+
+.p11-redesign .p11-setting-card,
+.p11-redesign .p11-output-body > .campo,
+.p11-redesign .p11-audio-body > .campo {
+    padding: 9px;
+    background: rgba(29,34,52,.58);
+    border-color: rgba(151,163,205,.09);
+}
+
+.p11-redesign .p11-setting-card label {
+    min-height: 26px;
+    display: flex;
+    align-items: flex-end;
+    color: #aeb8d0;
+    font-size: 10px;
+}
+
+.p11-redesign .p11-setting-card input[type="number"],
+.p11-redesign .p11-setting-card select {
+    min-height: 40px;
+    padding: 8px 9px;
+    font-size: 12px;
+}
+
+.p11-redesign .p11-custom-size-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 8px;
+}
+
+.p11-redesign .p11-custom-size-grid[hidden] {
+    display: none;
+}
+
+.p11-redesign .p11-custom-size-grid .campo {
+    padding: 9px;
+    border-radius: 13px;
+    background: rgba(29,34,52,.58);
+    border: 1px solid rgba(151,163,205,.09);
+}
+
+.p11-redesign .p11-audio-body,
+.p11-redesign .p11-output-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.p11-redesign .p11-audio-body #simple-audio-toggle-wrap,
+.p11-redesign .p11-output-body #wrap-gerar-modulo {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.p11-redesign .p11-audio-body .checkbox-container,
+.p11-redesign .p11-output-body .checkbox-container {
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 13px;
+    background: rgba(29,34,52,.58);
+    border: 1px solid rgba(151,163,205,.1);
+}
+
+.p11-redesign .p11-audio-body .painel-audio {
+    width: 100%;
+    grid-column: auto;
+}
+
+.p11-redesign .p11-output-body #wrap-nome,
+.p11-redesign .p11-output-body #container-fabricante,
+.p11-redesign .p11-output-body .performance-estimate {
+    width: 100%;
+}
+
+.p11-redesign .p11-output-body .performance-estimate {
+    margin: 0;
+}
+
+.p11-redesign .p11-output-section[open] {
+    border-color: rgba(53,226,208,.23);
+}
+
+.p11-redesign .p11-audio-section[open] {
+    border-color: rgba(53,226,208,.23);
+}
+
+.p11-redesign .p11-visual-section[open] {
+    border-color: rgba(169,112,255,.3);
+}
+
+@media (max-width: 640px) {
+    .p11-redesign .studio-header {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) auto;
+        gap: 8px;
+    }
+
+    .p11-redesign .studio-brand-mark {
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
+        font-size: 18px;
+    }
+
+    .p11-redesign h1#txt-titulo {
+        font-size: clamp(15px, 4.7vw, 18px);
+    }
+
+    .p11-redesign .topo-idioma select {
+        width: 104px;
+        max-width: 28vw;
+        font-size: 10px;
+        padding-left: 8px;
+    }
+
+    .p11-redesign .configuracoes.p11-control-stack {
+        padding: 0;
+        border-radius: 0;
+    }
+
+    .p11-redesign .p11-control-section {
+        border-radius: 16px;
+    }
+
+    .p11-redesign .p11-control-summary {
+        min-height: 59px;
+        grid-template-columns: 35px minmax(0,1fr) 22px;
+        padding: 9px 10px;
+        gap: 9px;
+    }
+
+    .p11-redesign .p11-control-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 11px;
+        font-size: 17px;
+    }
+
+    .p11-redesign .p11-control-copy strong {
+        font-size: 13px;
+    }
+
+    .p11-redesign .p11-control-copy small {
+        font-size: 9px;
+    }
+
+    .p11-redesign .p11-control-body {
+        padding: 8px;
+    }
+
+    .p11-redesign .p11-visual-grid {
+        gap: 7px;
+    }
+
+    .p11-redesign .p11-setting-card {
+        padding: 8px;
+    }
+
+    .p11-redesign .p11-setting-card label {
+        min-height: 24px;
+        font-size: 9px;
+    }
+
+    .p11-redesign .p11-setting-card input[type="number"],
+    .p11-redesign .p11-setting-card select {
+        min-height: 38px;
+        font-size: 11px;
+    }
+
+    .p11-redesign .p11-audio-body .painel-audio {
+        gap: 7px;
+    }
+
+    .p11-redesign .p11-audio-body .audio-role-card {
+        padding: 9px;
+    }
+
+    .p11-redesign .p11-output-body .performance-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+}
+
+@media (min-width: 860px) {
+    .p11-redesign .configuracoes.p11-control-stack {
+        align-content: start;
+    }
+
+    .p11-redesign .p11-control-section {
+        border-radius: 16px;
+    }
+
+    .p11-redesign .p11-control-summary {
+        min-height: 58px;
+    }
+
+    .p11-redesign .p11-control-body {
+        padding: 9px;
+    }
+}
