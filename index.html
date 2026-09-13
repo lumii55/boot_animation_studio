@@ -341,6 +341,28 @@
                         <div><span id="lbl-perf-memory">Working memory</span><strong id="perf-memory">—</strong></div>
                     </div>
                     <div class="performance-note" id="perf-note"></div>
+                    <div class="optimizer-entry">
+                        <button type="button" class="optimizer-button" id="btn-optimize">✨ Optimize</button>
+                        <button type="button" class="optimizer-quality-badge" id="optimizer-quality-badge"></button>
+                    </div>
+                    <div class="optimizer-panel" id="optimizer-panel">
+                        <div class="optimizer-copy">
+                            <strong id="optimizer-title">Smart Optimize</strong>
+                            <span id="optimizer-hint">Tests real frame samples and suggests a lighter output.</span>
+                        </div>
+                        <div class="optimizer-status" id="optimizer-status"></div>
+                        <div class="optimizer-result" id="optimizer-result">
+                            <div class="optimizer-sizes">
+                                <div><span id="optimizer-current-label">Current</span><strong id="optimizer-current-size">—</strong></div>
+                                <b>→</b>
+                                <div><span id="optimizer-new-label">Suggested</span><strong id="optimizer-new-size">—</strong></div>
+                                <em id="optimizer-saving">—</em>
+                            </div>
+                            <div class="optimizer-changes" id="optimizer-changes"></div>
+                            <div class="optimizer-impact" id="optimizer-impact" data-level="low"></div>
+                            <button type="button" class="optimizer-apply" id="btn-optimizer-apply">Apply suggestion</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
