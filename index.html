@@ -117,10 +117,22 @@
                 <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Outro</span><br><span class="status-marc" id="st-m3">Not marked</span></button>
             </div>
 
-            <div class="advanced-parts-launch" id="advanced-parts-launch">
-                <button type="button" class="advanced-parts-launch-btn" id="btn-open-advanced-parts">✨ Advanced Parts Editor</button>
-                <span id="advanced-parts-launch-hint">Optional: create more than Intro / Loop / Outro.</span>
-            </div>
+            <details class="advanced-parts-launch" id="advanced-parts-launch">
+                <summary class="advanced-options-summary">
+                    <span class="advanced-options-summary-icon">⚙</span>
+                    <span id="advanced-options-label">Advanced options</span>
+                </summary>
+                <div class="advanced-options-panel">
+                    <button type="button" class="advanced-parts-launch-btn" id="btn-open-advanced-parts">
+                        <span class="advanced-parts-launch-icon">◇</span>
+                        <span class="advanced-parts-launch-copy">
+                            <strong id="advanced-parts-launch-title">Advanced Parts Editor</strong>
+                            <small id="advanced-parts-launch-hint">Optional: create more than Intro / Loop / Outro.</small>
+                        </span>
+                        <span class="advanced-parts-launch-chevron">›</span>
+                    </button>
+                </div>
+            </details>
 
             <section class="advanced-parts-editor" id="advanced-parts-editor" aria-live="polite">
                 <div class="advanced-parts-header">

@@ -429,27 +429,117 @@
 .advanced-parts-launch {
     width: 100%;
     display: none;
-    flex-direction: column;
-    gap: 6px;
-    align-items: stretch;
+    box-sizing: border-box;
+}
+
+.advanced-options-summary {
+    width: fit-content;
+    margin-left: auto;
+    padding: 4px 2px;
+    color: #777;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.advanced-options-summary::-webkit-details-marker {
+    display: none;
+}
+
+.advanced-options-summary::after {
+    content: '›';
+    font-size: 15px;
+    line-height: 1;
+    transition: transform 0.18s ease;
+}
+
+.advanced-parts-launch[open] .advanced-options-summary {
+    color: #a98bc9;
+}
+
+.advanced-parts-launch[open] .advanced-options-summary::after {
+    transform: rotate(90deg);
+}
+
+.advanced-options-summary-icon {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.advanced-options-panel {
+    margin-top: 5px;
+    padding: 7px;
+    border: 1px solid #2f2f2f;
+    border-radius: 13px;
+    background: #171717;
 }
 
 .advanced-parts-launch-btn {
     width: 100%;
-    border: 1px solid #5d4a78;
-    border-radius: 16px;
-    padding: 14px 16px;
-    background: linear-gradient(135deg, rgba(187,134,252,0.18), rgba(3,218,198,0.12));
-    color: #d7b6ff;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 9px 10px;
+    background: transparent;
+    color: #bbb;
     font: inherit;
-    font-weight: 800;
     cursor: pointer;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    text-align: left;
 }
 
-.advanced-parts-launch span {
-    color: #8f8f8f;
+.advanced-parts-launch-btn:hover,
+.advanced-parts-launch-btn:focus-visible {
+    background: #1d1d1d;
+    border-color: #3b3442;
+    outline: none;
+}
+
+.advanced-parts-launch-btn:active {
+    transform: scale(0.99);
+}
+
+.advanced-parts-launch-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: #222;
+    color: #9d7dbd;
+    font-size: 13px;
+}
+
+.advanced-parts-launch-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.advanced-parts-launch-copy strong {
+    color: #c8c1cf;
     font-size: 11px;
-    text-align: center;
+    font-weight: 700;
+}
+
+.advanced-parts-launch-copy small {
+    color: #707070;
+    font-size: 10px;
+    line-height: 1.25;
+}
+
+.advanced-parts-launch-chevron {
+    color: #666;
+    font-size: 18px;
+    line-height: 1;
 }
 
 .advanced-parts-editor {
