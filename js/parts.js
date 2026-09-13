@@ -414,9 +414,11 @@ function syncAdvancedPartsUi() {
     const active = isAdvancedPartsActive();
     const t = traducoes[idiomaAtual];
     if (!active) closeAdvancedTimePopover();
-    document.getElementById('btn-open-advanced-parts').textContent = t.advOpen;
+    document.getElementById('advanced-options-label').textContent = t.advOptions;
+    document.getElementById('advanced-parts-launch-title').textContent = t.advOpen;
     document.getElementById('advanced-parts-launch-hint').textContent = t.advOpenHint;
-    launch.style.display = hasMedia && !active ? 'flex' : 'none';
+    launch.style.display = hasMedia && !active ? 'block' : 'none';
+    if (!hasMedia || active) launch.open = false;
     editor.style.display = hasMedia && active ? 'flex' : 'none';
     const simpleAudio = document.getElementById('simple-audio-toggle-wrap');
     const audioPanel = document.getElementById('painel-audio');
