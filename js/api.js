@@ -368,7 +368,7 @@ function completeConnectedState(data) {
     document.getElementById('initial-state').style.display = 'none';
     document.getElementById('connected-state').style.display = 'flex';
     document.getElementById('editor-section').style.display = 'flex';
-    document.getElementById('wrap-gerar-modulo').style.display = 'none';
+    document.getElementById('wrap-gerar-modulo').style.display = 'flex';
     document.getElementById('wrap-nome').style.display = 'flex';
     window.connectedPhoneModel = data.model || '';
     document.getElementById('status-connected').textContent = window.connectedPhoneModel || t.statusConnected;
@@ -382,7 +382,8 @@ function completeConnectedState(data) {
     rememberPhoneIp(currentPhoneIp());
     applyConnectedCapabilities(data);
     document.getElementById('acoes-principais').style.gridTemplateColumns = '1fr 1fr';
-    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('phone', { skipButtons: true });
+    if (typeof verificarModulo === 'function') verificarModulo();
+    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(document.getElementById('input-gerar-modulo')?.checked ? 'download' : 'phone', { skipButtons: true });
     atualizarBotoesELinhas();
     if (hasModuleFeature('history')) loadHistory();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();

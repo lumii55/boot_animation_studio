@@ -339,7 +339,8 @@ function estimateExportPerformance(options = getPerformanceOptions(), frameBytes
         bootBytes = framePayload + audioBytes + structuralBytes;
     }
 
-    const copies = !isConnectedMode && options.generateModule ? getGeneratedModuleCopyCount(options.manufacturer) : 1;
+    const deliveryTarget = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : 'download';
+    const copies = options.generateModule && deliveryTarget === 'download' ? getGeneratedModuleCopyCount(options.manufacturer) : 1;
     const deliveredBytes = bootBytes * copies + (copies > 1 ? 32768 : 0);
     const pixels = options.width * options.height;
     const rawWorkingBytes = pixels * 4 * (projectUsesFrames() ? 2.2 : 1.6);

@@ -662,6 +662,7 @@ function verificarModulo() {
     if (isModulo) { containerFabricante.style.display = "flex"; } else { containerFabricante.style.display = "none"; }
     atualizarBotoesELinhas();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
 
 function verificarPainelAudio() {

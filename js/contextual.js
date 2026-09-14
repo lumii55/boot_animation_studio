@@ -2,11 +2,44 @@ const contextualUi = {
     outputTool: 'basics',
     audioRole: 'intro',
     framingFrame: 0,
+    framingReference: 0.5,
     framingPointerId: null,
     framingStartPoint: { x: 0, y: 0 },
     framingStartFocus: { x: 0.5, y: 0.5, zoom: 1 },
     framingMoved: false
 };
+
+
+const framingReferenceVideo = document.createElement('video');
+framingReferenceVideo.muted = true;
+framingReferenceVideo.playsInline = true;
+framingReferenceVideo.preload = 'auto';
+let framingReferenceSource = '';
+
+function seekFramingReferenceVideo() {
+    if (!framingReferenceVideo.duration || !Number.isFinite(framingReferenceVideo.duration)) return;
+    const fraction = Math.max(0.05, Math.min(0.95, Number(contextualUi.framingReference) || 0.5));
+    const duration = framingReferenceVideo.duration;
+    const target = Math.max(0, Math.min(Math.max(0, duration - 0.03), duration * fraction));
+    if (Math.abs(framingReferenceVideo.currentTime - target) < 0.025) return;
+    try {
+        if (typeof framingReferenceVideo.fastSeek === 'function') framingReferenceVideo.fastSeek(target);
+        else framingReferenceVideo.currentTime = target;
+    } catch (e) {}
+}
+
+function syncFramingReferenceSource() {
+    const source = playerVideo?.currentSrc || playerVideo?.src || '';
+    if (!source) return;
+    if (source === framingReferenceSource) return;
+    framingReferenceSource = source;
+    framingReferenceVideo.src = source;
+    framingReferenceVideo.load();
+}
+
+framingReferenceVideo.addEventListener('loadedmetadata', seekFramingReferenceVideo);
+framingReferenceVideo.addEventListener('loadeddata', renderFramingToolFrame);
+framingReferenceVideo.addEventListener('seeked', renderFramingToolFrame);
 
 function contextualText(key, fallback) {
     try {
@@ -77,9 +110,17 @@ function syncFramingToolUi() {
     if (dimensions) dimensions.textContent = `${settings.width} × ${settings.height}`;
     const shell = document.getElementById('framing-tool-preview-shell');
     if (shell) {
+        const ratio = Math.max(0.05, settings.width / Math.max(1, settings.height));
+        const maxPreviewHeight = Math.min(560, Math.max(300, window.innerHeight * 0.58));
+        const maxPreviewWidth = Math.min(540, maxPreviewHeight * ratio);
         shell.style.setProperty('--framing-aspect', `${settings.width} / ${settings.height}`);
+        shell.style.setProperty('--framing-max-width', `${Math.max(120, maxPreviewWidth)}px`);
         shell.classList.toggle('is-draggable', settings.mode === 'cover');
     }
+    const reference = document.getElementById('framing-reference-slider');
+    const referenceValue = document.getElementById('framing-reference-value');
+    if (reference) reference.value = String(contextualUi.framingReference);
+    if (referenceValue) referenceValue.textContent = `${Math.round(contextualUi.framingReference * 100)}%`;
 }
 
 function renderFramingToolFrame() {
@@ -98,8 +139,9 @@ function renderFramingToolFrame() {
     if (!ctx) return;
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
-    if (playerVideo && playerVideo.readyState >= 2 && (playerVideo.videoWidth || originalW)) {
-        drawFramedDrawable(ctx, playerVideo, width, height, settings.mode, settings.focus);
+    syncFramingReferenceSource();
+    if (framingReferenceVideo.readyState >= 2 && framingReferenceVideo.videoWidth) {
+        drawFramedDrawable(ctx, framingReferenceVideo, width, height, settings.mode, settings.focus);
     }
 }
 
@@ -185,6 +227,7 @@ function syncContextualToolsText() {
         'p11-framing-stretch-desc': ['contextFramingStretchDesc', 'Fill exactly'],
         'p11-framing-zoom': ['contextFramingZoom', 'Crop zoom'],
         'p11-framing-reset': ['contextFramingReset', 'Reset framing'],
+        'p11-framing-reference': ['contextFramingReference', 'Preview frame'],
         'p11-audio-kicker': ['contextAudioKicker', 'AUDIO'],
         'p11-audio-title': ['contextAudioTitle', 'Give each section its own sound'],
         'p11-audio-desc': ['contextAudioDesc', 'Enable audio, choose a section, then set its source, volume and timing.'],
@@ -228,6 +271,14 @@ function bindContextualTools() {
         zoom.addEventListener('input', () => applyFramingToolZoom(zoom.value));
         zoom.addEventListener('change', () => {
             if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+        });
+    }
+    const reference = document.getElementById('framing-reference-slider');
+    if (reference) {
+        reference.addEventListener('input', () => {
+            contextualUi.framingReference = Math.max(0.05, Math.min(0.95, Number(reference.value) || 0.5));
+            syncFramingToolUi();
+            seekFramingReferenceVideo();
         });
     }
     const reset = document.getElementById('framing-tool-reset');
@@ -284,15 +335,20 @@ function bindContextualTools() {
             renderFramingToolFrame();
         });
     });
-    ['loadeddata', 'seeked', 'timeupdate'].forEach(type => playerVideo?.addEventListener(type, () => {
+    ['loadedmetadata', 'loadeddata'].forEach(type => playerVideo?.addEventListener(type, () => {
+        if (type === 'loadedmetadata') {
+            contextualUi.framingReference = 0.5;
+            framingReferenceSource = '';
+            syncFramingReferenceSource();
+        }
         if (contextualUi.outputTool === 'framing') renderFramingToolFrame();
     }));
-    playerVideo?.addEventListener('play', requestContextualFramingLoop);
-    playerVideo?.addEventListener('pause', () => {
-        if (contextualUi.framingFrame) cancelAnimationFrame(contextualUi.framingFrame);
-        contextualUi.framingFrame = 0;
-        renderFramingToolFrame();
-    });
+    window.addEventListener('resize', () => {
+        if (contextualUi.outputTool === 'framing') {
+            syncFramingToolUi();
+            renderFramingToolFrame();
+        }
+    }, { passive: true });
     const advancedEditor = document.getElementById('advanced-parts-editor');
     if (advancedEditor) {
         new MutationObserver(syncContextualAudioMode).observe(advancedEditor, { attributes: true, attributeFilter: ['style', 'class'] });

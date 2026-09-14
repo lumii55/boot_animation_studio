@@ -9,11 +9,21 @@ function releaseText(key, fallback) {
     }
 }
 
+function rootModulePackagingEnabled() {
+    return !!document.getElementById('input-gerar-modulo')?.checked;
+}
+
 function getBuildDeliveryTarget() {
+    if (rootModulePackagingEnabled()) return 'download';
     return isConnectedMode && buildDeliveryTarget === 'phone' ? 'phone' : 'download';
 }
 
 function setBuildDeliveryTarget(target, options = {}) {
+    if (target === 'phone' && rootModulePackagingEnabled()) {
+        buildDeliveryTarget = 'download';
+        syncReleaseUi();
+        return;
+    }
     if (target === 'phone' && !isConnectedMode) {
         if (typeof connectToPhone === 'function') connectToPhone();
         return;
@@ -72,7 +82,8 @@ function syncReleaseReadiness() {
 
 function syncReleaseDestination() {
     const connected = isConnectedMode;
-    if (!connected && buildDeliveryTarget === 'phone') buildDeliveryTarget = 'download';
+    const modulePackage = rootModulePackagingEnabled();
+    if ((!connected || modulePackage) && buildDeliveryTarget === 'phone') buildDeliveryTarget = 'download';
     const activeTarget = getBuildDeliveryTarget();
     document.querySelectorAll('.delivery-option[data-delivery-target]').forEach(button => {
         const active = button.dataset.deliveryTarget === activeTarget;
@@ -80,9 +91,18 @@ function syncReleaseDestination() {
         button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     const phone = document.getElementById('delivery-phone');
-    if (phone) phone.classList.toggle('needs-connection', !connected);
+    if (phone) {
+        phone.classList.toggle('needs-connection', !connected && !modulePackage);
+        phone.classList.toggle('is-package-blocked', modulePackage);
+        phone.disabled = modulePackage;
+        phone.setAttribute('aria-disabled', modulePackage ? 'true' : 'false');
+        const desc = document.getElementById('p11-delivery-phone-desc');
+        if (desc) desc.textContent = modulePackage
+            ? releaseText('deliveryPhoneModuleBlockedDesc', 'Disable root module packaging to apply directly to the phone.')
+            : releaseText('deliveryPhoneDesc', 'Generate, install and save it to device history when available.');
+    }
     const connect = document.getElementById('btn-build-connect');
-    if (connect) connect.style.display = connected ? 'none' : 'flex';
+    if (connect) connect.style.display = connected || modulePackage ? 'none' : 'flex';
     const badge = document.getElementById('p11-device-badge');
     if (badge) badge.textContent = releaseText('deviceOnlineBadge', 'MODULE ONLINE');
 }

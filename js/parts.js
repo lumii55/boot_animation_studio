@@ -362,21 +362,21 @@ function renderAdvancedPartCard(part, index) {
                         <label>${escapeAdvancedHtml(t.advPause)}</label>
                         <input type="number" min="0" max="9999" step="1" value="${part.pause}" data-advanced-field="pause" data-part-id="${escapeAdvancedHtml(part.id)}">
                     </div>
+                    <div class="advanced-field advanced-type-field">
+                        <label>${escapeAdvancedHtml(t.advType)}</label>
+                        <select data-advanced-field="type" data-part-id="${escapeAdvancedHtml(part.id)}">
+                            <option value="c"${part.type === 'c' ? ' selected' : ''}>${escapeAdvancedHtml(t.advTypeComplete)}</option>
+                            <option value="p"${part.type === 'p' ? ' selected' : ''}>${escapeAdvancedHtml(t.advTypeNormal)}</option>
+                        </select>
+                    </div>
                     ${renderAdvancedAudioEditor(part)}
                 </div>
                 <details class="advanced-technical-details">
                     <summary>${escapeAdvancedHtml(t.advTechnical)}</summary>
                     <div class="advanced-fields-grid advanced-technical-grid">
-                        <div class="advanced-field">
+                        <div class="advanced-field advanced-field-wide">
                             <label>${escapeAdvancedHtml(t.advFolder)}</label>
                             <input type="text" maxlength="64" value="${escapeAdvancedHtml(part.folder)}" data-advanced-field="folder" data-part-id="${escapeAdvancedHtml(part.id)}">
-                        </div>
-                        <div class="advanced-field">
-                            <label>${escapeAdvancedHtml(t.advType)}</label>
-                            <select data-advanced-field="type" data-part-id="${escapeAdvancedHtml(part.id)}">
-                                <option value="c"${part.type === 'c' ? ' selected' : ''}>${escapeAdvancedHtml(t.advTypeComplete)}</option>
-                                <option value="p"${part.type === 'p' ? ' selected' : ''}>${escapeAdvancedHtml(t.advTypeNormal)}</option>
-                            </select>
                         </div>
                     </div>
                 </details>
@@ -1108,12 +1108,12 @@ if (advancedEditor) {
             if (typeof navigator.vibrate === 'function') navigator.vibrate(18);
             openAdvancedTimePopover(part, held, getAdvancedPlayheadSourceTime());
             setTimeout(() => held?.classList.remove('hold-complete'), 220);
-        }, 620);
+        }, 520);
     });
 
     advancedEditor.addEventListener('pointermove', event => {
         if (!advancedHoldTarget || advancedHoldPointerId !== event.pointerId || advancedHoldTriggered) return;
-        if (Math.hypot(event.clientX - advancedHoldStartX, event.clientY - advancedHoldStartY) > 12) cancelAdvancedPartHold();
+        if (Math.hypot(event.clientX - advancedHoldStartX, event.clientY - advancedHoldStartY) > 18) cancelAdvancedPartHold();
     });
 
     advancedEditor.addEventListener('pointerup', event => {

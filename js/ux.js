@@ -50,7 +50,7 @@ function closeConfirmation(result) {
 function getGenerateReadyLabel(t) {
     const target = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
     if (target === 'phone' && isConnectedMode) return t.btnGenerateApply;
-    const generateModule = !isConnectedMode && document.getElementById('input-gerar-modulo').checked;
+    const generateModule = target === 'download' && document.getElementById('input-gerar-modulo').checked;
     return generateModule ? t.btnGenerateModule : t.btnGenerateDownload;
 }
 
@@ -65,7 +65,7 @@ function updateOutputIntent() {
         const historyAvailable = typeof hasModuleFeature !== 'function' || hasModuleFeature('history');
         el.textContent = historyAvailable ? t.outputIntentPhone : t.outputIntentPhoneSimple;
     }
-    else if (!isConnectedMode && document.getElementById('input-gerar-modulo').checked) el.textContent = t.outputIntentModule;
+    else if (document.getElementById('input-gerar-modulo').checked) el.textContent = t.outputIntentModule;
     else el.textContent = t.outputIntentDownload;
     el.style.display = 'block';
 }
