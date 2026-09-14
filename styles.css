@@ -6676,3 +6676,162 @@ summary:focus-visible {
 .framing-tool-preview-shell {
     max-height: none;
 }
+
+
+.dicas-container {
+    position: relative;
+    border: 1px solid rgba(187, 134, 252, 0.42);
+    background:
+        radial-gradient(circle at 0% 0%, rgba(187, 134, 252, 0.15), transparent 34%),
+        radial-gradient(circle at 100% 0%, rgba(3, 218, 198, 0.08), transparent 30%),
+        linear-gradient(145deg, rgba(39, 27, 52, 0.96), rgba(20, 15, 28, 0.97));
+    box-shadow: 0 18px 46px rgba(15, 5, 24, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.dicas-container::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, #bb86fc 0%, #03dac6 100%);
+    pointer-events: none;
+}
+
+.dicas-container .tips-summary {
+    min-height: 62px;
+    padding: 20px 50px 18px 20px;
+    background: linear-gradient(90deg, rgba(187, 134, 252, 0.1), rgba(3, 218, 198, 0.035));
+    color: #e2c9ff;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+}
+
+.dicas-container .tips-summary::before {
+    content: "";
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 10px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #bb86fc, #03dac6);
+    box-shadow: 0 0 0 5px rgba(187, 134, 252, 0.08), 0 0 18px rgba(187, 134, 252, 0.24);
+    vertical-align: 1px;
+}
+
+.dicas-container .tips-summary::after {
+    top: 24px;
+    right: 21px;
+    border-color: #c9a8ee;
+}
+
+.dicas-container ul {
+    gap: 10px;
+    padding: 4px 14px 14px;
+}
+
+.dicas-container li {
+    padding: 14px 14px 14px 42px;
+    border: 1px solid rgba(216, 189, 241, 0.1);
+    border-radius: 16px;
+    background: rgba(12, 10, 17, 0.42);
+    color: #a9a0b3;
+    font-size: 10px;
+    line-height: 1.58;
+}
+
+.dicas-container li::before {
+    left: 16px;
+    top: 19px;
+    width: 10px;
+    height: 10px;
+    border: 0;
+    background: #71667b;
+    box-shadow: 0 0 0 4px rgba(113, 102, 123, 0.08);
+}
+
+.dicas-container li strong {
+    color: #f0e8f7;
+    font-weight: 760;
+}
+
+.dicas-container .dica-destaque {
+    border-color: rgba(3, 218, 198, 0.34);
+    background:
+        radial-gradient(circle at 0% 0%, rgba(3, 218, 198, 0.1), transparent 44%),
+        linear-gradient(135deg, rgba(3, 218, 198, 0.075), rgba(187, 134, 252, 0.055));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    color: #b9ced0;
+}
+
+.dicas-container .dica-destaque::before {
+    background: #03dac6;
+    box-shadow: 0 0 0 5px rgba(3, 218, 198, 0.09), 0 0 20px rgba(3, 218, 198, 0.18);
+}
+
+.dicas-container .dica-destaque strong {
+    color: #8ff4ea;
+}
+
+.dicas-container .dica-destaque a {
+    display: inline-block;
+    margin-left: 3px;
+    color: #d8b7ff;
+    text-decoration: underline;
+    text-decoration-color: rgba(216, 183, 255, 0.38);
+    text-underline-offset: 3px;
+}
+
+.dicas-container .dica-aviso {
+    border-color: rgba(255, 184, 108, 0.38);
+    background:
+        radial-gradient(circle at 0% 0%, rgba(255, 184, 108, 0.13), transparent 46%),
+        linear-gradient(135deg, rgba(255, 184, 108, 0.08), rgba(255, 115, 137, 0.045));
+    color: #d3bca8;
+}
+
+.dicas-container .dica-aviso::before {
+    width: 0;
+    height: 0;
+    left: 14px;
+    top: 17px;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 13px solid #ffb86c;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.dicas-container .dica-aviso::after {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 21px;
+    width: 2px;
+    height: 5px;
+    border-radius: 2px;
+    background: #3b2817;
+    box-shadow: 0 7px 0 #3b2817;
+}
+
+.dicas-container .dica-aviso strong {
+    color: #ffd19b;
+}
+
+@media (max-width: 520px) {
+    .dicas-container .tips-summary {
+        min-height: 58px;
+        padding: 18px 46px 17px 18px;
+        font-size: 11px;
+    }
+
+    .dicas-container ul {
+        gap: 9px;
+        padding: 3px 11px 12px;
+    }
+
+    .dicas-container li {
+        padding: 13px 12px 13px 40px;
+        font-size: 10px;
+    }
+}
