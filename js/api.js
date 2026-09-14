@@ -817,6 +817,7 @@ async function applyHistory(id) {
     const t = traducoes[idiomaAtual];
     if (!ensureModuleFeature('history')) return;
     if (!await askConfirmation(t.msgConfirmApplyHistory, false)) return;
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('device');
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPast;
     try {
@@ -918,6 +919,7 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
         return;
     }
 
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('device');
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgCheckingZip;
 

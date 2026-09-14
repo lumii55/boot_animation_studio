@@ -219,6 +219,7 @@ async function decodificarGifEmFrames(file, t) {
 
 async function converterGifParaVideo(file) {
     const t = traducoes[idiomaAtual];
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('source');
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgLoadingGif;
 
@@ -369,6 +370,7 @@ async function createFrameProjectPreview(project, preparedBlobs, options = {}) {
 
 async function abrirZipNoEditor(zipBlob) {
     const t = traducoes[idiomaAtual];
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('zip');
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgLoadingZip;
 

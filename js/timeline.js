@@ -676,6 +676,7 @@ playerVideo.addEventListener('loadedmetadata', async function() {
     atualizarPreviewEnquadramento();
     ajustarPaddings();
     
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('timeline');
     document.getElementById('loading-overlay').style.display = 'flex';
     playerVideo.style.opacity = '0';
     
