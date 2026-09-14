@@ -5877,3 +5877,62 @@ button.editor-context-state:active {
         grid-template-columns: 1fr;
     }
 }
+
+
+.device-secondary-actions {
+    align-items: stretch;
+}
+
+.device-secondary-actions .btn-upload {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    padding: 12px 14px;
+    border-radius: 15px;
+    text-align: center;
+}
+
+#btn-reset,
+#btn-disconnect {
+    min-height: 56px;
+    border-radius: 15px;
+    text-align: center;
+}
+
+#btn-reset {
+    border-color: rgba(142, 163, 255, 0.14);
+    background: linear-gradient(145deg, rgba(142, 163, 255, 0.08), rgba(142, 163, 255, 0.04));
+    color: #d7deff;
+}
+
+#btn-disconnect {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    padding: 12px 14px;
+    border: 1px solid rgba(164, 184, 211, 0.1);
+    border-top: 1px solid rgba(164, 184, 211, 0.1);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.022);
+    color: #a8b5c7;
+    text-align: center;
+}
+
+#btn-disconnect:hover {
+    border-color: rgba(164, 184, 211, 0.18);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+@media (max-width: 520px) {
+    .device-actions .btn-upload {
+        min-height: 66px;
+    }
+
+    .device-secondary-actions .btn-upload,
+    #btn-reset,
+    #btn-disconnect {
+        min-height: 54px;
+    }
+}
