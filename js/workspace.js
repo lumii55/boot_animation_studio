@@ -48,6 +48,7 @@ function setWorkspaceView(view, options = {}) {
             const headerOffset = 72;
             const y = Math.max(0, top.getBoundingClientRect().top + window.scrollY - headerOffset);
             window.scrollTo({ top: y, behavior: options.instant ? 'auto' : 'smooth' });
+            if (view === 'edit' && typeof ajustarPaddings === 'function') ajustarPaddings();
         });
     }
 }

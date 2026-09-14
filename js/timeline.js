@@ -32,6 +32,128 @@ function updatePlayerTimeReadout(timelineTime = playerVideo.currentTime || 0) {
     if (typeof updateAdvancedHoldHint === 'function') updateAdvancedHoldHint(current);
 }
 
+function syncTimelineTransportUi() {
+    const startButton = document.getElementById('btn-timeline-start');
+    const playButton = document.getElementById('btn-timeline-play');
+    const endButton = document.getElementById('btn-timeline-end');
+    const playLabel = document.getElementById('timeline-play-label');
+    const playIcon = document.getElementById('timeline-play-icon');
+    const t = traducoes[idiomaAtual];
+    const ready = !!playerVideo.duration && !isGenerating && !isBuildingTimeline;
+    if (startButton) startButton.disabled = !ready;
+    if (playButton) playButton.disabled = !ready;
+    if (endButton) endButton.disabled = !ready;
+    if (playLabel && t) playLabel.textContent = playerVideo.paused ? t.timelinePlay : t.timelinePause;
+    if (playIcon) playIcon.textContent = playerVideo.paused ? '▶' : 'Ⅱ';
+}
+
+function seekTimelineTo(timelineTime) {
+    if (!playerVideo.duration || isGenerating || isBuildingTimeline) return;
+    const safe = Math.max(0, Math.min(playerVideo.duration, Number(timelineTime) || 0));
+    playerVideo.pause();
+    playerVideo.currentTime = safe;
+    updatePlayerTimeReadout(safe);
+    isProgrammaticScroll = true;
+    scrollTimeline.scrollLeft = (safe / playerVideo.duration) * filmstrip.offsetWidth;
+    setTimeout(() => { isProgrammaticScroll = false; }, 20);
+}
+
+function renderTimelineRuler() {
+    filmstrip.querySelector('.timeline-ruler')?.remove();
+    if (!playerVideo.duration || !filmstrip.offsetWidth) return;
+    const ruler = document.createElement('div');
+    ruler.className = 'timeline-ruler';
+    const duration = playerVideo.duration;
+    let divisions = duration <= 5 ? 4 : duration <= 15 ? 5 : duration <= 40 ? 6 : 8;
+    divisions = Math.max(2, divisions);
+    for (let index = 0; index <= divisions; index++) {
+        const timelineTime = duration * (index / divisions);
+        const tick = document.createElement('span');
+        tick.className = 'timeline-ruler-tick';
+        tick.style.left = `${(index / divisions) * 100}%`;
+        tick.innerHTML = `<i></i><b>${formatTimelineSecondsExact(timelineTimeToProjectTime(timelineTime))}s</b>`;
+        ruler.appendChild(tick);
+    }
+    filmstrip.appendChild(ruler);
+}
+
+function renderSimpleSegmentTrack() {
+    const track = document.getElementById('simple-segment-track');
+    if (!track) return;
+    track.innerHTML = '';
+    const t = traducoes[idiomaAtual];
+    const duration = Number(playerVideo.duration) || 0;
+    if (!(duration > 0)) {
+        const empty = document.createElement('span');
+        empty.className = 'simple-segment-empty';
+        empty.textContent = t ? t.timelineSegmentsEmpty : '';
+        track.appendChild(empty);
+        return;
+    }
+    const base = document.createElement('div');
+    base.className = 'simple-segment-base';
+    track.appendChild(base);
+    const definitions = [
+        { start: 'm0', end: 'm1', label: t.timelineIntro, className: 'segment-intro' },
+        { start: 'm1', end: 'm2', label: t.timelineLoop, className: 'segment-loop' },
+        { start: 'm2', end: 'm3', label: t.timelineOutro, className: 'segment-outro' }
+    ];
+    definitions.forEach(definition => {
+        const start = marcadores[definition.start];
+        const end = marcadores[definition.end];
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+        const segment = document.createElement('button');
+        segment.type = 'button';
+        segment.className = `simple-segment ${definition.className}`;
+        segment.style.left = `${Math.max(0, Math.min(100, (start / duration) * 100))}%`;
+        segment.style.width = `${Math.max(1.5, Math.min(100, ((end - start) / duration) * 100))}%`;
+        segment.textContent = definition.label;
+        segment.addEventListener('click', () => seekTimelineTo(start));
+        track.appendChild(segment);
+    });
+    ['m0', 'm1', 'm2', 'm3'].forEach((id, index) => {
+        const time = marcadores[id];
+        if (!Number.isFinite(time)) return;
+        const pin = document.createElement('span');
+        pin.className = `simple-segment-pin pin-${id}`;
+        pin.style.left = `${Math.max(0, Math.min(100, (time / duration) * 100))}%`;
+        pin.dataset.index = String(index + 1);
+        track.appendChild(pin);
+    });
+    if (!definitions.some(definition => Number.isFinite(marcadores[definition.start]) && Number.isFinite(marcadores[definition.end]) && marcadores[definition.end] > marcadores[definition.start])) {
+        const empty = document.createElement('span');
+        empty.className = 'simple-segment-empty';
+        empty.textContent = t.timelineSegmentsEmpty;
+        track.appendChild(empty);
+    }
+}
+
+function syncTimelineEditorUi() {
+    const t = traducoes[idiomaAtual];
+    if (!t) return;
+    const bindings = {
+        'p11-timeline-kicker': t.timelineKicker,
+        'p11-timeline-title': t.timelineTitle,
+        'timeline-start-label': t.timelineStart,
+        'timeline-end-label': t.timelineEnd,
+        'timeline-boundaries-title': t.timelineBoundaries,
+        'timeline-boundaries-hint': t.timelineBoundariesHint,
+        'advanced-options-hint': t.advModeHint,
+        'advanced-mode-kicker': t.advModeKicker,
+        'advanced-sequence-label': t.advSequenceLabel,
+        'advanced-sequence-hint': t.advSequenceHint
+    };
+    Object.entries(bindings).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+    const track = document.getElementById('simple-segment-track');
+    if (track) track.setAttribute('aria-label', t.timelineBoundaries);
+    syncTimelineTransportUi();
+    renderSimpleSegmentTrack();
+    renderTimelineRuler();
+}
+
 function getCurrentFramingSettings() {
     const width = Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || playerVideo.videoWidth || 1);
     const height = Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || playerVideo.videoHeight || 1);
@@ -441,12 +563,16 @@ playerVideo.addEventListener('click', () => {
 playerVideo.addEventListener('pause', () => {
     playerVideo.classList.add('pausado');
     cancelAnimationFrame(animationFrameId);
+    syncTimelineTransportUi();
 });
 
 playerVideo.addEventListener('play', () => {
     playerVideo.classList.remove('pausado');
+    syncTimelineTransportUi();
     animationFrameId = requestAnimationFrame(animarTimelineSmooth);
 });
+
+playerVideo.addEventListener('ended', () => syncTimelineTransportUi());
 
 function animarTimelineSmooth() {
     if (!playerVideo.paused && !isGenerating && !isBuildingTimeline && playerVideo.duration) {
@@ -460,11 +586,14 @@ function animarTimelineSmooth() {
 }
 
 function ajustarPaddings() {
-    const pad = (timelineWrapper.clientWidth / 2) + "px";
+    const fallbackWidth = timelineWrapper.parentElement?.clientWidth || Math.max(0, window.innerWidth - 28);
+    const timelineWidth = timelineWrapper.clientWidth || fallbackWidth;
+    const pad = (timelineWidth / 2) + "px";
     document.getElementById('pad-left').style.width = pad;
     document.getElementById('pad-left').style.minWidth = pad;
     document.getElementById('pad-right').style.width = pad;
     document.getElementById('pad-right').style.minWidth = pad;
+    requestAnimationFrame(() => renderTimelineRuler());
 }
 window.addEventListener('resize', ajustarPaddings);
 
@@ -622,11 +751,28 @@ playerVideo.addEventListener('seeked', () => {
 });
 
 playerVideo.addEventListener('timeupdate', () => updatePlayerTimeReadout());
-playerVideo.addEventListener('durationchange', () => updatePlayerTimeReadout());
+playerVideo.addEventListener('durationchange', () => {
+    updatePlayerTimeReadout();
+    syncTimelineTransportUi();
+    renderSimpleSegmentTrack();
+});
 playerVideo.addEventListener('emptied', () => {
     const readout = document.getElementById('video-time-readout');
     if (readout) readout.style.display = 'none';
+    syncTimelineTransportUi();
+    renderSimpleSegmentTrack();
 });
+
+const timelineStartButton = document.getElementById('btn-timeline-start');
+const timelinePlayButton = document.getElementById('btn-timeline-play');
+const timelineEndButton = document.getElementById('btn-timeline-end');
+if (timelineStartButton) timelineStartButton.addEventListener('click', () => seekTimelineTo(0));
+if (timelinePlayButton) timelinePlayButton.addEventListener('click', () => {
+    if (!playerVideo.duration || isGenerating || isBuildingTimeline) return;
+    if (playerVideo.paused) playerVideo.play().catch(() => {});
+    else playerVideo.pause();
+});
+if (timelineEndButton) timelineEndButton.addEventListener('click', () => seekTimelineTo(playerVideo.duration || 0));
 
 async function desenharFilmstrip() {
     isBuildingTimeline = true;
@@ -660,11 +806,13 @@ async function desenharFilmstrip() {
         tempCtx.drawImage(playerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
         
         const img = document.createElement('img');
-        img.src = tempCanvas.toDataURL('image/jpeg', 0.5);
-        img.style.width = (100 / numFrames) + '%';
+        img.src = tempCanvas.toDataURL('image/jpeg', 0.58);
+        img.style.width = `${larguraFrame}px`;
+        img.style.flexBasis = `${larguraFrame}px`;
         filmstrip.appendChild(img);
     }
 
+    renderTimelineRuler();
     playerVideo.currentTime = 0;
     updatePlayerTimeReadout(0);
     isProgrammaticScroll = true;
@@ -672,7 +820,9 @@ async function desenharFilmstrip() {
     
     setTimeout(() => { 
         isProgrammaticScroll = false; 
-        isBuildingTimeline = false; 
+        isBuildingTimeline = false;
+        syncTimelineTransportUi();
+        renderSimpleSegmentTrack();
     }, 100);
 }
 
@@ -680,6 +830,7 @@ window.marcarTrecho = function(id) {
     if (isGenerating || isBuildingTimeline) return; 
     marcadores[id] = playerVideo.currentTime; 
     atualizarBotoesELinhas();
+    renderSimpleSegmentTrack();
 }
 
 function atualizarBotoesELinhas() {
@@ -701,6 +852,7 @@ function atualizarBotoesELinhas() {
             btnGerar.classList.add('btn-desativado');
             btnGerar.textContent = validation.message || t.advInvalidParts || t.btnFaltam;
         }
+        renderSimpleSegmentTrack();
         if (typeof updateOutputIntent === 'function') updateOutputIntent();
         if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
         return;
@@ -761,6 +913,7 @@ function atualizarBotoesELinhas() {
     if (!temVideo) {
         btnGerar.style.display = 'none';
     }
+    renderSimpleSegmentTrack();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }

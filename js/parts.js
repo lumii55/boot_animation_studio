@@ -235,11 +235,7 @@ function formatAdvancedSeconds(value) {
 }
 
 function getAdvancedPartIcon(part, index) {
-    const parts = getAdvancedParts();
-    if (index === 0) return '🚀';
-    if (index === parts.length - 1) return '🏁';
-    if (part.repeat === 0 || part.repeat > 1) return '🔁';
-    return '✨';
+    return String(index + 1).padStart(2, '0');
 }
 
 function getAdvancedRepeatText(part) {
@@ -265,9 +261,18 @@ function renderAdvancedFlow() {
     const flow = document.getElementById('advanced-parts-flow');
     if (!flow) return;
     const parts = getAdvancedParts();
+    if (!parts.length) {
+        flow.innerHTML = '';
+        return;
+    }
+    if (!getAdvancedPartById(currentProject.advancedExpandedId)) currentProject.advancedExpandedId = parts[0].id;
+    const totalDuration = Math.max(0.001, parts.reduce((sum, part) => sum + Math.max(0.001, part.end - part.start), 0));
     flow.innerHTML = parts.map((part, index) => {
         const tone = index % 4;
-        return `${index > 0 ? '<span class="advanced-flow-arrow">→</span>' : ''}<button type="button" class="advanced-flow-chip tone-${tone}" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}"><span>${getAdvancedPartIcon(part, index)}</span><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${escapeAdvancedHtml(getAdvancedRepeatText(part))}</small></button>`;
+        const selected = currentProject.advancedExpandedId === part.id;
+        const span = Math.max(0.001, part.end - part.start);
+        const weight = Math.max(80, Math.round((span / totalDuration) * 1000));
+        return `<button type="button" class="advanced-flow-chip tone-${tone}${selected ? ' is-selected' : ''}" style="--part-weight:${weight}" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}"><span class="advanced-flow-index">${getAdvancedPartIcon(part, index)}</span><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)}</small><em>${escapeAdvancedHtml(getAdvancedRepeatText(part))}</em></button>`;
     }).join('');
 }
 
@@ -276,7 +281,7 @@ function renderAdvancedAudioEditor(part) {
     const audio = part.audio;
     const hasAudio = audio.mode !== 'none';
     const videoDisabled = currentProject && currentProject.sourceMode === 'frames';
-    const sourceLabel = audio.mode === 'file' && audio.sourceName ? `<div class="advanced-audio-file-name">🎵 ${escapeAdvancedHtml(audio.sourceName)}</div>` : '';
+    const sourceLabel = audio.mode === 'file' && audio.sourceName ? `<div class="advanced-audio-file-name">${escapeAdvancedHtml(audio.sourceName)}</div>` : '';
     const fileButton = audio.mode === 'file' ? `<button type="button" class="advanced-audio-pick" data-advanced-action="pick-audio" data-part-id="${escapeAdvancedHtml(part.id)}">${escapeAdvancedHtml(audio.source instanceof Blob ? t.advReplaceAudio : t.advChooseAudio)}</button>` : '';
     return `
         <div class="advanced-field advanced-field-wide">
@@ -318,18 +323,16 @@ function renderAdvancedAudioEditor(part) {
 
 function renderAdvancedPartCard(part, index) {
     const t = traducoes[idiomaAtual];
-    const expanded = currentProject.advancedExpandedId === part.id;
     const repeatValue = getAdvancedRepeatSelectValue(part.repeat);
     const customRepeat = repeatValue === 'custom';
     const tone = index % 4;
     return `
-        <article class="advanced-part-card tone-${tone}${expanded ? ' expanded' : ''}" data-part-card="${escapeAdvancedHtml(part.id)}">
-            <button type="button" class="advanced-part-summary" data-advanced-action="toggle" data-part-id="${escapeAdvancedHtml(part.id)}">
+        <article class="advanced-part-card tone-${tone} expanded" data-part-card="${escapeAdvancedHtml(part.id)}">
+            <button type="button" class="advanced-part-summary" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}">
                 <span class="advanced-part-icon">${getAdvancedPartIcon(part, index)}</span>
-                <span class="advanced-part-summary-text"><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)} · ${escapeAdvancedHtml(getAdvancedRepeatText(part))}</small></span>
-                <span class="advanced-part-chevron">${expanded ? '⌃' : '⌄'}</span>
+                <span class="advanced-part-summary-text"><small>${escapeAdvancedHtml(t.advSelectedPart)}</small><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><span>${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)} · ${escapeAdvancedHtml(getAdvancedRepeatText(part))}</span></span>
+                <span class="advanced-part-focus-mark"></span>
             </button>
-            ${expanded ? `
             <div class="advanced-part-body">
                 <div class="advanced-fields-grid">
                     <div class="advanced-field advanced-field-wide">
@@ -378,13 +381,13 @@ function renderAdvancedPartCard(part, index) {
                     </div>
                 </details>
                 <div class="advanced-card-actions">
-                    <button type="button" data-advanced-action="move-up" data-part-id="${escapeAdvancedHtml(part.id)}"${index === 0 ? ' disabled' : ''}>↑ ${escapeAdvancedHtml(t.advMoveUp)}</button>
-                    <button type="button" data-advanced-action="move-down" data-part-id="${escapeAdvancedHtml(part.id)}"${index === getAdvancedParts().length - 1 ? ' disabled' : ''}>↓ ${escapeAdvancedHtml(t.advMoveDown)}</button>
-                    <button type="button" data-advanced-action="duplicate" data-part-id="${escapeAdvancedHtml(part.id)}">⧉ ${escapeAdvancedHtml(t.advDuplicate)}</button>
-                    <button type="button" data-advanced-action="merge-next" data-part-id="${escapeAdvancedHtml(part.id)}"${index === getAdvancedParts().length - 1 ? ' disabled' : ''}>⛓ ${escapeAdvancedHtml(t.advMergeNext)}</button>
-                    <button type="button" class="danger" data-advanced-action="delete" data-part-id="${escapeAdvancedHtml(part.id)}"${getAdvancedParts().length <= 1 ? ' disabled' : ''}>🗑 ${escapeAdvancedHtml(t.advDelete)}</button>
+                    <button type="button" data-advanced-action="move-up" data-part-id="${escapeAdvancedHtml(part.id)}"${index === 0 ? ' disabled' : ''}>${escapeAdvancedHtml(t.advMoveUp)}</button>
+                    <button type="button" data-advanced-action="move-down" data-part-id="${escapeAdvancedHtml(part.id)}"${index === getAdvancedParts().length - 1 ? ' disabled' : ''}>${escapeAdvancedHtml(t.advMoveDown)}</button>
+                    <button type="button" data-advanced-action="duplicate" data-part-id="${escapeAdvancedHtml(part.id)}">${escapeAdvancedHtml(t.advDuplicate)}</button>
+                    <button type="button" data-advanced-action="merge-next" data-part-id="${escapeAdvancedHtml(part.id)}"${index === getAdvancedParts().length - 1 ? ' disabled' : ''}>${escapeAdvancedHtml(t.advMergeNext)}</button>
+                    <button type="button" class="danger" data-advanced-action="delete" data-part-id="${escapeAdvancedHtml(part.id)}"${getAdvancedParts().length <= 1 ? ' disabled' : ''}>${escapeAdvancedHtml(t.advDelete)}</button>
                 </div>
-            </div>` : ''}
+            </div>
         </article>
     `;
 }
@@ -393,16 +396,26 @@ function renderAdvancedPartsEditor() {
     const editor = document.getElementById('advanced-parts-editor');
     if (!editor || !currentProject) return;
     const t = traducoes[idiomaAtual];
+    const parts = getAdvancedParts();
+    if (!getAdvancedPartById(currentProject.advancedExpandedId)) currentProject.advancedExpandedId = parts[0]?.id || null;
+    const selectedIndex = parts.findIndex(part => part.id === currentProject.advancedExpandedId);
+    const selectedPart = selectedIndex >= 0 ? parts[selectedIndex] : null;
     document.getElementById('advanced-parts-title').textContent = t.advTitle;
     document.getElementById('advanced-parts-subtitle').textContent = t.advSubtitle;
     document.getElementById('lbl-advanced-add').textContent = t.advAdd;
     document.getElementById('lbl-advanced-split').textContent = t.advSplit;
     document.getElementById('lbl-advanced-back').textContent = t.advBackSimple;
-    document.getElementById('advanced-parts-count').textContent = t.advPartCount.replace('{count}', String(getAdvancedParts().length));
+    document.getElementById('advanced-parts-count').textContent = t.advPartCount.replace('{count}', String(parts.length));
     document.getElementById('advanced-parts-note').textContent = t.advEditorNote;
+    const sequenceLabel = document.getElementById('advanced-sequence-label');
+    const sequenceHint = document.getElementById('advanced-sequence-hint');
+    const modeKicker = document.getElementById('advanced-mode-kicker');
+    if (sequenceLabel) sequenceLabel.textContent = t.advSequenceLabel;
+    if (sequenceHint) sequenceHint.textContent = t.advSequenceHint;
+    if (modeKicker) modeKicker.textContent = t.advModeKicker;
     renderAdvancedFlow();
     updateAdvancedHoldHint();
-    document.getElementById('advanced-parts-list').innerHTML = getAdvancedParts().map(renderAdvancedPartCard).join('');
+    document.getElementById('advanced-parts-list').innerHTML = selectedPart ? renderAdvancedPartCard(selectedPart, selectedIndex) : '';
     renderAdvancedPartLines();
 }
 
@@ -422,16 +435,20 @@ function syncAdvancedPartsUi() {
     editor.style.display = hasMedia && active ? 'flex' : 'none';
     const simpleAudio = document.getElementById('simple-audio-toggle-wrap');
     const audioPanel = document.getElementById('painel-audio');
+    const simpleSequence = document.getElementById('simple-sequence');
     if (active) {
         gridMarcadores.style.display = 'none';
         document.getElementById('txt-hint-tooltip').style.display = 'none';
+        if (simpleSequence) simpleSequence.style.display = 'none';
         if (simpleAudio) simpleAudio.style.display = 'none';
         if (audioPanel) audioPanel.style.display = 'none';
         renderAdvancedPartsEditor();
     } else if (hasMedia) {
         gridMarcadores.style.display = 'grid';
         document.getElementById('txt-hint-tooltip').style.display = 'block';
+        if (simpleSequence) simpleSequence.style.display = '';
         if (simpleAudio) simpleAudio.style.display = '';
+        if (typeof renderSimpleSegmentTrack === 'function') renderSimpleSegmentTrack();
         if (typeof verificarPainelAudio === 'function') verificarPainelAudio();
     }
 }
@@ -1047,7 +1064,7 @@ if (advancedEditor) {
         }
         const part = getAdvancedPartById(id);
         if (action === 'toggle') {
-            currentProject.advancedExpandedId = currentProject.advancedExpandedId === id ? null : id;
+            currentProject.advancedExpandedId = id;
             renderAdvancedPartsEditor();
         } else if (action === 'select') {
             currentProject.advancedExpandedId = id;
