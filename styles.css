@@ -5879,60 +5879,91 @@ button.editor-context-state:active {
 }
 
 
-.device-secondary-actions {
-    align-items: stretch;
+.device-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
 }
 
-.device-secondary-actions .btn-upload {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.device-actions .btn-upload {
     min-height: 56px;
-    padding: 12px 14px;
-    border-radius: 15px;
-    text-align: center;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 9px;
+    line-height: 1.35;
 }
 
+#btn-remove {
+    grid-column: 1 / -1;
+    min-height: 52px;
+}
+
+.device-secondary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.device-secondary-actions .btn-upload,
 #btn-reset,
 #btn-disconnect {
-    min-height: 56px;
-    border-radius: 15px;
+    display: flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 9px 11px;
+    border: 1px solid rgba(164, 184, 211, 0.1);
+    border-radius: 13px;
+    font-size: 8px;
+    line-height: 1.35;
     text-align: center;
 }
 
 #btn-reset {
-    border-color: rgba(142, 163, 255, 0.14);
-    background: linear-gradient(145deg, rgba(142, 163, 255, 0.08), rgba(142, 163, 255, 0.04));
-    color: #d7deff;
+    border-color: rgba(142, 163, 255, 0.12);
+    background: rgba(142, 163, 255, 0.045);
+    color: #cbd3ff;
 }
 
 #btn-disconnect {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 56px;
-    padding: 12px 14px;
-    border: 1px solid rgba(164, 184, 211, 0.1);
-    border-top: 1px solid rgba(164, 184, 211, 0.1);
-    border-radius: 15px;
-    background: rgba(255, 255, 255, 0.022);
-    color: #a8b5c7;
-    text-align: center;
-}
-
-#btn-disconnect:hover {
-    border-color: rgba(164, 184, 211, 0.18);
-    background: rgba(255, 255, 255, 0.035);
+    border-color: rgba(164, 184, 211, 0.1);
+    border-top-color: rgba(164, 184, 211, 0.1);
+    background: rgba(255, 255, 255, 0.018);
+    color: #93a0b3;
 }
 
 @media (max-width: 520px) {
+    .device-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .device-actions .btn-upload {
-        min-height: 66px;
+        min-height: 58px;
+    }
+
+    #btn-remove {
+        grid-column: 1 / -1;
+        min-height: 50px;
+    }
+
+    .device-secondary-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .device-secondary-actions .btn-upload,
     #btn-reset,
     #btn-disconnect {
-        min-height: 54px;
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 340px) {
+    .device-actions,
+    .device-secondary-actions {
+        grid-template-columns: 1fr;
+    }
+
+    #btn-remove {
+        grid-column: auto;
     }
 }
