@@ -57,6 +57,7 @@ function syncWorkspaceUi() {
     if (!workspaceUi.editor) return;
     const hasMedia = workspaceHasMedia();
     const connected = workspaceIsConnected();
+    const stateButton = document.getElementById('editor-device-toggle');
     workspaceUi.editor.classList.toggle('has-media', hasMedia);
     workspaceUi.editor.classList.toggle('has-device', connected);
     document.body.classList.toggle('workspace-has-media', hasMedia);
@@ -69,10 +70,19 @@ function syncWorkspaceUi() {
             : workspaceText('workspaceSourceEmpty', 'No source');
         workspaceUi.sourceReady.classList.toggle('is-ready', hasMedia);
     }
+    if (stateButton) {
+        stateButton.hidden = connected;
+        stateButton.setAttribute('aria-hidden', connected ? 'true' : 'false');
+    }
     if (workspaceUi.stateLabel) {
         workspaceUi.stateLabel.textContent = connected
             ? workspaceText('workspaceDevice', 'Device')
-            : workspaceText('workspaceLocal', 'Local');
+            : workspaceText('workspaceConnectAction', 'Connect phone');
+    }
+    if (stateButton && !connected) {
+        const label = workspaceText('workspaceConnectAction', 'Connect phone');
+        stateButton.title = label;
+        stateButton.setAttribute('aria-label', label);
     }
     if (!hasMedia && workspaceUi.currentView !== 'edit') setWorkspaceView('edit', { scroll: false });
 }
