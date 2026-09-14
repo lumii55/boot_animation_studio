@@ -434,7 +434,6 @@ function updatePerformanceEstimate() {
         generationNote = t.perfLightNote;
     }
     document.getElementById('perf-note').textContent = `${generationNote} ${getBootSizeNote(estimate.bootLevel, t)}`;
-    if (typeof updateP11PanelMeta === 'function') updateP11PanelMeta();
 }
 
 function schedulePerformanceEstimate() {

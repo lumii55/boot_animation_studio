@@ -422,18 +422,15 @@ function syncAdvancedPartsUi() {
     editor.style.display = hasMedia && active ? 'flex' : 'none';
     const simpleAudio = document.getElementById('simple-audio-toggle-wrap');
     const audioPanel = document.getElementById('painel-audio');
-    const p11AudioSection = document.getElementById('p11-audio-section');
     if (active) {
         gridMarcadores.style.display = 'none';
         document.getElementById('txt-hint-tooltip').style.display = 'none';
         if (simpleAudio) simpleAudio.style.display = 'none';
         if (audioPanel) audioPanel.style.display = 'none';
-        if (p11AudioSection) p11AudioSection.style.display = 'none';
         renderAdvancedPartsEditor();
     } else if (hasMedia) {
         gridMarcadores.style.display = 'grid';
         document.getElementById('txt-hint-tooltip').style.display = 'block';
-        if (p11AudioSection) p11AudioSection.style.display = '';
         if (simpleAudio) simpleAudio.style.display = '';
         if (typeof verificarPainelAudio === 'function') verificarPainelAudio();
     }
