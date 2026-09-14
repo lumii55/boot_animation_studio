@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="styles.css?v=p11-preview-1-1" rel="stylesheet"/>
+<link href="styles.css?v=p11-2" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta content="#070b12" name="theme-color"/></head>
@@ -29,18 +29,9 @@
 <option value="fr">Français</option>
 </select>
 </div></header>
-
-
-
-
-
-
-
-<main class="studio-main"><div class="launch-panel" id="initial-state">
-
-
-<div class="launch-actions"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()"> Just Create .ZIP</button><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button></div><div class="dicas-container" id="dicas-iniciais">
-<h3 id="txt-dicas-titulo">Tips for Beginners</h3>
+<main class="studio-main"><div class="launch-panel" id="initial-state"><div class="launch-hero"><div class="launch-kicker" id="p11-launch-kicker">LOCAL CREATIVE WORKSPACE</div><h2 id="p11-launch-title">Build an Android boot animation visually.</h2><p id="p11-launch-desc">Import a video, GIF or existing bootanimation.zip. Edit locally in your browser, then export normally or use the optional companion module.</p></div>
+<div class="launch-actions"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()"> Just Create .ZIP</button><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button></div><p class="launch-privacy" id="p11-launch-privacy">Your project is processed locally on this device.</p><details class="dicas-container" id="dicas-iniciais">
+<summary class="tips-summary" id="txt-dicas-titulo">Tips for Beginners</summary>
 <ul>
 <li class="dica-destaque" id="txt-dica-modulo">
 <strong id="txt-dica-modulo-prefix">Companion Module:</strong>
@@ -51,7 +42,7 @@
 <li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
 <li id="txt-dica3"><strong>Screen aspect:</strong> Use Framing to choose how videos with a different aspect ratio are cropped, fitted or stretched.</li>
 </ul>
-</div></div><div class="device-panel" id="connected-state">
+</details></div><div class="device-panel" id="connected-state">
 <div id="status-connected"> Phone Connected!</div>
 <div class="hist-wrapper" id="history-wrapper">
 <div class="hist-title" id="lbl-history">Animations History (Max 5):</div>
@@ -60,8 +51,8 @@
 <div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div>
 </div>
 <button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()"> Disconnect</button>
-</div><div class="editor-section" id="editor-section">
-<div class="source-actions" id="acoes-principais">
+</div><div class="editor-section" data-mobile-view="edit" id="editor-section"><div class="editor-topbar"><div class="editor-context"><span class="editor-context-kicker" id="p11-editor-kicker">PROJECT WORKSPACE</span><strong id="p11-editor-title">Boot animation project</strong></div><div class="editor-context-state"><span class="editor-state-dot"></span><span id="p11-editor-state">Local</span></div></div>
+<section class="source-dock" id="source-dock"><div class="source-dock-head"><div><span class="section-kicker" id="p11-source-kicker">SOURCE</span><h2 id="p11-source-title">Start with a source</h2><p id="p11-source-desc">Choose media or open an existing animation.</p></div><span class="source-ready-indicator" id="p11-source-ready">No source</span></div><div class="source-actions" id="acoes-principais">
 <label class="btn-upload" for="upload-video" id="lbl-upload"> Video / GIF</label>
 <input accept="video/*, image/gif" hidden="" id="upload-video" type="file"/>
 <label class="btn-upload" for="upload-zip" id="lbl-upload-zip"> Edit .ZIP</label>
@@ -71,7 +62,7 @@
 <button class="btn-upload" id="btn-pull" onclick="abrirModalPull()"> Pull from Phone</button>
 <button class="btn-upload" id="btn-remove" onclick="removeAnimation()"> Remove Animation</button>
 <button class="btn-upload" id="btn-reset" onclick="resetarModulo()"> Troubleshoot (Reset)</button>
-</div><div class="editor-grid"><section class="workspace-stage"><div class="video-container" id="video-container">
+</div></section><div class="editor-grid"><section class="workspace-stage"><div class="stage-heading workspace-heading"><div><span class="section-kicker" id="p11-edit-kicker">EDIT</span><h2 id="p11-edit-title">Shape the animation</h2><p id="p11-edit-desc">Preview the source, navigate the timeline and define each section.</p></div><span class="stage-step">01</span></div><div class="workspace-empty" id="workspace-empty"><div class="workspace-empty-visual"><span></span><span></span><span></span></div><strong id="p11-empty-title">Your workspace is empty</strong><p id="p11-empty-desc">Add a video, GIF or bootanimation.zip to begin.</p></div><div class="video-container" id="video-container">
 <div class="framing-preview" id="framing-preview">
 <video class="pausado" id="player-video" playsinline=""></video>
 <button aria-label="Reset crop" class="focus-reset" id="btn-reset-focus" title="Reset crop" type="button">◎</button>
@@ -129,7 +120,7 @@
 </div>
 <button class="advanced-back-simple" id="btn-advanced-back" type="button">← <span id="lbl-advanced-back">Back to Simple Mode</span></button>
 <div class="advanced-parts-note" id="advanced-parts-note"></div>
-</section></section><section class="settings-stage"><div class="configuracoes" id="configuracoes">
+</section><div class="workflow-step-actions workflow-edit-actions"><button class="workflow-next" id="btn-workspace-next" type="button"><span id="p11-next-tune">Continue to output</span><b>02</b></button></div></section><section class="settings-stage"><div class="stage-heading"><div><span class="section-kicker" id="p11-tune-kicker">OUTPUT</span><h2 id="p11-tune-title">Tune the output</h2><p id="p11-tune-desc">Adjust format, resolution, framing, frame rate and audio.</p></div><span class="stage-step">02</span></div><div class="configuracoes" id="configuracoes">
 <div class="campo campo-full" id="wrap-gerar-modulo">
 <div class="checkbox-container">
 <label id="lbl-gerarmodulo">Generate Root Module? </label>
@@ -331,25 +322,13 @@
 </div>
 </div>
 </div>
-</div></section></div><section class="export-stage"><div id="botoes-exportacao">
+</div><div class="workflow-step-actions"><button class="workflow-back" id="btn-settings-back" type="button"><span id="p11-back-edit">Back to edit</span></button><button class="workflow-next" id="btn-settings-next" type="button"><span id="p11-next-build">Review build</span><b>03</b></button></div></section><section class="export-stage"><div class="stage-heading"><div><span class="section-kicker" id="p11-build-kicker">BUILD</span><h2 id="p11-build-title">Finish the project</h2><p id="p11-build-desc">Review readiness, preview the result and generate the final file.</p></div><span class="stage-step">03</span></div><div class="build-readiness"><span class="build-readiness-dot"></span><div><strong id="p11-build-ready-title">Ready when your sections are marked</strong><p id="p11-build-ready-desc">The build button will unlock automatically when the project is valid.</p></div></div><div id="botoes-exportacao">
 <button class="btn-gerar" id="btn-baixar-video" onclick="baixarVideo()"> Download Video</button>
 <button class="btn-gerar" id="btn-baixar-zip" onclick="baixarZipEditado()"> Download .ZIP</button>
 </div><div class="output-intent" id="output-intent"></div><button class="btn-gerar btn-desativado" id="btn-gerar">Missing Markers...</button><button class="btn-gerar" id="btn-ver-preview" onclick="chamarModalPreview()"> Ver Preview</button><div class="container-progresso" id="container-progresso">
 <div class="texto-progresso" id="texto-progresso">0%</div>
 <div class="barra-fundo"><div class="barra-preenchimento" id="barra-preenchimento"></div></div>
-</div></section>
-
-
-
-
-
-
-
-
-
-
-
-
+</div><div class="workflow-step-actions workflow-build-actions"><button class="workflow-back" id="btn-export-back" type="button"><span id="p11-back-tune">Back to output</span></button></div></section></div><nav aria-label="Project workflow" class="mobile-workflow-nav" id="mobile-workflow-nav"><button aria-selected="true" class="workflow-tab is-active" data-workspace-view="edit" id="workspace-tab-edit" type="button"><span class="workflow-tab-index">01</span><span id="p11-nav-edit">Edit</span></button><button aria-selected="false" class="workflow-tab" data-workspace-view="settings" id="workspace-tab-settings" type="button"><span class="workflow-tab-index">02</span><span id="p11-nav-tune">Output</span></button><button aria-selected="false" class="workflow-tab" data-workspace-view="export" id="workspace-tab-export" type="button"><span class="workflow-tab-index">03</span><span id="p11-nav-build">Build</span></button></nav>
 </div></main></div>
 <div class="modal-overlay" id="modal-escolha-preview">
 <div class="modal-box">
@@ -437,16 +416,16 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p11-preview-1-1"></script>
-<script src="js/project.js?v=p11-preview-1-1"></script>
-<script src="js/i18n.js?v=p11-preview-1-1"></script>
-<script src="js/ux.js?v=p11-preview-1-1"></script>
-<script src="js/api.js?v=p11-preview-1-1"></script>
-<script src="js/media.js?v=p11-preview-1-1"></script>
-<script src="js/timeline.js?v=p11-preview-1-1"></script>
-<script src="js/audio.js?v=p11-preview-1-1"></script>
-<script src="js/parts.js?v=p11-preview-1-1"></script>
-<script src="js/performance.js?v=p11-preview-1-1"></script>
-<script src="js/export.js?v=p11-preview-1-1"></script>
+<script src="js/state.js?v=p11-2"></script>
+<script src="js/project.js?v=p11-2"></script>
+<script src="js/i18n.js?v=p11-2"></script>
+<script src="js/ux.js?v=p11-2"></script>
+<script src="js/workspace.js?v=p11-2"></script><script src="js/api.js?v=p11-2"></script>
+<script src="js/media.js?v=p11-2"></script>
+<script src="js/timeline.js?v=p11-2"></script>
+<script src="js/audio.js?v=p11-2"></script>
+<script src="js/parts.js?v=p11-2"></script>
+<script src="js/performance.js?v=p11-2"></script>
+<script src="js/export.js?v=p11-2"></script>
 </body>
 </html>
