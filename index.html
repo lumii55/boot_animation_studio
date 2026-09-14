@@ -1,493 +1,452 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>✨ Boot Animation Studio ✨</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-</head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Boot Animation Studio</title>
+<link href="styles.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<meta content="#070b12" name="theme-color"/></head>
 <body>
-    <div id="tooltip-flutuante" class="tooltip-estiloso"></div>
-    <div id="advanced-time-popover" class="advanced-time-popover" role="dialog" aria-modal="false" aria-hidden="true">
-        <strong id="advanced-time-popover-title"></strong>
-        <span id="advanced-time-popover-prompt"></span>
-        <div class="advanced-time-popover-actions">
-            <button type="button" class="advanced-time-choice advanced-time-start" id="advanced-time-start">◀ <span id="advanced-time-start-label">Start</span></button>
-            <button type="button" class="advanced-time-choice advanced-time-end" id="advanced-time-end"><span id="advanced-time-end-label">End</span> ▶</button>
-        </div>
-        <button type="button" class="advanced-time-cancel" id="advanced-time-cancel">Cancel</button>
-    </div>
-    <div class="container">
-        <div class="topo-idioma">
-            <span style="font-size: 13px; color: #888;">🌐</span>
-            <select id="select-idioma" onchange="mudarIdioma(this.value)">
-                <option value="en">English (US)</option>
-                <option value="pt">Português (BR)</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-            </select>
-        </div>
+<div class="tooltip-estiloso" id="tooltip-flutuante"></div>
+<div aria-hidden="true" aria-modal="false" class="advanced-time-popover" id="advanced-time-popover" role="dialog">
+<strong id="advanced-time-popover-title"></strong>
+<span id="advanced-time-popover-prompt"></span>
+<div class="advanced-time-popover-actions">
+<button class="advanced-time-choice advanced-time-start" id="advanced-time-start" type="button">◀ <span id="advanced-time-start-label">Start</span></button>
+<button class="advanced-time-choice advanced-time-end" id="advanced-time-end" type="button"><span id="advanced-time-end-label">End</span> ▶</button>
+</div>
+<button class="advanced-time-cancel" id="advanced-time-cancel" type="button">Cancel</button>
+</div>
+<div class="container"><header class="studio-header"><div class="brand-lockup"><div aria-hidden="true" class="brand-mark"><span></span></div><div class="brand-copy"><h1 id="txt-titulo">Boot Animation Studio</h1><p id="txt-subtitulo">Create, edit or apply a boot animation file!</p></div></div><div class="topo-idioma">
+<span></span>
+<select id="select-idioma" onchange="mudarIdioma(this.value)">
+<option value="en">English (US)</option>
+<option value="pt">Português (BR)</option>
+<option value="es">Español</option>
+<option value="fr">Français</option>
+</select>
+</div></header>
 
-        <h1 id="txt-titulo">✨ Boot Animation Studio ✨</h1>
-        <p id="txt-subtitulo">Create, edit or apply a boot animation file!</p>
 
-        <div class="dicas-container" id="dicas-iniciais">
-            <h3 id="txt-dicas-titulo">Tips for Beginners</h3>
-            <ul>
-                <li id="txt-dica-modulo" class="dica-destaque">
-                    <strong id="txt-dica-modulo-prefix">Companion Module:</strong> 
-                    <span id="txt-dica-modulo-text">The "Connect to Phone" feature requires our optional root module. The site works 100% perfectly without it, but for direct phone integration, download the module from our</span> 
-                    <a href="https://github.com/lumii55/boot_studio_module" id="txt-dica-modulo-link" style="color: #bb86fc; text-decoration: none; font-weight: bold;">GitHub Repository</a>.
-                </li>
-                <li id="txt-dica1"><strong>Important (Samsung):</strong> Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.</li>
-                <li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
-                <li id="txt-dica3"><strong>Screen aspect:</strong> Use Framing to choose how videos with a different aspect ratio are cropped, fitted or stretched.</li>
-            </ul>
-        </div>
 
-        <div id="initial-state" style="width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 5px;">
-            <button class="btn-upload" id="btn-connect" onclick="connectToPhone()" style="background-color: #03dac6;">🔌 Connect to Phone</button>
-            <button class="btn-upload" id="btn-manual" onclick="startManualMode()" style="background-color: #333; color: #fff;">📦 Just Create .ZIP</button>
-        </div>
 
-        <div id="connected-state" style="width: 100%; display: none; flex-direction: column; gap: 10px; margin-bottom: 5px;">
-            <div style="background-color: #28a745; padding: 12px; border-radius: 15px; font-weight: bold; text-align: center; color: white; font-size: 15px;" id="status-connected">🟢 Phone Connected!</div>
-            
-            <div class="hist-wrapper" id="history-wrapper">
-                <div class="hist-title" id="lbl-history">Animations History (Max 5):</div>
-                <div class="hist-scroll" id="history-scroll">
-                </div>
-                <div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div>
-            </div>
 
-            <button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()" style="background-color: #333; color: #fff;">🚪 Disconnect</button>
-        </div>
 
-        <div id="editor-section" style="display: none; width: 100%; flex-direction: column; align-items: center; gap: 15px;">
-            
-            <div id="acoes-principais" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
-                <label for="upload-video" class="btn-upload" id="lbl-upload" style="margin: 0; display: flex; align-items: center; justify-content: center; height: 100%;">📂 Video / GIF</label>
-                <input type="file" id="upload-video" accept="video/*, image/gif" hidden>
 
-                <label for="upload-zip" class="btn-upload" id="lbl-upload-zip" style="margin: 0; display: flex; align-items: center; justify-content: center; height: 100%; background-color: #ffb86c; color: #000;">📦 Edit .ZIP</label>
-                <input type="file" id="upload-zip" accept=".zip" hidden>
+<main class="studio-main"><div class="launch-panel" id="initial-state">
 
-                <label for="upload-zip-direto" class="btn-upload" id="lbl-upload-direto" style="margin: 0; display: none; align-items: center; justify-content: center; height: 100%; background-color: #03dac6; color: #000; font-size: 14px;">🚀 Inject .ZIP</label>
-                <input type="file" id="upload-zip-direto" accept=".zip" hidden>
 
-                <button class="btn-upload" id="btn-pull" onclick="abrirModalPull()" style="background-color: #bb86fc; color: #000; margin: 0; height: 100%; display: none; font-size: 14px;">📥 Pull from Phone</button>
+<div class="launch-actions"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()"> Just Create .ZIP</button><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button></div><div class="dicas-container" id="dicas-iniciais">
+<h3 id="txt-dicas-titulo">Tips for Beginners</h3>
+<ul>
+<li class="dica-destaque" id="txt-dica-modulo">
+<strong id="txt-dica-modulo-prefix">Companion Module:</strong>
+<span id="txt-dica-modulo-text">The "Connect to Phone" feature requires our optional root module. The site works 100% perfectly without it, but for direct phone integration, download the module from our</span>
+<a href="https://github.com/lumii55/boot_studio_module" id="txt-dica-modulo-link">GitHub Repository</a>.
+ </li>
+<li id="txt-dica1"><strong>Important (Samsung):</strong> Because .qmg is a closed format, this site doesn't generate animations for stock Samsung. You MUST be on a Custom ROM/GSI! Root access is required.</li>
+<li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
+<li id="txt-dica3"><strong>Screen aspect:</strong> Use Framing to choose how videos with a different aspect ratio are cropped, fitted or stretched.</li>
+</ul>
+</div></div><div class="device-panel" id="connected-state">
+<div id="status-connected"> Phone Connected!</div>
+<div class="hist-wrapper" id="history-wrapper">
+<div class="hist-title" id="lbl-history">Animations History (Max 5):</div>
+<div class="hist-scroll" id="history-scroll">
+</div>
+<div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div>
+</div>
+<button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()"> Disconnect</button>
+</div><div class="editor-section" id="editor-section">
+<div class="source-actions" id="acoes-principais">
+<label class="btn-upload" for="upload-video" id="lbl-upload"> Video / GIF</label>
+<input accept="video/*, image/gif" hidden="" id="upload-video" type="file"/>
+<label class="btn-upload" for="upload-zip" id="lbl-upload-zip"> Edit .ZIP</label>
+<input accept=".zip" hidden="" id="upload-zip" type="file"/>
+<label class="btn-upload" for="upload-zip-direto" id="lbl-upload-direto"> Inject .ZIP</label>
+<input accept=".zip" hidden="" id="upload-zip-direto" type="file"/>
+<button class="btn-upload" id="btn-pull" onclick="abrirModalPull()"> Pull from Phone</button>
+<button class="btn-upload" id="btn-remove" onclick="removeAnimation()"> Remove Animation</button>
+<button class="btn-upload" id="btn-reset" onclick="resetarModulo()"> Troubleshoot (Reset)</button>
+</div><div class="editor-grid"><section class="workspace-stage"><div class="video-container" id="video-container">
+<div class="framing-preview" id="framing-preview">
+<video class="pausado" id="player-video" playsinline=""></video>
+<button aria-label="Reset crop" class="focus-reset" id="btn-reset-focus" title="Reset crop" type="button">◎</button>
+</div>
+<p class="dica-video" id="txt-dicavideo"> Click video to Play or Pause!</p>
+<div aria-live="off" class="video-time-readout" id="video-time-readout" role="status">
+<span class="video-time-icon">⏱</span>
+<strong id="video-current-time">0.00s</strong>
+<span class="video-time-separator">/</span>
+<span id="video-total-time">0.00s</span>
+</div>
+</div><div class="timeline-wrapper" id="timeline-wrapper">
+<div class="playhead-centro"></div>
+<div class="timeline-scroll" id="timeline-scroll">
+<div class="filmstrip-container">
+<div class="pad-spacer" id="pad-left"></div>
+<div class="filmstrip" id="filmstrip"></div>
+<div class="pad-spacer" id="pad-right"></div>
+</div>
+</div>
+</div><p class="hint-tooltip" id="txt-hint-tooltip"></p><div class="grid-marcadores" id="grid-marcadores">
+<button class="btn-marc btn-m0" onclick="marcarTrecho('m0')"> <span id="lbl-m0">1. Intro</span><br/><span class="status-marc" id="st-m0">Not marked</span></button>
+<button class="btn-marc btn-m1" onclick="marcarTrecho('m1')"> <span id="lbl-m1">2. Loop Start</span><br/><span class="status-marc" id="st-m1">Not marked</span></button>
+<button class="btn-marc btn-m2" onclick="marcarTrecho('m2')"> <span id="lbl-m2">3. Loop End</span><br/><span class="status-marc" id="st-m2">Not marked</span></button>
+<button class="btn-marc btn-m3" onclick="marcarTrecho('m3')"> <span id="lbl-m3">4. Outro</span><br/><span class="status-marc" id="st-m3">Not marked</span></button>
+</div><details class="advanced-parts-launch" id="advanced-parts-launch">
+<summary class="advanced-options-summary">
+<span class="advanced-options-summary-icon"></span>
+<span id="advanced-options-label">Advanced options</span>
+</summary>
+<div class="advanced-options-panel">
+<button class="advanced-parts-launch-btn" id="btn-open-advanced-parts" type="button">
+<span class="advanced-parts-launch-icon">◇</span>
+<span class="advanced-parts-launch-copy">
+<strong id="advanced-parts-launch-title">Advanced Parts Editor</strong>
+<small id="advanced-parts-launch-hint">Optional: create more than Intro / Loop / Outro.</small>
+</span>
+<span class="advanced-parts-launch-chevron">›</span>
+</button>
+</div>
+</details><section aria-live="polite" class="advanced-parts-editor" id="advanced-parts-editor">
+<div class="advanced-parts-header">
+<div>
+<h2 id="advanced-parts-title"> Advanced Parts Editor </h2>
+<p id="advanced-parts-subtitle">Build the animation as a sequence of simple parts.</p>
+</div>
+<span class="advanced-parts-count" id="advanced-parts-count"></span>
+</div>
+<div class="advanced-parts-flow" id="advanced-parts-flow"></div>
+<div class="advanced-hold-hint" id="advanced-hold-hint"></div>
+<div class="advanced-parts-list" id="advanced-parts-list"></div>
+<div class="advanced-parts-actions">
+<button class="advanced-action advanced-action-primary" id="btn-advanced-add" type="button">＋ <span id="lbl-advanced-add">Add Part</span></button>
+<button class="advanced-action advanced-action-secondary" id="btn-advanced-split" type="button"> <span id="lbl-advanced-split">Split at Playhead</span></button>
+</div>
+<button class="advanced-back-simple" id="btn-advanced-back" type="button">← <span id="lbl-advanced-back">Back to Simple Mode</span></button>
+<div class="advanced-parts-note" id="advanced-parts-note"></div>
+</section></section><section class="settings-stage"><div class="configuracoes" id="configuracoes">
+<div class="campo campo-full" id="wrap-gerar-modulo">
+<div class="checkbox-container">
+<label id="lbl-gerarmodulo">Generate Root Module? </label>
+<input id="input-gerar-modulo" onchange="verificarModulo()" type="checkbox"/>
+</div>
+</div>
+<div class="campo campo-full" id="container-fabricante">
+<label id="lbl-fabricante">Device Variant </label>
+<select id="input-fabricante">
+<option id="opt-standard" value="standard">Standard (AOSP/Pixel/OnePlus)</option>
+<option id="opt-miui" value="miui">MIUI (Xiaomi)</option>
+<option id="opt-mtk" value="mtk">MTK (MediaTek Stock)</option>
+<option id="opt-motorola" value="motorola">Motorola</option>
+<option id="opt-emui" value="emui">EMUI (Huawei)</option>
+</select>
+</div>
+<div class="campo campo-full" id="simple-audio-toggle-wrap">
+<div class="checkbox-container">
+<label id="lbl-usar-som">Use sound in animation? </label>
+<input id="input-usar-som" onchange="verificarPainelAudio()" type="checkbox"/>
+</div>
+</div>
+<div class="painel-audio" id="painel-audio">
+<div class="campo audio-role-card">
+<label id="lbl-audio-intro">Intro Audio:</label>
+<select id="sel-audio-intro" onchange="handleAudioSelect('intro')">
+<option id="opt-none-intro" value="none">None</option>
+<option id="opt-vid-intro" value="video">Video's Audio</option>
+<option id="opt-file-intro" value="file">Audio File...</option>
+</select>
+<input accept="audio/*" hidden="" id="file-audio-intro" onchange="fileAudioSelecionado('intro')" type="file"/>
+<div class="vol-container" id="vol-wrap-intro">
+<input class="vol-slider" id="vol-intro" max="100" min="0" oninput="document.getElementById('lbl-vol-intro').textContent = this.value + '%'" type="range" value="100"/>
+<div class="vol-label" id="lbl-vol-intro">100%</div>
+</div>
+<details class="audio-advanced" id="audio-advanced-intro">
+<summary id="audio-advanced-summary-intro">Advanced audio</summary>
+<div class="audio-advanced-grid">
+<div class="audio-advanced-control">
+<div class="audio-advanced-heading"><span id="lbl-fade-in-intro">Fade in</span><strong id="val-fade-in-intro">0.0s</strong></div>
+<input id="fade-in-intro" max="5" min="0" oninput="handleAudioAdvancedInput('intro')" step="0.1" type="range" value="0"/>
+</div>
+<div class="audio-advanced-control">
+<div class="audio-advanced-heading"><span id="lbl-fade-out-intro">Fade out</span><strong id="val-fade-out-intro">0.0s</strong></div>
+<input id="fade-out-intro" max="5" min="0" oninput="handleAudioAdvancedInput('intro')" step="0.1" type="range" value="0"/>
+</div>
+<div class="audio-advanced-control audio-advanced-wide">
+<div class="audio-advanced-heading"><span id="lbl-offset-intro">Offset (+ later / − earlier)</span><strong id="val-offset-intro">0.0s</strong></div>
+<input id="audio-offset-intro" max="5" min="-5" oninput="handleAudioAdvancedInput('intro')" step="0.1" type="range" value="0"/>
+</div>
+<label class="audio-normalize audio-advanced-wide">
+<input id="audio-normalize-intro" onchange="handleAudioAdvancedInput('intro')" type="checkbox"/>
+<span id="lbl-normalize-intro">Normalize peak</span>
+</label>
+</div>
+</details>
+</div>
+<div class="campo audio-role-card">
+<label id="lbl-audio-loop">Loop Audio:</label>
+<select id="sel-audio-loop" onchange="handleAudioSelect('loop')">
+<option id="opt-none-loop" value="none">None</option>
+<option id="opt-vid-loop" value="video">Video's Audio</option>
+<option id="opt-file-loop" value="file">Audio File...</option>
+</select>
+<input accept="audio/*" hidden="" id="file-audio-loop" onchange="fileAudioSelecionado('loop')" type="file"/>
+<div class="vol-container" id="vol-wrap-loop">
+<input class="vol-slider" id="vol-loop" max="100" min="0" oninput="document.getElementById('lbl-vol-loop').textContent = this.value + '%'" type="range" value="100"/>
+<div class="vol-label" id="lbl-vol-loop">100%</div>
+</div>
+<details class="audio-advanced" id="audio-advanced-loop">
+<summary id="audio-advanced-summary-loop">Advanced audio</summary>
+<div class="audio-advanced-grid">
+<div class="audio-advanced-control">
+<div class="audio-advanced-heading"><span id="lbl-fade-in-loop">Fade in</span><strong id="val-fade-in-loop">0.0s</strong></div>
+<input id="fade-in-loop" max="5" min="0" oninput="handleAudioAdvancedInput('loop')" step="0.1" type="range" value="0"/>
+</div>
+<div class="audio-advanced-control">
+<div class="audio-advanced-heading"><span id="lbl-fade-out-loop">Fade out</span><strong id="val-fade-out-loop">0.0s</strong></div>
+<input id="fade-out-loop" max="5" min="0" oninput="handleAudioAdvancedInput('loop')" step="0.1" type="range" value="0"/>
+</div>
+<div class="audio-advanced-control audio-advanced-wide">
+<div class="audio-advanced-heading"><span id="lbl-offset-loop">Offset (+ later / − earlier)</span><strong id="val-offset-loop">0.0s</strong></div>
+<input id="audio-offset-loop" max="5" min="-5" oninput="handleAudioAdvancedInput('loop')" step="0.1" type="range" value="0"/>
+</div>
+<label class="audio-normalize audio-advanced-wide">
+<input id="audio-normalize-loop" onchange="handleAudioAdvancedInput('loop')" type="checkbox"/>
+<span id="lbl-normalize-loop">Normalize peak</span>
+</label>
+</div>
+</details>
+</div>
+<div class="campo audio-role-card">
+<label id="lbl-audio-final">Outro Audio:</label>
+<select id="sel-audio-final" onchange="handleAudioSelect('final')">
+<option id="opt-none-final" value="none">None</option>
+<option id="opt-vid-final" value="video">Video's Audio</option>
+<option id="opt-file-final" value="file">Audio File...</option>
+</select>
+<input accept="audio/*" hidden="" id="file-audio-final" onchange="fileAudioSelecionado('final')" type="file"/>
+<div class="vol-container" id="vol-wrap-final">
+<input class="vol-slider" id="vol-final" max="100" min="0" oninput="document.getElementById('lbl-vol-final').textContent = this.value + '%'" type="range" value="100"/>
+<div class="vol-label" id="lbl-vol-final">100%</div>
+</div>
+<details class="audio-advanced" id="audio-advanced-final">
+<summary id="audio-advanced-summary-final">Advanced audio</summary>
+<div class="audio-advanced-grid">
+<div class="audio-advanced-control">
+<div class="audio-advanced-heading"><span id="lbl-fade-in-final">Fade in</span><strong id="val-fade-in-final">0.0s</strong></div>
+<input id="fade-in-final" max="5" min="0" oninput="handleAudioAdvancedInput('final')" step="0.1" type="range" value="0"/>
+</div>
+<div class="audio-advanced-control">
+<div class="audio-advanced-heading"><span id="lbl-fade-out-final">Fade out</span><strong id="val-fade-out-final">0.0s</strong></div>
+<input id="fade-out-final" max="5" min="0" oninput="handleAudioAdvancedInput('final')" step="0.1" type="range" value="0"/>
+</div>
+<div class="audio-advanced-control audio-advanced-wide">
+<div class="audio-advanced-heading"><span id="lbl-offset-final">Offset (+ later / − earlier)</span><strong id="val-offset-final">0.0s</strong></div>
+<input id="audio-offset-final" max="5" min="-5" oninput="handleAudioAdvancedInput('final')" step="0.1" type="range" value="0"/>
+</div>
+<label class="audio-normalize audio-advanced-wide">
+<input id="audio-normalize-final" onchange="handleAudioAdvancedInput('final')" type="checkbox"/>
+<span id="lbl-normalize-final">Normalize peak</span>
+</label>
+</div>
+</details>
+</div>
+</div>
+<div class="campo campo-full" id="wrap-nome">
+<label id="lbl-nome">File Name (Without extension)</label>
+<input id="input-nome" placeholder="Ex: my_boot_animation" type="text" value="bootanimation"/>
+</div>
+<div class="campo campo-full">
+<label id="lbl-formato">Frames Format </label>
+<select id="input-formato">
+<option id="opt-jpeg" value="jpeg">JPEG (Lighter!)</option>
+<option id="opt-png" value="png">PNG (Heavy)</option>
+</select>
+</div>
+<div class="campo campo-full">
+<label id="lbl-qualidade">Resolution </label>
+<select id="input-qualidade" onchange="atualizarTamanho()">
+<option id="opt-auto" value="auto"></option>
+<option id="opt-320" value="320">320p</option>
+<option id="opt-480" value="480">480p</option>
+<option id="opt-720" value="720">720p</option>
+<option id="opt-orig" selected="" value="1">Original</option>
+<option id="opt-custom" value="custom">Custom</option>
+</select>
+</div>
+<div class="campo campo-full">
+<label id="lbl-enquadramento">Framing </label>
+<select id="input-enquadramento" onchange="atualizarPreviewEnquadramento()">
+<option id="opt-cover" selected="" value="cover">Fill (Crop)</option>
+<option id="opt-contain" value="contain">Fit (Bars)</option>
+<option id="opt-stretch" value="stretch">Stretch</option>
+</select>
+</div>
+<div class="campo campo-full">
+<label id="lbl-fps">FPS (Global)</label>
+<input id="input-fps" max="60" min="1" type="number" value="30"/>
+</div>
+<div class="campo"><label id="lbl-largura">Width</label><input id="input-largura" oninput="aoMudarTamanhoManual()" type="number"/></div>
+<div class="campo"><label id="lbl-altura">Height</label><input id="input-altura" oninput="aoMudarTamanhoManual()" type="number"/></div>
+<div class="performance-estimate campo-full" id="performance-estimate">
+<div class="performance-header">
+<span id="lbl-perf-title">Generation Estimate </span>
+<div class="performance-badges">
+<span class="performance-badge" data-level="light" id="perf-risk">Generation: Light</span>
+<span class="performance-badge" data-level="recommended" id="perf-boot-risk">Boot: Recommended</span>
+</div>
+</div>
+<div class="performance-grid">
+<div><span id="lbl-perf-frames">Output frames</span><strong id="perf-frames">—</strong></div>
+<div><span id="lbl-perf-process">Frames to process</span><strong id="perf-process">—</strong></div>
+<div><span id="lbl-perf-boot-size">Boot animation</span><strong id="perf-boot-size">—</strong></div>
+<div><span id="lbl-perf-size">Estimated output</span><strong id="perf-size">—</strong></div>
+<div><span id="lbl-perf-memory">Working memory</span><strong id="perf-memory">—</strong></div>
+</div>
+<div class="performance-note" id="perf-note"></div>
+<div class="optimizer-entry">
+<button class="optimizer-button" id="btn-optimize" type="button"> Optimize</button>
+<button class="optimizer-quality-badge" id="optimizer-quality-badge" type="button"></button>
+</div>
+<div class="optimizer-panel" id="optimizer-panel">
+<div class="optimizer-copy">
+<strong id="optimizer-title">Smart Optimize</strong>
+<span id="optimizer-hint">Tests real frame samples and suggests a lighter output.</span>
+</div>
+<div class="optimizer-status" id="optimizer-status"></div>
+<div class="optimizer-result" id="optimizer-result">
+<div class="optimizer-sizes">
+<div><span id="optimizer-current-label">Current</span><strong id="optimizer-current-size">—</strong></div>
+<b>→</b>
+<div><span id="optimizer-new-label">Suggested</span><strong id="optimizer-new-size">—</strong></div>
+<em id="optimizer-saving">—</em>
+</div>
+<div class="optimizer-changes" id="optimizer-changes"></div>
+<div class="optimizer-impact" data-level="low" id="optimizer-impact"></div>
+<button class="optimizer-apply" id="btn-optimizer-apply" type="button">Apply suggestion</button>
+</div>
+</div>
+</div>
+</div></section></div><section class="export-stage"><div id="botoes-exportacao">
+<button class="btn-gerar" id="btn-baixar-video" onclick="baixarVideo()"> Download Video</button>
+<button class="btn-gerar" id="btn-baixar-zip" onclick="baixarZipEditado()"> Download .ZIP</button>
+</div><div class="output-intent" id="output-intent"></div><button class="btn-gerar btn-desativado" id="btn-gerar">Missing Markers...</button><button class="btn-gerar" id="btn-ver-preview" onclick="chamarModalPreview()"> Ver Preview</button><div class="container-progresso" id="container-progresso">
+<div class="texto-progresso" id="texto-progresso">0%</div>
+<div class="barra-fundo"><div class="barra-preenchimento" id="barra-preenchimento"></div></div>
+</div></section>
 
-                <button class="btn-upload" id="btn-remove" onclick="removeAnimation()" style="background-color: #ff5555; color: #fff; margin: 0; height: 100%; display: none; font-size: 14px; grid-column: span 2;">🗑️ Remove Animation</button>
-                
-                <button class="btn-upload" id="btn-reset" onclick="resetarModulo()" style="background-color: #ff5555; border: 2px solid #8b0000; color: #fff; margin: 0; height: 100%; display: none; font-size: 14px; grid-column: span 2;">⚠️ Troubleshoot (Reset)</button>
-            </div>
 
-            <div class="video-container" id="video-container">
-                <div class="framing-preview" id="framing-preview">
-                    <video id="player-video" playsinline class="pausado"></video>
-                    <button type="button" class="focus-reset" id="btn-reset-focus" aria-label="Reset crop" title="Reset crop">◎</button>
-                </div>
-                <p class="dica-video" id="txt-dicavideo">👇 Click video to Play or Pause!</p>
-                <div class="video-time-readout" id="video-time-readout" role="status" aria-live="off" style="display: none;">
-                    <span class="video-time-icon">⏱️</span>
-                    <strong id="video-current-time">0.00s</strong>
-                    <span class="video-time-separator">/</span>
-                    <span id="video-total-time">0.00s</span>
-                </div>
-            </div>
 
-            <div class="timeline-wrapper" id="timeline-wrapper">
-                <div class="playhead-centro"></div>
-                <div class="timeline-scroll" id="timeline-scroll">
-                    <div class="filmstrip-container">
-                        <div class="pad-spacer" id="pad-left"></div>
-                        <div class="filmstrip" id="filmstrip"></div>
-                        <div class="pad-spacer" id="pad-right"></div>
-                    </div>
-                </div>
-            </div>
 
-            <p id="txt-hint-tooltip" class="hint-tooltip"></p>
-            <div class="grid-marcadores" id="grid-marcadores">
-                <button class="btn-marc btn-m0" onclick="marcarTrecho('m0')">📍 <span id="lbl-m0">1. Intro</span><br><span class="status-marc" id="st-m0">Not marked</span></button>
-                <button class="btn-marc btn-m1" onclick="marcarTrecho('m1')">🔁 <span id="lbl-m1">2. Loop Start</span><br><span class="status-marc" id="st-m1">Not marked</span></button>
-                <button class="btn-marc btn-m2" onclick="marcarTrecho('m2')">➡️ <span id="lbl-m2">3. Loop End</span><br><span class="status-marc" id="st-m2">Not marked</span></button>
-                <button class="btn-marc btn-m3" onclick="marcarTrecho('m3')">🏁 <span id="lbl-m3">4. Outro</span><br><span class="status-marc" id="st-m3">Not marked</span></button>
-            </div>
 
-            <details class="advanced-parts-launch" id="advanced-parts-launch">
-                <summary class="advanced-options-summary">
-                    <span class="advanced-options-summary-icon">⚙</span>
-                    <span id="advanced-options-label">Advanced options</span>
-                </summary>
-                <div class="advanced-options-panel">
-                    <button type="button" class="advanced-parts-launch-btn" id="btn-open-advanced-parts">
-                        <span class="advanced-parts-launch-icon">◇</span>
-                        <span class="advanced-parts-launch-copy">
-                            <strong id="advanced-parts-launch-title">Advanced Parts Editor</strong>
-                            <small id="advanced-parts-launch-hint">Optional: create more than Intro / Loop / Outro.</small>
-                        </span>
-                        <span class="advanced-parts-launch-chevron">›</span>
-                    </button>
-                </div>
-            </details>
 
-            <section class="advanced-parts-editor" id="advanced-parts-editor" aria-live="polite">
-                <div class="advanced-parts-header">
-                    <div>
-                        <h2 id="advanced-parts-title">✨ Advanced Parts Editor ✨</h2>
-                        <p id="advanced-parts-subtitle">Build the animation as a sequence of simple parts.</p>
-                    </div>
-                    <span class="advanced-parts-count" id="advanced-parts-count"></span>
-                </div>
-                <div class="advanced-parts-flow" id="advanced-parts-flow"></div>
-                <div class="advanced-hold-hint" id="advanced-hold-hint"></div>
-                <div class="advanced-parts-list" id="advanced-parts-list"></div>
-                <div class="advanced-parts-actions">
-                    <button type="button" class="advanced-action advanced-action-primary" id="btn-advanced-add">＋ <span id="lbl-advanced-add">Add Part</span></button>
-                    <button type="button" class="advanced-action advanced-action-secondary" id="btn-advanced-split">✂ <span id="lbl-advanced-split">Split at Playhead</span></button>
-                </div>
-                <button type="button" class="advanced-back-simple" id="btn-advanced-back">← <span id="lbl-advanced-back">Back to Simple Mode</span></button>
-                <div class="advanced-parts-note" id="advanced-parts-note"></div>
-            </section>
 
-            <div class="configuracoes" id="configuracoes">
-                <div class="campo campo-full" id="wrap-gerar-modulo">
-                    <div class="checkbox-container">
-                        <label style="margin:0;" id="lbl-gerarmodulo">Generate Root Module? 🧲</label>
-                        <input type="checkbox" id="input-gerar-modulo" onchange="verificarModulo()">
-                    </div>
-                </div>
 
-                <div class="campo campo-full" id="container-fabricante" style="display: none;">
-                    <label id="lbl-fabricante">Device Variant 📱</label>
-                    <select id="input-fabricante">
-                        <option value="standard" id="opt-standard">Standard (AOSP/Pixel/OnePlus)</option>
-                        <option value="miui" id="opt-miui">MIUI (Xiaomi)</option>
-                        <option value="mtk" id="opt-mtk">MTK (MediaTek Stock)</option>
-                        <option value="motorola" id="opt-motorola">Motorola</option>
-                        <option value="emui" id="opt-emui">EMUI (Huawei)</option>
-                    </select>
-                </div>
 
-                <div class="campo campo-full" id="simple-audio-toggle-wrap">
-                    <div class="checkbox-container">
-                        <label style="margin:0;" id="lbl-usar-som">Use sound in animation? 🎵</label>
-                        <input type="checkbox" id="input-usar-som" onchange="verificarPainelAudio()">
-                    </div>
-                </div>
-                
-                <div class="painel-audio" id="painel-audio">
-                    <div class="campo audio-role-card">
-                        <label id="lbl-audio-intro">Intro Audio:</label>
-                        <select id="sel-audio-intro" onchange="handleAudioSelect('intro')">
-                            <option value="none" id="opt-none-intro">None</option>
-                            <option value="video" id="opt-vid-intro">Video's Audio</option>
-                            <option value="file" id="opt-file-intro">Audio File...</option>
-                        </select>
-                        <input type="file" id="file-audio-intro" accept="audio/*" hidden onchange="fileAudioSelecionado('intro')">
-                        <div class="vol-container" id="vol-wrap-intro">
-                            <input type="range" class="vol-slider" id="vol-intro" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-intro').textContent = this.value + '%'">
-                            <div class="vol-label" id="lbl-vol-intro">100%</div>
-                        </div>
-                        <details class="audio-advanced" id="audio-advanced-intro">
-                            <summary id="audio-advanced-summary-intro">Advanced audio</summary>
-                            <div class="audio-advanced-grid">
-                                <div class="audio-advanced-control">
-                                    <div class="audio-advanced-heading"><span id="lbl-fade-in-intro">Fade in</span><strong id="val-fade-in-intro">0.0s</strong></div>
-                                    <input type="range" id="fade-in-intro" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('intro')">
-                                </div>
-                                <div class="audio-advanced-control">
-                                    <div class="audio-advanced-heading"><span id="lbl-fade-out-intro">Fade out</span><strong id="val-fade-out-intro">0.0s</strong></div>
-                                    <input type="range" id="fade-out-intro" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('intro')">
-                                </div>
-                                <div class="audio-advanced-control audio-advanced-wide">
-                                    <div class="audio-advanced-heading"><span id="lbl-offset-intro">Offset (+ later / − earlier)</span><strong id="val-offset-intro">0.0s</strong></div>
-                                    <input type="range" id="audio-offset-intro" min="-5" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('intro')">
-                                </div>
-                                <label class="audio-normalize audio-advanced-wide">
-                                    <input type="checkbox" id="audio-normalize-intro" onchange="handleAudioAdvancedInput('intro')">
-                                    <span id="lbl-normalize-intro">Normalize peak</span>
-                                </label>
-                            </div>
-                        </details>
-                    </div>
-                    <div class="campo audio-role-card">
-                        <label id="lbl-audio-loop">Loop Audio:</label>
-                        <select id="sel-audio-loop" onchange="handleAudioSelect('loop')">
-                            <option value="none" id="opt-none-loop">None</option>
-                            <option value="video" id="opt-vid-loop">Video's Audio</option>
-                            <option value="file" id="opt-file-loop">Audio File...</option>
-                        </select>
-                        <input type="file" id="file-audio-loop" accept="audio/*" hidden onchange="fileAudioSelecionado('loop')">
-                        <div class="vol-container" id="vol-wrap-loop">
-                            <input type="range" class="vol-slider" id="vol-loop" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-loop').textContent = this.value + '%'">
-                            <div class="vol-label" id="lbl-vol-loop">100%</div>
-                        </div>
-                        <details class="audio-advanced" id="audio-advanced-loop">
-                            <summary id="audio-advanced-summary-loop">Advanced audio</summary>
-                            <div class="audio-advanced-grid">
-                                <div class="audio-advanced-control">
-                                    <div class="audio-advanced-heading"><span id="lbl-fade-in-loop">Fade in</span><strong id="val-fade-in-loop">0.0s</strong></div>
-                                    <input type="range" id="fade-in-loop" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('loop')">
-                                </div>
-                                <div class="audio-advanced-control">
-                                    <div class="audio-advanced-heading"><span id="lbl-fade-out-loop">Fade out</span><strong id="val-fade-out-loop">0.0s</strong></div>
-                                    <input type="range" id="fade-out-loop" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('loop')">
-                                </div>
-                                <div class="audio-advanced-control audio-advanced-wide">
-                                    <div class="audio-advanced-heading"><span id="lbl-offset-loop">Offset (+ later / − earlier)</span><strong id="val-offset-loop">0.0s</strong></div>
-                                    <input type="range" id="audio-offset-loop" min="-5" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('loop')">
-                                </div>
-                                <label class="audio-normalize audio-advanced-wide">
-                                    <input type="checkbox" id="audio-normalize-loop" onchange="handleAudioAdvancedInput('loop')">
-                                    <span id="lbl-normalize-loop">Normalize peak</span>
-                                </label>
-                            </div>
-                        </details>
-                    </div>
-                    <div class="campo audio-role-card">
-                        <label id="lbl-audio-final">Outro Audio:</label>
-                        <select id="sel-audio-final" onchange="handleAudioSelect('final')">
-                            <option value="none" id="opt-none-final">None</option>
-                            <option value="video" id="opt-vid-final">Video's Audio</option>
-                            <option value="file" id="opt-file-final">Audio File...</option>
-                        </select>
-                        <input type="file" id="file-audio-final" accept="audio/*" hidden onchange="fileAudioSelecionado('final')">
-                        <div class="vol-container" id="vol-wrap-final">
-                            <input type="range" class="vol-slider" id="vol-final" min="0" max="100" value="100" oninput="document.getElementById('lbl-vol-final').textContent = this.value + '%'">
-                            <div class="vol-label" id="lbl-vol-final">100%</div>
-                        </div>
-                        <details class="audio-advanced" id="audio-advanced-final">
-                            <summary id="audio-advanced-summary-final">Advanced audio</summary>
-                            <div class="audio-advanced-grid">
-                                <div class="audio-advanced-control">
-                                    <div class="audio-advanced-heading"><span id="lbl-fade-in-final">Fade in</span><strong id="val-fade-in-final">0.0s</strong></div>
-                                    <input type="range" id="fade-in-final" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('final')">
-                                </div>
-                                <div class="audio-advanced-control">
-                                    <div class="audio-advanced-heading"><span id="lbl-fade-out-final">Fade out</span><strong id="val-fade-out-final">0.0s</strong></div>
-                                    <input type="range" id="fade-out-final" min="0" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('final')">
-                                </div>
-                                <div class="audio-advanced-control audio-advanced-wide">
-                                    <div class="audio-advanced-heading"><span id="lbl-offset-final">Offset (+ later / − earlier)</span><strong id="val-offset-final">0.0s</strong></div>
-                                    <input type="range" id="audio-offset-final" min="-5" max="5" step="0.1" value="0" oninput="handleAudioAdvancedInput('final')">
-                                </div>
-                                <label class="audio-normalize audio-advanced-wide">
-                                    <input type="checkbox" id="audio-normalize-final" onchange="handleAudioAdvancedInput('final')">
-                                    <span id="lbl-normalize-final">Normalize peak</span>
-                                </label>
-                            </div>
-                        </details>
-                    </div>
-                </div>
 
-                <div class="campo campo-full" id="wrap-nome">
-                    <label id="lbl-nome">File Name 📝 (Without extension)</label>
-                    <input type="text" id="input-nome" value="bootanimation" placeholder="Ex: my_boot_animation">
-                </div>
 
-                <div class="campo campo-full">
-                    <label id="lbl-formato">Frames Format 🖼️</label>
-                    <select id="input-formato">
-                        <option value="jpeg" id="opt-jpeg">JPEG (Lighter!)</option>
-                        <option value="png" id="opt-png">PNG (Heavy)</option>
-                    </select>
-                </div>
-                <div class="campo campo-full">
-                    <label id="lbl-qualidade">Resolution 📉</label>
-                    <select id="input-qualidade" onchange="atualizarTamanho()">
-                        <option value="auto" id="opt-auto" style="display:none;"></option>
-                        <option value="320" id="opt-320">320p</option>
-                        <option value="480" id="opt-480">480p</option>
-                        <option value="720" id="opt-720">720p</option>
-                        <option value="1" id="opt-orig" selected>Original</option>
-                        <option value="custom" id="opt-custom">Custom</option>
-                    </select>
-                </div>
 
-                <div class="campo campo-full">
-                    <label id="lbl-enquadramento">Framing 🎯</label>
-                    <select id="input-enquadramento" onchange="atualizarPreviewEnquadramento()">
-                        <option value="cover" id="opt-cover" selected>Fill (Crop)</option>
-                        <option value="contain" id="opt-contain">Fit (Bars)</option>
-                        <option value="stretch" id="opt-stretch">Stretch</option>
-                    </select>
-                </div>
-                
-                <div class="campo campo-full">
-                    <label id="lbl-fps">FPS 🎬 (Global)</label>
-                    <input type="number" id="input-fps" value="30" min="1" max="60">
-                </div>
-
-                <div class="campo"><label id="lbl-largura">Width</label><input type="number" id="input-largura" oninput="aoMudarTamanhoManual()"></div>
-                <div class="campo"><label id="lbl-altura">Height</label><input type="number" id="input-altura" oninput="aoMudarTamanhoManual()"></div>
-
-                <div class="performance-estimate campo-full" id="performance-estimate">
-                    <div class="performance-header">
-                        <span id="lbl-perf-title">Generation Estimate 📊</span>
-                        <div class="performance-badges">
-                            <span class="performance-badge" id="perf-risk" data-level="light">Generation: Light</span>
-                            <span class="performance-badge" id="perf-boot-risk" data-level="recommended">Boot: Recommended</span>
-                        </div>
-                    </div>
-                    <div class="performance-grid">
-                        <div><span id="lbl-perf-frames">Output frames</span><strong id="perf-frames">—</strong></div>
-                        <div><span id="lbl-perf-process">Frames to process</span><strong id="perf-process">—</strong></div>
-                        <div><span id="lbl-perf-boot-size">Boot animation</span><strong id="perf-boot-size">—</strong></div>
-                        <div><span id="lbl-perf-size">Estimated output</span><strong id="perf-size">—</strong></div>
-                        <div><span id="lbl-perf-memory">Working memory</span><strong id="perf-memory">—</strong></div>
-                    </div>
-                    <div class="performance-note" id="perf-note"></div>
-                    <div class="optimizer-entry">
-                        <button type="button" class="optimizer-button" id="btn-optimize">✨ Optimize</button>
-                        <button type="button" class="optimizer-quality-badge" id="optimizer-quality-badge"></button>
-                    </div>
-                    <div class="optimizer-panel" id="optimizer-panel">
-                        <div class="optimizer-copy">
-                            <strong id="optimizer-title">Smart Optimize</strong>
-                            <span id="optimizer-hint">Tests real frame samples and suggests a lighter output.</span>
-                        </div>
-                        <div class="optimizer-status" id="optimizer-status"></div>
-                        <div class="optimizer-result" id="optimizer-result">
-                            <div class="optimizer-sizes">
-                                <div><span id="optimizer-current-label">Current</span><strong id="optimizer-current-size">—</strong></div>
-                                <b>→</b>
-                                <div><span id="optimizer-new-label">Suggested</span><strong id="optimizer-new-size">—</strong></div>
-                                <em id="optimizer-saving">—</em>
-                            </div>
-                            <div class="optimizer-changes" id="optimizer-changes"></div>
-                            <div class="optimizer-impact" id="optimizer-impact" data-level="low"></div>
-                            <button type="button" class="optimizer-apply" id="btn-optimizer-apply">Apply suggestion</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="botoes-exportacao" style="display: none; flex-direction: column; gap: 10px; width: 100%; margin-top: 5px;">
-                <button id="btn-baixar-video" class="btn-gerar" style="background-color: #ffb86c; color: #000; display: none;" onclick="baixarVideo()">🎬 Download Video</button>
-                <button id="btn-baixar-zip" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="baixarZipEditado()">📦 Download .ZIP</button>
-            </div>
-
-            <div class="output-intent" id="output-intent" style="display: none;"></div>
-
-            <button id="btn-gerar" class="btn-gerar btn-desativado">Missing Markers...</button>
-            
-            <button id="btn-ver-preview" class="btn-gerar" style="background-color: #bb86fc; color: #000; display: none;" onclick="chamarModalPreview()">👀 Ver Preview</button>
-
-            <div class="container-progresso" id="container-progresso">
-                <div class="texto-progresso" id="texto-progresso">0%</div>
-                <div class="barra-fundo"><div class="barra-preenchimento" id="barra-preenchimento"></div></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="modal-escolha-preview">
-        <div class="modal-box">
-            <h2 id="lbl-modal-escolha-title">👀 How do you want to test?</h2>
-            <p id="lbl-modal-escolha-desc" style="text-align: center; margin-bottom: 20px; font-size: 13px; color: #ccc;">Choose where you want to see your masterpiece!</p>
-            <div style="display: flex; gap: 10px; width: 100%;">
-                <button class="btn-upload" id="btn-web" style="background-color: #bb86fc;" onclick="abrirPreviewWeb()">💻 On Site</button>
-                <button class="btn-upload" id="btn-phone" style="background-color: #03dac6;" onclick="testarNoCelular()">📱 On Phone</button>
-            </div>
-            <button class="btn-fechar-modal" id="btn-cancel-preview" style="margin-top: 15px; background-color: #333;" onclick="document.getElementById('modal-escolha-preview').style.display='none'">Cancel</button>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="modal-pull">
-        <div class="modal-box">
-            <h2 id="lbl-modal-pull-title">📥 Pull Animation</h2>
-            <p id="lbl-modal-pull-desc" style="text-align: center; margin-bottom: 20px; font-size: 14px; color: #ccc;">You already have a custom animation installed! Which version do you want to pull to the editor?</p>
-            <div style="display: flex; gap: 10px; width: 100%;">
-                <button class="btn-upload" id="btn-pull-module" style="background-color: #bb86fc;" onclick="puxarAnimacao('module')">🔧 From Module</button>
-                <button class="btn-upload" id="btn-pull-system" style="background-color: #ffb86c;" onclick="puxarAnimacao('system')">📱 Original System</button>
-            </div>
-            <button class="btn-fechar-modal" id="btn-pull-cancel" style="margin-top: 15px; background-color: #333;" onclick="fecharModalPull()">Cancel</button>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="modal-network">
-        <div class="modal-box network-box">
-            <h2 id="lbl-modal-net-title">🌐 Connect via Network</h2>
-            <p id="lbl-modal-net-desc" class="network-desc">Server not found on localhost. Pair with QR or use another network method.</p>
-            <div class="pairing-card" id="pairing-card">
-                <div class="pairing-head">
-                    <div>
-                        <strong id="lbl-pair-title">📷 Pair with QR</strong>
-                        <span id="lbl-pair-desc">Scan this code with your phone camera, then approve pairing on the phone.</span>
-                    </div>
-                    <span class="pairing-badge">SECURE</span>
-                </div>
-                <div class="pairing-qr-wrap" id="pairing-qr-wrap">
-                    <div id="pairing-qr"></div>
-                </div>
-                <div class="pairing-code" id="pairing-code">------</div>
-                <div class="pairing-status" id="pairing-status">Preparing secure pairing...</div>
-                <button class="pairing-refresh" id="btn-pair-refresh" type="button" onclick="startQrPairing()">↻ New QR</button>
-            </div>
-            <div class="network-divider"><span id="lbl-network-other">Other methods</span></div>
-            <input type="text" id="input-ip" value="192.168.0." class="network-ip-input">
-            <div class="network-actions">
-                <button class="btn-upload" id="btn-connect-ip" onclick="conectarPorIp()">🔌 Connect by IP</button>
-                <button class="btn-upload" id="btn-scan-net" onclick="iniciarVarredura()">🔍 Auto-Scan</button>
-            </div>
-            <button class="btn-fechar-modal" id="btn-cancel-net" onclick="fecharModalRede()">Cancel</button>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="modal-pair-handoff">
-        <div class="modal-box pair-handoff-box">
-            <div class="pair-handoff-icon">📱</div>
-            <h2 id="lbl-pair-handoff-title">Open the Module</h2>
-            <p id="lbl-pair-handoff-desc" class="confirm-message">Continue in the Boot Animation Studio Module to approve pairing.</p>
-            <button class="btn-upload" id="btn-pair-open" type="button">Open Boot Animation Studio Module</button>
-            <button class="btn-fechar-modal" id="btn-pair-back" type="button">Back to Studio</button>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="modal-confirm">
-        <div class="modal-box confirm-box">
-            <h2 id="confirm-title">Confirm action</h2>
-            <p id="confirm-message" class="confirm-message"></p>
-            <div class="confirm-actions">
-                <button class="btn-upload" id="confirm-cancel" type="button">Cancel</button>
-                <button class="btn-upload" id="confirm-accept" type="button">Confirm</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="toast-container" class="toast-container" aria-live="polite"></div>
-
-    <div class="modal-overlay" id="loading-overlay" style="z-index: 200;">
-        <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
-            <div style="width: 50px; height: 50px; border: 5px solid #444; border-top: 5px solid #03dac6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
-            <h2 id="txt-loading-timeline" style="color: #03dac6; font-size: 16px; font-weight: bold; text-shadow: 0 2px 5px rgba(0,0,0,0.8);">Loading Timeline... ⌛</h2>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="modal-preview">
-        <div class="modal-box">
-            <h2 id="lbl-modal-titulo">Preview of your Animation! 🎬</h2>
-            <div class="modal-framing-preview" id="modal-framing-preview">
-                <canvas class="modal-img" id="video-preview-canvas"></canvas>
-                <video id="video-preview" autoplay playsinline></video>
-            </div>
-            <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
-        </div>
-    </div>
-
-    <script src="js/state.js"></script>
-    <script src="js/project.js"></script>
-    <script src="js/i18n.js"></script>
-    <script src="js/ux.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/media.js"></script>
-    <script src="js/timeline.js"></script>
-    <script src="js/audio.js"></script>
-    <script src="js/parts.js"></script>
-    <script src="js/performance.js"></script>
-    <script src="js/export.js"></script>
+</div></main></div>
+<div class="modal-overlay" id="modal-escolha-preview">
+<div class="modal-box">
+<h2 id="lbl-modal-escolha-title"> How do you want to test?</h2>
+<p id="lbl-modal-escolha-desc">Choose where you want to see your masterpiece!</p>
+<div class="modal-actions">
+<button class="btn-upload" id="btn-web" onclick="abrirPreviewWeb()"> On Site</button>
+<button class="btn-upload" id="btn-phone" onclick="testarNoCelular()"> On Phone</button>
+</div>
+<button class="btn-fechar-modal" id="btn-cancel-preview" onclick="document.getElementById('modal-escolha-preview').style.display='none'">Cancel</button>
+</div>
+</div>
+<div class="modal-overlay" id="modal-pull">
+<div class="modal-box">
+<h2 id="lbl-modal-pull-title"> Pull Animation</h2>
+<p id="lbl-modal-pull-desc">You already have a custom animation installed! Which version do you want to pull to the editor?</p>
+<div class="modal-actions">
+<button class="btn-upload" id="btn-pull-module" onclick="puxarAnimacao('module')"> From Module</button>
+<button class="btn-upload" id="btn-pull-system" onclick="puxarAnimacao('system')"> Original System</button>
+</div>
+<button class="btn-fechar-modal" id="btn-pull-cancel" onclick="fecharModalPull()">Cancel</button>
+</div>
+</div>
+<div class="modal-overlay" id="modal-network">
+<div class="modal-box network-box">
+<h2 id="lbl-modal-net-title"> Connect via Network</h2>
+<p class="network-desc" id="lbl-modal-net-desc">Server not found on localhost. Pair with QR or use another network method.</p>
+<div class="pairing-card" id="pairing-card">
+<div class="pairing-head">
+<div>
+<strong id="lbl-pair-title"> Pair with QR</strong>
+<span id="lbl-pair-desc">Scan this code with your phone camera, then approve pairing on the phone.</span>
+</div>
+<span class="pairing-badge">SECURE</span>
+</div>
+<div class="pairing-qr-wrap" id="pairing-qr-wrap">
+<div id="pairing-qr"></div>
+</div>
+<div class="pairing-code" id="pairing-code">------</div>
+<div class="pairing-status" id="pairing-status">Preparing secure pairing...</div>
+<button class="pairing-refresh" id="btn-pair-refresh" onclick="startQrPairing()" type="button">↻ New QR</button>
+</div>
+<div class="network-divider"><span id="lbl-network-other">Other methods</span></div>
+<input class="network-ip-input" id="input-ip" type="text" value="192.168.0."/>
+<div class="network-actions">
+<button class="btn-upload" id="btn-connect-ip" onclick="conectarPorIp()"> Connect by IP</button>
+<button class="btn-upload" id="btn-scan-net" onclick="iniciarVarredura()"> Auto-Scan</button>
+</div>
+<button class="btn-fechar-modal" id="btn-cancel-net" onclick="fecharModalRede()">Cancel</button>
+</div>
+</div>
+<div class="modal-overlay" id="modal-pair-handoff">
+<div class="modal-box pair-handoff-box">
+<div class="pair-handoff-icon"></div>
+<h2 id="lbl-pair-handoff-title">Open the Module</h2>
+<p class="confirm-message" id="lbl-pair-handoff-desc">Continue in the Boot Animation Studio Module to approve pairing.</p>
+<button class="btn-upload" id="btn-pair-open" type="button">Open Boot Animation Studio Module</button>
+<button class="btn-fechar-modal" id="btn-pair-back" type="button">Back to Studio</button>
+</div>
+</div>
+<div class="modal-overlay" id="modal-confirm">
+<div class="modal-box confirm-box">
+<h2 id="confirm-title">Confirm action</h2>
+<p class="confirm-message" id="confirm-message"></p>
+<div class="confirm-actions">
+<button class="btn-upload" id="confirm-cancel" type="button">Cancel</button>
+<button class="btn-upload" id="confirm-accept" type="button">Confirm</button>
+</div>
+</div>
+</div>
+<div aria-live="polite" class="toast-container" id="toast-container"></div>
+<div class="modal-overlay" id="loading-overlay">
+<div class="modal-box loading-box">
+<div class="loading-spinner"></div>
+<h2 class="loading-title" id="txt-loading-timeline">Loading Timeline... ⌛</h2>
+</div>
+</div>
+<div class="modal-overlay" id="modal-preview">
+<div class="modal-box">
+<h2 id="lbl-modal-titulo">Preview of your Animation! </h2>
+<div class="modal-framing-preview" id="modal-framing-preview">
+<canvas class="modal-img" id="video-preview-canvas"></canvas>
+<video autoplay="" id="video-preview" playsinline=""></video>
+</div>
+<button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
+</div>
+</div>
+<script src="js/state.js"></script>
+<script src="js/project.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/ux.js"></script>
+<script src="js/api.js"></script>
+<script src="js/media.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/parts.js"></script>
+<script src="js/performance.js"></script>
+<script src="js/export.js"></script>
 </body>
 </html>
