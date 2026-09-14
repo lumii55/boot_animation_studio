@@ -1921,7 +1921,7 @@ video.pausado {
 }
 
 .advanced-time-popover {
-    position: absolute;
+    position: fixed;
     z-index: 190;
     display: flex;
     width: min(270px, calc(100vw - 24px));
@@ -4709,8 +4709,7 @@ body {
 .framing-tool-preview-shell {
     --framing-aspect: 16 / 9;
     position: relative;
-    width: min(100%, 540px);
-    max-height: 54vh;
+    width: min(100%, var(--framing-max-width, 540px));
     aspect-ratio: var(--framing-aspect);
     margin: 0 auto;
     overflow: hidden;
@@ -6577,4 +6576,103 @@ summary:focus-visible {
     .launch-secondary {
         min-height: 58px;
     }
+}
+
+
+.framing-reference-control {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 7px 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid rgba(216, 189, 241, 0.12);
+    border-radius: 14px;
+    background: rgba(33, 24, 44, 0.68);
+}
+
+.framing-reference-control > div {
+    display: contents;
+}
+
+.framing-reference-control span {
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 700;
+}
+
+.framing-reference-control strong {
+    color: #8af4ea;
+    font-size: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.framing-reference-control input {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+.advanced-type-field select {
+    border-color: rgba(187, 134, 252, 0.2);
+    background: rgba(187, 134, 252, 0.08);
+}
+
+.delivery-option.is-package-blocked {
+    border-color: rgba(216, 189, 241, 0.08);
+    background: rgba(255, 255, 255, 0.018);
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.delivery-option.is-package-blocked .delivery-check {
+    border-color: #675d6e;
+}
+
+.device-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.device-actions .btn-upload {
+    min-height: 64px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 9px;
+    line-height: 1.35;
+}
+
+.device-secondary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.device-secondary-actions .btn-upload,
+#btn-remove,
+#btn-reset,
+#btn-disconnect {
+    grid-column: auto;
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 13px;
+    border-radius: 13px;
+    font-size: 8px;
+    line-height: 1.35;
+    text-align: center;
+}
+
+@media (min-width: 620px) {
+    .device-secondary-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 359px) {
+    .device-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.framing-tool-preview-shell {
+    max-height: none;
 }
