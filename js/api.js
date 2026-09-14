@@ -376,7 +376,7 @@ function completeConnectedState(data) {
         const optAuto = document.getElementById('opt-auto');
         optAuto.style.display = 'block';
         optAuto.value = data.resolution;
-        optAuto.textContent = `Dispositivo (${data.resolution})`;
+        optAuto.textContent = `${t.deviceResolutionLabel} (${data.resolution})`;
         document.getElementById('input-qualidade').value = data.resolution;
     }
     rememberPhoneIp(currentPhoneIp());
@@ -466,11 +466,11 @@ function activateLegacySecureCompatibility() {
 
 function applyConnectedCapabilities(data) {
     const canRemove = hasModuleFeature('remove') && data.has_custom;
-    document.getElementById('btn-remove').style.display = canRemove ? 'block' : 'none';
+    document.getElementById('btn-remove').style.display = canRemove ? 'flex' : 'none';
     window.hasCustomAnimApplied = Boolean(data.has_custom);
-    document.getElementById('btn-pull').style.display = hasModuleFeature('pull') ? 'block' : 'none';
+    document.getElementById('btn-pull').style.display = hasModuleFeature('pull') ? 'flex' : 'none';
     document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') ? 'flex' : 'none';
-    document.getElementById('btn-reset').style.display = hasModuleFeature('reset') ? 'block' : 'none';
+    document.getElementById('btn-reset').style.display = hasModuleFeature('reset') ? 'flex' : 'none';
     if (!hasModuleFeature('history')) document.getElementById('history-wrapper').style.display = 'none';
 }
 
@@ -703,7 +703,7 @@ async function removeAnimation() {
                 alert(t.erro + " (HTTP " + res.status + ")");
             }
         } catch (error) {
-            alert(t.erro + " - The server blocked the connection or is offline!");
+            alert(t.msgMagicConnError);
         }
     }
 }
@@ -822,7 +822,7 @@ async function applyHistory(id) {
         let res = await apiFetch('/history/apply?id=' + encodeURIComponent(id), { method: 'POST' });
         if(res.ok) {
             showToast(t.msgApplyHistorySuccess, 'success');
-            document.getElementById('btn-remove').style.display = "block";
+            document.getElementById('btn-remove').style.display = "flex";
             window.hasCustomAnimApplied = true;
         } else {
             throw new Error();
@@ -884,7 +884,7 @@ async function puxarAnimacao(source) {
     if (!ensureModuleFeature('pull')) return;
     fecharModalPull();
     const t = traducoes[idiomaAtual];
-    document.getElementById('texto-progresso').textContent = "Downloading from phone... 📥";
+    document.getElementById('texto-progresso').textContent = traducoes[idiomaAtual].msgPullingPhone;
     document.getElementById('container-progresso').style.display = 'flex';
     
     try {
@@ -944,7 +944,7 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
         
         if (res.ok) {
             showToast(t.msgZipInjectSuccess, 'success');
-            document.getElementById('btn-remove').style.display = "block";
+            document.getElementById('btn-remove').style.display = "flex";
             window.hasCustomAnimApplied = true;
             loadHistory(); 
         } else {

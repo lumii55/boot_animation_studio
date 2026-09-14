@@ -760,7 +760,7 @@ function setImportedAudio(part, blob, name) {
     const select = document.getElementById(`sel-audio-${part}`);
     const optFile = document.getElementById(`opt-file-${part}`);
     const wrap = document.getElementById(`vol-wrap-${part}`);
-    const label = `🎵 ${name || 'audio.wav'}`;
+    const label = `${name || 'audio.wav'}`;
     select.value = 'file';
     optFile.textContent = label;
     optFile.setAttribute('data-custom', label);
@@ -800,8 +800,8 @@ function fileAudioSelecionado(part) {
     if (inputFile.files.length > 0) {
         importedAudioFiles[part] = null;
         const nome = inputFile.files[0].name;
-        optFile.textContent = `🎵 ${nome}`;
-        optFile.setAttribute('data-custom', `🎵 ${nome}`);
+        optFile.textContent = `${nome}`;
+        optFile.setAttribute('data-custom', `${nome}`);
         wrap.style.display = "flex";
     } else if (!importedAudioFiles[part]) {
         select.value = "none";
