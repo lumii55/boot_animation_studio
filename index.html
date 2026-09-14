@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="styles.css?v=p11-5" rel="stylesheet"/>
+<link href="styles.css?v=p11-6" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta content="#070b12" name="theme-color"/></head>
@@ -30,7 +30,7 @@
 </select>
 </div></header>
 <main class="studio-main"><div class="launch-panel" id="initial-state"><div class="launch-hero"><div class="launch-kicker" id="p11-launch-kicker">BOOT ANIMATION WORKSPACE</div><h2 id="p11-launch-title">Build a boot animation your way.</h2><p id="p11-launch-desc">Start from media or an existing bootanimation.zip. Work entirely in the browser or connect the companion module for direct phone integration.</p></div>
-<div class="launch-actions"><div class="launch-choice launch-choice-local"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()">Create locally</button><p id="p11-launch-local-desc">Create, edit and download entirely in the browser.</p></div><div class="launch-choice launch-choice-device"><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button><p id="p11-launch-device-desc">Pair the companion module for direct install, history and phone testing.</p></div></div><p class="launch-privacy" id="p11-launch-privacy">The editor remains fully usable without a phone connection.</p><details class="dicas-container" id="dicas-iniciais">
+<div class="launch-actions"><div class="launch-choice launch-choice-local"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()">Create locally</button><p id="p11-launch-local-desc">Create, edit and download entirely in the browser.</p></div><div class="launch-choice launch-choice-device"><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button><p id="p11-launch-device-desc">Pair the companion module for direct install, history and phone testing.</p></div></div><p class="launch-privacy" id="p11-launch-privacy">Use the Studio locally or connect the companion module at any time.</p><details class="dicas-container" id="dicas-iniciais">
 <summary class="tips-summary" id="txt-dicas-titulo">Tips for Beginners</summary>
 <ul>
 <li class="dica-destaque" id="txt-dica-modulo">
@@ -42,7 +42,7 @@
 <li id="txt-dica2"><strong>Size matters:</strong> Avoid files larger than 20MB. Heavy files can cause Android to stutter or even cause bootloops.</li>
 <li id="txt-dica3"><strong>Screen aspect:</strong> Use Framing to choose how videos with a different aspect ratio are cropped, fitted or stretched.</li>
 </ul>
-</details></div><div class="device-panel" id="connected-state"><div class="device-panel-head"><div class="device-identity"><span class="section-kicker" id="p11-device-kicker">CONNECTED DEVICE</span><strong id="status-connected">Phone Connected!</strong><p id="p11-device-desc">The companion module is ready for direct install, restore and history.</p></div><span class="device-online-badge" id="p11-device-badge">MODULE ONLINE</span></div><div class="device-section-label" id="p11-device-actions-label">DEVICE ACTIONS</div><div class="device-actions" id="device-actions"><label class="btn-upload" for="upload-zip-direto" id="lbl-upload-direto"> Install .ZIP</label><input accept=".zip" hidden="" id="upload-zip-direto" type="file"/><button class="btn-upload" id="btn-pull" onclick="abrirModalPull()"> Open from Phone</button><button class="btn-upload" id="btn-remove" onclick="removeAnimation()"> Restore Default</button></div><div class="device-secondary-actions"><button class="btn-upload" id="btn-reset" onclick="resetarModulo()"> Diagnostics / Reset</button><button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()">Disconnect</button></div><div class="hist-wrapper" id="history-wrapper"><div class="history-heading"><div><span class="device-section-label" id="p11-history-kicker">HISTORY</span><div class="hist-title" id="lbl-history">Animations History (Max 5):</div></div><span class="history-count" id="p11-history-count">0 / 5</span></div><div class="hist-scroll" id="history-scroll"></div><div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div></div></div><div class="editor-section" data-mobile-view="edit" id="editor-section"><div class="editor-topbar"><div class="editor-context"><span class="editor-context-kicker" id="p11-editor-kicker">PROJECT WORKSPACE</span><strong id="p11-editor-title">Boot animation project</strong></div><button class="editor-context-state" id="editor-device-toggle" type="button"><span class="editor-state-dot"></span><span id="p11-editor-state">Local</span></button></div>
+</details></div><div class="device-panel" id="connected-state"><div class="device-panel-head"><div class="device-identity"><span class="section-kicker" id="p11-device-kicker">CONNECTED DEVICE</span><strong id="status-connected">Phone Connected!</strong><p id="p11-device-desc">Install directly to the phone, restore the original animation or open a copy in the editor.</p></div><span class="device-online-badge" id="p11-device-badge">MODULE ONLINE</span></div><div class="device-section-label" id="p11-device-actions-label">PHONE ACTIONS</div><div class="device-actions" id="device-actions"><label class="btn-upload" for="upload-zip-direto" id="lbl-upload-direto"> Install bootanimation.zip</label><input accept=".zip" hidden="" id="upload-zip-direto" type="file"/><button class="btn-upload" id="btn-pull" onclick="abrirModalPull()"> Open animation from phone</button><button class="btn-upload" id="btn-remove" onclick="removeAnimation()"> Restore default animation</button></div><div class="device-secondary-actions"><button class="btn-upload" id="btn-reset" onclick="resetarModulo()"> Rescan module paths</button><button class="btn-upload" id="btn-disconnect" onclick="disconnectPhone()">Disconnect phone</button></div><div class="hist-wrapper" id="history-wrapper"><div class="history-heading"><div><span class="device-section-label" id="p11-history-kicker">HISTORY</span><div class="hist-title" id="lbl-history">Saved animations (Up to 5)</div></div><span class="history-count" id="p11-history-count">0 / 5</span></div><div class="hist-scroll" id="history-scroll"></div><div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div></div></div><div class="editor-section" data-mobile-view="edit" id="editor-section"><div class="editor-topbar"><div class="editor-context"><span class="editor-context-kicker" id="p11-editor-kicker">PROJECT WORKSPACE</span><strong id="p11-editor-title">Boot animation project</strong></div><button class="editor-context-state" id="editor-device-toggle" type="button"><span class="editor-state-dot"></span><span id="p11-editor-state">Connect phone</span></button></div>
 <section class="source-dock" id="source-dock"><div class="source-dock-head"><div><span class="section-kicker" id="p11-source-kicker">SOURCE</span><h2 id="p11-source-title">Start with a source</h2><p id="p11-source-desc">Choose media or open an existing animation.</p></div><span class="source-ready-indicator" id="p11-source-ready">No source</span></div><div class="source-actions" id="acoes-principais">
 <label class="btn-upload" for="upload-video" id="lbl-upload"> Video / GIF</label>
 <input accept="video/*, image/gif" hidden="" id="upload-video" type="file"/>
@@ -146,18 +146,18 @@
 </div></main></div>
 <div class="modal-overlay" id="modal-escolha-preview">
 <div class="modal-box">
-<h2 id="lbl-modal-escolha-title"> How do you want to test?</h2>
-<p id="lbl-modal-escolha-desc">Choose where you want to see your masterpiece!</p>
+<h2 id="lbl-modal-escolha-title"> Choose preview destination</h2>
+<p id="lbl-modal-escolha-desc">Preview here in Studio or on the connected phone.</p>
 <div class="modal-actions">
-<button class="btn-upload" id="btn-web" onclick="abrirPreviewWeb()"> On Site</button>
-<button class="btn-upload" id="btn-phone" onclick="testarNoCelular()"> On Phone</button>
+<button class="btn-upload" id="btn-web" onclick="abrirPreviewWeb()"> In Studio</button>
+<button class="btn-upload" id="btn-phone" onclick="testarNoCelular()"> On connected phone</button>
 </div>
 <button class="btn-fechar-modal" id="btn-cancel-preview" onclick="document.getElementById('modal-escolha-preview').style.display='none'">Cancel</button>
 </div>
 </div>
 <div class="modal-overlay" id="modal-pull">
 <div class="modal-box">
-<h2 id="lbl-modal-pull-title"> Pull Animation</h2>
+<h2 id="lbl-modal-pull-title"> Open animation from phone</h2>
 <p id="lbl-modal-pull-desc">You already have a custom animation installed! Which version do you want to pull to the editor?</p>
 <div class="modal-actions">
 <button class="btn-upload" id="btn-pull-module" onclick="puxarAnimacao('module')"> From Module</button>
@@ -217,12 +217,12 @@
 <div class="modal-overlay" id="loading-overlay">
 <div class="modal-box loading-box">
 <div class="loading-spinner"></div>
-<h2 class="loading-title" id="txt-loading-timeline">Loading Timeline... ⌛</h2>
+<h2 class="loading-title" id="txt-loading-timeline">Loading timeline...</h2>
 </div>
 </div>
 <div class="modal-overlay" id="modal-preview">
 <div class="modal-box">
-<h2 id="lbl-modal-titulo">Preview of your Animation! </h2>
+<h2 id="lbl-modal-titulo">Animation Preview</h2>
 <div class="modal-framing-preview" id="modal-framing-preview">
 <canvas class="modal-img" id="video-preview-canvas"></canvas>
 <video autoplay="" id="video-preview" playsinline=""></video>
@@ -230,17 +230,17 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p11-5"></script>
-<script src="js/project.js?v=p11-5"></script>
-<script src="js/i18n.js?v=p11-5"></script>
-<script src="js/ux.js?v=p11-5"></script>
-<script src="js/workspace.js?v=p11-5"></script><script src="js/api.js?v=p11-5"></script>
-<script src="js/media.js?v=p11-5"></script>
-<script src="js/timeline.js?v=p11-5"></script>
-<script src="js/contextual.js?v=p11-5"></script>
-<script src="js/audio.js?v=p11-5"></script>
-<script src="js/parts.js?v=p11-5"></script>
-<script src="js/performance.js?v=p11-5"></script>
-<script src="js/release.js?v=p11-5"></script><script src="js/export.js?v=p11-5"></script>
+<script src="js/state.js?v=p11-6"></script>
+<script src="js/project.js?v=p11-6"></script>
+<script src="js/i18n.js?v=p11-6"></script>
+<script src="js/ux.js?v=p11-6"></script>
+<script src="js/workspace.js?v=p11-6"></script><script src="js/api.js?v=p11-6"></script>
+<script src="js/media.js?v=p11-6"></script>
+<script src="js/timeline.js?v=p11-6"></script>
+<script src="js/contextual.js?v=p11-6"></script>
+<script src="js/audio.js?v=p11-6"></script>
+<script src="js/parts.js?v=p11-6"></script>
+<script src="js/performance.js?v=p11-6"></script>
+<script src="js/release.js?v=p11-6"></script><script src="js/export.js?v=p11-6"></script>
 </body>
 </html>

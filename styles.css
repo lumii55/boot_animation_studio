@@ -1948,7 +1948,8 @@ video.pausado {
 
 .advanced-time-popover > strong {
     color: var(--text);
-    font-size: 10px;
+    font-size: 9px;
+    line-height: 1.45;
     text-align: center;
 }
 
@@ -5317,7 +5318,7 @@ body {
 
 .device-actions .btn-upload {
     display: flex;
-    min-height: 58px;
+    min-height: 62px;
     align-items: center;
     justify-content: center;
     margin: 0;
@@ -5326,7 +5327,8 @@ body {
     border-radius: 15px;
     background: #111925;
     color: #d2dae5;
-    font-size: 10px;
+    font-size: 9px;
+    line-height: 1.45;
     text-align: center;
 }
 
@@ -5347,23 +5349,33 @@ body {
 }
 
 .device-secondary-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
 
 .device-secondary-actions .btn-upload {
-    flex: 1 1 0;
-    min-height: 42px;
+    min-height: 48px;
     margin: 0;
+    border: 1px solid rgba(164, 184, 211, 0.1);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.018);
-    color: #7e8ba0;
+    color: #8a98ab;
     font-size: 8px;
+    line-height: 1.45;
+    text-align: center;
+}
+
+#btn-reset {
+    border-color: rgba(142, 163, 255, 0.12);
+    background: rgba(142, 163, 255, 0.05);
+    color: #c8d0ff;
 }
 
 #btn-disconnect {
-    background: rgba(255, 115, 137, 0.04);
-    color: #b98c95;
+    border-color: rgba(164, 184, 211, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    color: #99a7ba;
 }
 
 .hist-wrapper {
@@ -5804,4 +5816,64 @@ button.editor-context-state:active {
 .launch-choice .btn-upload {
     width: 100%;
     font-size: 13px;
+}
+
+
+.editor-context-state[hidden] {
+    display: none !important;
+}
+
+.editor-section:not(.has-device) .editor-context-state {
+    border-color: rgba(142, 163, 255, 0.16);
+    background: rgba(142, 163, 255, 0.06);
+    color: #cbd3ff;
+}
+
+.editor-section:not(.has-device) .editor-state-dot {
+    background: rgba(142, 163, 255, 0.9);
+    box-shadow: 0 0 0 4px rgba(142, 163, 255, 0.08);
+}
+
+.device-actions .btn-upload,
+.device-secondary-actions .btn-upload {
+    text-wrap: balance;
+}
+
+#btn-remove {
+    border-color: rgba(255, 150, 171, 0.16);
+    background: rgba(255, 150, 171, 0.07);
+    color: #ffd4dd;
+}
+
+#btn-disconnect:hover,
+#btn-reset:hover {
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.hist-empty {
+    min-height: 124px;
+    border-radius: 18px;
+}
+
+@media (max-width: 520px) {
+    .device-panel-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .device-online-badge {
+        align-self: flex-start;
+    }
+
+    .device-actions {
+        grid-template-columns: 1fr;
+    }
+
+    #btn-remove {
+        grid-column: auto;
+    }
+
+    .device-secondary-actions {
+        grid-template-columns: 1fr;
+    }
 }
