@@ -369,8 +369,9 @@ function completeConnectedState(data) {
     document.getElementById('connected-state').style.display = 'flex';
     document.getElementById('editor-section').style.display = 'flex';
     document.getElementById('wrap-gerar-modulo').style.display = 'none';
-    document.getElementById('wrap-nome').style.display = 'none';
-    document.getElementById('status-connected').textContent = t.statusConnected.replace('!', ': ' + data.model);
+    document.getElementById('wrap-nome').style.display = 'flex';
+    window.connectedPhoneModel = data.model || '';
+    document.getElementById('status-connected').textContent = window.connectedPhoneModel || t.statusConnected;
     if (hasModuleFeature('device_resolution') && data.resolution && data.resolution !== 'Unknown') {
         const optAuto = document.getElementById('opt-auto');
         optAuto.style.display = 'block';
@@ -381,8 +382,10 @@ function completeConnectedState(data) {
     rememberPhoneIp(currentPhoneIp());
     applyConnectedCapabilities(data);
     document.getElementById('acoes-principais').style.gridTemplateColumns = '1fr 1fr';
+    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('phone', { skipButtons: true });
     atualizarBotoesELinhas();
     if (hasModuleFeature('history')) loadHistory();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
 
 function apiFetch(path, options = {}) {
@@ -502,7 +505,7 @@ async function connectToPhone() {
 async function tentaConexao() {
     const btn = document.getElementById('btn-connect');
     const t = traducoes[idiomaAtual];
-    btn.textContent = "Connecting... ⚡";
+    btn.textContent = t.msgSearching;
 
     try {
         if (!await detectModuleCompatibility()) {
@@ -603,7 +606,7 @@ async function iniciarVarredura() {
     const originalText = btn.textContent;
     const t = traducoes[idiomaAtual];
 
-    btn.textContent = "Scanning... 🕵️‍♂️";
+    btn.textContent = t.scanningMsg;
     btn.style.pointerEvents = 'none';
     desc.textContent = t.scanningMsg;
 
@@ -641,6 +644,7 @@ function startManualMode() {
     sessionToken = '';
     resetModuleCompatibility();
     isConnectedMode = false;
+    window.connectedPhoneModel = '';
     document.getElementById('initial-state').style.display = 'none';
     document.getElementById('editor-section').style.display = 'flex';
     document.getElementById('wrap-gerar-modulo').style.display = 'flex';
@@ -652,7 +656,9 @@ function startManualMode() {
     document.getElementById('lbl-upload-direto').style.display = "none";
     document.getElementById('btn-reset').style.display = "none";
     
+    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('download', { skipButtons: true });
     atualizarBotoesELinhas();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
 
 async function disconnectPhone() {
@@ -660,10 +666,21 @@ async function disconnectPhone() {
     sessionToken = '';
     resetModuleCompatibility();
     isConnectedMode = false;
-    document.getElementById('initial-state').style.display = 'flex';
+    window.connectedPhoneModel = '';
+    document.getElementById('initial-state').style.display = 'none';
     document.getElementById('connected-state').style.display = 'none';
-    document.getElementById('editor-section').style.display = 'none';
+    document.getElementById('editor-section').style.display = 'flex';
+    document.getElementById('wrap-gerar-modulo').style.display = 'flex';
+    document.getElementById('wrap-nome').style.display = 'flex';
+    document.getElementById('btn-remove').style.display = 'none';
+    document.getElementById('btn-pull').style.display = 'none';
+    document.getElementById('lbl-upload-direto').style.display = 'none';
+    document.getElementById('btn-reset').style.display = 'none';
     document.getElementById('btn-connect').textContent = traducoes[idiomaAtual].btnConnect;
+    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('download', { skipButtons: true });
+    atualizarBotoesELinhas();
+    if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
 
 async function removeAnimation() {
@@ -732,6 +749,8 @@ async function loadHistory() {
         scroll.querySelectorAll('video[data-object-url]').forEach(video => URL.revokeObjectURL(video.dataset.objectUrl));
         scroll.innerHTML = '';
         
+        const historyCount = document.getElementById('p11-history-count');
+        if (historyCount) historyCount.textContent = `${Array.isArray(ids) ? ids.length : 0} / 5`;
         if(ids && ids.length > 0) {
             document.getElementById('history-wrapper').style.display = "flex";
             const t = traducoes[idiomaAtual];
@@ -753,7 +772,7 @@ async function loadHistory() {
                 
                 const btnClose = document.createElement('button');
                 btnClose.className = "btn-close";
-                btnClose.innerHTML = "X";
+                btnClose.textContent = "×";
                 btnClose.onclick = () => deleteHistory(id);
 
                 const btnApply = document.createElement('button');
@@ -762,7 +781,7 @@ async function loadHistory() {
                 btnApply.onclick = () => applyHistory(id);
 
                 const label = document.createElement('div');
-                label.style.fontSize = "10px"; label.style.color = "#ccc"; label.style.marginBottom = "5px";
+                label.className = "hist-card-date";
                 label.innerText = date;
 
                 card.appendChild(btnClose);
@@ -772,7 +791,11 @@ async function loadHistory() {
                 scroll.appendChild(card);
             }
         } else {
-            document.getElementById('history-wrapper').style.display = "none";
+            document.getElementById('history-wrapper').style.display = "flex";
+            const empty = document.createElement('div');
+            empty.className = "history-empty";
+            empty.textContent = traducoes[idiomaAtual].historyEmpty || 'No saved animations yet.';
+            scroll.appendChild(empty);
         }
     } catch(e) {}
 }

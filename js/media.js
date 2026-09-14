@@ -506,7 +506,7 @@ async function abrirZipNoEditor(zipBlob) {
         }
 
         document.getElementById('dicas-iniciais').style.display = 'none';
-        document.getElementById('botoes-exportacao').style.display = 'flex';
+        document.getElementById('botoes-exportacao').style.display = 'grid';
         document.getElementById('video-container').style.display = 'block';
         document.getElementById('timeline-wrapper').style.display = 'block';
         document.getElementById('grid-marcadores').style.display = 'grid';

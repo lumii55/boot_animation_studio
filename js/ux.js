@@ -48,8 +48,9 @@ function closeConfirmation(result) {
 }
 
 function getGenerateReadyLabel(t) {
-    if (isConnectedMode) return t.btnGenerateApply;
-    const generateModule = document.getElementById('input-gerar-modulo').checked;
+    const target = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
+    if (target === 'phone' && isConnectedMode) return t.btnGenerateApply;
+    const generateModule = !isConnectedMode && document.getElementById('input-gerar-modulo').checked;
     return generateModule ? t.btnGenerateModule : t.btnGenerateDownload;
 }
 
@@ -59,11 +60,12 @@ function updateOutputIntent() {
     const hasMedia = document.getElementById('video-container').style.display === 'block';
     if (!hasMedia) { el.style.display = 'none'; return; }
     const t = traducoes[idiomaAtual];
-    if (isConnectedMode) {
+    const target = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
+    if (target === 'phone' && isConnectedMode) {
         const historyAvailable = typeof hasModuleFeature !== 'function' || hasModuleFeature('history');
         el.textContent = historyAvailable ? t.outputIntentPhone : t.outputIntentPhoneSimple;
     }
-    else if (document.getElementById('input-gerar-modulo').checked) el.textContent = t.outputIntentModule;
+    else if (!isConnectedMode && document.getElementById('input-gerar-modulo').checked) el.textContent = t.outputIntentModule;
     else el.textContent = t.outputIntentDownload;
     el.style.display = 'block';
 }
