@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="styles.css?v=p11-2" rel="stylesheet"/>
+<link href="styles.css?v=p11-3" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta content="#070b12" name="theme-color"/></head>
@@ -67,14 +67,22 @@
 <video class="pausado" id="player-video" playsinline=""></video>
 <button aria-label="Reset crop" class="focus-reset" id="btn-reset-focus" title="Reset crop" type="button">◎</button>
 </div>
-<p class="dica-video" id="txt-dicavideo"> Click video to Play or Pause!</p>
+<p class="dica-video" id="txt-dicavideo">Click video to Play or Pause!</p>
+</div>
+<section class="timeline-editor" id="timeline-editor">
+<div class="timeline-editor-head">
+<div class="timeline-heading">
+<span class="timeline-kicker" id="p11-timeline-kicker">TIMELINE</span>
+<strong id="p11-timeline-title">Scrub and mark</strong>
+</div>
 <div aria-live="off" class="video-time-readout" id="video-time-readout" role="status">
-<span class="video-time-icon">⏱</span>
 <strong id="video-current-time">0.00s</strong>
 <span class="video-time-separator">/</span>
 <span id="video-total-time">0.00s</span>
 </div>
-</div><div class="timeline-wrapper" id="timeline-wrapper">
+</div>
+<div class="timeline-canvas">
+<div class="timeline-wrapper" id="timeline-wrapper">
 <div class="playhead-centro"></div>
 <div class="timeline-scroll" id="timeline-scroll">
 <div class="filmstrip-container">
@@ -83,19 +91,36 @@
 <div class="pad-spacer" id="pad-right"></div>
 </div>
 </div>
-</div><p class="hint-tooltip" id="txt-hint-tooltip"></p><div class="grid-marcadores" id="grid-marcadores">
-<button class="btn-marc btn-m0" onclick="marcarTrecho('m0')"> <span id="lbl-m0">1. Intro</span><br/><span class="status-marc" id="st-m0">Not marked</span></button>
-<button class="btn-marc btn-m1" onclick="marcarTrecho('m1')"> <span id="lbl-m1">2. Loop Start</span><br/><span class="status-marc" id="st-m1">Not marked</span></button>
-<button class="btn-marc btn-m2" onclick="marcarTrecho('m2')"> <span id="lbl-m2">3. Loop End</span><br/><span class="status-marc" id="st-m2">Not marked</span></button>
-<button class="btn-marc btn-m3" onclick="marcarTrecho('m3')"> <span id="lbl-m3">4. Outro</span><br/><span class="status-marc" id="st-m3">Not marked</span></button>
-</div><details class="advanced-parts-launch" id="advanced-parts-launch">
+</div>
+<div class="timeline-transport" id="timeline-transport">
+<button class="timeline-transport-btn" id="btn-timeline-start" type="button"><span aria-hidden="true">↤</span><b id="timeline-start-label">Start</b></button>
+<button class="timeline-transport-btn timeline-transport-primary" id="btn-timeline-play" type="button"><span aria-hidden="true" id="timeline-play-icon">▶</span><b id="timeline-play-label">Play</b></button>
+<button class="timeline-transport-btn" id="btn-timeline-end" type="button"><span aria-hidden="true">↦</span><b id="timeline-end-label">End</b></button>
+</div>
+</div>
+<div class="simple-sequence" id="simple-sequence">
+<div class="simple-sequence-head">
+<strong id="timeline-boundaries-title">Animation sections</strong>
+<small id="timeline-boundaries-hint">Set each boundary at the playhead.</small>
+</div>
+<div aria-label="Animation sections" class="simple-segment-track" id="simple-segment-track"></div>
+</div>
+</section>
+<p class="hint-tooltip" id="txt-hint-tooltip"></p>
+<div class="grid-marcadores" id="grid-marcadores">
+<button class="btn-marc btn-m0" onclick="marcarTrecho('m0')"><span class="marker-swatch"></span><span class="marker-copy"><span id="lbl-m0">1. Intro</span><small class="status-marc" id="st-m0">Not marked</small></span></button>
+<button class="btn-marc btn-m1" onclick="marcarTrecho('m1')"><span class="marker-swatch"></span><span class="marker-copy"><span id="lbl-m1">2. Loop Start</span><small class="status-marc" id="st-m1">Not marked</small></span></button>
+<button class="btn-marc btn-m2" onclick="marcarTrecho('m2')"><span class="marker-swatch"></span><span class="marker-copy"><span id="lbl-m2">3. Loop End</span><small class="status-marc" id="st-m2">Not marked</small></span></button>
+<button class="btn-marc btn-m3" onclick="marcarTrecho('m3')"><span class="marker-swatch"></span><span class="marker-copy"><span id="lbl-m3">4. Outro</span><small class="status-marc" id="st-m3">Not marked</small></span></button>
+</div>
+<details class="advanced-parts-launch" id="advanced-parts-launch">
 <summary class="advanced-options-summary">
 <span class="advanced-options-summary-icon"></span>
-<span id="advanced-options-label">Advanced options</span>
+<span class="advanced-options-summary-copy"><strong id="advanced-options-label">Advanced options</strong><small id="advanced-options-hint">Build a custom sequence of parts.</small></span>
 </summary>
 <div class="advanced-options-panel">
 <button class="advanced-parts-launch-btn" id="btn-open-advanced-parts" type="button">
-<span class="advanced-parts-launch-icon">◇</span>
+<span class="advanced-parts-launch-icon"></span>
 <span class="advanced-parts-launch-copy">
 <strong id="advanced-parts-launch-title">Advanced Parts Editor</strong>
 <small id="advanced-parts-launch-hint">Optional: create more than Intro / Loop / Outro.</small>
@@ -103,22 +128,27 @@
 <span class="advanced-parts-launch-chevron">›</span>
 </button>
 </div>
-</details><section aria-live="polite" class="advanced-parts-editor" id="advanced-parts-editor">
+</details>
+<section aria-live="polite" class="advanced-parts-editor" id="advanced-parts-editor">
 <div class="advanced-parts-header">
 <div>
-<h2 id="advanced-parts-title"> Advanced Parts Editor </h2>
+<span class="section-kicker" id="advanced-mode-kicker">SEQUENCE</span>
+<h2 id="advanced-parts-title">Advanced Parts Editor</h2>
 <p id="advanced-parts-subtitle">Build the animation as a sequence of simple parts.</p>
 </div>
 <span class="advanced-parts-count" id="advanced-parts-count"></span>
 </div>
+<div class="advanced-sequence-shell">
+<div class="advanced-sequence-heading"><strong id="advanced-sequence-label">Playback order</strong><small id="advanced-sequence-hint">Select a part to edit it.</small></div>
 <div class="advanced-parts-flow" id="advanced-parts-flow"></div>
+</div>
 <div class="advanced-hold-hint" id="advanced-hold-hint"></div>
 <div class="advanced-parts-list" id="advanced-parts-list"></div>
 <div class="advanced-parts-actions">
-<button class="advanced-action advanced-action-primary" id="btn-advanced-add" type="button">＋ <span id="lbl-advanced-add">Add Part</span></button>
-<button class="advanced-action advanced-action-secondary" id="btn-advanced-split" type="button"> <span id="lbl-advanced-split">Split at Playhead</span></button>
+<button class="advanced-action advanced-action-primary" id="btn-advanced-add" type="button"><span id="lbl-advanced-add">Add Part</span></button>
+<button class="advanced-action advanced-action-secondary" id="btn-advanced-split" type="button"><span id="lbl-advanced-split">Split at Playhead</span></button>
 </div>
-<button class="advanced-back-simple" id="btn-advanced-back" type="button">← <span id="lbl-advanced-back">Back to Simple Mode</span></button>
+<button class="advanced-back-simple" id="btn-advanced-back" type="button"><span id="lbl-advanced-back">Back to Simple Mode</span></button>
 <div class="advanced-parts-note" id="advanced-parts-note"></div>
 </section><div class="workflow-step-actions workflow-edit-actions"><button class="workflow-next" id="btn-workspace-next" type="button"><span id="p11-next-tune">Continue to output</span><b>02</b></button></div></section><section class="settings-stage"><div class="stage-heading"><div><span class="section-kicker" id="p11-tune-kicker">OUTPUT</span><h2 id="p11-tune-title">Tune the output</h2><p id="p11-tune-desc">Adjust format, resolution, framing, frame rate and audio.</p></div><span class="stage-step">02</span></div><div class="configuracoes" id="configuracoes">
 <div class="campo campo-full" id="wrap-gerar-modulo">
@@ -416,16 +446,16 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p11-2"></script>
-<script src="js/project.js?v=p11-2"></script>
-<script src="js/i18n.js?v=p11-2"></script>
-<script src="js/ux.js?v=p11-2"></script>
-<script src="js/workspace.js?v=p11-2"></script><script src="js/api.js?v=p11-2"></script>
-<script src="js/media.js?v=p11-2"></script>
-<script src="js/timeline.js?v=p11-2"></script>
-<script src="js/audio.js?v=p11-2"></script>
-<script src="js/parts.js?v=p11-2"></script>
-<script src="js/performance.js?v=p11-2"></script>
-<script src="js/export.js?v=p11-2"></script>
+<script src="js/state.js?v=p11-3"></script>
+<script src="js/project.js?v=p11-3"></script>
+<script src="js/i18n.js?v=p11-3"></script>
+<script src="js/ux.js?v=p11-3"></script>
+<script src="js/workspace.js?v=p11-3"></script><script src="js/api.js?v=p11-3"></script>
+<script src="js/media.js?v=p11-3"></script>
+<script src="js/timeline.js?v=p11-3"></script>
+<script src="js/audio.js?v=p11-3"></script>
+<script src="js/parts.js?v=p11-3"></script>
+<script src="js/performance.js?v=p11-3"></script>
+<script src="js/export.js?v=p11-3"></script>
 </body>
 </html>
