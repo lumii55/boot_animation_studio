@@ -9446,3 +9446,137 @@ summary:focus-visible {
         width: 28px;
     }
 }
+#composition-main-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    touch-action: none;
+}
+
+#composition-main-canvas.is-interactive {
+    pointer-events: auto;
+    cursor: default;
+}
+
+#composition-main-canvas.is-dragging {
+    cursor: grabbing;
+}
+
+.framing-preview:has(#composition-main-canvas.is-interactive) #player-video {
+    pointer-events: none;
+}
+
+.framing-preview .focus-reset {
+    z-index: 4;
+}
+
+.composition-studio.composition-studio-unified {
+    grid-template-columns: minmax(210px, 0.62fr) minmax(0, 1.38fr);
+}
+
+.composition-control-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.composition-main-preview-note {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 15px;
+    overflow: hidden;
+    border: 1px solid rgba(3, 218, 198, 0.2);
+    border-radius: 17px;
+    background: linear-gradient(145deg, rgba(3, 218, 198, 0.075), rgba(187, 134, 252, 0.05));
+}
+
+.composition-main-preview-note::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #03dac6, #bb86fc);
+}
+
+.composition-main-preview-kicker {
+    color: #80eee4;
+    font-size: 0.64rem;
+    font-weight: 780;
+    letter-spacing: 0.13em;
+}
+
+.composition-main-preview-note strong {
+    color: var(--text);
+    font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.15;
+}
+
+.composition-main-preview-note p {
+    margin: 0;
+    color: var(--muted-2);
+    font-size: 0.77rem;
+    line-height: 1.48;
+}
+
+.composition-layer-count {
+    align-self: flex-start;
+    margin-top: 5px;
+    padding: 5px 8px;
+    border: 1px solid rgba(187, 134, 252, 0.22);
+    border-radius: 999px;
+    background: rgba(187, 134, 252, 0.08);
+    color: #dfc4ff;
+    font-size: 0.68rem;
+    font-weight: 720;
+}
+
+.edit-audio-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid rgba(3, 218, 198, 0.17);
+    border-radius: 22px;
+    background: linear-gradient(155deg, rgba(3, 218, 198, 0.04), rgba(187, 134, 252, 0.04) 52%, rgba(8, 11, 17, 0.88));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.edit-audio-section .context-panel-heading {
+    margin-bottom: 2px;
+}
+
+.edit-audio-section .context-panel-index {
+    border-color: rgba(3, 218, 198, 0.2);
+    background: rgba(3, 218, 198, 0.07);
+    color: #8af0e7;
+}
+
+.workspace-stage > .advanced-parts-launch {
+    margin-top: 18px;
+}
+
+@media (max-width: 859px) {
+    .composition-studio.composition-studio-unified {
+        grid-template-columns: 1fr;
+    }
+
+    .composition-control-column {
+        gap: 11px;
+    }
+
+    .composition-editor-section,
+    .edit-audio-section {
+        padding: 14px;
+        border-radius: 19px;
+    }
+}
