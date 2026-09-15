@@ -7191,3 +7191,131 @@ summary:focus-visible {
         min-height: 42px;
     }
 }
+
+.editor-topbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.project-history-controls {
+    display: inline-grid;
+    grid-template-columns: repeat(2, auto);
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid rgba(187, 134, 252, 0.14);
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(187, 134, 252, 0.08), rgba(3, 218, 198, 0.035));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.project-history-button {
+    display: inline-flex;
+    min-width: 38px;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 9px;
+    background: rgba(13, 19, 29, 0.82);
+    color: #cfc7e3;
+    font-family: inherit;
+    font-size: 8px;
+    font-weight: 720;
+    cursor: pointer;
+    transition: background 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease;
+}
+
+.project-history-button:not(:disabled):hover {
+    background: rgba(187, 134, 252, 0.14);
+    color: #f2ebff;
+}
+
+.project-history-button:not(:disabled):active {
+    transform: translateY(1px);
+}
+
+.project-history-button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.project-history-glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.project-history-label {
+    white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+    .editor-topbar {
+        align-items: flex-start;
+    }
+
+    .editor-topbar-actions {
+        gap: 6px;
+    }
+
+    .project-history-controls {
+        gap: 2px;
+        padding: 2px;
+        border-radius: 10px;
+    }
+
+    .project-history-button {
+        min-width: 36px;
+        min-height: 34px;
+        padding: 0 7px;
+    }
+
+    .project-history-label {
+        display: none;
+    }
+
+    .editor-context-state {
+        min-height: 38px;
+        padding: 0 9px;
+    }
+}
+
+@media (max-width: 430px) {
+    .editor-topbar {
+        gap: 8px;
+    }
+
+    .editor-topbar-actions {
+        align-items: flex-end;
+        flex-direction: column-reverse;
+    }
+
+    .editor-context-state {
+        min-height: 28px;
+        padding: 0 8px;
+        font-size: 8px;
+    }
+
+    .project-history-button {
+        min-width: 34px;
+        min-height: 32px;
+    }
+
+    .project-engine-summary {
+        max-width: 58vw;
+    }
+}
+
+.project-history-button:focus-visible {
+    outline: 2px solid rgba(187, 134, 252, 0.72);
+    outline-offset: 2px;
+}
