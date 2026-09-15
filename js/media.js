@@ -579,8 +579,8 @@ function captureAudioSourceState(part) {
     const imported = importedAudioFiles[part];
     if (imported) {
         return {
-            kind: 'imported',
-            name: '',
+            kind: importedAudioKinds[part] === 'file' ? 'file' : 'imported',
+            name: importedAudioNames[part] || '',
             size: imported.size || 0,
             type: imported.type || '',
             lastModified: 0,
@@ -738,6 +738,8 @@ function resetAudioState() {
     document.getElementById('input-usar-som').checked = false;
     ['intro', 'loop', 'final'].forEach(part => {
         importedAudioFiles[part] = null;
+        importedAudioKinds[part] = 'none';
+        importedAudioNames[part] = '';
         const select = document.getElementById(`sel-audio-${part}`);
         const inputFile = document.getElementById(`file-audio-${part}`);
         const optFile = document.getElementById(`opt-file-${part}`);
@@ -758,8 +760,10 @@ function resetAudioState() {
     verificarPainelAudio();
 }
 
-function setImportedAudio(part, blob, name) {
+function setImportedAudio(part, blob, name, kind = 'imported') {
     importedAudioFiles[part] = blob;
+    importedAudioKinds[part] = kind === 'file' ? 'file' : 'imported';
+    importedAudioNames[part] = name || 'audio.wav';
     const select = document.getElementById(`sel-audio-${part}`);
     const optFile = document.getElementById(`opt-file-${part}`);
     const wrap = document.getElementById(`vol-wrap-${part}`);
@@ -784,9 +788,13 @@ function handleAudioSelect(part) {
         wrap.style.display = "flex";
     } else if (select.value === 'video') {
         importedAudioFiles[part] = null;
+        importedAudioKinds[part] = 'none';
+        importedAudioNames[part] = '';
         wrap.style.display = "flex";
     } else {
         importedAudioFiles[part] = null;
+        importedAudioKinds[part] = 'none';
+        importedAudioNames[part] = '';
         wrap.style.display = "none";
         const t = traducoes[idiomaAtual];
         document.getElementById(`opt-file-${part}`).textContent = t.optFile;
@@ -802,6 +810,8 @@ function fileAudioSelecionado(part) {
     const wrap = document.getElementById(`vol-wrap-${part}`);
     if (inputFile.files.length > 0) {
         importedAudioFiles[part] = null;
+        importedAudioKinds[part] = 'none';
+        importedAudioNames[part] = '';
         const nome = inputFile.files[0].name;
         optFile.textContent = `${nome}`;
         optFile.setAttribute('data-custom', `${nome}`);

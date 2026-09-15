@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.2';
+const BAS_PROJECT_ENGINE_VERSION = '12.3';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -297,7 +297,7 @@ function syncProjectEngineUi() {
     context?.classList.add('has-project');
 }
 
-function emitProjectEngineChange(reason, contentChanged) {
+function emitProjectEngineChange(reason, contentChanged, changeKey = '') {
     if (!currentProject || !currentProject.projectMeta) return;
     window.dispatchEvent(new CustomEvent('bas:projectchange', {
         detail: {
@@ -305,7 +305,8 @@ function emitProjectEngineChange(reason, contentChanged) {
             revision: currentProject.projectMeta.revision,
             dirty: currentProject.projectMeta.dirty,
             reason,
-            contentChanged: !!contentChanged
+            contentChanged: !!contentChanged,
+            changeKey: changeKey || ''
         }
     }));
 }
@@ -339,7 +340,7 @@ function syncProjectEngineState(reason = 'sync', options = {}) {
     meta.sourceName = getProjectEngineSourceName(currentProject);
     if (!meta.name) meta.name = deriveProjectEngineName(currentProject);
     syncProjectEngineUi();
-    if (contentChanged || options.emit) emitProjectEngineChange(reason, contentChanged);
+    if (contentChanged || options.emit) emitProjectEngineChange(reason, contentChanged, options.changeKey || '');
     return captureProjectManifest();
 }
 
@@ -406,6 +407,27 @@ function projectEngineSetChecked(id, value) {
     element.checked = !!value;
 }
 
+function projectEngineResolveImportedSimpleAudio(role) {
+    if (!currentProject || !Array.isArray(currentProject.parts)) return null;
+    const index = currentProject.audioRolePartIndexes && Number.isInteger(currentProject.audioRolePartIndexes[role]) ? currentProject.audioRolePartIndexes[role] : null;
+    const part = index === null ? null : currentProject.parts[index];
+    return part && part.audioBlob instanceof Blob ? { blob: part.audioBlob, name: part.audioName || 'audio' } : null;
+}
+
+function projectEngineClearSimpleAudioSource(role) {
+    if (typeof importedAudioFiles !== 'undefined') importedAudioFiles[role] = null;
+    if (typeof importedAudioKinds !== 'undefined') importedAudioKinds[role] = 'none';
+    if (typeof importedAudioNames !== 'undefined') importedAudioNames[role] = '';
+    const input = document.getElementById(`file-audio-${role}`);
+    if (input) input.value = '';
+    const option = document.getElementById(`opt-file-${role}`);
+    if (option) {
+        const table = typeof traducoes !== 'undefined' ? traducoes[idiomaAtual] : null;
+        option.textContent = table && table.optFile ? table.optFile : 'File';
+        option.removeAttribute('data-custom');
+    }
+}
+
 function projectEngineRestoreSimpleAudio(audioState, assetMap) {
     if (!audioState) return;
     projectEngineSetChecked('input-usar-som', audioState.enabled);
@@ -413,12 +435,19 @@ function projectEngineRestoreSimpleAudio(audioState, assetMap) {
         const roleState = audioState[role] || {};
         const select = document.getElementById(`sel-audio-${role}`);
         const asset = assetMap instanceof Map ? assetMap.get(`audio:${role}`) : null;
-        if (roleState.source && roleState.source.kind === 'file' && asset && asset.blob instanceof Blob && typeof setImportedAudio === 'function') {
-            setImportedAudio(role, asset.blob, roleState.source.name || asset.name || 'audio');
+        const sourceKind = roleState.source && roleState.source.kind ? roleState.source.kind : 'none';
+        if (sourceKind === 'file' && asset && asset.blob instanceof Blob && typeof setImportedAudio === 'function') {
+            setImportedAudio(role, asset.blob, roleState.source.name || asset.name || 'audio', 'file');
+        } else if (sourceKind === 'imported' && typeof setImportedAudio === 'function') {
+            const imported = projectEngineResolveImportedSimpleAudio(role);
+            if (imported) setImportedAudio(role, imported.blob, imported.name, 'imported');
+            else projectEngineClearSimpleAudioSource(role);
+        } else {
+            projectEngineClearSimpleAudioSource(role);
         }
         if (select) {
             const requestedMode = roleState.mode || 'none';
-            const hasSource = requestedMode !== 'file' || (roleState.source && roleState.source.kind === 'imported') || !!asset;
+            const hasSource = requestedMode !== 'file' || sourceKind === 'imported' || !!asset;
             select.value = hasSource ? requestedMode : 'none';
         }
         projectEngineSetValue(`vol-${role}`, Number.isFinite(Number(roleState.volume)) ? roleState.volume : 100);
@@ -485,19 +514,23 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
     if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
 }
 
-function restoreProjectEngineState(manifest, assetMap = new Map()) {
+function restoreProjectEngineState(manifest, assetMap = new Map(), options = {}) {
     if (!currentProject || !validateProjectManifest(manifest)) return false;
     const editor = manifest.editor || {};
     const output = editor.output || {};
     const framing = editor.framing || {};
     const packageState = editor.package || {};
     const savedMeta = manifest.project || {};
-    currentProject.projectMeta = {
-        ...savedMeta,
-        schemaVersion: BAS_PROJECT_SCHEMA_VERSION,
-        engineVersion: BAS_PROJECT_ENGINE_VERSION,
-        dirty: false
-    };
+    if (!options.preserveMeta) {
+        currentProject.projectMeta = {
+            ...savedMeta,
+            schemaVersion: BAS_PROJECT_SCHEMA_VERSION,
+            engineVersion: BAS_PROJECT_ENGINE_VERSION,
+            dirty: false
+        };
+    } else {
+        ensureProjectEngineMetadata(currentProject);
+    }
     currentProject.sourceName = manifest.source && manifest.source.name ? manifest.source.name : currentProject.sourceName;
     if (output.name !== undefined) projectEngineSetValue('input-nome', output.name);
     if (output.format !== undefined) projectEngineSetValue('input-formato', output.format);
@@ -538,18 +571,50 @@ function restoreProjectEngineState(manifest, assetMap = new Map()) {
     if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
     if (typeof renderSimpleSegmentTrack === 'function') renderSimpleSegmentTrack();
     const ui = manifest.ui || {};
-    if (typeof setWorkspaceView === 'function') setWorkspaceView(ui.workspaceView || 'edit', { scroll: false });
-    if (typeof setOutputTool === 'function') setOutputTool(ui.outputTool || 'basics');
-    if (typeof setAudioRole === 'function') setAudioRole(ui.audioRole || 'intro');
-    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(isConnectedMode && ui.deliveryTarget === 'phone' ? 'phone' : 'download', { skipButtons: true });
-    if (Number.isFinite(Number(ui.playhead)) && playerVideo && Number.isFinite(playerVideo.duration)) {
-        playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
+    if (options.restoreUi !== false) {
+        if (typeof setWorkspaceView === 'function') setWorkspaceView(ui.workspaceView || 'edit', { scroll: false });
+        if (typeof setOutputTool === 'function') setOutputTool(ui.outputTool || 'basics');
+        if (typeof setAudioRole === 'function') setAudioRole(ui.audioRole || 'intro');
+        if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(isConnectedMode && ui.deliveryTarget === 'phone' ? 'phone' : 'download', { skipButtons: true });
+        if (Number.isFinite(Number(ui.playhead)) && playerVideo && Number.isFinite(playerVideo.duration)) {
+            playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
+        }
     }
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
     syncProjectEngineUi();
     return true;
+}
+
+
+function commitProjectEngineRestoredState(reason = 'history') {
+    if (!currentProject) return null;
+    const meta = ensureProjectEngineMetadata(currentProject);
+    const content = captureProjectEngineContentState();
+    const ui = captureProjectEngineUiState();
+    projectEngineRuntime.projectRef = currentProject;
+    projectEngineRuntime.lastContentSignature = JSON.stringify(content);
+    meta.revision += 1;
+    meta.updatedAt = projectEngineNow();
+    meta.dirty = true;
+    currentProject.projectState = content;
+    currentProject.projectUiState = ui;
+    syncProjectEngineUi();
+    emitProjectEngineChange(reason, true, reason);
+    return captureProjectManifest();
+}
+
+function projectEngineChangeKeyForTarget(target) {
+    if (!(target instanceof Element)) return '';
+    if (target.id) return target.id;
+    const field = target.dataset.advancedField || '';
+    const partId = target.dataset.partId || '';
+    const audioFilePart = target.dataset.advancedAudioFile || '';
+    if (field) return `advanced:${partId || 'part'}:${field}`;
+    if (audioFilePart) return `advanced:${audioFilePart}:audio-file`;
+    if (target.name) return target.name;
+    return '';
 }
 
 function projectEngineTargetIsContent(target) {
@@ -570,17 +635,17 @@ function bindProjectEngine() {
     if (projectEngineRuntime.initialized) return;
     projectEngineRuntime.initialized = true;
     document.addEventListener('input', event => {
-        if (projectEngineTargetIsContent(event.target)) projectEngineTouch('input');
+        if (projectEngineTargetIsContent(event.target)) projectEngineTouch('input', { changeKey: projectEngineChangeKeyForTarget(event.target) });
     });
     document.addEventListener('change', event => {
-        if (projectEngineTargetIsContent(event.target)) projectEngineTouch('change');
+        if (projectEngineTargetIsContent(event.target)) projectEngineTouch('change', { changeKey: projectEngineChangeKeyForTarget(event.target) });
     });
     document.addEventListener('click', event => {
         if (projectEngineActionChangesContent(event.target)) projectEngineTouch('action');
         else if (event.target.closest('.workflow-tab, .output-tool-tab, .audio-role-tab, .delivery-option')) projectEngineTouch('ui', { emit: true });
     });
     document.addEventListener('pointerup', event => {
-        if (event.target.closest('#framing-preview, #framing-tool-preview-shell')) projectEngineTouch('framing');
+        if (event.target.closest('#framing-preview, #framing-tool-preview-shell')) projectEngineTouch('framing', { changeKey: 'framing' });
     });
     playerVideo?.addEventListener('pause', () => projectEngineTouch('ui', { emit: true }));
     syncProjectEngineUi();
@@ -594,6 +659,7 @@ window.BASProjectEngine = Object.freeze({
     getAssets: getProjectAssetInventory,
     validateManifest: validateProjectManifest,
     restoreState: restoreProjectEngineState,
+    commitRestoredState: commitProjectEngineRestoredState,
     sync: syncProjectEngineState,
     touch: projectEngineTouch,
     markClean: markProjectEngineClean,

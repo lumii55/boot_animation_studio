@@ -57,4 +57,6 @@ let isProgrammaticScroll = false;
 const previewAudios = { m0: new Audio(), m1: new Audio(), m2: new Audio() };
 const previewAudioUrls = { m0: null, m1: null, m2: null };
 const importedAudioFiles = { intro: null, loop: null, final: null };
+const importedAudioKinds = { intro: 'none', loop: 'none', final: 'none' };
+const importedAudioNames = { intro: '', loop: '', final: '' };
 let currentPreviewPart = -1;

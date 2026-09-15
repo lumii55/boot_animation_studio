@@ -188,6 +188,7 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
         const manifest = BASProjectEngine.sync(reason, { emit: false }) || BASProjectEngine.captureManifest();
         if (!manifest || !BASProjectEngine.validateManifest(manifest)) throw new Error('Invalid project manifest');
         const meta = manifest.project;
+        const savedRevision = Number(meta.revision) || 0;
         const assets = BASProjectEngine.getAssets().filter(asset => !asset.transient && asset.blob instanceof Blob);
         const source = assets.find(asset => asset.key === 'source');
         if (!source) throw new Error('Project source unavailable');
@@ -208,7 +209,7 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
             name: meta.name || 'bootanimation',
             createdAt: meta.createdAt || now,
             updatedAt: now,
-            revision: Number(meta.revision) || 0,
+            revision: savedRevision,
             sourceType: manifest.source.type || 'video',
             sourceName: manifest.source.name || '',
             sourceSummary: typeof getProjectEngineSummary === 'function' ? getProjectEngineSummary(currentProject) : '',
@@ -225,11 +226,15 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
         await autosaveTransactionDone(transaction);
         autosaveRuntime.assetSignatures.set(meta.id, signature);
         autosaveRuntime.lastSavedAt = Date.now();
-        if (currentProject && currentProject.projectMeta && currentProject.projectMeta.id === meta.id) {
+        const currentMatchesSavedRevision = !!(currentProject && currentProject.projectMeta && currentProject.projectMeta.id === meta.id && (Number(currentProject.projectMeta.revision) || 0) === savedRevision);
+        if (currentMatchesSavedRevision) {
             currentProject.projectMeta.updatedAt = now;
             BASProjectEngine.markClean();
+            setAutosaveStatus('saved');
+        } else {
+            autosaveRuntime.pendingAfterSave = true;
+            setAutosaveStatus('saving');
         }
-        setAutosaveStatus('saved');
         await trimAutosaveProjects();
         await renderRecentProjects();
         return true;
