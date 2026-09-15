@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="styles.css?v=p12-5-1" rel="stylesheet"/>
+<link href="styles.css?v=p12-6" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta content="#070b12" name="theme-color"/></head>
@@ -161,6 +161,12 @@
 <div class="advanced-sequence-heading"><strong id="advanced-sequence-label">Playback order</strong><small id="advanced-sequence-hint">Select a part to edit it.</small></div>
 <div class="advanced-parts-flow" id="advanced-parts-flow"></div>
 </div>
+<div class="advanced-sequence-health" data-state="ready" id="advanced-sequence-health">
+<div class="advanced-health-mark" aria-hidden="true"></div>
+<div class="advanced-health-copy"><span id="advanced-health-label">SEQUENCE CHECK</span><strong id="advanced-health-title">Sequence ready</strong><p id="advanced-health-message">All Parts are valid.</p></div>
+<button id="advanced-health-focus" type="button" hidden>Review Part</button>
+</div>
+<div class="advanced-sequence-stats" id="advanced-sequence-stats"></div>
 <div class="advanced-hold-hint" id="advanced-hold-hint"></div>
 <div class="advanced-parts-list" id="advanced-parts-list"></div>
 <div class="advanced-parts-actions">
@@ -286,24 +292,24 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p12-5-1"></script>
-<script src="js/project.js?v=p12-5-1"></script>
-<script src="js/i18n.js?v=p12-5-1"></script>
-<script src="js/loading-tips.js?v=p12-5-1"></script>
-<script src="js/ux.js?v=p12-5-1"></script>
-<script src="js/workspace.js?v=p12-5-1"></script><script src="js/api.js?v=p12-5-1"></script>
-<script src="js/media.js?v=p12-5-1"></script>
-<script src="js/source-library.js?v=p12-5-1"></script>
-<script src="js/master-sequence.js?v=p12-5-1"></script>
-<script src="js/timeline.js?v=p12-5-1"></script>
-<script src="js/contextual.js?v=p12-5-1"></script>
-<script src="js/audio.js?v=p12-5-1"></script>
-<script src="js/parts.js?v=p12-5-1"></script>
-<script src="js/timeline-2.js?v=p12-5-1"></script>
-<script src="js/performance.js?v=p12-5-1"></script>
-<script src="js/release.js?v=p12-5-1"></script><script src="js/export.js?v=p12-5-1"></script>
-<script src="js/project-engine.js?v=p12-5-1"></script>
-<script src="js/history.js?v=p12-5-1"></script>
-<script src="js/autosave.js?v=p12-5-1"></script>
+<script src="js/state.js?v=p12-6"></script>
+<script src="js/project.js?v=p12-6"></script>
+<script src="js/i18n.js?v=p12-6"></script>
+<script src="js/loading-tips.js?v=p12-6"></script>
+<script src="js/ux.js?v=p12-6"></script>
+<script src="js/workspace.js?v=p12-6"></script><script src="js/api.js?v=p12-6"></script>
+<script src="js/media.js?v=p12-6"></script>
+<script src="js/source-library.js?v=p12-6"></script>
+<script src="js/master-sequence.js?v=p12-6"></script>
+<script src="js/timeline.js?v=p12-6"></script>
+<script src="js/contextual.js?v=p12-6"></script>
+<script src="js/audio.js?v=p12-6"></script>
+<script src="js/parts.js?v=p12-6"></script>
+<script src="js/timeline-2.js?v=p12-6"></script>
+<script src="js/performance.js?v=p12-6"></script>
+<script src="js/release.js?v=p12-6"></script><script src="js/export.js?v=p12-6"></script>
+<script src="js/project-engine.js?v=p12-6"></script>
+<script src="js/history.js?v=p12-6"></script>
+<script src="js/autosave.js?v=p12-6"></script>
 </body>
 </html>
