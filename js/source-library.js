@@ -5,7 +5,8 @@ const sourceLibraryRuntime = {
     previewUrls: new Map(),
     videoElements: new Map(),
     decoding: new Map(),
-    adding: false
+    adding: false,
+    projectRef: null
 };
 
 function sourceLibraryText(key, fallback) {
@@ -15,6 +16,27 @@ function sourceLibraryText(key, fallback) {
     } catch (error) {
         return fallback;
     }
+}
+
+
+function sourceLibraryResetRuntimeForProject(project) {
+    if (sourceLibraryRuntime.projectRef === project) return;
+    sourceLibraryRuntime.previewUrls.forEach(url => URL.revokeObjectURL(url));
+    sourceLibraryRuntime.previewUrls.clear();
+    sourceLibraryRuntime.videoElements.forEach(record => {
+        if (record && record.url) URL.revokeObjectURL(record.url);
+        if (record && record.video) {
+            record.video.removeAttribute('src');
+            record.video.load();
+        }
+    });
+    sourceLibraryRuntime.videoElements.clear();
+    sourceLibraryRuntime.decoding.clear();
+    sourceLibraryRuntime.previewId = '';
+    sourceLibraryRuntime.selectedId = '';
+    sourceLibraryRuntime.projectRef = project || null;
+    const modal = document.getElementById('modal-source-library');
+    if (modal) modal.style.display = 'none';
 }
 
 function sourceLibraryCreateId() {
@@ -795,9 +817,11 @@ function syncSourceLibraryText() {
     const title = document.getElementById('source-library-title');
     const desc = document.getElementById('source-library-desc');
     const add = document.getElementById('source-library-add-label');
+    const guide = document.getElementById('source-library-guide');
     if (kicker) kicker.textContent = sourceLibraryText('sourceLibraryKicker', 'SOURCE LIBRARY');
     if (title) title.textContent = sourceLibraryText('sourceLibraryTitle', 'Build with more than one source');
     if (desc) desc.textContent = sourceLibraryText('sourceLibraryDesc', 'Add videos, GIFs, images or audio and reuse them across Advanced Parts.');
+    if (guide) guide.textContent = sourceLibraryText('sourceLibraryGuide', 'Add sources here, then enter Advanced Parts. The sequence timeline shows which source each Part uses and lets you trim or reorder it directly.');
     if (add) add.textContent = sourceLibraryText('sourceLibraryAdd', 'Add sources');
     renderSourceLibrary();
     syncSourcePreviewText();
@@ -815,45 +839,52 @@ async function openSourceLibraryPreview(id) {
         if (loading) loading.textContent = sourceLibraryText('sourceLibraryAnalyzing', 'Analyzing source {current}/{total}...').replace('{current}', '1').replace('{total}', '1');
         if (overlay) overlay.style.display = 'flex';
     }
-    sourceLibraryRuntime.previewId = id;
-    const video = document.getElementById('source-library-preview-video');
-    const image = document.getElementById('source-library-preview-image');
-    const audio = document.getElementById('source-library-preview-audio');
-    const title = document.getElementById('source-library-preview-name');
-    const meta = document.getElementById('source-library-preview-meta');
-    if (title) title.textContent = source.name;
-    if (meta) meta.textContent = sourceLibraryMeta(source);
-    if (video) {
-        video.pause();
-        video.hidden = true;
-        video.removeAttribute('src');
-        video.load();
+    try {
+        sourceLibraryRuntime.previewId = id;
+        const video = document.getElementById('source-library-preview-video');
+        const image = document.getElementById('source-library-preview-image');
+        const audio = document.getElementById('source-library-preview-audio');
+        const title = document.getElementById('source-library-preview-name');
+        const meta = document.getElementById('source-library-preview-meta');
+        if (title) title.textContent = source.name;
+        if (meta) meta.textContent = sourceLibraryMeta(source);
+        if (video) {
+            video.pause();
+            video.hidden = true;
+            video.removeAttribute('src');
+            video.load();
+        }
+        if (image) {
+            image.hidden = true;
+            image.removeAttribute('src');
+        }
+        if (audio) {
+            audio.pause();
+            audio.hidden = true;
+            audio.removeAttribute('src');
+            audio.load();
+        }
+        if (source.role === 'audio') {
+            const url = sourceLibraryGetPreviewUrl(source, source.blob);
+            audio.src = url;
+            audio.hidden = false;
+        } else if (source.kind === 'image') {
+            const url = sourceLibraryGetPreviewUrl(source, source.blob);
+            image.src = url;
+            image.hidden = false;
+        } else {
+            const ready = await sourceLibrarySetVideoElementSource(video, source.id);
+            if (!ready) throw new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.'));
+            video.hidden = false;
+        }
+        modal.style.display = 'flex';
+        syncSourcePreviewActions();
+    } catch (error) {
+        sourceLibraryRuntime.previewId = '';
+        if (typeof showToast === 'function') showToast(error.message || sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.'), 'error');
+    } finally {
+        if (needsPreparation && overlay) overlay.style.display = 'none';
     }
-    if (image) {
-        image.hidden = true;
-        image.removeAttribute('src');
-    }
-    if (audio) {
-        audio.pause();
-        audio.hidden = true;
-        audio.removeAttribute('src');
-        audio.load();
-    }
-    if (source.role === 'audio') {
-        const url = sourceLibraryGetPreviewUrl(source, source.blob);
-        audio.src = url;
-        audio.hidden = false;
-    } else if (source.kind === 'image') {
-        const url = sourceLibraryGetPreviewUrl(source, source.blob);
-        image.src = url;
-        image.hidden = false;
-    } else {
-        await sourceLibrarySetVideoElementSource(video, source.id);
-        video.hidden = false;
-    }
-    modal.style.display = 'flex';
-    syncSourcePreviewActions();
-    if (needsPreparation && overlay) overlay.style.display = 'none';
 }
 
 function closeSourceLibraryPreview() {
@@ -918,6 +949,7 @@ function sourceLibrarySetPreviewBoundary(boundary) {
 }
 
 function initializeSourceLibraryForProject() {
+    sourceLibraryResetRuntimeForProject(currentProject);
     if (!currentProject || !(currentProject.sourceBlob instanceof Blob)) {
         renderSourceLibrary();
         return;

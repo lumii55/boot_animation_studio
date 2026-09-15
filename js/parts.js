@@ -466,6 +466,7 @@ function renderAdvancedPartsEditor() {
     document.getElementById('advanced-parts-list').innerHTML = selectedPart ? renderAdvancedPartCard(selectedPart, selectedIndex) : '';
     renderAdvancedPartLines();
     if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+    if (window.BASSequenceTimeline) BASSequenceTimeline.render();
 }
 
 function syncAdvancedPartsUi() {
@@ -500,6 +501,7 @@ function syncAdvancedPartsUi() {
         if (typeof renderSimpleSegmentTrack === 'function') renderSimpleSegmentTrack();
         if (typeof verificarPainelAudio === 'function') verificarPainelAudio();
     }
+    if (window.BASSequenceTimeline) BASSequenceTimeline.sync();
 }
 
 function getAdvancedPartById(id) {

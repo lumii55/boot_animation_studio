@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.4';
+const BAS_PROJECT_ENGINE_VERSION = '12.5';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -166,7 +166,6 @@ function captureProjectEngineContentState() {
         advanced: {
             enabled: advancedActive,
             dirty: !!(currentProject && currentProject.advancedPartsDirty),
-            expandedId: currentProject && currentProject.advancedExpandedId ? String(currentProject.advancedExpandedId) : null,
             counter: Math.max(0, Number(currentProject && currentProject.advancedPartCounter) || 0),
             parts: serializeProjectAdvancedParts()
         },
@@ -185,7 +184,9 @@ function captureProjectEngineUiState() {
         outputTool: typeof contextualUi !== 'undefined' && contextualUi.outputTool ? contextualUi.outputTool : 'basics',
         audioRole: typeof contextualUi !== 'undefined' && contextualUi.audioRole ? contextualUi.audioRole : 'intro',
         deliveryTarget: typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : 'download',
-        playhead: Number.isFinite(playhead) ? playhead : 0
+        playhead: Number.isFinite(playhead) ? playhead : 0,
+        advancedPartId: currentProject && currentProject.advancedExpandedId ? String(currentProject.advancedExpandedId) : null,
+        sequenceTimeline: window.BASSequenceTimeline ? BASSequenceTimeline.getUiState() : { view: 'sequence', zoom: 92 }
     };
 }
 
@@ -525,7 +526,8 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
     });
     currentProject.advancedPartsEnabled = !!advancedState.enabled && currentProject.advancedParts.length > 0;
     currentProject.advancedPartsDirty = !!advancedState.dirty;
-    currentProject.advancedExpandedId = advancedState.expandedId ? String(advancedState.expandedId) : null;
+    const previousExpandedId = currentProject.advancedExpandedId || advancedState.expandedId || '';
+    currentProject.advancedExpandedId = currentProject.advancedParts.some(part => part.id === previousExpandedId) ? String(previousExpandedId) : currentProject.advancedParts[0]?.id || null;
     currentProject.advancedPartCounter = Math.max(Number(advancedState.counter) || 0, currentProject.advancedParts.length);
     if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
     if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
@@ -594,6 +596,10 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         if (typeof setOutputTool === 'function') setOutputTool(ui.outputTool || 'basics');
         if (typeof setAudioRole === 'function') setAudioRole(ui.audioRole || 'intro');
         if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(isConnectedMode && ui.deliveryTarget === 'phone' ? 'phone' : 'download', { skipButtons: true });
+        const savedAdvancedPartId = ui.advancedPartId || (editor.advanced && editor.advanced.expandedId) || '';
+        if (savedAdvancedPartId && currentProject.advancedParts.some(part => part.id === savedAdvancedPartId)) currentProject.advancedExpandedId = String(savedAdvancedPartId);
+        if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
+        if (window.BASSequenceTimeline) BASSequenceTimeline.restoreUiState(ui.sequenceTimeline || {});
         if (Number.isFinite(Number(ui.playhead)) && playerVideo && Number.isFinite(playerVideo.duration)) {
             playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
         }
@@ -637,6 +643,7 @@ function projectEngineChangeKeyForTarget(target) {
 
 function projectEngineTargetIsContent(target) {
     if (!(target instanceof Element)) return false;
+    if (target.closest('#timeline-view-switch, .sequence-zoom-controls')) return false;
     if (target.closest('#editor-section') && target.matches('input, select, textarea')) return true;
     if (target.closest('[data-advanced-field], [data-advanced-audio-file]')) return true;
     return false;

@@ -152,6 +152,7 @@ function syncTimelineEditorUi() {
     syncTimelineTransportUi();
     renderSimpleSegmentTrack();
     renderTimelineRuler();
+    if (window.BASSequenceTimeline) BASSequenceTimeline.syncText();
 }
 
 function getCurrentFramingSettings() {
