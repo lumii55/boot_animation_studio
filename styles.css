@@ -6958,3 +6958,34 @@ summary:focus-visible {
         width: 100%;
     }
 }
+
+.project-engine-summary {
+    display: block;
+    overflow: hidden;
+    max-width: min(72vw, 520px);
+    color: #7f8ba0;
+    font-size: 8px;
+    font-weight: 620;
+    letter-spacing: 0.01em;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-context.has-project .project-engine-summary {
+    color: #9aa7bb;
+}
+
+.editor-context.has-project > strong {
+    background: linear-gradient(110deg, #f3efff 0%, #d6c2ff 48%, #9ff5ed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+@media (max-width: 520px) {
+    .project-engine-summary {
+        max-width: 62vw;
+        font-size: 7.5px;
+    }
+}
