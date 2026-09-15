@@ -51,13 +51,15 @@ function contextualText(key, fallback) {
 }
 
 function setOutputTool(tool, options = {}) {
-    const allowed = ['basics', 'framing', 'audio', 'performance', 'package'];
-    if (tool === 'composition') {
+    const allowed = ['basics', 'framing', 'performance', 'package'];
+    if (tool === 'composition' || tool === 'audio') {
+        const targetId = tool === 'composition' ? 'composition-editor-section' : 'output-panel-audio';
         contextualUi.outputTool = 'basics';
         if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
         requestAnimationFrame(() => {
-            document.getElementById('composition-editor-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            if (window.BASComposition) BASComposition.open();
+            document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (tool === 'composition' && window.BASComposition) BASComposition.open();
+            if (tool === 'audio') syncContextualAudioMode();
         });
         tool = 'basics';
     }
@@ -77,7 +79,6 @@ function setOutputTool(tool, options = {}) {
         syncFramingToolUi();
         requestAnimationFrame(renderFramingToolFrame);
     }
-    if (tool === 'audio') syncContextualAudioMode();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('output-tool', { emit: true });
     if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
         document.querySelector('.output-workbench')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -303,6 +303,7 @@ window.atualizarPreviewEnquadramento = function() {
     const modalWrapper = document.getElementById('modal-framing-preview');
     sizeFramingPreview(modalWrapper, Math.max(1, Math.min(window.innerWidth * 0.8, 520)), Math.max(120, window.innerHeight * 0.55), settings.width, settings.height);
     applyFramingFocusVisuals(settings);
+    if (window.BASComposition && typeof BASComposition.renderPreview === 'function') BASComposition.renderPreview();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 

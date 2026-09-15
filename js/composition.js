@@ -15,9 +15,10 @@ const compositionRuntime = {
     lastBounds: [],
     imageCache: new Map(),
     exportCanvas: document.createElement('canvas'),
-    previewBaseCanvas: document.createElement('canvas'),
-    previewBaseReady: false,
-    dragFrame: 0
+    dragFrame: 0,
+    playbackFrame: 0,
+    playbackStamp: 0,
+    suppressMainClick: false
 };
 
 function compositionText(key, fallback) {
@@ -324,146 +325,101 @@ async function applyCompositionToFrameBlob(blob, time, width, height, format, jp
     return canvasToBlobAsync(canvas, mime, quality);
 }
 
-function compositionOutputSettings(maxDimension = 720) {
-    const sourceWidth = Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || originalW || currentProject?.width || 1);
-    const sourceHeight = Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || originalH || currentProject?.height || 1);
-    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
-    return {
-        sourceWidth,
-        sourceHeight,
-        width: Math.max(1, Math.round(sourceWidth * scale)),
-        height: Math.max(1, Math.round(sourceHeight * scale)),
-        framing: normalizeFramingMode(document.getElementById('input-enquadramento')?.value || 'cover'),
-        focus: getCurrentFramingFocus()
-    };
-}
-
-function compositionAdvancedLocate(time) {
-    const parts = typeof getAdvancedParts === 'function' ? getAdvancedParts() : [];
-    let cursor = 0;
-    for (const part of parts) {
-        const duration = Math.max(0, Number(part.end) - Number(part.start));
-        if (time <= cursor + duration + 0.0005) return { part, local: Math.max(0, Math.min(duration, time - cursor)) };
-        cursor += duration;
-    }
-    const last = parts[parts.length - 1];
-    return last ? { part: last, local: Math.max(0, Number(last.end) - Number(last.start)) } : null;
-}
-
-async function compositionBaseFrame(time, width, height) {
-    const framing = normalizeFramingMode(document.getElementById('input-enquadramento')?.value || 'cover');
-    const focus = getCurrentFramingFocus();
+function compositionMainPreviewTime() {
+    if (!currentProject) return 0;
     if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
-        const located = compositionAdvancedLocate(time);
-        if (!located) throw new Error('No Part available');
-        const sourceTime = Number(located.part.start) + located.local;
-        const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(located.part) : '';
-        return window.BASSourceLibrary
-            ? BASSourceLibrary.frameBlob(sourceId, sourceTime, width, height, 'png', framing, focus, 1)
-            : getProjectFrameOutputBlob(sourceTime, width, height, 'png', framing, focus, 1);
+        const part = typeof getAdvancedPartById === 'function' ? getAdvancedPartById(currentProject.advancedExpandedId) : null;
+        if (part) {
+            const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+            const primaryId = window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : sourceId;
+            if (!sourceId || sourceId === primaryId) {
+                const sourceTime = typeof timelineTimeToProjectTime === 'function'
+                    ? timelineTimeToProjectTime(Number(playerVideo.currentTime) || 0)
+                    : Number(playerVideo.currentTime) || 0;
+                return compositionAdvancedTime(part, Math.max(Number(part.start) || 0, Math.min(Number(part.end) || 0, sourceTime)));
+            }
+            return compositionAdvancedTime(part, Number(part.start) || 0);
+        }
     }
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) {
-        return BASMasterSequence.frameBlob(time, width, height, 'png', framing, focus, 1);
-    }
-    if (window.BASSourceLibrary) {
-        const primaryId = BASSourceLibrary.getPrimaryId();
-        if (primaryId) return BASSourceLibrary.frameBlob(primaryId, time, width, height, 'png', framing, focus, 1);
-    }
-    return getProjectFrameOutputBlob(time, width, height, 'png', framing, focus, 1);
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return Math.max(0, Number(BASMasterSequence.getCurrentTime()) || 0);
+    const timelineTime = Number(playerVideo && playerVideo.currentTime) || 0;
+    return typeof timelineTimeToProjectTime === 'function' ? Math.max(0, timelineTimeToProjectTime(timelineTime)) : Math.max(0, timelineTime);
 }
 
-function syncCompositionPreviewGeometry(canvas, shell, settings) {
-    if (canvas.width !== settings.width) canvas.width = settings.width;
-    if (canvas.height !== settings.height) canvas.height = settings.height;
-    shell.style.setProperty('--composition-aspect', `${settings.sourceWidth} / ${settings.sourceHeight}`);
-    const previewRatio = settings.sourceWidth / Math.max(1, settings.sourceHeight);
-    const previewHeight = Math.min(560, Math.max(280, window.innerHeight * 0.58));
-    shell.style.setProperty('--composition-max-width', `${Math.max(120, Math.min(540, previewHeight * previewRatio))}px`);
+function syncCompositionMainCanvas() {
+    const canvas = document.getElementById('composition-main-canvas');
+    const shell = document.getElementById('framing-preview');
+    if (!canvas || !shell) return null;
+    const rect = shell.getBoundingClientRect();
+    const scale = Math.min(2, Math.max(1, Number(window.devicePixelRatio) || 1));
+    const width = Math.max(1, Math.round((rect.width || shell.clientWidth || 1) * scale));
+    const height = Math.max(1, Math.round((rect.height || shell.clientHeight || 1) * scale));
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    return canvas;
 }
 
-function copyCompositionBaseFrame(ctx, canvas) {
-    const base = compositionRuntime.previewBaseCanvas;
-    if (!compositionRuntime.previewBaseReady || base.width !== canvas.width || base.height !== canvas.height) return false;
-    ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
-    return true;
+async function renderCompositionPreview() {
+    const canvas = syncCompositionMainCanvas();
+    if (!canvas) return;
+    const generation = ++compositionRuntime.renderGeneration;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!currentProject || !(currentProject.sourceBlob instanceof Blob)) {
+        compositionRuntime.lastBounds = [];
+        canvas.classList.remove('is-interactive');
+        return;
+    }
+    compositionRuntime.previewTime = compositionClamp(compositionMainPreviewTime(), 0, Math.max(0, compositionDuration()), 0);
+    const bounds = await renderCompositionLayers(ctx, compositionRuntime.previewTime, canvas.width, canvas.height, { showSelection: true });
+    if (generation !== compositionRuntime.renderGeneration) return;
+    compositionRuntime.lastBounds = bounds;
+    canvas.classList.toggle('is-interactive', bounds.length > 0);
 }
 
-async function renderCompositionOverlayFromBase() {
-    const canvas = document.getElementById('composition-stage-canvas');
-    if (!canvas || !currentProject || !compositionRuntime.previewBaseReady) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!copyCompositionBaseFrame(ctx, canvas)) return;
-    compositionRuntime.lastBounds = await renderCompositionLayers(ctx, compositionRuntime.previewTime, canvas.width, canvas.height, { showSelection: true });
+function renderCompositionOverlayFromBase() {
+    return renderCompositionPreview();
 }
 
 function scheduleCompositionDragPreview() {
     if (compositionRuntime.dragFrame) return;
     compositionRuntime.dragFrame = requestAnimationFrame(() => {
         compositionRuntime.dragFrame = 0;
-        renderCompositionOverlayFromBase();
+        renderCompositionPreview();
     });
 }
 
-async function renderCompositionPreview() {
-    const canvas = document.getElementById('composition-stage-canvas');
-    const shell = document.getElementById('composition-stage-shell');
-    if (!canvas || !shell || !currentProject || !(currentProject.sourceBlob instanceof Blob)) return;
-    const generation = ++compositionRuntime.renderGeneration;
-    const settings = compositionOutputSettings();
-    syncCompositionPreviewGeometry(canvas, shell, settings);
-    const duration = compositionDuration();
-    compositionRuntime.previewTime = compositionClamp(compositionRuntime.previewTime, 0, duration, 0);
-    const base = compositionRuntime.previewBaseCanvas;
-    if (base.width !== canvas.width || base.height !== canvas.height) {
-        base.width = canvas.width;
-        base.height = canvas.height;
-        compositionRuntime.previewBaseReady = false;
-    }
-    try {
-        const blob = await compositionBaseFrame(compositionRuntime.previewTime, canvas.width, canvas.height);
-        if (generation !== compositionRuntime.renderGeneration) return;
-        const drawable = await blobToDrawable(blob);
-        if (generation !== compositionRuntime.renderGeneration) {
-            releaseDrawable(drawable);
-            return;
-        }
-        const baseCtx = base.getContext('2d', { alpha: false });
-        baseCtx.fillStyle = '#000000';
-        baseCtx.fillRect(0, 0, base.width, base.height);
-        baseCtx.drawImage(drawable, 0, 0, base.width, base.height);
-        releaseDrawable(drawable);
-        compositionRuntime.previewBaseReady = true;
-        const ctx = canvas.getContext('2d', { alpha: false });
-        copyCompositionBaseFrame(ctx, canvas);
-        compositionRuntime.lastBounds = await renderCompositionLayers(ctx, compositionRuntime.previewTime, canvas.width, canvas.height, { showSelection: true });
-    } catch (error) {
-        if (!compositionRuntime.previewBaseReady) {
-            const ctx = canvas.getContext('2d', { alpha: false });
-            ctx.fillStyle = '#05070b';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-    }
-}
-
-function scheduleCompositionPreview(delay = 45) {
+function scheduleCompositionPreview(delay = 35) {
     clearTimeout(compositionRuntime.previewTimer);
     compositionRuntime.previewTimer = setTimeout(() => renderCompositionPreview(), delay);
+}
+
+function compositionPlaybackLoop(timestamp = 0) {
+    compositionRuntime.playbackFrame = 0;
+    if (!playerVideo || playerVideo.paused || playerVideo.ended || isGenerating || isBuildingTimeline) return;
+    if (!compositionRuntime.playbackStamp || timestamp - compositionRuntime.playbackStamp >= 32) {
+        compositionRuntime.playbackStamp = timestamp;
+        renderCompositionPreview();
+    }
+    compositionRuntime.playbackFrame = requestAnimationFrame(compositionPlaybackLoop);
+}
+
+function startCompositionPlaybackLoop() {
+    if (compositionRuntime.playbackFrame) cancelAnimationFrame(compositionRuntime.playbackFrame);
+    compositionRuntime.playbackFrame = requestAnimationFrame(compositionPlaybackLoop);
+}
+
+function stopCompositionPlaybackLoop() {
+    if (compositionRuntime.playbackFrame) cancelAnimationFrame(compositionRuntime.playbackFrame);
+    compositionRuntime.playbackFrame = 0;
+    compositionRuntime.playbackStamp = 0;
+    scheduleCompositionPreview(0);
 }
 
 function compositionFormatTime(value) {
     const time = Math.max(0, Number(value) || 0);
     return `${time.toFixed(time < 10 ? 2 : 1)}s`;
-}
-
-function syncCompositionPreviewControls() {
-    const duration = compositionDuration();
-    const slider = document.getElementById('composition-preview-time');
-    const value = document.getElementById('composition-preview-time-value');
-    if (slider) {
-        slider.max = String(Math.max(0.01, duration));
-        slider.value = String(compositionClamp(compositionRuntime.previewTime, 0, duration, 0));
-    }
-    if (value) value.textContent = `${compositionFormatTime(compositionRuntime.previewTime)} / ${compositionFormatTime(duration)}`;
 }
 
 function compositionLayerSummary(layer) {
@@ -582,7 +538,6 @@ function renderCompositionUi() {
         : compositionText('compositionCount', '{count} layers').replace('{count}', String(layers.length));
     renderCompositionLayerList();
     renderCompositionInspector();
-    syncCompositionPreviewControls();
 }
 
 function touchComposition(reason = 'composition', changeKey = '') {
@@ -702,7 +657,7 @@ function updateCompositionLayerFromInput(input) {
 }
 
 function compositionCanvasPoint(event) {
-    const canvas = document.getElementById('composition-stage-canvas');
+    const canvas = document.getElementById('composition-main-canvas');
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     return {
@@ -722,10 +677,11 @@ function compositionHitLayer(point) {
 }
 
 function compositionPointerDown(event) {
-    const canvas = document.getElementById('composition-stage-canvas');
+    const canvas = document.getElementById('composition-main-canvas');
     const point = compositionCanvasPoint(event);
     if (!canvas || !point) return;
     const hit = compositionHitLayer(point);
+    compositionRuntime.suppressMainClick = !!hit;
     if (hit) {
         compositionRuntime.selectedId = hit;
         renderCompositionUi();
@@ -733,6 +689,8 @@ function compositionPointerDown(event) {
     }
     const layer = getCompositionLayer();
     if (!layer || hit !== layer.id) return;
+    if (typeof pauseTimelinePlayback === 'function') pauseTimelinePlayback();
+    else playerVideo?.pause();
     compositionRuntime.pointerId = event.pointerId;
     compositionRuntime.pointerStart = point;
     compositionRuntime.pointerLayerStart = { x: layer.x, y: layer.y };
@@ -760,7 +718,7 @@ function compositionPointerMove(event) {
 
 function compositionPointerUp(event) {
     if (compositionRuntime.pointerId !== event.pointerId) return;
-    const canvas = document.getElementById('composition-stage-canvas');
+    const canvas = document.getElementById('composition-main-canvas');
     if (canvas && canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     if (canvas) canvas.classList.remove('is-dragging');
     const moved = compositionRuntime.moved;
@@ -785,7 +743,9 @@ function syncCompositionText() {
         'composition-kicker': ['compositionKicker', 'COMPOSITION'],
         'composition-title': ['compositionTitle', 'Build on top of the animation'],
         'composition-desc': ['compositionDesc', 'Add text, logos and image layers. Position them visually and choose when each layer appears.'],
-        'composition-preview-label': ['compositionPreviewLabel', 'Preview time'],
+        'composition-main-preview-kicker': ['compositionMainPreviewKicker', 'MAIN PREVIEW'],
+        'composition-main-preview-title': ['compositionMainPreviewTitle', 'Compose directly on the editor preview'],
+        'composition-main-preview-desc': ['compositionMainPreviewDesc', 'Move the timeline playhead to choose the moment, then drag the selected layer directly on the preview above.'],
         'composition-add-text-label': ['compositionAddText', 'Add text'],
         'composition-add-image-label': ['compositionAddImage', 'Add image'],
         'composition-layers-title': ['compositionLayersTitle', 'Layers'],
@@ -841,7 +801,10 @@ function initializeCompositionForProject() {
         compositionRuntime.selectedId = '';
         compositionRuntime.previewTime = 0;
         compositionRuntime.renderGeneration += 1;
-        compositionRuntime.previewBaseReady = false;
+        if (compositionRuntime.playbackFrame) {
+            cancelAnimationFrame(compositionRuntime.playbackFrame);
+            compositionRuntime.playbackFrame = 0;
+        }
         if (compositionRuntime.dragFrame) {
             cancelAnimationFrame(compositionRuntime.dragFrame);
             compositionRuntime.dragFrame = 0;
@@ -897,18 +860,27 @@ function bindComposition() {
         const layer = getCompositionLayer();
         if (layer) deleteCompositionLayer(layer.id);
     });
-    const timeSlider = document.getElementById('composition-preview-time');
-    timeSlider?.addEventListener('input', () => {
-        compositionRuntime.previewTime = compositionClamp(timeSlider.value, 0, compositionDuration(), 0);
-        syncCompositionPreviewControls();
-        scheduleCompositionPreview(0);
-    });
-    const canvas = document.getElementById('composition-stage-canvas');
+    const canvas = document.getElementById('composition-main-canvas');
     canvas?.addEventListener('pointerdown', compositionPointerDown);
     canvas?.addEventListener('pointermove', compositionPointerMove);
     canvas?.addEventListener('pointerup', compositionPointerUp);
     canvas?.addEventListener('pointercancel', compositionPointerUp);
-    window.addEventListener('resize', () => scheduleCompositionPreview(120), { passive: true });
+    canvas?.addEventListener('click', event => {
+        if (compositionRuntime.suppressMainClick) {
+            compositionRuntime.suppressMainClick = false;
+            return;
+        }
+        const point = compositionCanvasPoint(event);
+        if (point && compositionHitLayer(point)) return;
+        if (!isGenerating && !isBuildingTimeline) playerVideo?.click();
+    });
+    playerVideo?.addEventListener('timeupdate', () => scheduleCompositionPreview(0));
+    playerVideo?.addEventListener('seeked', () => scheduleCompositionPreview(0));
+    playerVideo?.addEventListener('loadeddata', () => scheduleCompositionPreview(0));
+    playerVideo?.addEventListener('play', startCompositionPlaybackLoop);
+    playerVideo?.addEventListener('pause', stopCompositionPlaybackLoop);
+    playerVideo?.addEventListener('ended', stopCompositionPlaybackLoop);
+    window.addEventListener('resize', () => scheduleCompositionPreview(90), { passive: true });
     initializeCompositionForProject();
     syncCompositionText();
 }
@@ -930,6 +902,7 @@ window.BASComposition = Object.freeze({
     getDuration: compositionDuration,
     open: compositionOpen,
     render: renderCompositionUi,
+    renderPreview: renderCompositionPreview,
     syncText: syncCompositionText
 });
 window.initializeCompositionForProject = initializeCompositionForProject;
