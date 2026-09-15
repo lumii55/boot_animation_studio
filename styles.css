@@ -6989,3 +6989,205 @@ summary:focus-visible {
         font-size: 7.5px;
     }
 }
+
+.recent-projects {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid rgba(187, 134, 252, 0.18);
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(187, 134, 252, 0.08), rgba(3, 218, 198, 0.035) 56%, rgba(12, 18, 27, 0.8));
+}
+
+.recent-projects[hidden] {
+    display: none;
+}
+
+.recent-projects-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.recent-projects-head h3 {
+    margin: 5px 0 0;
+    color: #f2ecff;
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -0.025em;
+}
+
+.recent-projects-head p {
+    margin: 5px 0 0;
+    color: #8e99aa;
+    font-size: 9px;
+    line-height: 1.5;
+}
+
+.recent-projects-badge {
+    flex: 0 0 auto;
+    padding: 6px 9px;
+    border: 1px solid rgba(3, 218, 198, 0.2);
+    border-radius: 999px;
+    background: rgba(3, 218, 198, 0.07);
+    color: #8cf4ea;
+    font-size: 7px;
+    font-weight: 780;
+    letter-spacing: 0.12em;
+}
+
+.recent-projects-list {
+    display: grid;
+    gap: 8px;
+}
+
+.recent-project-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(164, 184, 211, 0.1);
+    border-radius: 16px;
+    background: rgba(9, 14, 22, 0.76);
+}
+
+.recent-project-body {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recent-project-name {
+    overflow: hidden;
+    color: #f0f3f8;
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-project-summary,
+.recent-project-meta {
+    overflow: hidden;
+    color: #78869a;
+    font-size: 8px;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-project-meta {
+    color: #5f6d81;
+}
+
+.recent-project-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.recent-project-continue,
+.recent-project-remove {
+    min-height: 38px;
+    padding: 0 11px;
+    border: 1px solid rgba(164, 184, 211, 0.11);
+    border-radius: 11px;
+    font: inherit;
+    font-size: 8px;
+    font-weight: 720;
+    cursor: pointer;
+}
+
+.recent-project-continue {
+    border-color: rgba(187, 134, 252, 0.25);
+    background: linear-gradient(135deg, rgba(187, 134, 252, 0.14), rgba(3, 218, 198, 0.07));
+    color: #e7d8ff;
+}
+
+.recent-project-remove {
+    background: rgba(255, 255, 255, 0.018);
+    color: #7f8c9f;
+}
+
+.project-save-status {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    color: #758297;
+    font-size: 7px;
+    font-weight: 670;
+    letter-spacing: 0.02em;
+}
+
+.project-save-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #667487;
+}
+
+.project-save-status[data-state="saving"] {
+    color: #cbb4f0;
+}
+
+.project-save-status[data-state="saving"] .project-save-status-dot {
+    background: #bb86fc;
+    box-shadow: 0 0 0 4px rgba(187, 134, 252, 0.08);
+    animation: autosave-pulse 1.1s ease-in-out infinite;
+}
+
+.project-save-status[data-state="saved"] {
+    color: #80d9ce;
+}
+
+.project-save-status[data-state="saved"] .project-save-status-dot {
+    background: #03dac6;
+    box-shadow: 0 0 0 4px rgba(3, 218, 198, 0.07);
+}
+
+.project-save-status[data-state="restoring"] {
+    color: #cbb4f0;
+}
+
+.project-save-status[data-state="restoring"] .project-save-status-dot {
+    background: #bb86fc;
+    animation: autosave-pulse 0.8s ease-in-out infinite;
+}
+
+.project-save-status[data-state="error"] {
+    color: #e4ad79;
+}
+
+.project-save-status[data-state="error"] .project-save-status-dot {
+    background: #f1a65a;
+}
+
+@keyframes autosave-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 520px) {
+    .recent-project-card {
+        grid-template-columns: 1fr;
+    }
+
+    .recent-project-actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+    }
+
+    .recent-project-continue,
+    .recent-project-remove {
+        min-height: 42px;
+    }
+}
