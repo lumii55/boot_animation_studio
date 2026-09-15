@@ -223,6 +223,7 @@ function markAdvancedPartsDirty() {
     advancedPreviewAudioBlobs.clear();
     if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('advanced-parts');
 }
 
 function escapeAdvancedHtml(value) {

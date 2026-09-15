@@ -69,6 +69,7 @@ function setOutputTool(tool, options = {}) {
         requestAnimationFrame(renderFramingToolFrame);
     }
     if (tool === 'audio') syncContextualAudioMode();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('output-tool', { emit: true });
     if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
         document.querySelector('.output-workbench')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -85,6 +86,7 @@ function setAudioRole(role) {
     document.querySelectorAll('.audio-role-card[data-audio-panel]').forEach(panel => {
         panel.classList.toggle('is-active', panel.dataset.audioPanel === role);
     });
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio-role', { emit: true });
 }
 
 function getFramingToolSettings() {

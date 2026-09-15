@@ -30,6 +30,7 @@ function setBuildDeliveryTarget(target, options = {}) {
     }
     buildDeliveryTarget = target === 'phone' ? 'phone' : 'download';
     syncReleaseUi();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('delivery-target', { emit: true });
     if (!options.skipButtons && typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
 }
 

@@ -1,5 +1,10 @@
 const traducoes = {
     en: { 
+        projectSourceWaiting: "Waiting for source",
+        projectSourceVideo: "Video",
+        projectSourceGif: "GIF",
+        projectSourceZip: "bootanimation.zip",
+        projectSourceFrames: "{count} frames",
         titulo: "Boot Animation Studio",
         workspaceLaunchKicker: "BOOT ANIMATION WORKSPACE",
         workspaceLaunchTitle: "Build a boot animation your way.",
@@ -424,6 +429,11 @@ const traducoes = {
         msgInjectingPhone: "Injecting into phone...",
         msgInjectingPast: "Injecting from the past..."
     },    pt: {
+        projectSourceWaiting: "Aguardando fonte",
+        projectSourceVideo: "Vídeo",
+        projectSourceGif: "GIF",
+        projectSourceZip: "bootanimation.zip",
+        projectSourceFrames: "{count} frames",
         titulo: "Boot Animation Studio",
         workspaceLaunchKicker: "WORKSPACE DE BOOT ANIMATION",
         workspaceLaunchTitle: "Crie uma boot animation do seu jeito.",
@@ -848,6 +858,11 @@ const traducoes = {
         msgInjectingPhone: "Injetando no celular...",
         msgInjectingPast: "Injetando do passado..."
     },    es: {
+        projectSourceWaiting: "Esperando fuente",
+        projectSourceVideo: "Vídeo",
+        projectSourceGif: "GIF",
+        projectSourceZip: "bootanimation.zip",
+        projectSourceFrames: "{count} fotogramas",
         titulo: "Boot Animation Studio",
         workspaceLaunchKicker: "ESPACIO DE BOOT ANIMATION",
         workspaceLaunchTitle: "Crea una boot animation a tu manera.",
@@ -1272,6 +1287,11 @@ const traducoes = {
         msgInjectingPhone: "Inyectando en el celular...",
         msgInjectingPast: "Inyectando del pasado..."
     },    fr: {
+        projectSourceWaiting: "En attente d’une source",
+        projectSourceVideo: "Vidéo",
+        projectSourceGif: "GIF",
+        projectSourceZip: "bootanimation.zip",
+        projectSourceFrames: "{count} images",
         titulo: "Boot Animation Studio",
         workspaceLaunchKicker: "ESPACE BOOT ANIMATION",
         workspaceLaunchTitle: "Créez une boot animation à votre façon.",
@@ -1756,7 +1776,6 @@ function mudarIdioma(lang) {
         'p11-delivery-phone-desc': 'deliveryPhoneDesc',
         'p11-build-secondary-label': 'buildSecondaryLabel',
         'p11-editor-kicker': 'workspaceEditorKicker',
-        'p11-editor-title': 'workspaceEditorTitle',
         'p11-source-kicker': 'workspaceSourceKicker',
         'p11-source-title': 'workspaceSourceTitle',
         'p11-source-desc': 'workspaceSourceDesc',
@@ -1916,4 +1935,5 @@ function mudarIdioma(lang) {
     if (typeof syncFramingToolUi === 'function') syncFramingToolUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     if (typeof syncLoadingTipText === 'function') syncLoadingTipText();
+    if (typeof syncProjectEngineUi === 'function') syncProjectEngineUi();
 }

@@ -832,6 +832,7 @@ window.marcarTrecho = function(id) {
     marcadores[id] = playerVideo.currentTime; 
     atualizarBotoesELinhas();
     renderSimpleSegmentTrack();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('markers');
 }
 
 function atualizarBotoesELinhas() {

@@ -7,6 +7,7 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         sourceType,
         sourceMode: 'temporal',
         sourceBlob: sourceBlob || null,
+        sourceName: options.sourceName || (sourceBlob && typeof sourceBlob.name === 'string' ? sourceBlob.name : ''),
         previewBlob: options.previewBlob || sourceBlob || null,
         width: options.width || 0,
         height: options.height || 0,
@@ -37,6 +38,7 @@ function createFrameProject(options) {
         sourceType: options.sourceType || 'bootanimation',
         sourceMode: 'frames',
         sourceBlob: options.sourceBlob || null,
+        sourceName: options.sourceName || (options.sourceBlob && typeof options.sourceBlob.name === 'string' ? options.sourceBlob.name : ''),
         previewBlob: options.previewBlob || null,
         width: options.width || 0,
         height: options.height || 0,
@@ -75,6 +77,7 @@ function setCurrentProject(project) {
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
+    if (typeof window.initializeProjectEngineForCurrentProject === 'function') window.initializeProjectEngineForCurrentProject(projectChanged ? 'source' : 'sync');
 }
 
 function resetProjectMarkers() {
@@ -135,6 +138,7 @@ function syncCurrentProjectWithPlayer() {
         });
         currentProject.initialMarkersApplied = true;
     }
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-metadata', { baseline: true, emit: true });
 }
 
 function timelineTimeToProjectTime(time) {
@@ -341,6 +345,7 @@ function setCurrentFramingFocus(x, y, zoom = null) {
         y: normalizeFramingFocusValue(y),
         zoom: normalizeFramingZoomValue(zoom === null ? current.zoom : zoom)
     };
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('framing');
     return getCurrentFramingFocus();
 }
 
