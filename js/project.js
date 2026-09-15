@@ -32,7 +32,9 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         advancedPartCounter: 0,
         sourceLibrary: [],
         sourceLibraryCounter: 0,
-        primarySourceId: ''
+        primarySourceId: '',
+        masterSequence: [],
+        masterSequenceCounter: 0
     };
 }
 
@@ -66,7 +68,9 @@ function createFrameProject(options) {
         advancedPartCounter: options.advancedPartCounter || 0,
         sourceLibrary: Array.isArray(options.sourceLibrary) ? options.sourceLibrary : [],
         sourceLibraryCounter: options.sourceLibraryCounter || 0,
-        primarySourceId: options.primarySourceId || ''
+        primarySourceId: options.primarySourceId || '',
+        masterSequence: Array.isArray(options.masterSequence) ? options.masterSequence : [],
+        masterSequenceCounter: options.masterSequenceCounter || 0
     };
 }
 
@@ -83,10 +87,13 @@ function setCurrentProject(project) {
     if (currentProject && !Array.isArray(currentProject.sourceLibrary)) currentProject.sourceLibrary = [];
     if (currentProject && !Number.isInteger(currentProject.sourceLibraryCounter)) currentProject.sourceLibraryCounter = 0;
     if (currentProject && typeof currentProject.primarySourceId !== 'string') currentProject.primarySourceId = '';
+    if (currentProject && !Array.isArray(currentProject.masterSequence)) currentProject.masterSequence = [];
+    if (currentProject && !Number.isInteger(currentProject.masterSequenceCounter)) currentProject.masterSequenceCounter = 0;
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
     if (typeof window.initializeSourceLibraryForProject === 'function') window.initializeSourceLibraryForProject();
+    if (typeof window.initializeMasterSequenceForProject === 'function') window.initializeMasterSequenceForProject();
     if (typeof window.initializeProjectEngineForCurrentProject === 'function') window.initializeProjectEngineForCurrentProject(projectChanged ? 'source' : 'sync');
 }
 
@@ -149,6 +156,7 @@ function syncCurrentProjectWithPlayer() {
         currentProject.initialMarkersApplied = true;
     }
     if (typeof window.syncPrimarySourceLibraryMetadata === 'function') window.syncPrimarySourceLibraryMetadata();
+    if (window.BASMasterSequence) BASMasterSequence.ensure();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-metadata', { baseline: true, emit: true });
 }
 
@@ -169,11 +177,12 @@ function projectTimeToTimelineTime(time) {
 }
 
 function getProjectSourceMarkers() {
+    const master = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
     return {
-        m0: marcadores.m0 === null ? null : timelineTimeToProjectTime(marcadores.m0),
-        m1: marcadores.m1 === null ? null : timelineTimeToProjectTime(marcadores.m1),
-        m2: marcadores.m2 === null ? null : timelineTimeToProjectTime(marcadores.m2),
-        m3: marcadores.m3 === null ? null : timelineTimeToProjectTime(marcadores.m3)
+        m0: marcadores.m0 === null ? null : master ? Math.max(0, Number(marcadores.m0) || 0) : timelineTimeToProjectTime(marcadores.m0),
+        m1: marcadores.m1 === null ? null : master ? Math.max(0, Number(marcadores.m1) || 0) : timelineTimeToProjectTime(marcadores.m1),
+        m2: marcadores.m2 === null ? null : master ? Math.max(0, Number(marcadores.m2) || 0) : timelineTimeToProjectTime(marcadores.m2),
+        m3: marcadores.m3 === null ? null : master ? Math.max(0, Number(marcadores.m3) || 0) : timelineTimeToProjectTime(marcadores.m3)
     };
 }
 

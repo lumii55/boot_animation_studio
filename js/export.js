@@ -34,6 +34,7 @@ function canPreserveImportedAudioChanges(audioState) {
 }
 
 function canPreserveImportedRoundTrip(options) {
+    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return false;
     return isImportedBootanimationProject() &&
         !(typeof isAdvancedPartsDirty === 'function' && isAdvancedPartsDirty()) &&
         projectMarkersMatchInitial() &&
@@ -41,6 +42,7 @@ function canPreserveImportedRoundTrip(options) {
 }
 
 function importedExportIsUntouched(options) {
+    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return false;
     const baseline = currentProject && currentProject.editorBaseline;
     return !!baseline &&
         frameSettingsMatchProjectBaseline(options) &&
@@ -305,7 +307,8 @@ async function applySimpleAudio(zip, audioState, t) {
 
     try {
         const modes = ['intro', 'loop', 'final'].map(role => audioState[role].mode);
-        if (modes.includes('video')) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
+        const masterAudio = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+        if (modes.includes('video') && !masterAudio) videoAudioBuffer = await decodificarAudioFonte(currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : playerVideo.src, audioCtx);
 
         const definitions = [
             { role: 'intro', folder: 'part0', preview: 'm0', start: marcadores.m0, end: marcadores.m1 },
@@ -320,7 +323,8 @@ async function applySimpleAudio(zip, audioState, t) {
             let blob = null;
 
             if (state.mode === 'video') {
-                if (videoAudioBuffer) blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, volume, state);
+                if (masterAudio) blob = await BASMasterSequence.audioBlob(definition.start, definition.end, audioCtx, volume, state);
+                else if (videoAudioBuffer) blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, volume, state);
             } else {
                 const source = getSelectedAudioFile(definition.role);
                 const decoded = await decodificarAudioFonte(source, audioCtx);
@@ -590,11 +594,14 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, f
     const totalFotos = Math.floor((sourceMarkers.m3 - sourceMarkers.m0) / intervalo) + 1;
     const extensao = formato === 'jpeg' ? '.jpg' : '.png';
 
-    playerVideo.pause();
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) BASMasterSequence.pause();
+    else playerVideo.pause();
 
     for (let i = 0; i < totalFotos; i++) {
         const sourceTime = sourceMarkers.m0 + (i * intervalo);
-        const blob = await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality);
+        const blob = window.BASMasterSequence && BASMasterSequence.hasMultipleClips()
+            ? await BASMasterSequence.frameBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality)
+            : await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality);
         let pastaAlvo;
         let numFoto;
 

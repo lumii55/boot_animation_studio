@@ -1,4 +1,24 @@
 
+function timelineUsesMasterSequence() {
+    return !!(window.BASMasterSequence && BASMasterSequence.isTimelineActive());
+}
+
+function getTimelineDurationExact() {
+    if (timelineUsesMasterSequence()) return BASMasterSequence.getDuration();
+    return Math.max(0, Number(playerVideo.duration) || 0);
+}
+
+function getTimelineCurrentTimeExact() {
+    if (timelineUsesMasterSequence()) return BASMasterSequence.getCurrentTime();
+    return Math.max(0, Number(playerVideo.currentTime) || 0);
+}
+
+function pauseTimelinePlayback() {
+    if (timelineUsesMasterSequence()) BASMasterSequence.pause();
+    else playerVideo.pause();
+}
+
+
 function formatTimelineSecondsExact(value) {
     const safe = Math.max(0, Number(value) || 0);
     const fixed = safe.toFixed(2);
@@ -6,12 +26,13 @@ function formatTimelineSecondsExact(value) {
 }
 
 function getPlayerSourceDurationExact() {
+    if (timelineUsesMasterSequence()) return BASMasterSequence.getDuration();
     const projectDuration = currentProject ? Number(currentProject.sourceDuration) : 0;
     if (Number.isFinite(projectDuration) && projectDuration > 0) return projectDuration;
     return Math.max(0, timelineTimeToProjectTime(playerVideo.duration || 0));
 }
 
-function updatePlayerTimeReadout(timelineTime = playerVideo.currentTime || 0) {
+function updatePlayerTimeReadout(timelineTime) {
     const readout = document.getElementById('video-time-readout');
     const currentEl = document.getElementById('video-current-time');
     const totalEl = document.getElementById('video-total-time');
@@ -21,7 +42,8 @@ function updatePlayerTimeReadout(timelineTime = playerVideo.currentTime || 0) {
         readout.style.display = 'none';
         return;
     }
-    const current = Math.max(0, Math.min(total, timelineTimeToProjectTime(Number(timelineTime) || 0)));
+    const rawCurrent = timelineTime === undefined ? getTimelineCurrentTimeExact() : Number(timelineTime) || 0;
+    const current = Math.max(0, Math.min(total, timelineUsesMasterSequence() ? rawCurrent : timelineTimeToProjectTime(rawCurrent)));
     const currentText = `${formatTimelineSecondsExact(current)}s`;
     const totalText = `${formatTimelineSecondsExact(total)}s`;
     currentEl.textContent = currentText;
@@ -39,31 +61,38 @@ function syncTimelineTransportUi() {
     const playLabel = document.getElementById('timeline-play-label');
     const playIcon = document.getElementById('timeline-play-icon');
     const t = traducoes[idiomaAtual];
-    const ready = !!playerVideo.duration && !isGenerating && !isBuildingTimeline;
+    const ready = getTimelineDurationExact() > 0 && !isGenerating && !isBuildingTimeline;
+    const playing = timelineUsesMasterSequence() ? BASMasterSequence.isPlaying() : !playerVideo.paused;
     if (startButton) startButton.disabled = !ready;
     if (playButton) playButton.disabled = !ready;
     if (endButton) endButton.disabled = !ready;
-    if (playLabel && t) playLabel.textContent = playerVideo.paused ? t.timelinePlay : t.timelinePause;
-    if (playIcon) playIcon.textContent = playerVideo.paused ? '▶' : 'Ⅱ';
+    if (playLabel && t) playLabel.textContent = playing ? t.timelinePause : t.timelinePlay;
+    if (playIcon) playIcon.textContent = playing ? 'Ⅱ' : '▶';
 }
 
 function seekTimelineTo(timelineTime) {
-    if (!playerVideo.duration || isGenerating || isBuildingTimeline) return;
-    const safe = Math.max(0, Math.min(playerVideo.duration, Number(timelineTime) || 0));
+    const duration = getTimelineDurationExact();
+    if (!(duration > 0) || isGenerating || isBuildingTimeline) return;
+    const safe = Math.max(0, Math.min(duration, Number(timelineTime) || 0));
+    if (timelineUsesMasterSequence()) {
+        BASMasterSequence.seek(safe, { scroll: true }).catch(() => {});
+        return;
+    }
     playerVideo.pause();
     playerVideo.currentTime = safe;
     updatePlayerTimeReadout(safe);
     isProgrammaticScroll = true;
-    scrollTimeline.scrollLeft = (safe / playerVideo.duration) * filmstrip.offsetWidth;
+    scrollTimeline.scrollLeft = (safe / duration) * filmstrip.offsetWidth;
     setTimeout(() => { isProgrammaticScroll = false; }, 20);
 }
 
 function renderTimelineRuler() {
     filmstrip.querySelector('.timeline-ruler')?.remove();
-    if (!playerVideo.duration || !filmstrip.offsetWidth) return;
+    const timelineDuration = getTimelineDurationExact();
+    if (!(timelineDuration > 0) || !filmstrip.offsetWidth) return;
     const ruler = document.createElement('div');
     ruler.className = 'timeline-ruler';
-    const duration = playerVideo.duration;
+    const duration = timelineDuration;
     let divisions = duration <= 5 ? 4 : duration <= 15 ? 5 : duration <= 40 ? 6 : 8;
     divisions = Math.max(2, divisions);
     for (let index = 0; index <= divisions; index++) {
@@ -71,7 +100,7 @@ function renderTimelineRuler() {
         const tick = document.createElement('span');
         tick.className = 'timeline-ruler-tick';
         tick.style.left = `${(index / divisions) * 100}%`;
-        tick.innerHTML = `<i></i><b>${formatTimelineSecondsExact(timelineTimeToProjectTime(timelineTime))}s</b>`;
+        tick.innerHTML = `<i></i><b>${formatTimelineSecondsExact(timelineUsesMasterSequence() ? timelineTime : timelineTimeToProjectTime(timelineTime))}s</b>`;
         ruler.appendChild(tick);
     }
     filmstrip.appendChild(ruler);
@@ -82,7 +111,7 @@ function renderSimpleSegmentTrack() {
     if (!track) return;
     track.innerHTML = '';
     const t = traducoes[idiomaAtual];
-    const duration = Number(playerVideo.duration) || 0;
+    const duration = getTimelineDurationExact();
     if (!(duration > 0)) {
         const empty = document.createElement('span');
         empty.className = 'simple-segment-empty';
@@ -527,24 +556,24 @@ if (resetFramingFocusButton) {
 
 videoPreview.addEventListener('timeupdate', () => {
     if (typeof handleAdvancedPreviewTimeUpdate === 'function' && handleAdvancedPreviewTimeUpdate()) return;
-    let t = videoPreview.currentTime;
-    
-    if (t >= marcadores.m3) { 
+    const masterState = window.BASMasterSequence ? BASMasterSequence.handleModalPreviewTimeUpdate(videoPreview) : null;
+    if (!masterState && window.BASMasterSequence && BASMasterSequence.isModalPreviewActive()) return;
+    let t = masterState && masterState.active ? masterState.time : videoPreview.currentTime;
+    if (masterState && masterState.looped) currentPreviewPart = -1;
+    if (!masterState && t >= marcadores.m3) {
         videoPreview.currentTime = marcadores.m0;
         t = marcadores.m0;
         currentPreviewPart = -1;
     }
-
     if (document.getElementById('input-usar-som').checked) {
         let part = 'm0';
         if (t >= marcadores.m1 && t < marcadores.m2) part = 'm1';
         else if (t >= marcadores.m2) part = 'm2';
-
         if (part !== currentPreviewPart) {
             ['m0', 'm1', 'm2'].forEach(k => previewAudios[k].pause());
             if (previewAudios[part] && previewAudios[part].src) {
                 previewAudios[part].currentTime = 0;
-                previewAudios[part].play().catch(e=>{});
+                previewAudios[part].play().catch(() => {});
             }
             currentPreviewPart = part;
         }
@@ -556,8 +585,12 @@ playerVideo.addEventListener('click', () => {
         suppressFramingClickUntil = 0;
         return;
     }
-    if (isGenerating || isBuildingTimeline) return; 
-    if (playerVideo.paused) { playerVideo.play(); } 
+    if (isGenerating || isBuildingTimeline) return;
+    if (timelineUsesMasterSequence()) {
+        BASMasterSequence.togglePlay();
+        return;
+    }
+    if (playerVideo.paused) { playerVideo.play(); }
     else { playerVideo.pause(); }
 });
 
@@ -576,9 +609,12 @@ playerVideo.addEventListener('play', () => {
 playerVideo.addEventListener('ended', () => syncTimelineTransportUi());
 
 function animarTimelineSmooth() {
-    if (!playerVideo.paused && !isGenerating && !isBuildingTimeline && playerVideo.duration) {
-        const percent = playerVideo.currentTime / playerVideo.duration;
-        updatePlayerTimeReadout();
+    const duration = getTimelineDurationExact();
+    const playing = timelineUsesMasterSequence() ? BASMasterSequence.isPlaying() : !playerVideo.paused;
+    if (playing && !isGenerating && !isBuildingTimeline && duration > 0) {
+        const current = getTimelineCurrentTimeExact();
+        const percent = current / duration;
+        updatePlayerTimeReadout(current);
         isProgrammaticScroll = true;
         scrollTimeline.scrollLeft = percent * filmstrip.offsetWidth;
         setTimeout(() => { isProgrammaticScroll = false; }, 20);
@@ -683,6 +719,11 @@ inputVideo.addEventListener('change', function(evento) {
 window.openVideoSourceInEditor = openVideoSourceInEditor;
 
 playerVideo.addEventListener('loadedmetadata', async function() {
+    if (window.BASMasterSequence && BASMasterSequence.isPlayerSwitching()) {
+        atualizarPreviewEnquadramento();
+        applyFramingFocusVisuals();
+        return;
+    }
     syncCurrentProjectWithPlayer();
     atualizarTamanho();
     atualizarPreviewEnquadramento();
@@ -707,13 +748,13 @@ let scrollLeftPos;
 
 scrollTimeline.addEventListener('touchstart', () => { 
     if (isGenerating || isBuildingTimeline) return; 
-    playerVideo.pause(); 
+    pauseTimelinePlayback();
 }, {passive: true});
 
 scrollTimeline.addEventListener('mousedown', (e) => {
     if (isGenerating || isBuildingTimeline) return; 
     isMouseDown = true;
-    playerVideo.pause();
+    pauseTimelinePlayback();
     startX = e.pageX - scrollTimeline.offsetLeft;
     scrollLeftPos = scrollTimeline.scrollLeft;
     scrollTimeline.style.cursor = 'grabbing';
@@ -740,14 +781,28 @@ scrollTimeline.addEventListener('mousemove', (e) => {
 let isSeeking = false;
 let targetTime = 0;
 
+function seekMasterScrollTarget() {
+    if (!timelineUsesMasterSequence() || isSeeking || isGenerating || isBuildingTimeline) return;
+    if (Math.abs(BASMasterSequence.getCurrentTime() - targetTime) <= 0.015) return;
+    isSeeking = true;
+    BASMasterSequence.seek(targetTime, { scroll: false }).finally(() => {
+        isSeeking = false;
+        if (timelineUsesMasterSequence() && Math.abs(BASMasterSequence.getCurrentTime() - targetTime) > 0.015) requestAnimationFrame(seekMasterScrollTarget);
+    });
+}
+
 scrollTimeline.addEventListener('scroll', () => {
-    if (isProgrammaticScroll || isBuildingTimeline || !playerVideo.paused || !playerVideo.duration || isGenerating) return;
-    
+    const duration = getTimelineDurationExact();
+    const paused = timelineUsesMasterSequence() ? !BASMasterSequence.isPlaying() : playerVideo.paused;
+    if (isProgrammaticScroll || isBuildingTimeline || !paused || !(duration > 0) || isGenerating || !filmstrip.offsetWidth) return;
     let percent = scrollTimeline.scrollLeft / filmstrip.offsetWidth;
     percent = Math.max(0, Math.min(1, percent));
-    targetTime = percent * playerVideo.duration;
+    targetTime = percent * duration;
     updatePlayerTimeReadout(targetTime);
-
+    if (timelineUsesMasterSequence()) {
+        seekMasterScrollTarget();
+        return;
+    }
     if (!isSeeking && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
         isSeeking = true;
         playerVideo.currentTime = targetTime;
@@ -755,6 +810,11 @@ scrollTimeline.addEventListener('scroll', () => {
 });
 
 playerVideo.addEventListener('seeked', () => {
+    if (timelineUsesMasterSequence()) {
+        if (window.BASMasterSequence) BASMasterSequence.handlePlayerTimeUpdate();
+        updatePlayerTimeReadout();
+        return;
+    }
     updatePlayerTimeReadout();
     isSeeking = false;
     if (playerVideo.paused && !isGenerating && !isBuildingTimeline && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
@@ -763,7 +823,10 @@ playerVideo.addEventListener('seeked', () => {
     }
 });
 
-playerVideo.addEventListener('timeupdate', () => updatePlayerTimeReadout());
+playerVideo.addEventListener('timeupdate', () => {
+    if (timelineUsesMasterSequence() && window.BASMasterSequence) BASMasterSequence.handlePlayerTimeUpdate();
+    updatePlayerTimeReadout();
+});
 playerVideo.addEventListener('durationchange', () => {
     updatePlayerTimeReadout();
     syncTimelineTransportUi();
@@ -781,15 +844,31 @@ const timelinePlayButton = document.getElementById('btn-timeline-play');
 const timelineEndButton = document.getElementById('btn-timeline-end');
 if (timelineStartButton) timelineStartButton.addEventListener('click', () => seekTimelineTo(0));
 if (timelinePlayButton) timelinePlayButton.addEventListener('click', () => {
-    if (!playerVideo.duration || isGenerating || isBuildingTimeline) return;
-    if (playerVideo.paused) playerVideo.play().catch(() => {});
+    if (!(getTimelineDurationExact() > 0) || isGenerating || isBuildingTimeline) return;
+    if (timelineUsesMasterSequence()) BASMasterSequence.togglePlay();
+    else if (playerVideo.paused) playerVideo.play().catch(() => {});
     else playerVideo.pause();
 });
-if (timelineEndButton) timelineEndButton.addEventListener('click', () => seekTimelineTo(playerVideo.duration || 0));
+if (timelineEndButton) timelineEndButton.addEventListener('click', () => seekTimelineTo(getTimelineDurationExact()));
 
 async function desenharFilmstrip() {
     isBuildingTimeline = true;
     filmstrip.innerHTML = '';
+    if (timelineUsesMasterSequence()) {
+        if (window.BASMasterSequence) BASMasterSequence.renderFilmstrip();
+        updatePlayerTimeReadout(BASMasterSequence.getCurrentTime());
+        isProgrammaticScroll = true;
+        const duration = BASMasterSequence.getDuration();
+        scrollTimeline.scrollLeft = duration > 0 ? (BASMasterSequence.getCurrentTime() / duration) * filmstrip.offsetWidth : 0;
+        setTimeout(() => {
+            isProgrammaticScroll = false;
+            isBuildingTimeline = false;
+            syncTimelineTransportUi();
+            renderSimpleSegmentTrack();
+            atualizarBotoesELinhas();
+        }, 60);
+        return;
+    }
     const dur = playerVideo.duration;
     
     let framesPorSegundo = dur < 5 ? 5 : dur < 10 ? 3 : dur < 20 ? 2 : 1; 
@@ -841,7 +920,7 @@ async function desenharFilmstrip() {
 
 window.marcarTrecho = function(id) {
     if (isGenerating || isBuildingTimeline) return; 
-    marcadores[id] = playerVideo.currentTime; 
+    marcadores[id] = getTimelineCurrentTimeExact(); 
     atualizarBotoesELinhas();
     renderSimpleSegmentTrack();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('markers');
@@ -883,22 +962,19 @@ function atualizarBotoesELinhas() {
         const spanStatus = document.getElementById(`st-${id}`);
         
         if (tempo !== null) {
-            const tempoExibido = timelineTimeToProjectTime(tempo);
+            const tempoExibido = timelineUsesMasterSequence() ? tempo : timelineTimeToProjectTime(tempo);
             spanStatus.textContent = tempoExibido.toFixed(2) + 's';
             temposOrdem.push(tempo);
             
             const linha = document.createElement('div');
             linha.className = `linha-marcador linha-${id}`;
-            linha.style.left = ((tempo / playerVideo.duration) * 100) + '%';
+            const timelineDuration = getTimelineDurationExact();
+            linha.style.left = (timelineDuration > 0 ? ((tempo / timelineDuration) * 100) : 0) + '%';
             
             linha.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (isGenerating || isBuildingTimeline) return;
-                playerVideo.currentTime = tempo;
-                isProgrammaticScroll = true;
-                scrollTimeline.scrollLeft = (tempo / playerVideo.duration) * filmstrip.offsetWidth;
-                setTimeout(() => { isProgrammaticScroll = false; }, 20);
-                playerVideo.pause();
+                seekTimelineTo(tempo);
             });
             linha.style.cursor = 'pointer';
             filmstrip.appendChild(linha);

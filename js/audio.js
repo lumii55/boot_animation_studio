@@ -182,7 +182,8 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
 
     try {
         const needsVideo = definitions.some(definition => audioState[definition.role].mode === 'video');
-        if (needsVideo) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
+        const masterAudio = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+        if (needsVideo && !masterAudio) videoAudioBuffer = await decodificarAudioFonte(currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : playerVideo.src, audioCtx);
 
         for (const definition of definitions) {
             if (generation !== previewAudioBuildGeneration) return;
@@ -191,7 +192,9 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
             let blob = null;
 
             if (state.mode === 'video') {
-                if (videoAudioBuffer && Number.isFinite(definition.start) && Number.isFinite(definition.end)) {
+                if (masterAudio && Number.isFinite(definition.start) && Number.isFinite(definition.end)) {
+                    blob = await BASMasterSequence.audioBlob(definition.start, definition.end, audioCtx, state.volume / 100, state);
+                } else if (videoAudioBuffer && Number.isFinite(definition.start) && Number.isFinite(definition.end)) {
                     blob = await fatiarEGerarWav(videoAudioBuffer, definition.start, definition.end, audioCtx, state.volume / 100, state);
                 }
             } else if (state.mode === 'file') {

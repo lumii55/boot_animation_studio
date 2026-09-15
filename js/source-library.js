@@ -403,7 +403,9 @@ async function addFilesToSourceLibrary(files) {
             await cooperativeYield();
         }
         if (added.length) {
+            if (window.BASMasterSequence) added.filter(source => source.role === 'visual').forEach(source => BASMasterSequence.appendSource(source.id, { silent: true }));
             renderSourceLibrary();
+            if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: false });
             if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-library', { changeKey: 'source-library', immediate: true });
             if (typeof showToast === 'function') showToast(sourceLibraryText('sourceLibraryAdded', '{count} source(s) added').replace('{count}', String(added.length)), 'success');
         }
@@ -504,6 +506,7 @@ async function removeSourceFromLibrary(id) {
     if (!accepted) return false;
     sourceLibraryCleanupSource(source);
     currentProject.sourceLibrary = getProjectSourceLibrary().filter(item => item.id !== id);
+    if (window.BASMasterSequence && source.role === 'visual') BASMasterSequence.removeSource(id, { silent: true });
     const primaryId = getPrimarySourceId();
     let affectedPart = false;
     if (Array.isArray(currentProject.advancedParts)) {
@@ -526,6 +529,7 @@ async function removeSourceFromLibrary(id) {
     if (affectedPart && typeof markAdvancedPartsDirty === 'function') markAdvancedPartsDirty();
     else if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-library', { changeKey: 'source-library', immediate: true });
     renderSourceLibrary();
+    if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: source.role === 'visual' });
     if (typeof renderAdvancedPartsEditor === 'function' && typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) renderAdvancedPartsEditor();
     return true;
 }
@@ -560,7 +564,13 @@ async function ensureSourceFrames(source) {
 
 async function ensureSourcePreviewBlob(source) {
     if (!source) return null;
-    if (source.isPrimary && playerVideo && playerVideo.src) return null;
+    if (source.isPrimary && currentProject) {
+        const primaryPreview = currentProject.previewBlob instanceof Blob ? currentProject.previewBlob : currentProject.sourceBlob instanceof Blob ? currentProject.sourceBlob : null;
+        if (primaryPreview) {
+            source.previewBlob = primaryPreview;
+            return primaryPreview;
+        }
+    }
     if (source.previewBlob instanceof Blob) return source.previewBlob;
     if (source.kind === 'video') {
         source.previewBlob = source.blob;
@@ -586,14 +596,9 @@ function sourceLibraryGetPreviewUrl(source, blob) {
 async function sourceLibrarySetVideoElementSource(element, sourceId) {
     const source = getProjectSourceById(sourceId);
     if (!element || !source || source.role !== 'visual') return null;
-    let src = '';
-    if (source.isPrimary && playerVideo && playerVideo.src) {
-        src = playerVideo.src;
-    } else {
-        const previewBlob = await ensureSourcePreviewBlob(source);
-        if (!(previewBlob instanceof Blob)) return null;
-        src = sourceLibraryGetPreviewUrl(source, previewBlob);
-    }
+    const previewBlob = await ensureSourcePreviewBlob(source);
+    if (!(previewBlob instanceof Blob)) return null;
+    const src = sourceLibraryGetPreviewUrl(source, previewBlob);
     if (element.src !== src) {
         element.pause();
         element.src = src;
@@ -699,7 +704,8 @@ async function getSourceFrameOutputBlob(sourceId, sourceTime, width, height, for
     canvasInvisivel.width = Math.max(1, Math.round(Number(width) || 1));
     canvasInvisivel.height = Math.max(1, Math.round(Number(height) || 1));
     const source = getProjectSourceById(sourceId);
-    if (!source || source.isPrimary) return await getProjectFrameOutputBlob(sourceTime, width, height, format, framing, framingFocus, jpegQuality);
+    if (!source) return await getProjectFrameOutputBlob(sourceTime, width, height, format, framing, framingFocus, jpegQuality);
+    if (source.isPrimary && currentProject && currentProject.sourceMode === 'frames') return await getProjectFrameOutputBlob(sourceTime, width, height, format, framing, framingFocus, jpegQuality);
     if (source.role !== 'visual') throw new Error(sourceLibraryText('sourceLibraryVisualRequired', 'This Part needs a visual source.'));
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = format === 'jpeg' ? normalizeJpegExportQuality(jpegQuality) : undefined;
@@ -779,6 +785,8 @@ function sourceLibraryCard(source) {
     const usedAsAudio = selectedPart && source.role === 'audio' && selectedPart.audio && selectedPart.audio.sourceLibraryId === source.id;
     const primary = source.isPrimary ? `<span class="source-library-badge primary">${sourceLibraryEscape(sourceLibraryText('sourceLibraryPrimary', 'PRIMARY'))}</span>` : '';
     const assigned = usedAsVisual || usedAsAudio ? `<span class="source-library-badge assigned">${sourceLibraryEscape(sourceLibraryText('sourceLibraryAssigned', 'IN PART'))}</span>` : '';
+    const sequenceIndex = source.role === 'visual' && window.BASMasterSequence ? BASMasterSequence.indexOfSource(source.id) : -1;
+    const sequenceBadge = sequenceIndex >= 0 ? `<span class="source-library-badge sequence">${sourceLibraryEscape(sourceLibraryText('sourceLibrarySequenceBadge', 'SEQ {index}').replace('{index}', String(sequenceIndex + 1)))}</span>` : '';
     const preview = `<button type="button" data-source-action="preview" data-source-id="${sourceLibraryEscape(source.id)}">${sourceLibraryEscape(sourceLibraryText('sourceLibraryPreview', 'Preview'))}</button>`;
     let use = '';
     if (selectedPart) {
@@ -789,7 +797,7 @@ function sourceLibraryCard(source) {
     const remove = source.isPrimary ? '' : `<button type="button" class="danger" data-source-action="remove" data-source-id="${sourceLibraryEscape(source.id)}">${sourceLibraryEscape(sourceLibraryText('sourceLibraryRemove', 'Remove'))}</button>`;
     return `<article class="source-library-card ${source.role} ${source.isPrimary ? 'is-primary' : ''}">
         <div class="source-library-icon ${source.kind}"><span>${sourceLibraryEscape(source.kind === 'audio' ? 'A' : source.kind === 'image' ? 'I' : source.kind === 'gif' ? 'G' : source.kind === 'bootanimation' ? 'Z' : 'V')}</span></div>
-        <div class="source-library-copy"><div class="source-library-name-row"><strong>${sourceLibraryEscape(source.name)}</strong><span class="source-library-badges">${primary}${assigned}</span></div><small>${sourceLibraryEscape(sourceLibraryMeta(source))}</small></div>
+        <div class="source-library-copy"><div class="source-library-name-row"><strong>${sourceLibraryEscape(source.name)}</strong><span class="source-library-badges">${primary}${sequenceBadge}${assigned}</span></div><small>${sourceLibraryEscape(sourceLibraryMeta(source))}</small></div>
         <div class="source-library-actions">${preview}${use}${remove}</div>
     </article>`;
 }
@@ -820,8 +828,8 @@ function syncSourceLibraryText() {
     const guide = document.getElementById('source-library-guide');
     if (kicker) kicker.textContent = sourceLibraryText('sourceLibraryKicker', 'SOURCE LIBRARY');
     if (title) title.textContent = sourceLibraryText('sourceLibraryTitle', 'Build with more than one source');
-    if (desc) desc.textContent = sourceLibraryText('sourceLibraryDesc', 'Add videos, GIFs, images or audio and reuse them across Advanced Parts.');
-    if (guide) guide.textContent = sourceLibraryText('sourceLibraryGuide', 'Add sources here, then enter Advanced Parts. The sequence timeline shows which source each Part uses and lets you trim or reorder it directly.');
+    if (desc) desc.textContent = sourceLibraryText('sourceLibraryDesc', 'Add videos, GIFs, images or audio. Visual sources join the simple timeline automatically.');
+    if (guide) guide.textContent = sourceLibraryText('sourceLibraryGuide', 'Visual sources are appended to the Master Sequence in the order you add them. Audio stays available for Parts and audio tools.');
     if (add) add.textContent = sourceLibraryText('sourceLibraryAdd', 'Add sources');
     renderSourceLibrary();
     syncSourcePreviewText();
@@ -975,7 +983,9 @@ function syncPrimarySourceLibraryMetadata() {
     primary.fps = Math.max(0, Number(currentProject.fps) || 0);
     primary.runtimeFrames = currentProject.sourceMode === 'frames' ? currentProject.frames : null;
     primary.previewBlob = currentProject.previewBlob || (primary.kind === 'video' ? currentProject.sourceBlob : primary.previewBlob || null);
+    if (window.BASMasterSequence) BASMasterSequence.ensure();
     renderSourceLibrary();
+    if (window.BASMasterSequence) BASMasterSequence.render();
 }
 
 function bindSourceLibrary() {

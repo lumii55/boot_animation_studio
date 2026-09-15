@@ -862,6 +862,19 @@ async function createMiniPreviewWebm(options = null) {
                 sourceTime += step;
                 await new Promise(r => setTimeout(r, 20));
             }
+        } else if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) {
+            const sampleStart = Number.isFinite(marcadores.m1) ? marcadores.m1 : 0;
+            const sampleEnd = Number.isFinite(marcadores.m2) && marcadores.m2 > sampleStart ? marcadores.m2 : BASMasterSequence.getDuration();
+            let t = sampleStart;
+            const step = Math.max(0.0001, (sampleEnd - sampleStart) / 30);
+            for (let i = 0; i < 30; i++) {
+                const frameBlob = await BASMasterSequence.frameBlob(t, c.width, c.height, 'jpeg', framing, framingFocus, 0.76);
+                const drawable = await blobToDrawable(frameBlob);
+                ctx.drawImage(drawable, 0, 0, c.width, c.height);
+                releaseDrawable(drawable);
+                t = Math.min(sampleEnd, t + step);
+                await new Promise(r => setTimeout(r, 20));
+            }
         } else {
             const sampleStart = marcadores.m1;
             const sampleEnd = marcadores.m2;

@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.5';
+const BAS_PROJECT_ENGINE_VERSION = '12.5.1';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -170,6 +170,7 @@ function captureProjectEngineContentState() {
             parts: serializeProjectAdvancedParts()
         },
         library: window.BASSourceLibrary ? BASSourceLibrary.serialize() : { primarySourceId: '', counter: 0, sources: [] },
+        masterSequence: window.BASMasterSequence ? BASMasterSequence.serialize() : { counter: 0, clips: [] },
         package: {
             generateModule: projectEngineChecked('input-gerar-modulo'),
             manufacturer: projectEngineValue('input-fabricante', 'standard')
@@ -178,7 +179,7 @@ function captureProjectEngineContentState() {
 }
 
 function captureProjectEngineUiState() {
-    const playhead = Number(playerVideo && playerVideo.currentTime);
+    const playhead = Number(window.BASMasterSequence && BASMasterSequence.isTimelineActive() ? BASMasterSequence.getCurrentTime() : playerVideo && playerVideo.currentTime);
     return {
         workspaceView: typeof workspaceUi !== 'undefined' && workspaceUi.currentView ? workspaceUi.currentView : 'edit',
         outputTool: typeof contextualUi !== 'undefined' && contextualUi.outputTool ? contextualUi.outputTool : 'basics',
@@ -276,9 +277,16 @@ function getProjectEngineSourceLabel(project = currentProject) {
 
 function getProjectEngineSummary(project = currentProject) {
     if (!project || !project.sourceBlob) return projectEngineText('projectSourceWaiting', 'Waiting for source');
-    const parts = [getProjectEngineSourceLabel(project)];
     const width = Math.max(0, Number(project.width) || 0);
     const height = Math.max(0, Number(project.height) || 0);
+    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) {
+        const sourceCount = BASMasterSequence.serialize().clips.length;
+        const parts = [projectEngineText('projectSourceCount', '{count} sources').replace('{count}', String(sourceCount))];
+        if (width && height) parts.push(`${width} × ${height}`);
+        parts.push(formatProjectEngineDuration(BASMasterSequence.getDuration()));
+        return parts.join(' · ');
+    }
+    const parts = [getProjectEngineSourceLabel(project)];
     if (width && height) parts.push(`${width} × ${height}`);
     if (project.sourceMode === 'frames' && Array.isArray(project.frames) && project.frames.length) {
         parts.push(projectEngineText('projectSourceFrames', '{count} frames').replace('{count}', String(project.frames.length)));
@@ -571,14 +579,16 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         if (typeof contextualUi !== 'undefined') contextualUi.framingReference = reference;
         projectEngineSetValue('framing-reference-slider', reference);
     }
+    if (window.BASSourceLibrary) BASSourceLibrary.restoreState(editor.library, assetMap);
+    if (window.BASMasterSequence) BASMasterSequence.restoreState(editor.masterSequence || null);
     const savedMarkers = editor.markers || {};
+    const masterMarkers = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
     ['m0', 'm1', 'm2', 'm3'].forEach(key => {
         const value = savedMarkers[key];
-        marcadores[key] = value === null || value === undefined ? null : projectTimeToTimelineTime(Number(value));
+        marcadores[key] = value === null || value === undefined ? null : masterMarkers ? Math.max(0, Number(value) || 0) : projectTimeToTimelineTime(Number(value));
     });
     currentProject.markers = marcadores;
     currentProject.initialMarkersApplied = true;
-    if (window.BASSourceLibrary) BASSourceLibrary.restoreState(editor.library, assetMap);
     projectEngineRestoreSimpleAudio(editor.audio, assetMap);
     projectEngineRestoreAdvancedState(editor.advanced, assetMap);
     projectEngineSetChecked('input-gerar-modulo', packageState.generateModule);
@@ -589,6 +599,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     if (typeof syncFramingToolUi === 'function') syncFramingToolUi();
     if (typeof syncContextualAudioMode === 'function') syncContextualAudioMode();
     if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
+    if (window.BASMasterSequence) BASMasterSequence.render();
     if (typeof renderSimpleSegmentTrack === 'function') renderSimpleSegmentTrack();
     const ui = manifest.ui || {};
     if (options.restoreUi !== false) {
@@ -600,8 +611,9 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         if (savedAdvancedPartId && currentProject.advancedParts.some(part => part.id === savedAdvancedPartId)) currentProject.advancedExpandedId = String(savedAdvancedPartId);
         if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
         if (window.BASSequenceTimeline) BASSequenceTimeline.restoreUiState(ui.sequenceTimeline || {});
-        if (Number.isFinite(Number(ui.playhead)) && playerVideo && Number.isFinite(playerVideo.duration)) {
-            playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
+        if (Number.isFinite(Number(ui.playhead))) {
+            if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) BASMasterSequence.seek(Number(ui.playhead), { scroll: true }).catch(() => {});
+            else if (playerVideo && Number.isFinite(playerVideo.duration)) playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
         }
     }
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();

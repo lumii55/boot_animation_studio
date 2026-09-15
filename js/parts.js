@@ -142,6 +142,7 @@ function buildAdvancedPartsFromImportedProject() {
 
 function buildAdvancedPartsFromSimpleEditor() {
     const t = traducoes[idiomaAtual];
+    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return BASMasterSequence.createAdvancedParts(nextAdvancedPartId, cloneAdvancedAudioState);
     const markers = getProjectSourceMarkers();
     const ordered = markers && ['m0', 'm1', 'm2', 'm3'].every(key => Number.isFinite(markers[key])) && markers.m0 <= markers.m1 && markers.m1 <= markers.m2 && markers.m2 <= markers.m3;
     if (ordered && markers.m3 > markers.m0) {
@@ -191,9 +192,11 @@ function ensureAdvancedPartsInitialized() {
     if (!currentProject) return false;
     if (getAdvancedParts().length === 0) {
         currentProject.advancedPartCounter = 0;
-        currentProject.advancedParts = isImportedBootanimationProject() && currentProject.parts.length > 0 && simpleEditorStillMatchesImportedBaseline()
-            ? buildAdvancedPartsFromImportedProject()
-            : buildAdvancedPartsFromSimpleEditor();
+        currentProject.advancedParts = window.BASMasterSequence && BASMasterSequence.hasMultipleClips()
+            ? buildAdvancedPartsFromSimpleEditor()
+            : isImportedBootanimationProject() && currentProject.parts.length > 0 && simpleEditorStillMatchesImportedBaseline()
+                ? buildAdvancedPartsFromImportedProject()
+                : buildAdvancedPartsFromSimpleEditor();
         currentProject.advancedParts.forEach(normalizeAdvancedPartRange);
         currentProject.advancedPartsBaseline = cloneAdvancedParts(currentProject.advancedParts);
         currentProject.advancedPartsDirty = false;
@@ -502,7 +505,9 @@ function syncAdvancedPartsUi() {
         if (typeof verificarPainelAudio === 'function') verificarPainelAudio();
     }
     if (window.BASSequenceTimeline) BASSequenceTimeline.sync();
+    if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: false });
 }
+
 
 function getAdvancedPartById(id) {
     return getAdvancedParts().find(part => part.id === id) || null;
