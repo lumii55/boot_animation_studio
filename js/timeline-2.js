@@ -169,21 +169,27 @@ function renderSequenceTimeline() {
         return;
     }
     if (!getAdvancedPartById(currentProject.advancedExpandedId)) currentProject.advancedExpandedId = parts[0].id;
+    const invalidPartIds = new Set(typeof getAdvancedValidationIssues === 'function' ? getAdvancedValidationIssues().map(issue => issue.partId).filter(Boolean) : []);
     track.innerHTML = parts.map((part, index) => {
         const sourceId = sequenceTimelineSourceId(part);
         const hue = sequenceTimelineSourceHue(sourceId);
         const selected = currentProject.advancedExpandedId === part.id;
+        const issue = invalidPartIds.has(part.id);
         const width = sequenceTimelinePartWidth(part);
         const type = part.type === 'p' ? 'p' : 'c';
         const duration = sequenceTimelinePartSpan(part);
         const sourceName = sequenceTimelineSourceName(part);
-        return `<article class="sequence-part${selected ? ' is-selected' : ''}" data-sequence-part-id="${sequenceTimelineEscape(part.id)}" style="--source-hue:${hue};width:${width}px">
+        const audioOn = !!(part.audio && part.audio.mode !== 'none');
+        const pauseLabel = part.pause > 0 ? sequenceTimelineText('advPauseBadge', '{count}f pause').replace('{count}', String(part.pause)) : '';
+        const audioLabel = audioOn ? sequenceTimelineText('advBadgeAudio', 'AUDIO') : sequenceTimelineText('advBadgeSilent', 'SILENT');
+        return `<article class="sequence-part${selected ? ' is-selected' : ''}${issue ? ' is-invalid' : ''}" data-sequence-part-id="${sequenceTimelineEscape(part.id)}" style="--source-hue:${hue};width:${width}px">
             <button type="button" class="sequence-trim-handle sequence-trim-start" data-sequence-trim="start" data-part-id="${sequenceTimelineEscape(part.id)}" aria-label="${sequenceTimelineEscape(sequenceTimelineText('timeline2TrimStart', 'Trim Part start'))}"></button>
             <button type="button" class="sequence-trim-handle sequence-trim-end" data-sequence-trim="end" data-part-id="${sequenceTimelineEscape(part.id)}" aria-label="${sequenceTimelineEscape(sequenceTimelineText('timeline2TrimEnd', 'Trim Part end'))}"></button>
-            <div class="sequence-part-top"><button type="button" class="sequence-drag-grip" data-sequence-drag="${sequenceTimelineEscape(part.id)}" aria-label="${sequenceTimelineEscape(sequenceTimelineText('timeline2Drag', 'Drag to reorder'))}"><span></span><span></span><span></span></button><span class="sequence-part-index">${String(index + 1).padStart(2, '0')}</span><span class="sequence-part-type">${type}</span></div>
+            <div class="sequence-part-top"><button type="button" class="sequence-drag-grip" data-sequence-drag="${sequenceTimelineEscape(part.id)}" aria-label="${sequenceTimelineEscape(sequenceTimelineText('timeline2Drag', 'Drag to reorder'))}"><span></span><span></span><span></span></button><span class="sequence-part-index">${String(index + 1).padStart(2, '0')}</span><span class="sequence-part-type">${type}</span>${issue ? '<span class="sequence-part-warning">!</span>' : ''}</div>
             <strong class="sequence-part-title">${sequenceTimelineEscape(part.label || part.folder)}</strong>
             <span class="sequence-part-source"><i></i>${sequenceTimelineEscape(sourceName)}</span>
             <div class="sequence-part-range"><span data-sequence-range-start>${sequenceTimelineFormatSeconds(part.start)}</span><b>→</b><span data-sequence-range-end>${sequenceTimelineFormatSeconds(part.end)}</span></div>
+            <div class="sequence-part-flags"><span class="${audioOn ? 'is-audio' : ''}">${sequenceTimelineEscape(audioLabel)}</span>${pauseLabel ? `<span>${sequenceTimelineEscape(pauseLabel)}</span>` : ''}</div>
             <div class="sequence-part-footer"><span data-sequence-duration>${sequenceTimelineFormatSeconds(duration)}</span><span>${sequenceTimelineEscape(sequenceTimelineRepeatLabel(part))}</span><button type="button" data-sequence-preview="${sequenceTimelineEscape(part.id)}">${sequenceTimelineEscape(sequenceTimelineText('timeline2Preview', 'Preview'))}</button></div>
         </article>`;
     }).join('');

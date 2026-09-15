@@ -205,26 +205,55 @@ function ensureAdvancedPartsInitialized() {
     return currentProject.advancedParts.length > 0;
 }
 
-function validateAdvancedParts() {
+function getAdvancedValidationIssues() {
     const t = traducoes[idiomaAtual];
-    if (!isAdvancedPartsActive()) return { valid: false, message: t.advInvalidParts };
+    if (!isAdvancedPartsActive()) return [{ partId: '', index: -1, field: '', code: 'structure', message: t.advInvalidParts }];
     const parts = getAdvancedParts();
-    if (isImportedBootanimationProject() && !isAdvancedPartsDirty() && parts.length > 0) return { valid: true, message: '' };
-    const folders = new Set();
-    for (const part of parts) {
+    if (isImportedBootanimationProject() && !isAdvancedPartsDirty() && parts.length > 0) return [];
+    const folderOwners = new Map();
+    const issues = [];
+    parts.forEach((part, index) => {
         const source = window.BASSourceLibrary ? BASSourceLibrary.getPartSource(part) : null;
         const duration = getAdvancedSourceDuration(part);
-        if (window.BASSourceLibrary && (!source || source.role !== 'visual')) return { valid: false, message: t.advMissingSource || t.advInvalidRange };
-        if (!Number.isFinite(part.start) || !Number.isFinite(part.end) || part.start < 0 || part.end <= part.start || part.end > duration + 0.001) return { valid: false, message: t.advInvalidRange };
-        if (!/^[A-Za-z0-9._-]{1,64}$/.test(part.folder)) return { valid: false, message: t.advInvalidFolder };
-        const folderKey = part.folder.toLowerCase();
-        if (folders.has(folderKey)) return { valid: false, message: t.advDuplicateFolder };
-        folders.add(folderKey);
-        if (!Number.isInteger(part.repeat) || part.repeat < 0 || part.repeat > 999) return { valid: false, message: t.advInvalidRepeat };
-        if (!Number.isInteger(part.pause) || part.pause < 0 || part.pause > 9999) return { valid: false, message: t.advInvalidPause };
-        if (part.audio.mode === 'file' && !(part.audio.source instanceof Blob)) return { valid: false, message: t.advMissingAudioFile };
-    }
-    return { valid: true, message: '' };
+        if (window.BASSourceLibrary && (!source || source.role !== 'visual')) issues.push({ partId: part.id, index, field: 'source', code: 'source', message: t.advMissingSource || t.advInvalidRange });
+        if (!Number.isFinite(part.start) || part.start < 0 || part.start >= part.end) issues.push({ partId: part.id, index, field: 'start', code: 'range-start', message: t.advInvalidRange });
+        else if (!Number.isFinite(part.end) || part.end <= part.start || part.end > duration + 0.001) issues.push({ partId: part.id, index, field: 'end', code: 'range-end', message: t.advInvalidRange });
+        if (!/^[A-Za-z0-9._-]{1,64}$/.test(part.folder)) issues.push({ partId: part.id, index, field: 'folder', code: 'folder', message: t.advInvalidFolder });
+        const folderKey = String(part.folder || '').toLowerCase();
+        if (folderKey) {
+            if (folderOwners.has(folderKey)) issues.push({ partId: part.id, index, field: 'folder', code: 'duplicate-folder', message: t.advDuplicateFolder });
+            else folderOwners.set(folderKey, part.id);
+        }
+        if (!Number.isInteger(part.repeat) || part.repeat < 0 || part.repeat > 999) issues.push({ partId: part.id, index, field: 'repeat-select', code: 'repeat', message: t.advInvalidRepeat });
+        if (!Number.isInteger(part.pause) || part.pause < 0 || part.pause > 9999) issues.push({ partId: part.id, index, field: 'pause', code: 'pause', message: t.advInvalidPause });
+        if (part.audio && part.audio.mode === 'file' && !(part.audio.source instanceof Blob)) issues.push({ partId: part.id, index, field: 'audio-mode', code: 'audio', message: t.advMissingAudioFile });
+    });
+    return issues;
+}
+
+function formatAdvancedValidationIssue(issue) {
+    if (!issue) return '';
+    const t = traducoes[idiomaAtual];
+    if (issue.index < 0) return issue.message || t.advInvalidParts;
+    const template = t.advIssuePart || 'Part {index}: {message}';
+    return template.replace('{index}', String(issue.index + 1).padStart(2, '0')).replace('{message}', issue.message || t.advInvalidParts);
+}
+
+function validateAdvancedParts() {
+    const issues = getAdvancedValidationIssues();
+    const first = issues[0] || null;
+    return {
+        valid: issues.length === 0,
+        message: first ? formatAdvancedValidationIssue(first) : '',
+        partId: first ? first.partId : '',
+        field: first ? first.field : '',
+        issues
+    };
+}
+
+function getAdvancedPartValidationIssue(id) {
+    if (!id) return null;
+    return getAdvancedValidationIssues().find(issue => issue.partId === id) || null;
 }
 
 function markAdvancedPartsDirty() {
@@ -263,6 +292,99 @@ function getAdvancedRepeatText(part) {
 
 function getAdvancedRepeatSelectValue(repeat) {
     return [0, 1, 2, 3].includes(repeat) ? String(repeat) : 'custom';
+}
+
+function getAdvancedTypeLabel(part) {
+    const t = traducoes[idiomaAtual];
+    return part.type === 'p' ? (t.advTypeShortNormal || 'p · normal') : (t.advTypeShortComplete || 'c · complete');
+}
+
+function getAdvancedAudioLabel(part) {
+    const t = traducoes[idiomaAtual];
+    if (!part.audio || part.audio.mode === 'none') return t.advAudioNone || 'No audio';
+    if (part.audio.mode === 'video') return t.advAudioVideo || 'Source audio';
+    if (part.audio.sourceKind === 'library' && part.audio.sourceName) return part.audio.sourceName;
+    if (part.audio.sourceName) return part.audio.sourceName;
+    return t.advAudioFile || 'Audio file';
+}
+
+function getAdvancedFlowBadges(part) {
+    const t = traducoes[idiomaAtual];
+    const repeat = part.repeat === 0 ? '∞' : `${Math.max(1, part.repeat)}×`;
+    const pause = part.pause > 0 ? `${part.pause}f` : '0f';
+    const audio = part.audio && part.audio.mode !== 'none' ? (t.advBadgeAudio || 'AUDIO') : (t.advBadgeSilent || 'SILENT');
+    return `<span class="advanced-flow-badges"><b class="advanced-flow-type">${escapeAdvancedHtml(part.type === 'p' ? 'p' : 'c')}</b><b>${escapeAdvancedHtml(repeat)}</b><b>${escapeAdvancedHtml(pause)}</b><b class="advanced-flow-audio${part.audio && part.audio.mode !== 'none' ? ' is-on' : ''}">${escapeAdvancedHtml(audio)}</b></span>`;
+}
+
+function getAdvancedSequenceStats() {
+    const parts = getAdvancedParts();
+    const sources = new Set();
+    let loops = 0;
+    let audio = 0;
+    let pauses = 0;
+    parts.forEach(part => {
+        if (window.BASSourceLibrary) sources.add(BASSourceLibrary.getPartSourceId(part));
+        else sources.add('primary');
+        if (part.repeat === 0 || part.repeat > 1) loops++;
+        if (part.audio && part.audio.mode !== 'none') audio++;
+        if (part.pause > 0) pauses++;
+    });
+    return { parts: parts.length, sources: sources.size, loops, audio, pauses };
+}
+
+function renderAdvancedSequenceHealth() {
+    const shell = document.getElementById('advanced-sequence-health');
+    const statsShell = document.getElementById('advanced-sequence-stats');
+    if (!shell || !statsShell) return;
+    const t = traducoes[idiomaAtual];
+    const validation = validateAdvancedParts();
+    const title = document.getElementById('advanced-health-title');
+    const label = document.getElementById('advanced-health-label');
+    const message = document.getElementById('advanced-health-message');
+    const focus = document.getElementById('advanced-health-focus');
+    if (label) label.textContent = t.advHealthLabel || 'SEQUENCE CHECK';
+    shell.dataset.state = validation.valid ? 'ready' : 'issue';
+    if (title) title.textContent = validation.valid ? (t.advHealthReady || 'Sequence ready') : (t.advHealthIssue || 'Sequence needs attention');
+    if (message) message.textContent = validation.valid ? (t.advHealthReadyDesc || 'All Parts are valid and ready to build.') : validation.message;
+    if (focus) {
+        focus.hidden = validation.valid || !validation.partId;
+        focus.textContent = t.advReviewPart || 'Review Part';
+        focus.dataset.partId = validation.partId || '';
+        focus.dataset.field = validation.field || '';
+    }
+    const stats = getAdvancedSequenceStats();
+    const items = [
+        [t.advStatParts || '{count} Parts', stats.parts],
+        [t.advStatSources || '{count} sources', stats.sources],
+        [t.advStatLoops || '{count} loops', stats.loops],
+        [t.advStatAudio || '{count} with audio', stats.audio],
+        [t.advStatPauses || '{count} pauses', stats.pauses]
+    ];
+    statsShell.innerHTML = items.map(([template, count]) => `<span>${escapeAdvancedHtml(template.replace('{count}', String(count)))}</span>`).join('');
+}
+
+function focusAdvancedValidationIssue(issue = null) {
+    const validation = validateAdvancedParts();
+    const targetIssue = issue || validation.issues[0];
+    if (!targetIssue || !targetIssue.partId || !currentProject) return false;
+    currentProject.advancedExpandedId = targetIssue.partId;
+    renderAdvancedPartsEditor();
+    const card = document.querySelector(`[data-part-card="${CSS.escape(targetIssue.partId)}"]`);
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (targetIssue.field) {
+        setTimeout(() => {
+            const field = document.querySelector(`[data-advanced-field="${CSS.escape(targetIssue.field)}"][data-part-id="${CSS.escape(targetIssue.partId)}"]`);
+            if (field) {
+                const details = field.closest('details');
+                if (details) details.open = true;
+                field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                field.focus({ preventScroll: true });
+                field.classList.add('advanced-field-attention');
+                setTimeout(() => field.classList.remove('advanced-field-attention'), 1300);
+            }
+        }, 80);
+    }
+    return true;
 }
 
 function updateAdvancedHoldHint(sourceTime = getAdvancedPlayheadSourceTime()) {
@@ -315,13 +437,15 @@ function renderAdvancedFlow() {
         return;
     }
     if (!getAdvancedPartById(currentProject.advancedExpandedId)) currentProject.advancedExpandedId = parts[0].id;
+    const issues = new Map(getAdvancedValidationIssues().map(issue => [issue.partId, issue]));
     const totalDuration = Math.max(0.001, parts.reduce((sum, part) => sum + Math.max(0.001, part.end - part.start), 0));
     flow.innerHTML = parts.map((part, index) => {
         const tone = index % 4;
         const selected = currentProject.advancedExpandedId === part.id;
+        const issue = issues.get(part.id);
         const span = Math.max(0.001, part.end - part.start);
-        const weight = Math.max(80, Math.round((span / totalDuration) * 1000));
-        return `<button type="button" class="advanced-flow-chip tone-${tone}${selected ? ' is-selected' : ''}" style="--part-weight:${weight}" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}"><span class="advanced-flow-index">${getAdvancedPartIcon(part, index)}</span><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${escapeAdvancedHtml(getAdvancedPartSourceName(part))} · ${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)}</small><em>${escapeAdvancedHtml(getAdvancedRepeatText(part))}</em></button>`;
+        const weight = Math.max(92, Math.round((span / totalDuration) * 1000));
+        return `<button type="button" class="advanced-flow-chip tone-${tone}${selected ? ' is-selected' : ''}${issue ? ' is-invalid' : ''}" style="--part-weight:${weight}" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}"><span class="advanced-flow-top"><span class="advanced-flow-index">${getAdvancedPartIcon(part, index)}</span>${issue ? '<span class="advanced-flow-warning">!</span>' : ''}</span><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${escapeAdvancedHtml(getAdvancedPartSourceName(part))}</small>${getAdvancedFlowBadges(part)}<em>${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)}</em></button>`;
     }).join('');
 }
 
@@ -376,52 +500,65 @@ function renderAdvancedPartCard(part, index) {
     const repeatValue = getAdvancedRepeatSelectValue(part.repeat);
     const customRepeat = repeatValue === 'custom';
     const tone = index % 4;
+    const issue = getAdvancedPartValidationIssue(part.id);
+    const audioLabel = getAdvancedAudioLabel(part);
     return `
-        <article class="advanced-part-card tone-${tone} expanded" data-part-card="${escapeAdvancedHtml(part.id)}">
-            <button type="button" class="advanced-part-summary" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}">
-                <span class="advanced-part-icon">${getAdvancedPartIcon(part, index)}</span>
-                <span class="advanced-part-summary-text"><small>${escapeAdvancedHtml(t.advSelectedPart)}</small><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><span>${escapeAdvancedHtml(getAdvancedPartSourceName(part))} · ${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)} · ${escapeAdvancedHtml(getAdvancedRepeatText(part))}</span></span>
-                <span class="advanced-part-focus-mark"></span>
-            </button>
+        <article class="advanced-part-card tone-${tone} expanded${issue ? ' is-invalid' : ''}" data-part-card="${escapeAdvancedHtml(part.id)}">
+            <div class="advanced-part-summary">
+                <button type="button" class="advanced-part-summary-main" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}">
+                    <span class="advanced-part-icon">${getAdvancedPartIcon(part, index)}</span>
+                    <span class="advanced-part-summary-text"><small>${escapeAdvancedHtml(t.advSelectedPart)}</small><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><span>${escapeAdvancedHtml(getAdvancedPartSourceName(part))} · ${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)}</span></span>
+                </button>
+                <div class="advanced-part-summary-badges"><span class="advanced-part-type-badge">${escapeAdvancedHtml(getAdvancedTypeLabel(part))}</span><span>${escapeAdvancedHtml(getAdvancedRepeatText(part))}</span>${part.pause > 0 ? `<span>${escapeAdvancedHtml((t.advPauseBadge || '{count}f pause').replace('{count}', String(part.pause)))}</span>` : ''}<span class="${part.audio && part.audio.mode !== 'none' ? 'is-audio' : ''}">${escapeAdvancedHtml(audioLabel)}</span></div>
+            </div>
             <div class="advanced-part-body">
-                <div class="advanced-fields-grid">
-                    <div class="advanced-field advanced-field-wide">
-                        <label>${escapeAdvancedHtml(t.advPartName)}</label>
-                        <input type="text" maxlength="50" value="${escapeAdvancedHtml(part.label)}" data-advanced-field="label" data-part-id="${escapeAdvancedHtml(part.id)}">
+                ${issue ? `<button type="button" class="advanced-part-issue" data-advanced-action="focus-issue" data-part-id="${escapeAdvancedHtml(part.id)}"><span>!</span><div><strong>${escapeAdvancedHtml(t.advPartIssue || 'This Part needs attention')}</strong><small>${escapeAdvancedHtml(issue.message)}</small></div></button>` : ''}
+                <section class="advanced-inspector-section advanced-inspector-content">
+                    <div class="advanced-inspector-heading"><div><span>${escapeAdvancedHtml(t.advContentKicker || 'CONTENT')}</span><strong>${escapeAdvancedHtml(t.advContentTitle || 'Source and range')}</strong></div><button type="button" data-advanced-action="preview-part" data-part-id="${escapeAdvancedHtml(part.id)}">${escapeAdvancedHtml(t.advPreviewPart || 'Preview Part')}</button></div>
+                    <div class="advanced-fields-grid">
+                        <div class="advanced-field advanced-field-wide">
+                            <label>${escapeAdvancedHtml(t.advPartName)}</label>
+                            <input type="text" maxlength="50" value="${escapeAdvancedHtml(part.label)}" data-advanced-field="label" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        </div>
+                        ${renderAdvancedSourceField(part)}
+                        <div class="advanced-field">
+                            <label>${escapeAdvancedHtml(t.advStart)}</label>
+                            <input type="number" min="0" max="${getAdvancedSourceDuration(part)}" step="0.01" value="${part.start.toFixed(2)}" data-advanced-field="start" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        </div>
+                        <div class="advanced-field">
+                            <label>${escapeAdvancedHtml(t.advEnd)}</label>
+                            <input type="number" min="0" max="${getAdvancedSourceDuration(part)}" step="0.01" value="${part.end.toFixed(2)}" data-advanced-field="end" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        </div>
                     </div>
-                    ${renderAdvancedSourceField(part)}
-                    <div class="advanced-field">
-                        <label>${escapeAdvancedHtml(t.advStart)}</label>
-                        <input type="number" min="0" max="${getAdvancedSourceDuration(part)}" step="0.01" value="${part.start.toFixed(2)}" data-advanced-field="start" data-part-id="${escapeAdvancedHtml(part.id)}">
+                </section>
+                <section class="advanced-inspector-section advanced-inspector-playback">
+                    <div class="advanced-inspector-heading"><div><span>${escapeAdvancedHtml(t.advPlaybackKicker || 'PLAYBACK')}</span><strong>${escapeAdvancedHtml(t.advPlaybackTitle || 'How this Part behaves')}</strong></div></div>
+                    <div class="advanced-type-choice" role="group" aria-label="${escapeAdvancedHtml(t.advType)}">
+                        <button type="button" class="${part.type === 'c' ? 'is-active' : ''}" data-advanced-action="set-type" data-value="c" data-part-id="${escapeAdvancedHtml(part.id)}"><b>c</b><span><strong>${escapeAdvancedHtml(t.advTypeCompleteName || 'Complete')}</strong><small>${escapeAdvancedHtml(t.advTypeCompleteHint || 'Always finishes before the next Part.')}</small></span></button>
+                        <button type="button" class="${part.type === 'p' ? 'is-active' : ''}" data-advanced-action="set-type" data-value="p" data-part-id="${escapeAdvancedHtml(part.id)}"><b>p</b><span><strong>${escapeAdvancedHtml(t.advTypeNormalName || 'Normal')}</strong><small>${escapeAdvancedHtml(t.advTypeNormalHint || 'May stop when Android finishes booting.')}</small></span></button>
                     </div>
-                    <div class="advanced-field">
-                        <label>${escapeAdvancedHtml(t.advEnd)}</label>
-                        <input type="number" min="0" max="${getAdvancedSourceDuration(part)}" step="0.01" value="${part.end.toFixed(2)}" data-advanced-field="end" data-part-id="${escapeAdvancedHtml(part.id)}">
+                    <div class="advanced-fields-grid advanced-playback-grid">
+                        <div class="advanced-field">
+                            <label>${escapeAdvancedHtml(t.advRepeat)}</label>
+                            <select data-advanced-field="repeat-select" data-part-id="${escapeAdvancedHtml(part.id)}">
+                                <option value="1"${repeatValue === '1' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatOnce)}</option>
+                                <option value="2"${repeatValue === '2' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatTimes.replace('{count}', '2'))}</option>
+                                <option value="3"${repeatValue === '3' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatTimes.replace('{count}', '3'))}</option>
+                                <option value="0"${repeatValue === '0' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatForever)}</option>
+                                <option value="custom"${customRepeat ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatCustom)}</option>
+                            </select>
+                            <input class="advanced-repeat-custom${customRepeat ? ' visible' : ''}" type="number" min="1" max="999" step="1" value="${part.repeat || 1}" data-advanced-field="repeat-custom" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        </div>
+                        <div class="advanced-field">
+                            <label>${escapeAdvancedHtml(t.advPause)}</label>
+                            <input type="number" min="0" max="9999" step="1" value="${part.pause}" data-advanced-field="pause" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        </div>
                     </div>
-                    <div class="advanced-field">
-                        <label>${escapeAdvancedHtml(t.advRepeat)}</label>
-                        <select data-advanced-field="repeat-select" data-part-id="${escapeAdvancedHtml(part.id)}">
-                            <option value="1"${repeatValue === '1' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatOnce)}</option>
-                            <option value="2"${repeatValue === '2' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatTimes.replace('{count}', '2'))}</option>
-                            <option value="3"${repeatValue === '3' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatTimes.replace('{count}', '3'))}</option>
-                            <option value="0"${repeatValue === '0' ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatForever)}</option>
-                            <option value="custom"${customRepeat ? ' selected' : ''}>${escapeAdvancedHtml(t.advRepeatCustom)}</option>
-                        </select>
-                        <input class="advanced-repeat-custom${customRepeat ? ' visible' : ''}" type="number" min="1" max="999" step="1" value="${part.repeat || 1}" data-advanced-field="repeat-custom" data-part-id="${escapeAdvancedHtml(part.id)}">
-                    </div>
-                    <div class="advanced-field">
-                        <label>${escapeAdvancedHtml(t.advPause)}</label>
-                        <input type="number" min="0" max="9999" step="1" value="${part.pause}" data-advanced-field="pause" data-part-id="${escapeAdvancedHtml(part.id)}">
-                    </div>
-                    <div class="advanced-field advanced-type-field">
-                        <label>${escapeAdvancedHtml(t.advType)}</label>
-                        <select data-advanced-field="type" data-part-id="${escapeAdvancedHtml(part.id)}">
-                            <option value="c"${part.type === 'c' ? ' selected' : ''}>${escapeAdvancedHtml(t.advTypeComplete)}</option>
-                            <option value="p"${part.type === 'p' ? ' selected' : ''}>${escapeAdvancedHtml(t.advTypeNormal)}</option>
-                        </select>
-                    </div>
-                    ${renderAdvancedAudioEditor(part)}
-                </div>
+                </section>
+                <section class="advanced-inspector-section advanced-inspector-audio">
+                    <div class="advanced-inspector-heading"><div><span>${escapeAdvancedHtml(t.advAudioKicker || 'AUDIO')}</span><strong>${escapeAdvancedHtml(t.advAudioTitle || 'Sound for this Part')}</strong></div><em>${escapeAdvancedHtml(audioLabel)}</em></div>
+                    <div class="advanced-fields-grid">${renderAdvancedAudioEditor(part)}</div>
+                </section>
                 <details class="advanced-technical-details">
                     <summary>${escapeAdvancedHtml(t.advTechnical)}</summary>
                     <div class="advanced-fields-grid advanced-technical-grid">
@@ -431,7 +568,7 @@ function renderAdvancedPartCard(part, index) {
                         </div>
                     </div>
                 </details>
-                <div class="advanced-card-actions">
+                <div class="advanced-card-actions advanced-card-actions-primary">
                     <button type="button" data-advanced-action="move-up" data-part-id="${escapeAdvancedHtml(part.id)}"${index === 0 ? ' disabled' : ''}>${escapeAdvancedHtml(t.advMoveUp)}</button>
                     <button type="button" data-advanced-action="move-down" data-part-id="${escapeAdvancedHtml(part.id)}"${index === getAdvancedParts().length - 1 ? ' disabled' : ''}>${escapeAdvancedHtml(t.advMoveDown)}</button>
                     <button type="button" data-advanced-action="duplicate" data-part-id="${escapeAdvancedHtml(part.id)}">${escapeAdvancedHtml(t.advDuplicate)}</button>
@@ -465,6 +602,7 @@ function renderAdvancedPartsEditor() {
     if (sequenceHint) sequenceHint.textContent = t.advSequenceHint;
     if (modeKicker) modeKicker.textContent = t.advModeKicker;
     renderAdvancedFlow();
+    renderAdvancedSequenceHealth();
     updateAdvancedHoldHint();
     document.getElementById('advanced-parts-list').innerHTML = selectedPart ? renderAdvancedPartCard(selectedPart, selectedIndex) : '';
     renderAdvancedPartLines();
@@ -522,6 +660,22 @@ function seekToAdvancedPart(part) {
     isProgrammaticScroll = true;
     scrollTimeline.scrollLeft = (playerVideo.currentTime / playerVideo.duration) * filmstrip.offsetWidth;
     setTimeout(() => { isProgrammaticScroll = false; }, 20);
+}
+
+async function previewAdvancedPartSource(part) {
+    if (!part) return;
+    currentProject.advancedExpandedId = part.id;
+    const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+    if (window.BASSourceLibrary && sourceId) {
+        await BASSourceLibrary.preview(sourceId);
+        const video = document.getElementById('source-library-preview-video');
+        if (video && !video.hidden && Number.isFinite(video.duration) && video.duration > 0) {
+            const target = BASSourceLibrary.sourceTimeToPreview(sourceId, part.start, video);
+            video.currentTime = Math.max(0, Math.min(video.duration, target));
+        }
+        return;
+    }
+    seekToAdvancedPart(part);
 }
 
 function getAdvancedPlayheadSourceTime() {
@@ -1188,6 +1342,16 @@ if (advancedEditor) {
             document.querySelector(`[data-part-card="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else if (action === 'pick-audio') {
             document.querySelector(`[data-advanced-audio-file="${CSS.escape(id)}"]`)?.click();
+        } else if (action === 'preview-part') {
+            previewAdvancedPartSource(part);
+        } else if (action === 'set-type') {
+            if (part) {
+                part.type = target.dataset.value === 'p' ? 'p' : 'c';
+                markAdvancedPartsDirty();
+                renderAdvancedPartsEditor();
+            }
+        } else if (action === 'focus-issue') {
+            focusAdvancedValidationIssue(getAdvancedPartValidationIssue(id));
         } else if (action === 'move-up') moveAdvancedPart(id, -1);
         else if (action === 'move-down') moveAdvancedPart(id, 1);
         else if (action === 'duplicate') duplicateAdvancedPart(id);
@@ -1196,7 +1360,7 @@ if (advancedEditor) {
     });
 
     advancedEditor.addEventListener('pointerdown', event => {
-        const chip = event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary[data-part-id]');
+        const chip = event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary-main[data-part-id]');
         if (!chip || isGenerating || isBuildingTimeline) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         cancelAdvancedPartHold();
@@ -1243,7 +1407,7 @@ if (advancedEditor) {
     });
 
     advancedEditor.addEventListener('contextmenu', event => {
-        if (event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary[data-part-id]')) event.preventDefault();
+        if (event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary-main[data-part-id]')) event.preventDefault();
     });
 
     advancedEditor.addEventListener('change', event => {
@@ -1281,6 +1445,12 @@ if (advancedEditor) {
     });
 }
 
+document.getElementById('advanced-health-focus')?.addEventListener('click', () => focusAdvancedValidationIssue());
+document.getElementById('btn-gerar')?.addEventListener('click', () => {
+    if (!isAdvancedPartsActive()) return;
+    const validation = validateAdvancedParts();
+    if (!validation.valid) focusAdvancedValidationIssue(validation.issues[0]);
+});
 document.getElementById('btn-open-advanced-parts')?.addEventListener('click', enterAdvancedPartsMode);
 document.getElementById('btn-advanced-add')?.addEventListener('click', createNewAdvancedPartAtPlayhead);
 document.getElementById('btn-advanced-split')?.addEventListener('click', splitAdvancedPartAtPlayhead);
