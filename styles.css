@@ -8945,3 +8945,509 @@ summary:focus-visible {
     color: #86eee5;
 }
 
+
+.output-tool-glyph-composition::before,
+.output-tool-glyph-composition::after {
+    content: "";
+    position: absolute;
+}
+
+.output-tool-glyph-composition::before {
+    inset: 3px;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+}
+
+.output-tool-glyph-composition::after {
+    width: 7px;
+    height: 7px;
+    right: 0;
+    top: 0;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    background: var(--surface-1, #111722);
+}
+
+#output-panel-composition {
+    gap: 18px;
+}
+
+.composition-studio {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.composition-stage-column,
+.composition-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.composition-stage-shell {
+    --composition-aspect: 9 / 16;
+    position: relative;
+    width: min(100%, var(--composition-max-width, 540px));
+    aspect-ratio: var(--composition-aspect);
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid rgba(3, 218, 198, 0.3);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 18% 10%, rgba(187, 134, 252, 0.16), transparent 38%),
+        linear-gradient(145deg, #08070d, #030508);
+    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.composition-stage-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+    background-size: 25% 25%;
+}
+
+#composition-stage-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: default;
+}
+
+#composition-stage-canvas.is-dragging {
+    cursor: grabbing;
+}
+
+.composition-stage-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    padding: 6px 9px;
+    border: 1px solid rgba(187, 134, 252, 0.28);
+    border-radius: 999px;
+    background: rgba(7, 5, 12, 0.78);
+    color: #e3caff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    backdrop-filter: blur(10px);
+}
+
+.composition-preview-control,
+.composition-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.composition-preview-control > div,
+.composition-field-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.composition-preview-control span,
+.composition-field label {
+    color: var(--text-muted, #a9b3c3);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.composition-preview-control strong,
+.composition-field-heading strong {
+    color: #7ff6ea;
+    font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.composition-preview-control input[type="range"],
+.composition-field input[type="range"] {
+    width: 100%;
+    accent-color: #03dac6;
+}
+
+.composition-add-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.composition-add-actions button,
+.composition-add-actions label {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 10px 14px;
+    border: 1px solid rgba(187, 134, 252, 0.26);
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(187, 134, 252, 0.13), rgba(3, 218, 198, 0.055));
+    color: #f4ecff;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.composition-add-actions button:hover,
+.composition-add-actions label:hover {
+    border-color: rgba(3, 218, 198, 0.48);
+    background: linear-gradient(145deg, rgba(187, 134, 252, 0.18), rgba(3, 218, 198, 0.09));
+}
+
+.composition-add-glyph {
+    display: grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+    background: rgba(3, 218, 198, 0.11);
+    color: #7ff6ea;
+    font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+    font-size: 0.9rem;
+}
+
+.composition-timing-hint {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--text-muted, #9ca8ba);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.composition-sidebar {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid rgba(187, 134, 252, 0.16);
+    border-radius: 18px;
+    background: linear-gradient(160deg, rgba(22, 16, 29, 0.82), rgba(9, 12, 18, 0.92));
+}
+
+.composition-layers-head,
+.composition-inspector-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.composition-layers-head strong,
+.composition-inspector-heading strong {
+    color: #efe7f8;
+    font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+    font-size: 0.92rem;
+}
+
+.composition-layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.composition-layer-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.024);
+    overflow: hidden;
+}
+
+.composition-layer-card.is-selected {
+    border-color: rgba(3, 218, 198, 0.4);
+    background: linear-gradient(135deg, rgba(3, 218, 198, 0.08), rgba(187, 134, 252, 0.07));
+    box-shadow: inset 3px 0 0 rgba(3, 218, 198, 0.72);
+}
+
+.composition-layer-card.is-hidden {
+    opacity: 0.55;
+}
+
+.composition-layer-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 8px 10px 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.composition-layer-icon {
+    position: relative;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: rgba(187, 134, 252, 0.1);
+    color: #d4adff;
+}
+
+.composition-layer-icon-text::before {
+    content: "T";
+    font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+    font-weight: 700;
+}
+
+.composition-layer-icon-image::before {
+    content: "";
+    width: 14px;
+    height: 11px;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+}
+
+.composition-layer-icon-image::after {
+    content: "";
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    right: 7px;
+    top: 7px;
+    border-radius: 50%;
+    background: #7ff6ea;
+}
+
+.composition-layer-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.composition-layer-copy strong,
+.composition-layer-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.composition-layer-copy strong {
+    color: #f4eefb;
+    font-size: 0.82rem;
+}
+
+.composition-layer-copy small {
+    color: var(--text-muted, #9da9b8);
+    font-size: 0.7rem;
+}
+
+.composition-layer-actions {
+    display: flex;
+    align-items: center;
+    padding-right: 6px;
+}
+
+.composition-layer-actions button {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #b8c1cf;
+    cursor: pointer;
+}
+
+.composition-layer-actions button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+}
+
+.composition-layer-actions button:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+.composition-empty,
+.composition-inspector-empty {
+    padding: 18px 14px;
+    border: 1px dashed rgba(187, 134, 252, 0.2);
+    border-radius: 14px;
+    text-align: center;
+    background: rgba(187, 134, 252, 0.025);
+}
+
+.composition-empty strong,
+.composition-inspector-empty strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #e8ddf5;
+    font-size: 0.84rem;
+}
+
+.composition-empty p,
+.composition-inspector-empty p {
+    margin: 0;
+    color: var(--text-muted, #9ca8b8);
+    font-size: 0.74rem;
+    line-height: 1.45;
+}
+
+.composition-inspector {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.composition-inspector[hidden],
+.composition-type-fields[hidden],
+.composition-empty[hidden],
+.composition-inspector-empty[hidden] {
+    display: none !important;
+}
+
+.composition-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.composition-field input[type="text"],
+.composition-field input[type="number"],
+.composition-field textarea,
+.composition-field select,
+.composition-type-fields input[type="text"],
+.composition-type-fields textarea,
+.composition-type-fields select {
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 11px;
+    background: rgba(4, 7, 11, 0.78);
+    color: #edf3f8;
+    font: inherit;
+}
+
+.composition-field textarea,
+.composition-type-fields textarea {
+    resize: vertical;
+    min-height: 76px;
+}
+
+.composition-field input[type="color"] {
+    width: 100%;
+    min-height: 42px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 11px;
+    background: rgba(4, 7, 11, 0.78);
+}
+
+.composition-type-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    padding: 12px;
+    border: 1px solid rgba(3, 218, 198, 0.12);
+    border-radius: 14px;
+    background: rgba(3, 218, 198, 0.025);
+}
+
+.composition-subkicker {
+    color: #7ff6ea;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.composition-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #d8e0e9;
+    font-size: 0.8rem;
+}
+
+.composition-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #bb86fc;
+}
+
+.composition-image-file {
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: rgba(187, 134, 252, 0.06);
+    color: #ceb3ea;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.composition-delete {
+    min-height: 42px;
+    border: 1px solid rgba(255, 96, 126, 0.24);
+    border-radius: 11px;
+    background: rgba(255, 96, 126, 0.07);
+    color: #ff9eb2;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.composition-delete:hover {
+    border-color: rgba(255, 96, 126, 0.42);
+    background: rgba(255, 96, 126, 0.11);
+}
+
+@media (max-width: 859px) {
+    .composition-studio {
+        grid-template-columns: 1fr;
+    }
+
+    .composition-stage-shell {
+        width: min(100%, var(--composition-max-width, 460px));
+    }
+
+    .composition-sidebar {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 430px) {
+    .composition-field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .composition-add-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .composition-layer-card {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .composition-layer-actions button {
+        width: 28px;
+    }
+}
