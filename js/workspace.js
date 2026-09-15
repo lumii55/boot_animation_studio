@@ -37,6 +37,7 @@ function setWorkspaceView(view, options = {}) {
         button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('workspace-view', { emit: true });
+    if (view === 'edit' && window.BASComposition) requestAnimationFrame(() => BASComposition.open());
     if (options.scroll !== false && window.matchMedia('(max-width: 859px)').matches) {
         const sourceDock = document.getElementById('source-dock');
         const target = view === 'edit'

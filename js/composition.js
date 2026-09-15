@@ -14,7 +14,10 @@ const compositionRuntime = {
     moved: false,
     lastBounds: [],
     imageCache: new Map(),
-    exportCanvas: document.createElement('canvas')
+    exportCanvas: document.createElement('canvas'),
+    previewBaseCanvas: document.createElement('canvas'),
+    previewBaseReady: false,
+    dragFrame: 0
 };
 
 function compositionText(key, fallback) {
@@ -369,23 +372,53 @@ async function compositionBaseFrame(time, width, height) {
     return getProjectFrameOutputBlob(time, width, height, 'png', framing, focus, 1);
 }
 
-async function renderCompositionPreview() {
-    const canvas = document.getElementById('composition-stage-canvas');
-    const shell = document.getElementById('composition-stage-shell');
-    if (!canvas || !shell || !currentProject || !(currentProject.sourceBlob instanceof Blob)) return;
-    const generation = ++compositionRuntime.renderGeneration;
-    const settings = compositionOutputSettings();
+function syncCompositionPreviewGeometry(canvas, shell, settings) {
     if (canvas.width !== settings.width) canvas.width = settings.width;
     if (canvas.height !== settings.height) canvas.height = settings.height;
     shell.style.setProperty('--composition-aspect', `${settings.sourceWidth} / ${settings.sourceHeight}`);
     const previewRatio = settings.sourceWidth / Math.max(1, settings.sourceHeight);
     const previewHeight = Math.min(560, Math.max(280, window.innerHeight * 0.58));
     shell.style.setProperty('--composition-max-width', `${Math.max(120, Math.min(540, previewHeight * previewRatio))}px`);
+}
+
+function copyCompositionBaseFrame(ctx, canvas) {
+    const base = compositionRuntime.previewBaseCanvas;
+    if (!compositionRuntime.previewBaseReady || base.width !== canvas.width || base.height !== canvas.height) return false;
+    ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+    return true;
+}
+
+async function renderCompositionOverlayFromBase() {
+    const canvas = document.getElementById('composition-stage-canvas');
+    if (!canvas || !currentProject || !compositionRuntime.previewBaseReady) return;
     const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!copyCompositionBaseFrame(ctx, canvas)) return;
+    compositionRuntime.lastBounds = await renderCompositionLayers(ctx, compositionRuntime.previewTime, canvas.width, canvas.height, { showSelection: true });
+}
+
+function scheduleCompositionDragPreview() {
+    if (compositionRuntime.dragFrame) return;
+    compositionRuntime.dragFrame = requestAnimationFrame(() => {
+        compositionRuntime.dragFrame = 0;
+        renderCompositionOverlayFromBase();
+    });
+}
+
+async function renderCompositionPreview() {
+    const canvas = document.getElementById('composition-stage-canvas');
+    const shell = document.getElementById('composition-stage-shell');
+    if (!canvas || !shell || !currentProject || !(currentProject.sourceBlob instanceof Blob)) return;
+    const generation = ++compositionRuntime.renderGeneration;
+    const settings = compositionOutputSettings();
+    syncCompositionPreviewGeometry(canvas, shell, settings);
     const duration = compositionDuration();
     compositionRuntime.previewTime = compositionClamp(compositionRuntime.previewTime, 0, duration, 0);
+    const base = compositionRuntime.previewBaseCanvas;
+    if (base.width !== canvas.width || base.height !== canvas.height) {
+        base.width = canvas.width;
+        base.height = canvas.height;
+        compositionRuntime.previewBaseReady = false;
+    }
     try {
         const blob = await compositionBaseFrame(compositionRuntime.previewTime, canvas.width, canvas.height);
         if (generation !== compositionRuntime.renderGeneration) return;
@@ -394,12 +427,21 @@ async function renderCompositionPreview() {
             releaseDrawable(drawable);
             return;
         }
-        ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
+        const baseCtx = base.getContext('2d', { alpha: false });
+        baseCtx.fillStyle = '#000000';
+        baseCtx.fillRect(0, 0, base.width, base.height);
+        baseCtx.drawImage(drawable, 0, 0, base.width, base.height);
         releaseDrawable(drawable);
+        compositionRuntime.previewBaseReady = true;
+        const ctx = canvas.getContext('2d', { alpha: false });
+        copyCompositionBaseFrame(ctx, canvas);
         compositionRuntime.lastBounds = await renderCompositionLayers(ctx, compositionRuntime.previewTime, canvas.width, canvas.height, { showSelection: true });
     } catch (error) {
-        ctx.fillStyle = '#05070b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (!compositionRuntime.previewBaseReady) {
+            const ctx = canvas.getContext('2d', { alpha: false });
+            ctx.fillStyle = '#05070b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
     }
 }
 
@@ -712,7 +754,7 @@ function compositionPointerMove(event) {
     layer.x = compositionClamp(compositionRuntime.pointerLayerStart.x + dx, 0, 1, 0.5);
     layer.y = compositionClamp(compositionRuntime.pointerLayerStart.y + dy, 0, 1, 0.5);
     renderCompositionInspector();
-    scheduleCompositionPreview(0);
+    scheduleCompositionDragPreview();
     event.preventDefault();
 }
 
@@ -727,7 +769,14 @@ function compositionPointerUp(event) {
     compositionRuntime.pointerStart = null;
     compositionRuntime.pointerLayerStart = null;
     compositionRuntime.moved = false;
-    if (moved && layer) touchComposition('composition', `composition:${layer.id}:position`);
+    if (compositionRuntime.dragFrame) {
+        cancelAnimationFrame(compositionRuntime.dragFrame);
+        compositionRuntime.dragFrame = 0;
+    }
+    if (moved && layer) {
+        renderCompositionOverlayFromBase();
+        touchComposition('composition', `composition:${layer.id}:position`);
+    }
 }
 
 function syncCompositionText() {
@@ -792,6 +841,11 @@ function initializeCompositionForProject() {
         compositionRuntime.selectedId = '';
         compositionRuntime.previewTime = 0;
         compositionRuntime.renderGeneration += 1;
+        compositionRuntime.previewBaseReady = false;
+        if (compositionRuntime.dragFrame) {
+            cancelAnimationFrame(compositionRuntime.dragFrame);
+            compositionRuntime.dragFrame = 0;
+        }
         compositionRuntime.imageCache.forEach(entry => {
             if (entry.drawable && typeof entry.drawable.close === 'function') entry.drawable.close();
         });
@@ -799,6 +853,7 @@ function initializeCompositionForProject() {
     }
     if (currentProject) ensureProjectComposition();
     renderCompositionUi();
+    if (currentProject && currentProject.sourceBlob instanceof Blob) scheduleCompositionPreview(0);
 }
 
 function bindComposition() {
