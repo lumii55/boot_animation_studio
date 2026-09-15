@@ -17,8 +17,9 @@ function isAdvancedPartsDirty() {
     return !!currentProject && !!currentProject.advancedPartsDirty;
 }
 
-function getAdvancedSourceDuration() {
+function getAdvancedSourceDuration(part = null) {
     if (!currentProject) return 0;
+    if (part && window.BASSourceLibrary) return Math.max(0, BASSourceLibrary.getDuration(BASSourceLibrary.getPartSourceId(part)) || 0);
     return Math.max(0, Number(currentProject.sourceDuration) || timelineTimeToProjectTime(playerVideo.duration || 0) || 0);
 }
 
@@ -33,7 +34,8 @@ function cloneAdvancedAudioState(audio = {}) {
         normalize: !!audio.normalize,
         source: audio.source instanceof Blob ? audio.source : null,
         sourceName: String(audio.sourceName || ''),
-        sourceKind: ['imported', 'file'].includes(audio.sourceKind) ? audio.sourceKind : 'none'
+        sourceKind: ['imported', 'file', 'library'].includes(audio.sourceKind) ? audio.sourceKind : 'none',
+        sourceLibraryId: String(audio.sourceLibraryId || '')
     };
 }
 
@@ -45,6 +47,7 @@ function cloneAdvancedPart(part) {
         type: part.type === 'p' ? 'p' : 'c',
         repeat: Math.max(0, Math.floor(Number(part.repeat) || 0)),
         pause: Math.max(0, Math.floor(Number(part.pause) || 0)),
+        sourceId: String(part.sourceId || (window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '')),
         start: Math.max(0, Number(part.start) || 0),
         end: Math.max(0, Number(part.end) || 0),
         extraTokens: Array.isArray(part.extraTokens) ? [...part.extraTokens] : [],
@@ -78,9 +81,14 @@ function getAdvancedDefaultLabel(index) {
     return `${t.advDefaultPart} ${index + 1}`;
 }
 
+function getAdvancedPrimarySourceId() {
+    return window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '';
+}
+
 function normalizeAdvancedPartRange(part) {
-    const duration = getAdvancedSourceDuration();
-    const fps = Math.max(1, Number(currentProject && currentProject.fps) || 30);
+    const duration = getAdvancedSourceDuration(part);
+    const source = window.BASSourceLibrary && part ? BASSourceLibrary.getPartSource(part) : null;
+    const fps = Math.max(1, Number(source && source.fps) || Number(currentProject && currentProject.fps) || 30);
     const minSpan = Math.min(0.05, 1 / fps);
     part.start = Math.max(0, Math.min(duration, Number(part.start) || 0));
     part.end = Math.max(0, Math.min(duration, Number(part.end) || 0));
@@ -118,6 +126,7 @@ function buildAdvancedPartsFromImportedProject() {
         type: part.type === 'p' ? 'p' : 'c',
         repeat: Math.max(0, Number(part.repeat) || 0),
         pause: Math.max(0, Number(part.pause) || 0),
+        sourceId: getAdvancedPrimarySourceId(),
         start: Math.max(0, Number(part.frameStart) || 0) / fps,
         end: Math.max(0, (Number(part.frameStart) || 0) + (Number(part.frameCount) || 0)) / fps,
         extraTokens: Array.isArray(part.tokens) ? part.tokens.slice(4) : [],
@@ -138,15 +147,15 @@ function buildAdvancedPartsFromSimpleEditor() {
     if (ordered && markers.m3 > markers.m0) {
         return [
             {
-                id: nextAdvancedPartId(), label: t.advIntro, folder: 'part0', type: 'c', repeat: 1, pause: 0,
+                id: nextAdvancedPartId(), label: t.advIntro, folder: 'part0', type: 'c', repeat: 1, pause: 0, sourceId: getAdvancedPrimarySourceId(),
                 start: markers.m0, end: markers.m1, extraTokens: [], audio: advancedAudioFromSimpleRole('intro')
             },
             {
-                id: nextAdvancedPartId(), label: t.advLoop, folder: 'part1', type: 'p', repeat: 0, pause: 0,
+                id: nextAdvancedPartId(), label: t.advLoop, folder: 'part1', type: 'p', repeat: 0, pause: 0, sourceId: getAdvancedPrimarySourceId(),
                 start: markers.m1, end: markers.m2, extraTokens: [], audio: advancedAudioFromSimpleRole('loop')
             },
             {
-                id: nextAdvancedPartId(), label: t.advOutro, folder: 'part2', type: 'c', repeat: 1, pause: 0,
+                id: nextAdvancedPartId(), label: t.advOutro, folder: 'part2', type: 'c', repeat: 1, pause: 0, sourceId: getAdvancedPrimarySourceId(),
                 start: markers.m2, end: markers.m3, extraTokens: [], audio: advancedAudioFromSimpleRole('final')
             }
         ].filter(part => part.end > part.start);
@@ -159,6 +168,7 @@ function buildAdvancedPartsFromSimpleEditor() {
         type: 'c',
         repeat: 1,
         pause: 0,
+        sourceId: getAdvancedPrimarySourceId(),
         start: 0,
         end: duration,
         extraTokens: [],
@@ -197,9 +207,11 @@ function validateAdvancedParts() {
     if (!isAdvancedPartsActive()) return { valid: false, message: t.advInvalidParts };
     const parts = getAdvancedParts();
     if (isImportedBootanimationProject() && !isAdvancedPartsDirty() && parts.length > 0) return { valid: true, message: '' };
-    const duration = getAdvancedSourceDuration();
     const folders = new Set();
     for (const part of parts) {
+        const source = window.BASSourceLibrary ? BASSourceLibrary.getPartSource(part) : null;
+        const duration = getAdvancedSourceDuration(part);
+        if (window.BASSourceLibrary && (!source || source.role !== 'visual')) return { valid: false, message: t.advMissingSource || t.advInvalidRange };
         if (!Number.isFinite(part.start) || !Number.isFinite(part.end) || part.start < 0 || part.end <= part.start || part.end > duration + 0.001) return { valid: false, message: t.advInvalidRange };
         if (!/^[A-Za-z0-9._-]{1,64}$/.test(part.folder)) return { valid: false, message: t.advInvalidFolder };
         const folderKey = part.folder.toLowerCase();
@@ -258,6 +270,39 @@ function updateAdvancedHoldHint(sourceTime = getAdvancedPlayheadSourceTime()) {
     hint.textContent = t.advHoldHint.replace('{time}', `${formatTimelineSecondsExact(sourceTime)}s`);
 }
 
+
+function getAdvancedPartSource(part) {
+    return window.BASSourceLibrary ? BASSourceLibrary.getPartSource(part) : null;
+}
+
+function getAdvancedPartSourceName(part) {
+    const source = getAdvancedPartSource(part);
+    return source ? source.name : (currentProject && currentProject.sourceName ? currentProject.sourceName : '');
+}
+
+function renderAdvancedSourceField(part) {
+    const t = traducoes[idiomaAtual];
+    if (!window.BASSourceLibrary) return '';
+    const sources = BASSourceLibrary.getVisual();
+    const activeId = BASSourceLibrary.getPartSourceId(part);
+    const active = BASSourceLibrary.getById(activeId);
+    const options = sources.map(source => `<option value="${escapeAdvancedHtml(source.id)}"${source.id === activeId ? ' selected' : ''}>${escapeAdvancedHtml(source.name)}</option>`).join('');
+    const meta = active ? `${active.width && active.height ? `${active.width} × ${active.height} · ` : ''}${formatAdvancedSeconds(BASSourceLibrary.getDuration(active.id))}` : '';
+    return `<div class="advanced-field advanced-field-wide advanced-source-field"><label>${escapeAdvancedHtml(t.advVisualSource || 'Visual source')}</label><select data-advanced-field="source" data-part-id="${escapeAdvancedHtml(part.id)}">${options}</select><small class="advanced-source-meta">${escapeAdvancedHtml(meta)}</small></div>`;
+}
+
+function renderAdvancedLibraryAudioPicker(part) {
+    const t = traducoes[idiomaAtual];
+    if (!window.BASSourceLibrary) return '';
+    const sources = BASSourceLibrary.getAudio();
+    if (!sources.length) return '';
+    const activeId = part.audio && part.audio.sourceKind === 'library' ? part.audio.sourceLibraryId || '' : '';
+    const options = [`<option value="">${escapeAdvancedHtml(t.advAudioExternal || 'External file')}</option>`]
+        .concat(sources.map(source => `<option value="${escapeAdvancedHtml(source.id)}"${source.id === activeId ? ' selected' : ''}>${escapeAdvancedHtml(source.name)}</option>`))
+        .join('');
+    return `<div class="advanced-field advanced-field-wide"><label>${escapeAdvancedHtml(t.advLibraryAudio || 'Library audio')}</label><select data-advanced-field="audio-library" data-part-id="${escapeAdvancedHtml(part.id)}">${options}</select></div>`;
+}
+
 function renderAdvancedFlow() {
     const flow = document.getElementById('advanced-parts-flow');
     if (!flow) return;
@@ -273,7 +318,7 @@ function renderAdvancedFlow() {
         const selected = currentProject.advancedExpandedId === part.id;
         const span = Math.max(0.001, part.end - part.start);
         const weight = Math.max(80, Math.round((span / totalDuration) * 1000));
-        return `<button type="button" class="advanced-flow-chip tone-${tone}${selected ? ' is-selected' : ''}" style="--part-weight:${weight}" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}"><span class="advanced-flow-index">${getAdvancedPartIcon(part, index)}</span><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)}</small><em>${escapeAdvancedHtml(getAdvancedRepeatText(part))}</em></button>`;
+        return `<button type="button" class="advanced-flow-chip tone-${tone}${selected ? ' is-selected' : ''}" style="--part-weight:${weight}" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}"><span class="advanced-flow-index">${getAdvancedPartIcon(part, index)}</span><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><small>${escapeAdvancedHtml(getAdvancedPartSourceName(part))} · ${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)}</small><em>${escapeAdvancedHtml(getAdvancedRepeatText(part))}</em></button>`;
     }).join('');
 }
 
@@ -281,7 +326,7 @@ function renderAdvancedAudioEditor(part) {
     const t = traducoes[idiomaAtual];
     const audio = part.audio;
     const hasAudio = audio.mode !== 'none';
-    const videoDisabled = currentProject && currentProject.sourceMode === 'frames';
+    const videoDisabled = window.BASSourceLibrary ? !BASSourceLibrary.supportsVideoAudio(BASSourceLibrary.getPartSourceId(part)) : currentProject && currentProject.sourceMode === 'frames';
     const sourceLabel = audio.mode === 'file' && audio.sourceName ? `<div class="advanced-audio-file-name">${escapeAdvancedHtml(audio.sourceName)}</div>` : '';
     const fileButton = audio.mode === 'file' ? `<button type="button" class="advanced-audio-pick" data-advanced-action="pick-audio" data-part-id="${escapeAdvancedHtml(part.id)}">${escapeAdvancedHtml(audio.source instanceof Blob ? t.advReplaceAudio : t.advChooseAudio)}</button>` : '';
     return `
@@ -296,6 +341,7 @@ function renderAdvancedAudioEditor(part) {
             ${sourceLabel}
             ${fileButton}
         </div>
+        ${audio.mode === 'file' ? renderAdvancedLibraryAudioPicker(part) : ''}
         ${hasAudio ? `
         <div class="advanced-field advanced-field-wide advanced-volume-row">
             <label>${escapeAdvancedHtml(t.advVolume)} <strong data-advanced-value="volume-${escapeAdvancedHtml(part.id)}">${Math.round(audio.volume)}%</strong></label>
@@ -331,7 +377,7 @@ function renderAdvancedPartCard(part, index) {
         <article class="advanced-part-card tone-${tone} expanded" data-part-card="${escapeAdvancedHtml(part.id)}">
             <button type="button" class="advanced-part-summary" data-advanced-action="select" data-part-id="${escapeAdvancedHtml(part.id)}">
                 <span class="advanced-part-icon">${getAdvancedPartIcon(part, index)}</span>
-                <span class="advanced-part-summary-text"><small>${escapeAdvancedHtml(t.advSelectedPart)}</small><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><span>${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)} · ${escapeAdvancedHtml(getAdvancedRepeatText(part))}</span></span>
+                <span class="advanced-part-summary-text"><small>${escapeAdvancedHtml(t.advSelectedPart)}</small><strong>${escapeAdvancedHtml(part.label || part.folder)}</strong><span>${escapeAdvancedHtml(getAdvancedPartSourceName(part))} · ${formatAdvancedSeconds(part.start)} – ${formatAdvancedSeconds(part.end)} · ${escapeAdvancedHtml(getAdvancedRepeatText(part))}</span></span>
                 <span class="advanced-part-focus-mark"></span>
             </button>
             <div class="advanced-part-body">
@@ -340,13 +386,14 @@ function renderAdvancedPartCard(part, index) {
                         <label>${escapeAdvancedHtml(t.advPartName)}</label>
                         <input type="text" maxlength="50" value="${escapeAdvancedHtml(part.label)}" data-advanced-field="label" data-part-id="${escapeAdvancedHtml(part.id)}">
                     </div>
+                    ${renderAdvancedSourceField(part)}
                     <div class="advanced-field">
                         <label>${escapeAdvancedHtml(t.advStart)}</label>
-                        <input type="number" min="0" max="${getAdvancedSourceDuration()}" step="0.01" value="${part.start.toFixed(2)}" data-advanced-field="start" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        <input type="number" min="0" max="${getAdvancedSourceDuration(part)}" step="0.01" value="${part.start.toFixed(2)}" data-advanced-field="start" data-part-id="${escapeAdvancedHtml(part.id)}">
                     </div>
                     <div class="advanced-field">
                         <label>${escapeAdvancedHtml(t.advEnd)}</label>
-                        <input type="number" min="0" max="${getAdvancedSourceDuration()}" step="0.01" value="${part.end.toFixed(2)}" data-advanced-field="end" data-part-id="${escapeAdvancedHtml(part.id)}">
+                        <input type="number" min="0" max="${getAdvancedSourceDuration(part)}" step="0.01" value="${part.end.toFixed(2)}" data-advanced-field="end" data-part-id="${escapeAdvancedHtml(part.id)}">
                     </div>
                     <div class="advanced-field">
                         <label>${escapeAdvancedHtml(t.advRepeat)}</label>
@@ -418,6 +465,7 @@ function renderAdvancedPartsEditor() {
     updateAdvancedHoldHint();
     document.getElementById('advanced-parts-list').innerHTML = selectedPart ? renderAdvancedPartCard(selectedPart, selectedIndex) : '';
     renderAdvancedPartLines();
+    if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
 }
 
 function syncAdvancedPartsUi() {
@@ -460,6 +508,7 @@ function getAdvancedPartById(id) {
 
 function seekToAdvancedPart(part) {
     if (!part || !playerVideo.duration) return;
+    if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) return;
     playerVideo.pause();
     const timelineTime = projectTimeToTimelineTime(part.start);
     playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, timelineTime));
@@ -478,8 +527,13 @@ function setAdvancedPartBoundaryToTime(part, boundary, sourceTime) {
     const parts = getAdvancedParts();
     const index = parts.findIndex(item => item.id === part.id);
     if (index < 0) return false;
-    const duration = getAdvancedSourceDuration();
-    const fps = Math.max(1, Number(currentProject.fps) || 30);
+    if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) {
+        if (typeof showToast === 'function') showToast(t.advSecondaryBoundaryHint || 'Use the source preview to set boundaries for this Part.', 'info', 3200);
+        return false;
+    }
+    const duration = getAdvancedSourceDuration(part);
+    const source = window.BASSourceLibrary ? BASSourceLibrary.getPartSource(part) : null;
+    const fps = Math.max(1, Number(source && source.fps) || Number(currentProject.fps) || 30);
     const minSpan = Math.max(0.02, 0.5 / fps);
     const epsilon = Math.max(0.02, 0.5 / fps);
     const oldStart = part.start;
@@ -495,7 +549,8 @@ function setAdvancedPartBoundaryToTime(part, boundary, sourceTime) {
         }
         nextStart = Math.max(0, Math.min(nextStart, Math.max(0, part.end - minSpan)));
         const previous = index > 0 ? parts[index - 1] : null;
-        if (previous && Math.abs(previous.end - oldStart) <= epsilon && nextStart > previous.start + minSpan) previous.end = nextStart;
+        const samePreviousSource = !window.BASSourceLibrary || !previous || BASSourceLibrary.getPartSourceId(previous) === BASSourceLibrary.getPartSourceId(part);
+        if (previous && samePreviousSource && Math.abs(previous.end - oldStart) <= epsilon && nextStart > previous.start + minSpan) previous.end = nextStart;
         part.start = nextStart;
     } else {
         let nextEnd = target;
@@ -505,7 +560,8 @@ function setAdvancedPartBoundaryToTime(part, boundary, sourceTime) {
         }
         nextEnd = Math.min(duration, Math.max(nextEnd, Math.min(duration, part.start + minSpan)));
         const next = index < parts.length - 1 ? parts[index + 1] : null;
-        if (next && Math.abs(next.start - oldEnd) <= epsilon && nextEnd < next.end - minSpan) next.start = nextEnd;
+        const sameNextSource = !window.BASSourceLibrary || !next || BASSourceLibrary.getPartSourceId(next) === BASSourceLibrary.getPartSourceId(part);
+        if (next && sameNextSource && Math.abs(next.start - oldEnd) <= epsilon && nextEnd < next.end - minSpan) next.start = nextEnd;
         part.end = nextEnd;
     }
 
@@ -540,6 +596,7 @@ function createNewAdvancedPartAtPlayhead() {
         type: 'c',
         repeat: 1,
         pause: 0,
+        sourceId: getAdvancedPrimarySourceId(),
         start,
         end,
         extraTokens: [],
@@ -559,7 +616,8 @@ function splitAdvancedPartAtPlayhead() {
     const time = getAdvancedPlayheadSourceTime();
     const fps = Math.max(1, Number(currentProject.fps) || 30);
     const margin = Math.max(0.02, 0.5 / fps);
-    const index = getAdvancedParts().findIndex(part => time > part.start + margin && time < part.end - margin);
+    const primaryId = window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '';
+    const index = getAdvancedParts().findIndex(part => (!window.BASSourceLibrary || BASSourceLibrary.getPartSourceId(part) === primaryId) && time > part.start + margin && time < part.end - margin);
     if (index < 0) {
         if (typeof showToast === 'function') showToast(t.advSplitUnavailable, 'warning');
         return;
@@ -574,6 +632,7 @@ function splitAdvancedPartAtPlayhead() {
         type: part.type,
         repeat: originalRepeat,
         pause: originalPause,
+        sourceId: String(part.sourceId || getAdvancedPrimarySourceId()),
         start: time,
         end: part.end,
         extraTokens: [...part.extraTokens],
@@ -635,6 +694,10 @@ function mergeAdvancedPartWithNext(id) {
     if (index < 0 || index >= parts.length - 1) return;
     const current = parts[index];
     const next = parts[index + 1];
+    if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(current) !== BASSourceLibrary.getPartSourceId(next)) {
+        if (typeof showToast === 'function') showToast(t.advMergeSourceMismatch || t.advMergeUnavailable, 'warning');
+        return;
+    }
     const epsilon = Math.max(0.02, 0.5 / Math.max(1, Number(currentProject.fps) || 30));
     if (Math.abs(current.end - next.start) > epsilon) {
         if (typeof showToast === 'function') showToast(t.advMergeUnavailable, 'warning');
@@ -652,6 +715,24 @@ function updateAdvancedPartField(part, field, value, element) {
     if (field === 'label') {
         part.label = String(value || '').trim() || part.folder;
         renderAdvancedPartsEditor();
+        return;
+    }
+    if (field === 'source') {
+        if (window.BASSourceLibrary) BASSourceLibrary.assignVisual(part, value, true);
+        return;
+    }
+    if (field === 'audio-library') {
+        if (window.BASSourceLibrary && value) BASSourceLibrary.assignAudio(part, value);
+        else if (part.audio) {
+            part.audio.source = null;
+            part.audio.sourceName = '';
+            part.audio.sourceKind = 'none';
+            part.audio.sourceLibraryId = '';
+            part.audio.mode = 'file';
+            markAdvancedPartsDirty();
+            renderAdvancedPartsEditor();
+            setTimeout(() => document.querySelector(`[data-advanced-audio-file="${CSS.escape(part.id)}"]`)?.click(), 0);
+        }
         return;
     }
     if (field === 'folder') {
@@ -672,7 +753,15 @@ function updateAdvancedPartField(part, field, value, element) {
     } else if (field === 'repeat-custom') {
         part.repeat = Math.max(1, Math.min(999, Math.floor(Number(value) || 1)));
     } else if (field === 'audio-mode') {
-        part.audio.mode = ['none', 'video', 'file'].includes(value) ? value : 'none';
+        const requested = ['none', 'video', 'file'].includes(value) ? value : 'none';
+        const supportsVideo = !window.BASSourceLibrary || BASSourceLibrary.supportsVideoAudio(BASSourceLibrary.getPartSourceId(part));
+        part.audio.mode = requested === 'video' && !supportsVideo ? 'none' : requested;
+        if (part.audio.mode !== 'file' && part.audio.sourceKind === 'library') {
+            part.audio.source = null;
+            part.audio.sourceName = '';
+            part.audio.sourceKind = 'none';
+            part.audio.sourceLibraryId = '';
+        }
     } else if (field === 'audio-volume') {
         part.audio.volume = Math.max(0, Math.min(100, Number(value) || 0));
         const label = document.querySelector(`[data-advanced-value="volume-${CSS.escape(part.id)}"]`);
@@ -715,6 +804,7 @@ function renderAdvancedPartLines() {
     if (!isAdvancedPartsActive() || !playerVideo.duration || !filmstrip.offsetWidth) return;
     const seen = new Set();
     getAdvancedParts().forEach((part, index) => {
+        if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) return;
         [part.start, part.end].forEach(sourceTime => {
             const timelineTime = projectTimeToTimelineTime(sourceTime);
             const key = timelineTime.toFixed(4);
@@ -796,20 +886,28 @@ async function prepareAdvancedPartsPreviewAudio() {
     clearAdvancedPreviewAudio();
     if (!isAdvancedPartsActive()) return;
     const parts = getAdvancedParts();
-    const needsVideo = parts.some(part => part.audio.mode === 'video');
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
     const audioCtx = new AudioContextClass();
-    let videoAudioBuffer = null;
+    const videoAudioBuffers = new Map();
     try {
-        if (needsVideo) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
         for (const part of parts) {
             if (generation !== advancedPreviewGeneration) return;
+            let videoAudioBuffer = null;
+            if (part.audio && part.audio.mode === 'video') {
+                const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+                const key = sourceId || 'primary';
+                if (!videoAudioBuffers.has(key)) {
+                    const sourceBlob = window.BASSourceLibrary ? BASSourceLibrary.getVideoAudioBlob(sourceId) : currentProject.sourceBlob;
+                    videoAudioBuffers.set(key, sourceBlob ? await decodificarAudioFonte(sourceBlob, audioCtx) : null);
+                }
+                videoAudioBuffer = videoAudioBuffers.get(key);
+            }
             const blob = await buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer);
             if (blob) advancedPreviewAudioBlobs.set(part.id, blob);
         }
     } finally {
-        videoAudioBuffer = null;
+        videoAudioBuffers.clear();
         if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
     }
 }
@@ -840,7 +938,9 @@ async function playAdvancedPreviewPart(index, played = 0) {
     state.played = played;
     videoPreview.pause();
     clearAdvancedPreviewAudio();
-    const target = projectTimeToTimelineTime(part.start);
+    const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+    if (window.BASSourceLibrary) await BASSourceLibrary.setVideoElementSource(videoPreview, sourceId);
+    const target = window.BASSourceLibrary ? BASSourceLibrary.sourceTimeToPreview(sourceId, part.start, videoPreview) : projectTimeToTimelineTime(part.start);
     if (Math.abs(videoPreview.currentTime - target) > 0.02) {
         await new Promise(resolve => {
             let finished = false;
@@ -893,7 +993,8 @@ function handleAdvancedPreviewTimeUpdate() {
     if (state.transitioning) return true;
     const part = getAdvancedParts()[state.index];
     if (!part) return true;
-    const end = projectTimeToTimelineTime(part.end);
+    const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+    const end = window.BASSourceLibrary ? BASSourceLibrary.sourceTimeToPreview(sourceId, part.end, videoPreview) : projectTimeToTimelineTime(part.end);
     if (videoPreview.currentTime >= Math.max(0, end - 0.015)) advanceAdvancedPreview();
     return true;
 }
@@ -935,6 +1036,7 @@ function advancedPartsCanUseSimpleExport() {
     ];
     return parts.every((part, index) => {
         const target = expected[index];
+        if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) return false;
         return Math.abs(part.start - target.start) <= epsilon &&
             Math.abs(part.end - target.end) <= epsilon &&
             part.folder === target.folder && part.type === target.type && part.repeat === target.repeat && part.pause === target.pause;
@@ -1005,6 +1107,11 @@ function openAdvancedTimePopover(part, anchor, sourceTime) {
     const popover = document.getElementById('advanced-time-popover');
     if (!popover || !part || !anchor) return;
     const t = traducoes[idiomaAtual];
+    if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) {
+        if (typeof showToast === 'function') showToast(t.advSecondaryBoundaryHint || 'Use the source preview to set boundaries for this Part.', 'info', 3200);
+        BASSourceLibrary.preview(BASSourceLibrary.getPartSourceId(part));
+        return;
+    }
     advancedHoldMenuPartId = part.id;
     advancedHoldMenuTime = Math.max(0, Math.min(getAdvancedSourceDuration(), Number(sourceTime) || 0));
     advancedHoldMenuAnchor = anchor;
@@ -1142,6 +1249,7 @@ if (advancedEditor) {
                 part.audio.source = file;
                 part.audio.sourceName = file.name || 'audio';
                 part.audio.sourceKind = 'file';
+                part.audio.sourceLibraryId = '';
                 markAdvancedPartsDirty();
                 renderAdvancedPartsEditor();
             } else if (part && !(part.audio.source instanceof Blob)) {

@@ -380,7 +380,10 @@ async function generateAdvancedPartFrames(zip, options, t) {
         const endLimit = Math.max(part.start, part.end - (1 / Math.max(options.fps, currentProject.fps || options.fps, 1)));
         for (let i = 0; i < count; i++) {
             const sourceTime = Math.min(endLimit, part.start + (i / options.fps));
-            const blob = await getProjectFrameOutputBlob(sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality);
+            const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+            const blob = window.BASSourceLibrary
+                ? await BASSourceLibrary.frameBlob(sourceId, sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality)
+                : await getProjectFrameOutputBlob(sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality);
             folder.file(`${String(i).padStart(5, '0')}${extension}`, blob);
             completed++;
             if (completed % 4 === 0 || completed === totalFrames) {
@@ -401,17 +404,26 @@ async function applyAdvancedPartAudio(zip, t) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
     const audioCtx = new AudioContextClass();
-    let videoAudioBuffer = null;
+    const videoAudioBuffers = new Map();
     try {
-        if (parts.some(part => part.audio.mode === 'video')) videoAudioBuffer = await decodificarAudioFonte(playerVideo.src, audioCtx);
         for (const part of parts) {
             removePartAudioEntries(zip, part.folder);
             if (!part.audio || part.audio.mode === 'none') continue;
+            let videoAudioBuffer = null;
+            if (part.audio.mode === 'video') {
+                const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+                const key = sourceId || 'primary';
+                if (!videoAudioBuffers.has(key)) {
+                    const sourceBlob = window.BASSourceLibrary ? BASSourceLibrary.getVideoAudioBlob(sourceId) : currentProject.sourceBlob;
+                    videoAudioBuffers.set(key, sourceBlob ? await decodificarAudioFonte(sourceBlob, audioCtx) : null);
+                }
+                videoAudioBuffer = videoAudioBuffers.get(key);
+            }
             const blob = await buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer);
             if (blob) zip.folder(part.folder).file('audio.wav', blob);
         }
     } finally {
-        videoAudioBuffer = null;
+        videoAudioBuffers.clear();
         if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
     }
 }

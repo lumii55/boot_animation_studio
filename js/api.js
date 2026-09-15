@@ -847,16 +847,33 @@ async function createMiniPreviewWebm(options = null) {
         rec.start();
         
         const advancedPart = typeof getAdvancedPreviewSamplePart === 'function' ? getAdvancedPreviewSamplePart() : null;
-        const sampleStart = advancedPart ? projectTimeToTimelineTime(advancedPart.start) : marcadores.m1;
-        const sampleEnd = advancedPart ? projectTimeToTimelineTime(advancedPart.end) : marcadores.m2;
-        let t = Number.isFinite(sampleStart) ? sampleStart : 0;
-        let step = Math.max(0.0001, ((Number.isFinite(sampleEnd) ? sampleEnd : t) - t) / 30); 
-        for(let i=0; i<30; i++) {
-            playerVideo.currentTime = t;
-            await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });
-            drawFramedDrawable(ctx, playerVideo, c.width, c.height, options && options.framing ? options.framing : 'cover', options && options.framingFocus ? options.framingFocus : getCurrentFramingFocus());
-            t += step;
-            await new Promise(r => setTimeout(r, 20));
+        const framing = options && options.framing ? options.framing : 'cover';
+        const framingFocus = options && options.framingFocus ? options.framingFocus : getCurrentFramingFocus();
+        if (advancedPart && window.BASSourceLibrary) {
+            const sourceId = BASSourceLibrary.getPartSourceId(advancedPart);
+            let sourceTime = Number.isFinite(advancedPart.start) ? advancedPart.start : 0;
+            const sourceEnd = Number.isFinite(advancedPart.end) ? advancedPart.end : sourceTime;
+            const step = Math.max(0.0001, (sourceEnd - sourceTime) / 30);
+            for (let i = 0; i < 30; i++) {
+                const frameBlob = await BASSourceLibrary.frameBlob(sourceId, sourceTime, c.width, c.height, 'jpeg', framing, framingFocus, 0.76);
+                const drawable = await blobToDrawable(frameBlob);
+                ctx.drawImage(drawable, 0, 0, c.width, c.height);
+                releaseDrawable(drawable);
+                sourceTime += step;
+                await new Promise(r => setTimeout(r, 20));
+            }
+        } else {
+            const sampleStart = marcadores.m1;
+            const sampleEnd = marcadores.m2;
+            let t = Number.isFinite(sampleStart) ? sampleStart : 0;
+            const step = Math.max(0.0001, ((Number.isFinite(sampleEnd) ? sampleEnd : t) - t) / 30);
+            for (let i = 0; i < 30; i++) {
+                playerVideo.currentTime = t;
+                await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });
+                drawFramedDrawable(ctx, playerVideo, c.width, c.height, framing, framingFocus);
+                t += step;
+                await new Promise(r => setTimeout(r, 20));
+            }
         }
         
         rec.stop();

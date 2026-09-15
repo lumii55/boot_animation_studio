@@ -10,9 +10,9 @@ const loadingTipsState = {
 };
 
 const loadingTipsContexts = {
-    general: [1, 2, 3, 4, 5, 7, 10, 11, 12, 16, 17],
-    source: [1, 3, 5, 6, 7, 10, 16, 17],
-    timeline: [7, 8, 9, 10, 11, 16],
+    general: [1, 2, 3, 4, 5, 7, 10, 11, 12, 16, 17, 19],
+    source: [1, 3, 5, 6, 7, 10, 16, 17, 19],
+    timeline: [7, 8, 9, 10, 11, 16, 19],
     zip: [1, 3, 4, 11, 12, 13, 17],
     device: [2, 12, 13, 14, 15, 18]
 };

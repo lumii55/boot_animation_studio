@@ -393,6 +393,8 @@ async function openAutosavedSource(record, sourceAsset) {
         await abrirZipNoEditor(blob);
     } else if (type === 'gif') {
         await converterGifParaVideo(blob);
+    } else if (type === 'image' && typeof openImageSourceInEditor === 'function') {
+        await openImageSourceInEditor(blob, { sourceName });
     } else if (typeof openVideoSourceInEditor === 'function') {
         openVideoSourceInEditor(blob, { sourceName });
     } else {

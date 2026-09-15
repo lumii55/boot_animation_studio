@@ -670,6 +670,11 @@ inputVideo.addEventListener('change', function(evento) {
         converterGifParaVideo(arquivo);
         return;
     }
+    const isImage = arquivo.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(arquivo.name || '');
+    if (isImage && typeof openImageSourceInEditor === 'function') {
+        openImageSourceInEditor(arquivo);
+        return;
+    }
 
     openVideoSourceInEditor(arquivo);
 });

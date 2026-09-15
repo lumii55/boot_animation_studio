@@ -29,7 +29,10 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         advancedPartsDirty: false,
         advancedPartsBaseline: null,
         advancedExpandedId: null,
-        advancedPartCounter: 0
+        advancedPartCounter: 0,
+        sourceLibrary: [],
+        sourceLibraryCounter: 0,
+        primarySourceId: ''
     };
 }
 
@@ -60,7 +63,10 @@ function createFrameProject(options) {
         advancedPartsDirty: !!options.advancedPartsDirty,
         advancedPartsBaseline: options.advancedPartsBaseline || null,
         advancedExpandedId: options.advancedExpandedId || null,
-        advancedPartCounter: options.advancedPartCounter || 0
+        advancedPartCounter: options.advancedPartCounter || 0,
+        sourceLibrary: Array.isArray(options.sourceLibrary) ? options.sourceLibrary : [],
+        sourceLibraryCounter: options.sourceLibraryCounter || 0,
+        primarySourceId: options.primarySourceId || ''
     };
 }
 
@@ -74,9 +80,13 @@ function setCurrentProject(project) {
     if (currentProject && typeof currentProject.advancedPartsEnabled !== 'boolean') currentProject.advancedPartsEnabled = false;
     if (currentProject && typeof currentProject.advancedPartsDirty !== 'boolean') currentProject.advancedPartsDirty = false;
     if (currentProject && !Number.isInteger(currentProject.advancedPartCounter)) currentProject.advancedPartCounter = 0;
+    if (currentProject && !Array.isArray(currentProject.sourceLibrary)) currentProject.sourceLibrary = [];
+    if (currentProject && !Number.isInteger(currentProject.sourceLibraryCounter)) currentProject.sourceLibraryCounter = 0;
+    if (currentProject && typeof currentProject.primarySourceId !== 'string') currentProject.primarySourceId = '';
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
+    if (typeof window.initializeSourceLibraryForProject === 'function') window.initializeSourceLibraryForProject();
     if (typeof window.initializeProjectEngineForCurrentProject === 'function') window.initializeProjectEngineForCurrentProject(projectChanged ? 'source' : 'sync');
 }
 
@@ -138,6 +148,7 @@ function syncCurrentProjectWithPlayer() {
         });
         currentProject.initialMarkersApplied = true;
     }
+    if (typeof window.syncPrimarySourceLibraryMetadata === 'function') window.syncPrimarySourceLibraryMetadata();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-metadata', { baseline: true, emit: true });
 }
 

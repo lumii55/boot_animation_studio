@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.3';
+const BAS_PROJECT_ENGINE_VERSION = '12.4';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -105,6 +105,7 @@ function serializeProjectAdvancedAudio(audio) {
         normalize: !!(audio && audio.normalize),
         sourceName: audio && audio.sourceName ? String(audio.sourceName) : '',
         sourceKind: audio && audio.sourceKind ? String(audio.sourceKind) : 'none',
+        sourceLibraryId: audio && audio.sourceLibraryId ? String(audio.sourceLibraryId) : '',
         sourceSize: source ? source.size || 0 : 0,
         sourceType: source ? source.type || '' : ''
     };
@@ -119,6 +120,7 @@ function serializeProjectAdvancedParts() {
         type: part.type === 'p' ? 'p' : 'c',
         repeat: Math.max(0, Math.floor(Number(part.repeat) || 0)),
         pause: Math.max(0, Math.floor(Number(part.pause) || 0)),
+        sourceId: String(part.sourceId || (window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '')),
         start: Math.max(0, Number(part.start) || 0),
         end: Math.max(0, Number(part.end) || 0),
         extraTokens: Array.isArray(part.extraTokens) ? [...part.extraTokens] : [],
@@ -168,6 +170,7 @@ function captureProjectEngineContentState() {
             counter: Math.max(0, Number(currentProject && currentProject.advancedPartCounter) || 0),
             parts: serializeProjectAdvancedParts()
         },
+        library: window.BASSourceLibrary ? BASSourceLibrary.serialize() : { primarySourceId: '', counter: 0, sources: [] },
         package: {
             generateModule: projectEngineChecked('input-gerar-modulo'),
             manufacturer: projectEngineValue('input-fabricante', 'standard')
@@ -224,14 +227,17 @@ function captureProjectManifest() {
 function getProjectAssetInventory() {
     if (!currentProject) return [];
     const assets = [];
-    const seen = new Set();
+    const seenKeys = new Set();
     const add = (key, kind, blob, name, transient = false) => {
-        if (!(blob instanceof Blob) || seen.has(blob)) return;
-        seen.add(blob);
+        if (!(blob instanceof Blob) || seenKeys.has(key)) return;
+        seenKeys.add(key);
         assets.push({ key, kind, name: name || '', blob, transient, size: blob.size || 0, type: blob.type || '', lastModified: Number(blob.lastModified) || 0 });
     };
     add('source', 'source', currentProject.sourceBlob, getProjectEngineSourceName(currentProject), false);
     if (currentProject.previewBlob && currentProject.previewBlob !== currentProject.sourceBlob) add('preview', 'preview', currentProject.previewBlob, 'preview.webm', true);
+    if (window.BASSourceLibrary) {
+        BASSourceLibrary.getAssets().forEach(asset => add(asset.key, asset.kind, asset.blob, asset.name, !!asset.transient));
+    }
     if (typeof captureAudioEditorState === 'function') {
         const simple = captureAudioEditorState();
         ['intro', 'loop', 'final'].forEach(role => {
@@ -263,6 +269,7 @@ function getProjectEngineSourceLabel(project = currentProject) {
     if (!project) return projectEngineText('projectSourceWaiting', 'Waiting for source');
     if (project.sourceType === 'gif') return projectEngineText('projectSourceGif', 'GIF');
     if (project.sourceType === 'bootanimation') return projectEngineText('projectSourceZip', 'bootanimation.zip');
+    if (project.sourceType === 'image') return projectEngineText('projectSourceImage', 'Image');
     return projectEngineText('projectSourceVideo', 'Video');
 }
 
@@ -276,6 +283,10 @@ function getProjectEngineSummary(project = currentProject) {
         parts.push(projectEngineText('projectSourceFrames', '{count} frames').replace('{count}', String(project.frames.length)));
     } else if (project.sourceDuration) {
         parts.push(formatProjectEngineDuration(project.sourceDuration));
+    }
+    if (window.BASSourceLibrary) {
+        const sourceCount = BASSourceLibrary.getAll().length;
+        if (sourceCount > 1) parts.push(projectEngineText('projectSourceCount', '{count} sources').replace('{count}', String(sourceCount)));
     }
     return parts.join(' · ');
 }
@@ -483,6 +494,10 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
         let source = null;
         if (audioState.sourceKind === 'file' && asset && asset.blob instanceof Blob) source = asset.blob;
         if (audioState.sourceKind === 'imported') source = projectEngineResolveImportedAdvancedAudio(savedPart);
+        if (audioState.sourceKind === 'library' && window.BASSourceLibrary) {
+            const libraryAudio = BASSourceLibrary.getById(audioState.sourceLibraryId || '');
+            if (libraryAudio && libraryAudio.role === 'audio' && libraryAudio.blob instanceof Blob) source = libraryAudio.blob;
+        }
         return {
             id: String(savedPart.id || ''),
             label: String(savedPart.label || ''),
@@ -490,6 +505,7 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
             type: savedPart.type === 'p' ? 'p' : 'c',
             repeat: Math.max(0, Math.floor(Number(savedPart.repeat) || 0)),
             pause: Math.max(0, Math.floor(Number(savedPart.pause) || 0)),
+            sourceId: String(savedPart.sourceId || (window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '')),
             start: Math.max(0, Number(savedPart.start) || 0),
             end: Math.max(0, Number(savedPart.end) || 0),
             extraTokens: Array.isArray(savedPart.extraTokens) ? [...savedPart.extraTokens] : [],
@@ -502,7 +518,8 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
                 normalize: !!audioState.normalize,
                 source,
                 sourceName: String(audioState.sourceName || (asset && asset.name) || ''),
-                sourceKind: source ? (audioState.sourceKind === 'imported' ? 'imported' : 'file') : 'none'
+                sourceKind: source ? (audioState.sourceKind === 'imported' ? 'imported' : audioState.sourceKind === 'library' ? 'library' : 'file') : 'none',
+                sourceLibraryId: source && audioState.sourceKind === 'library' ? String(audioState.sourceLibraryId || '') : ''
             }
         };
     });
@@ -559,6 +576,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     });
     currentProject.markers = marcadores;
     currentProject.initialMarkersApplied = true;
+    if (window.BASSourceLibrary) BASSourceLibrary.restoreState(editor.library, assetMap);
     projectEngineRestoreSimpleAudio(editor.audio, assetMap);
     projectEngineRestoreAdvancedState(editor.advanced, assetMap);
     projectEngineSetChecked('input-gerar-modulo', packageState.generateModule);

@@ -97,9 +97,70 @@ function getPerformanceSampleKey(options) {
     const start = source ? source.m0.toFixed(3) : '0';
     const end = source ? source.m3.toFixed(3) : '0';
     const advancedSignature = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedParts === 'function'
-        ? getAdvancedParts().map(part => `${part.start.toFixed(3)}-${part.end.toFixed(3)}`).join(',')
+        ? getAdvancedParts().map(part => {
+            const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+            return `${sourceId}:${part.start.toFixed(3)}-${part.end.toFixed(3)}`;
+        }).join(',')
         : '';
     return `${options.width}x${options.height}:${options.format}:${options.jpegQuality.toFixed(3)}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}:${advancedSignature}`;
+}
+
+function performanceUsesMultipleVisualSources() {
+    if (!window.BASSourceLibrary || typeof isAdvancedPartsActive !== 'function' || !isAdvancedPartsActive() || typeof getAdvancedParts !== 'function') return false;
+    const primaryId = BASSourceLibrary.getPrimaryId();
+    return getAdvancedParts().some(part => BASSourceLibrary.getPartSourceId(part) !== primaryId);
+}
+
+function getMultiSourcePerformanceSamples(limit = 3) {
+    if (!performanceUsesMultipleVisualSources() || typeof getAdvancedParts !== 'function') return [];
+    const parts = getAdvancedParts().filter(part => Number.isFinite(part.start) && Number.isFinite(part.end) && part.end > part.start);
+    if (!parts.length) return [];
+    const count = Math.min(Math.max(1, limit), parts.length);
+    const samples = [];
+    for (let index = 0; index < count; index++) {
+        const partIndex = count === 1 ? 0 : Math.round(index * (parts.length - 1) / (count - 1));
+        const part = parts[partIndex];
+        samples.push({
+            sourceId: BASSourceLibrary.getPartSourceId(part),
+            time: part.start + (part.end - part.start) * 0.5
+        });
+    }
+    return samples;
+}
+
+async function sampleMultiSourceFrameBytes(options, project, version) {
+    if (!project || project !== currentProject || isGenerating || !window.BASSourceLibrary) return;
+    const samplesToRead = getMultiSourcePerformanceSamples(3);
+    if (!samplesToRead.length) return;
+    const sizes = [];
+    try {
+        for (const sample of samplesToRead) {
+            if (version !== performanceFrameSampleVersion || project !== currentProject || isGenerating) return;
+            const blob = await BASSourceLibrary.frameBlob(
+                sample.sourceId,
+                sample.time,
+                options.width,
+                options.height,
+                options.format,
+                options.framing,
+                options.framingFocus,
+                options.jpegQuality
+            );
+            if (blob && blob.size > 0) sizes.push(blob.size);
+            await cooperativeYield();
+        }
+        if (sizes.length && version === performanceFrameSampleVersion && project === currentProject) {
+            const average = sizes.reduce((sum, value) => sum + value, 0) / sizes.length;
+            let projectSamples = performanceFrameSamples.get(project);
+            if (!projectSamples) {
+                projectSamples = new Map();
+                performanceFrameSamples.set(project, projectSamples);
+            }
+            projectSamples.set(getPerformanceSampleKey(options), Math.max(2048, average * 1.08));
+            updatePerformanceEstimate();
+        }
+    } catch (error) {
+    }
 }
 
 function getCalibratedFrameBytes(options) {
@@ -113,7 +174,7 @@ function estimateEncodedFrameBytes(options) {
     const pixels = Math.max(1, options.width * options.height);
     const calibrated = getCalibratedFrameBytes(options);
     if (calibrated > 0) return calibrated;
-    if (projectUsesFrames()) {
+    if (projectUsesFrames() && !performanceUsesMultipleVisualSources()) {
         const known = getKnownImportedFrameBytes();
         if (known.average > 0 && currentProject.width > 0 && currentProject.height > 0) {
             const sourcePixels = currentProject.width * currentProject.height;
@@ -274,7 +335,8 @@ function schedulePerformanceFrameSample() {
     if (existing && existing.has(key)) return;
     const version = ++performanceFrameSampleVersion;
     performanceFrameSampleTimer = setTimeout(() => {
-        if (project.sourceMode === 'frames') sampleFrameProjectBytes(options, project, version);
+        if (performanceUsesMultipleVisualSources()) sampleMultiSourceFrameBytes(options, project, version);
+        else if (project.sourceMode === 'frames') sampleFrameProjectBytes(options, project, version);
         else sampleTemporalFrameBytes(options, project, version);
     }, 250);
 }
@@ -604,7 +666,68 @@ function storeOptimizationRealSample(project, options, sizes) {
     return average;
 }
 
+async function measureMultiSourceOptimizationFrameBytes(optionsList, version) {
+    const project = currentProject;
+    if (!project || version !== optimizerAnalysisVersion || !window.BASSourceLibrary) throw new Error('cancelled');
+    const values = new Map();
+    const pending = [];
+    const sizes = new Map();
+    optionsList.forEach(options => {
+        const cached = getCalibratedFrameBytes(options);
+        if (cached > 0) values.set(options, cached);
+        else {
+            pending.push(options);
+            sizes.set(options, []);
+        }
+    });
+    if (!pending.length) return { values, approximate: false };
+    const points = getMultiSourcePerformanceSamples(3);
+    if (!points.length) return { values, approximate: true };
+    let approximate = false;
+    for (const point of points) {
+        if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
+        for (const options of pending) {
+            try {
+                const blob = await BASSourceLibrary.frameBlob(
+                    point.sourceId,
+                    point.time,
+                    options.width,
+                    options.height,
+                    options.format,
+                    options.framing,
+                    options.framingFocus,
+                    options.jpegQuality
+                );
+                if (blob && blob.size > 0) sizes.get(options).push(blob.size);
+                else approximate = true;
+            } catch (error) {
+                approximate = true;
+            }
+            await cooperativeYield();
+        }
+    }
+    pending.forEach(options => {
+        const optionSizes = sizes.get(options) || [];
+        if (optionSizes.length) values.set(options, storeOptimizationRealSample(project, options, optionSizes));
+        if (optionSizes.length < points.length) approximate = true;
+    });
+    const base = optionsList[0];
+    let baseFrameBytes = values.get(base) || 0;
+    if (!(baseFrameBytes > 0)) {
+        baseFrameBytes = getOptimizationFallbackFrameBytes(base, base, 0);
+        values.set(base, baseFrameBytes);
+        approximate = true;
+    }
+    optionsList.slice(1).forEach(options => {
+        if (values.has(options)) return;
+        values.set(options, getOptimizationFallbackFrameBytes(base, options, baseFrameBytes));
+        approximate = true;
+    });
+    return { values, approximate };
+}
+
 async function measureOptimizationFrameBytesBatch(optionsList, version) {
+    if (performanceUsesMultipleVisualSources()) return await measureMultiSourceOptimizationFrameBytes(optionsList, version);
     const project = currentProject;
     if (!project || version !== optimizerAnalysisVersion) throw new Error('cancelled');
     const values = new Map();
