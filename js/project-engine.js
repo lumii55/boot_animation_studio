@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.1';
+const BAS_PROJECT_ENGINE_VERSION = '12.2';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -228,7 +228,7 @@ function getProjectAssetInventory() {
     const add = (key, kind, blob, name, transient = false) => {
         if (!(blob instanceof Blob) || seen.has(blob)) return;
         seen.add(blob);
-        assets.push({ key, kind, name: name || '', blob, transient, size: blob.size || 0, type: blob.type || '' });
+        assets.push({ key, kind, name: name || '', blob, transient, size: blob.size || 0, type: blob.type || '', lastModified: Number(blob.lastModified) || 0 });
     };
     add('source', 'source', currentProject.sourceBlob, getProjectEngineSourceName(currentProject), false);
     if (currentProject.previewBlob && currentProject.previewBlob !== currentProject.sourceBlob) add('preview', 'preview', currentProject.previewBlob, 'preview.webm', true);
@@ -393,6 +393,165 @@ function validateProjectManifest(manifest) {
     return true;
 }
 
+
+function projectEngineSetValue(id, value) {
+    const element = document.getElementById(id);
+    if (!element || value === undefined || value === null) return;
+    element.value = String(value);
+}
+
+function projectEngineSetChecked(id, value) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.checked = !!value;
+}
+
+function projectEngineRestoreSimpleAudio(audioState, assetMap) {
+    if (!audioState) return;
+    projectEngineSetChecked('input-usar-som', audioState.enabled);
+    ['intro', 'loop', 'final'].forEach(role => {
+        const roleState = audioState[role] || {};
+        const select = document.getElementById(`sel-audio-${role}`);
+        const asset = assetMap instanceof Map ? assetMap.get(`audio:${role}`) : null;
+        if (roleState.source && roleState.source.kind === 'file' && asset && asset.blob instanceof Blob && typeof setImportedAudio === 'function') {
+            setImportedAudio(role, asset.blob, roleState.source.name || asset.name || 'audio');
+        }
+        if (select) {
+            const requestedMode = roleState.mode || 'none';
+            const hasSource = requestedMode !== 'file' || (roleState.source && roleState.source.kind === 'imported') || !!asset;
+            select.value = hasSource ? requestedMode : 'none';
+        }
+        projectEngineSetValue(`vol-${role}`, Number.isFinite(Number(roleState.volume)) ? roleState.volume : 100);
+        projectEngineSetValue(`fade-in-${role}`, Number(roleState.fadeIn) || 0);
+        projectEngineSetValue(`fade-out-${role}`, Number(roleState.fadeOut) || 0);
+        projectEngineSetValue(`audio-offset-${role}`, Number(roleState.offset) || 0);
+        projectEngineSetChecked(`audio-normalize-${role}`, roleState.normalize);
+        const volumeLabel = document.getElementById(`lbl-vol-${role}`);
+        if (volumeLabel) volumeLabel.textContent = `${Math.max(0, Math.min(100, Number(roleState.volume) || 0))}%`;
+        const wrap = document.getElementById(`vol-wrap-${role}`);
+        if (wrap && select) wrap.style.display = select.value === 'none' ? 'none' : 'flex';
+        if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(role);
+        if (typeof syncAudioAdvancedVisibility === 'function') syncAudioAdvancedVisibility(role);
+    });
+    if (typeof verificarPainelAudio === 'function') verificarPainelAudio();
+}
+
+function projectEngineResolveImportedAdvancedAudio(part) {
+    if (!currentProject || !Array.isArray(currentProject.parts)) return null;
+    const direct = currentProject.parts.find(sourcePart => sourcePart && sourcePart.name === part.folder && sourcePart.audioBlob instanceof Blob);
+    if (direct) return direct.audioBlob;
+    const sourceName = part.audio && part.audio.sourceName ? part.audio.sourceName : '';
+    const byName = currentProject.parts.find(sourcePart => sourcePart && sourcePart.audioName && sourceName && sourcePart.audioName === sourceName && sourcePart.audioBlob instanceof Blob);
+    return byName ? byName.audioBlob : null;
+}
+
+function projectEngineRestoreAdvancedState(advancedState, assetMap) {
+    if (!currentProject || !advancedState) return;
+    const savedParts = Array.isArray(advancedState.parts) ? advancedState.parts : [];
+    currentProject.advancedParts = savedParts.map(savedPart => {
+        const audioState = savedPart.audio || {};
+        const asset = assetMap instanceof Map ? assetMap.get(`advanced-audio:${savedPart.id}`) : null;
+        let source = null;
+        if (audioState.sourceKind === 'file' && asset && asset.blob instanceof Blob) source = asset.blob;
+        if (audioState.sourceKind === 'imported') source = projectEngineResolveImportedAdvancedAudio(savedPart);
+        return {
+            id: String(savedPart.id || ''),
+            label: String(savedPart.label || ''),
+            folder: String(savedPart.folder || ''),
+            type: savedPart.type === 'p' ? 'p' : 'c',
+            repeat: Math.max(0, Math.floor(Number(savedPart.repeat) || 0)),
+            pause: Math.max(0, Math.floor(Number(savedPart.pause) || 0)),
+            start: Math.max(0, Number(savedPart.start) || 0),
+            end: Math.max(0, Number(savedPart.end) || 0),
+            extraTokens: Array.isArray(savedPart.extraTokens) ? [...savedPart.extraTokens] : [],
+            audio: {
+                mode: audioState.mode || 'none',
+                volume: Math.max(0, Math.min(100, Number(audioState.volume) || 0)),
+                fadeIn: Number(audioState.fadeIn) || 0,
+                fadeOut: Number(audioState.fadeOut) || 0,
+                offset: Number(audioState.offset) || 0,
+                normalize: !!audioState.normalize,
+                source,
+                sourceName: String(audioState.sourceName || (asset && asset.name) || ''),
+                sourceKind: source ? (audioState.sourceKind === 'imported' ? 'imported' : 'file') : 'none'
+            }
+        };
+    });
+    currentProject.advancedPartsEnabled = !!advancedState.enabled && currentProject.advancedParts.length > 0;
+    currentProject.advancedPartsDirty = !!advancedState.dirty;
+    currentProject.advancedExpandedId = advancedState.expandedId ? String(advancedState.expandedId) : null;
+    currentProject.advancedPartCounter = Math.max(Number(advancedState.counter) || 0, currentProject.advancedParts.length);
+    if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
+    if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
+}
+
+function restoreProjectEngineState(manifest, assetMap = new Map()) {
+    if (!currentProject || !validateProjectManifest(manifest)) return false;
+    const editor = manifest.editor || {};
+    const output = editor.output || {};
+    const framing = editor.framing || {};
+    const packageState = editor.package || {};
+    const savedMeta = manifest.project || {};
+    currentProject.projectMeta = {
+        ...savedMeta,
+        schemaVersion: BAS_PROJECT_SCHEMA_VERSION,
+        engineVersion: BAS_PROJECT_ENGINE_VERSION,
+        dirty: false
+    };
+    currentProject.sourceName = manifest.source && manifest.source.name ? manifest.source.name : currentProject.sourceName;
+    if (output.name !== undefined) projectEngineSetValue('input-nome', output.name);
+    if (output.format !== undefined) projectEngineSetValue('input-formato', output.format);
+    if (output.qualityPreset !== undefined) projectEngineSetValue('input-qualidade', output.qualityPreset);
+    if (output.fps !== undefined) projectEngineSetValue('input-fps', output.fps);
+    if (output.width !== undefined) projectEngineSetValue('input-largura', output.width);
+    if (output.height !== undefined) projectEngineSetValue('input-altura', output.height);
+    if (Number.isFinite(Number(output.jpegQuality))) jpegExportQuality = normalizeJpegExportQuality(output.jpegQuality);
+    if (framing.mode !== undefined) projectEngineSetValue('input-enquadramento', framing.mode);
+    if (framing.focus && typeof framing.focus === 'object') {
+        currentProject.framingFocus = {
+            x: normalizeFramingFocusValue(framing.focus.x),
+            y: normalizeFramingFocusValue(framing.focus.y),
+            zoom: normalizeFramingZoomValue(framing.focus.zoom)
+        };
+    }
+    if (Number.isFinite(Number(framing.reference))) {
+        const reference = Math.max(0.05, Math.min(0.95, Number(framing.reference)));
+        if (typeof contextualUi !== 'undefined') contextualUi.framingReference = reference;
+        projectEngineSetValue('framing-reference-slider', reference);
+    }
+    const savedMarkers = editor.markers || {};
+    ['m0', 'm1', 'm2', 'm3'].forEach(key => {
+        const value = savedMarkers[key];
+        marcadores[key] = value === null || value === undefined ? null : projectTimeToTimelineTime(Number(value));
+    });
+    currentProject.markers = marcadores;
+    currentProject.initialMarkersApplied = true;
+    projectEngineRestoreSimpleAudio(editor.audio, assetMap);
+    projectEngineRestoreAdvancedState(editor.advanced, assetMap);
+    projectEngineSetChecked('input-gerar-modulo', packageState.generateModule);
+    if (packageState.manufacturer !== undefined) projectEngineSetValue('input-fabricante', packageState.manufacturer);
+    if (typeof verificarModulo === 'function') verificarModulo();
+    if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
+    if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
+    if (typeof syncFramingToolUi === 'function') syncFramingToolUi();
+    if (typeof syncContextualAudioMode === 'function') syncContextualAudioMode();
+    if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
+    if (typeof renderSimpleSegmentTrack === 'function') renderSimpleSegmentTrack();
+    const ui = manifest.ui || {};
+    if (typeof setWorkspaceView === 'function') setWorkspaceView(ui.workspaceView || 'edit', { scroll: false });
+    if (typeof setOutputTool === 'function') setOutputTool(ui.outputTool || 'basics');
+    if (typeof setAudioRole === 'function') setAudioRole(ui.audioRole || 'intro');
+    if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(isConnectedMode && ui.deliveryTarget === 'phone' ? 'phone' : 'download', { skipButtons: true });
+    if (Number.isFinite(Number(ui.playhead)) && playerVideo && Number.isFinite(playerVideo.duration)) {
+        playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
+    }
+    if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    syncProjectEngineUi();
+    return true;
+}
+
 function projectEngineTargetIsContent(target) {
     if (!(target instanceof Element)) return false;
     if (target.closest('#editor-section') && target.matches('input, select, textarea')) return true;
@@ -434,6 +593,7 @@ window.BASProjectEngine = Object.freeze({
     captureManifest: captureProjectManifest,
     getAssets: getProjectAssetInventory,
     validateManifest: validateProjectManifest,
+    restoreState: restoreProjectEngineState,
     sync: syncProjectEngineState,
     touch: projectEngineTouch,
     markClean: markProjectEngineClean,

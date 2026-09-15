@@ -644,20 +644,10 @@ document.querySelectorAll('.btn-marc').forEach(btn => {
     btn.addEventListener('click', hideTooltip);
 });
 
-inputVideo.addEventListener('change', function(evento) {
-    const arquivo = evento.target.files[0];
+function openVideoSourceInEditor(arquivo, options = {}) {
     if (!arquivo) return;
-    evento.target.value = '';
-
     resetAudioState();
-
-    const isGif = arquivo.type === 'image/gif' || /\.gif$/i.test(arquivo.name || '');
-    if (isGif) {
-        converterGifParaVideo(arquivo);
-        return;
-    }
-
-    setCurrentProject(createTemporalProject('video', arquivo));
+    setCurrentProject(createTemporalProject('video', arquivo, { sourceName: options.sourceName || (arquivo && arquivo.name) || '' }));
     dicasIniciais.style.display = 'none';
     setPlayerBlob(arquivo);
     videoContainer.style.display = 'block';
@@ -668,7 +658,23 @@ inputVideo.addEventListener('change', function(evento) {
     document.getElementById('botoes-exportacao').style.display = 'none';
     document.getElementById('txt-hint-tooltip').style.display = 'block';
     atualizarBotoesELinhas();
+}
+
+inputVideo.addEventListener('change', function(evento) {
+    const arquivo = evento.target.files[0];
+    if (!arquivo) return;
+    evento.target.value = '';
+
+    const isGif = arquivo.type === 'image/gif' || /\.gif$/i.test(arquivo.name || '');
+    if (isGif) {
+        converterGifParaVideo(arquivo);
+        return;
+    }
+
+    openVideoSourceInEditor(arquivo);
 });
+
+window.openVideoSourceInEditor = openVideoSourceInEditor;
 
 playerVideo.addEventListener('loadedmetadata', async function() {
     syncCurrentProjectWithPlayer();
