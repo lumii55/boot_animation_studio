@@ -51,7 +51,7 @@ function contextualText(key, fallback) {
 }
 
 function setOutputTool(tool, options = {}) {
-    const allowed = ['basics', 'framing', 'audio', 'performance', 'package'];
+    const allowed = ['basics', 'framing', 'composition', 'audio', 'performance', 'package'];
     if (!allowed.includes(tool)) return;
     contextualUi.outputTool = tool;
     const config = document.getElementById('configuracoes');
@@ -68,6 +68,7 @@ function setOutputTool(tool, options = {}) {
         syncFramingToolUi();
         requestAnimationFrame(renderFramingToolFrame);
     }
+    if (tool === 'composition' && window.BASComposition) BASComposition.open();
     if (tool === 'audio') syncContextualAudioMode();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('output-tool', { emit: true });
     if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
@@ -211,6 +212,7 @@ function syncContextualToolsText() {
     const bindings = {
         'p11-tool-basics': ['contextToolBasics', 'Output'],
         'p11-tool-framing': ['contextToolFraming', 'Framing'],
+        'p12-tool-composition': ['contextToolComposition', 'Compose'],
         'p11-tool-audio': ['contextToolAudio', 'Audio'],
         'p11-tool-performance': ['contextToolPerformance', 'Optimize'],
         'p11-tool-package': ['contextToolPackage', 'Package'],
@@ -256,6 +258,7 @@ function syncContextualToolsText() {
     if (nav) nav.setAttribute('aria-label', contextualText('contextToolsAria', 'Output tools'));
     const canvas = document.getElementById('framing-tool-canvas');
     if (canvas) canvas.setAttribute('aria-label', contextualText('contextFramingPreviewAria', 'Framing preview'));
+    if (typeof syncCompositionText === 'function') syncCompositionText();
 }
 
 function bindContextualTools() {

@@ -34,7 +34,9 @@ function createTemporalProject(sourceType, sourceBlob, options = {}) {
         sourceLibraryCounter: 0,
         primarySourceId: '',
         masterSequence: [],
-        masterSequenceCounter: 0
+        masterSequenceCounter: 0,
+        compositionLayers: [],
+        compositionCounter: 0
     };
 }
 
@@ -70,7 +72,9 @@ function createFrameProject(options) {
         sourceLibraryCounter: options.sourceLibraryCounter || 0,
         primarySourceId: options.primarySourceId || '',
         masterSequence: Array.isArray(options.masterSequence) ? options.masterSequence : [],
-        masterSequenceCounter: options.masterSequenceCounter || 0
+        masterSequenceCounter: options.masterSequenceCounter || 0,
+        compositionLayers: Array.isArray(options.compositionLayers) ? options.compositionLayers : [],
+        compositionCounter: options.compositionCounter || 0
     };
 }
 
@@ -89,11 +93,14 @@ function setCurrentProject(project) {
     if (currentProject && typeof currentProject.primarySourceId !== 'string') currentProject.primarySourceId = '';
     if (currentProject && !Array.isArray(currentProject.masterSequence)) currentProject.masterSequence = [];
     if (currentProject && !Number.isInteger(currentProject.masterSequenceCounter)) currentProject.masterSequenceCounter = 0;
+    if (currentProject && !Array.isArray(currentProject.compositionLayers)) currentProject.compositionLayers = [];
+    if (currentProject && !Number.isInteger(currentProject.compositionCounter)) currentProject.compositionCounter = 0;
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
     if (typeof window.initializeSourceLibraryForProject === 'function') window.initializeSourceLibraryForProject();
     if (typeof window.initializeMasterSequenceForProject === 'function') window.initializeMasterSequenceForProject();
+    if (typeof window.initializeCompositionForProject === 'function') window.initializeCompositionForProject();
     if (typeof window.initializeProjectEngineForCurrentProject === 'function') window.initializeProjectEngineForCurrentProject(projectChanged ? 'source' : 'sync');
 }
 

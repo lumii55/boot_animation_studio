@@ -35,14 +35,19 @@ function setBuildDeliveryTarget(target, options = {}) {
 }
 
 function releaseSectionSummary() {
+    let base;
     if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
         const parts = typeof getAdvancedParts === 'function' ? getAdvancedParts() : [];
         const count = Array.isArray(parts) ? parts.length : 0;
-        return releaseText('releasePartsCount', '{count} parts').replace('{count}', String(count));
+        base = releaseText('releasePartsCount', '{count} parts').replace('{count}', String(count));
+    } else {
+        const values = ['m0', 'm1', 'm2', 'm3'].map(key => marcadores[key]);
+        const valid = values.every(Number.isFinite) && values[0] <= values[1] && values[1] <= values[2] && values[2] <= values[3];
+        base = valid ? releaseText('releaseSimpleStructure', '3 sections') : releaseText('releaseStructurePending', 'Waiting for sections');
     }
-    const values = ['m0', 'm1', 'm2', 'm3'].map(key => marcadores[key]);
-    const valid = values.every(Number.isFinite) && values[0] <= values[1] && values[1] <= values[2] && values[2] <= values[3];
-    return valid ? releaseText('releaseSimpleStructure', '3 sections') : releaseText('releaseStructurePending', 'Waiting for sections');
+    const layers = window.BASComposition ? BASComposition.getLayers().filter(layer => layer.visible !== false).length : 0;
+    if (!layers) return base;
+    return `${base} · ${releaseText(layers === 1 ? 'releaseLayerCountOne' : 'releaseLayerCount', layers === 1 ? '1 layer' : '{count} layers').replace('{count}', String(layers))}`;
 }
 
 function releaseAudioSummary() {

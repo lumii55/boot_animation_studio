@@ -83,7 +83,7 @@ function projectHistoryCanRedo() {
 
 function projectHistoryShouldCoalesce(detail) {
     const reason = detail.reason || '';
-    return ['input', 'change', 'framing', 'advanced-parts'].includes(reason);
+    return ['input', 'change', 'framing', 'advanced-parts', 'composition'].includes(reason);
 }
 
 function pushProjectHistorySnapshot(detail = {}) {

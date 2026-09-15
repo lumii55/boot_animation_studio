@@ -34,6 +34,7 @@ function canPreserveImportedAudioChanges(audioState) {
 }
 
 function canPreserveImportedRoundTrip(options) {
+    if (window.BASComposition && BASComposition.hasLayers()) return false;
     if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return false;
     return isImportedBootanimationProject() &&
         !(typeof isAdvancedPartsDirty === 'function' && isAdvancedPartsDirty()) &&
@@ -42,6 +43,7 @@ function canPreserveImportedRoundTrip(options) {
 }
 
 function importedExportIsUntouched(options) {
+    if (window.BASComposition && BASComposition.hasLayers()) return false;
     if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return false;
     const baseline = currentProject && currentProject.editorBaseline;
     return !!baseline &&
@@ -342,6 +344,11 @@ async function applySimpleAudio(zip, audioState, t) {
     }
 }
 
+async function applyCompositionFrame(blob, time, options) {
+    if (!window.BASComposition || !BASComposition.hasLayers()) return blob;
+    return BASComposition.applyToFrameBlob(blob, time, options.width, options.height, options.format, options.jpegQuality);
+}
+
 function getAdvancedPartFrameCount(part, fps) {
     return Math.max(1, Math.ceil(Math.max(0, part.end - part.start) * fps));
 }
@@ -385,9 +392,11 @@ async function generateAdvancedPartFrames(zip, options, t) {
         for (let i = 0; i < count; i++) {
             const sourceTime = Math.min(endLimit, part.start + (i / options.fps));
             const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
-            const blob = window.BASSourceLibrary
+            const sourceBlob = window.BASSourceLibrary
                 ? await BASSourceLibrary.frameBlob(sourceId, sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality)
                 : await getProjectFrameOutputBlob(sourceTime, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality);
+            const compositionTime = window.BASComposition ? BASComposition.getAdvancedTime(part, sourceTime) : sourceTime;
+            const blob = await applyCompositionFrame(sourceBlob, compositionTime, options);
             folder.file(`${String(i).padStart(5, '0')}${extension}`, blob);
             completed++;
             if (completed % 4 === 0 || completed === totalFrames) {
@@ -510,6 +519,13 @@ btnGerar.addEventListener('click', async () => {
     if (btnGerar.classList.contains('btn-desativado') || isGenerating) return;
     const t = traducoes[idiomaAtual];
     const options = getExportOptions();
+    if (window.BASComposition && BASComposition.hasLayers()) {
+        const compositionValidation = BASComposition.validate();
+        if (!compositionValidation.valid) {
+            if (typeof showToast === 'function') showToast(compositionValidation.message, 'error', 4600);
+            return;
+        }
+    }
     const estimate = typeof estimateExportPerformance === 'function' ? estimateExportPerformance(options) : null;
     if (typeof confirmHeavyExport === 'function' && !confirmHeavyExport(estimate)) return;
 
@@ -599,9 +615,12 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, f
 
     for (let i = 0; i < totalFotos; i++) {
         const sourceTime = sourceMarkers.m0 + (i * intervalo);
-        const blob = window.BASMasterSequence && BASMasterSequence.hasMultipleClips()
+        const sourceBlob = window.BASMasterSequence && BASMasterSequence.hasMultipleClips()
             ? await BASMasterSequence.frameBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality)
             : await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality);
+        const blob = window.BASComposition && BASComposition.hasLayers()
+            ? await BASComposition.applyToFrameBlob(sourceBlob, sourceTime, largura, altura, formato, jpegQuality)
+            : sourceBlob;
         let pastaAlvo;
         let numFoto;
 

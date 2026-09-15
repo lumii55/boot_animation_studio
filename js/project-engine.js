@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.6';
+const BAS_PROJECT_ENGINE_VERSION = '12.7';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -171,6 +171,7 @@ function captureProjectEngineContentState() {
         },
         library: window.BASSourceLibrary ? BASSourceLibrary.serialize() : { primarySourceId: '', counter: 0, sources: [] },
         masterSequence: window.BASMasterSequence ? BASMasterSequence.serialize() : { counter: 0, clips: [] },
+        composition: window.BASComposition ? BASComposition.serialize() : { version: 1, counter: 0, layers: [] },
         package: {
             generateModule: projectEngineChecked('input-gerar-modulo'),
             manufacturer: projectEngineValue('input-fabricante', 'standard')
@@ -187,7 +188,8 @@ function captureProjectEngineUiState() {
         deliveryTarget: typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : 'download',
         playhead: Number.isFinite(playhead) ? playhead : 0,
         advancedPartId: currentProject && currentProject.advancedExpandedId ? String(currentProject.advancedExpandedId) : null,
-        sequenceTimeline: window.BASSequenceTimeline ? BASSequenceTimeline.getUiState() : { view: 'sequence', zoom: 92 }
+        sequenceTimeline: window.BASSequenceTimeline ? BASSequenceTimeline.getUiState() : { view: 'sequence', zoom: 92 },
+        composition: window.BASComposition ? BASComposition.getUiState() : { selectedId: '', previewTime: 0 }
     };
 }
 
@@ -239,6 +241,9 @@ function getProjectAssetInventory() {
     if (currentProject.previewBlob && currentProject.previewBlob !== currentProject.sourceBlob) add('preview', 'preview', currentProject.previewBlob, 'preview.webm', true);
     if (window.BASSourceLibrary) {
         BASSourceLibrary.getAssets().forEach(asset => add(asset.key, asset.kind, asset.blob, asset.name, !!asset.transient));
+    }
+    if (window.BASComposition) {
+        BASComposition.getAssets().forEach(asset => add(asset.key, asset.kind, asset.blob, asset.name, !!asset.transient));
     }
     if (typeof captureAudioEditorState === 'function') {
         const simple = captureAudioEditorState();
@@ -581,6 +586,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     }
     if (window.BASSourceLibrary) BASSourceLibrary.restoreState(editor.library, assetMap);
     if (window.BASMasterSequence) BASMasterSequence.restoreState(editor.masterSequence || null);
+    if (window.BASComposition) BASComposition.restoreState(editor.composition || null, assetMap);
     const savedMarkers = editor.markers || {};
     const masterMarkers = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
     ['m0', 'm1', 'm2', 'm3'].forEach(key => {
@@ -611,6 +617,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         if (savedAdvancedPartId && currentProject.advancedParts.some(part => part.id === savedAdvancedPartId)) currentProject.advancedExpandedId = String(savedAdvancedPartId);
         if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
         if (window.BASSequenceTimeline) BASSequenceTimeline.restoreUiState(ui.sequenceTimeline || {});
+        if (window.BASComposition) BASComposition.restoreUiState(ui.composition || {});
         if (Number.isFinite(Number(ui.playhead))) {
             if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) BASMasterSequence.seek(Number(ui.playhead), { scroll: true }).catch(() => {});
             else if (playerVideo && Number.isFinite(playerVideo.duration)) playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
