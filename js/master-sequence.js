@@ -58,11 +58,20 @@ function ensureProjectMasterSequence(project = currentProject) {
         seen.add(clip.sourceId);
         if (!clip.id) clip.id = masterSequenceCreateClipId(project);
         const duration = masterSequenceSourceDuration(clip.sourceId);
-        clip.in = Math.max(0, Math.min(duration, Number(clip.in) || 0));
-        clip.out = Math.max(clip.in + 0.001, Math.min(duration, Number(clip.out) || duration));
-        if (!(clip.out > clip.in)) {
-            clip.in = 0;
-            clip.out = duration;
+        const rawIn = Math.max(0, Number(clip.in) || 0);
+        const rawOut = Number(clip.out);
+        if (duration > 0) {
+            const fps = Math.max(1, Number(project && project.fps) || 30);
+            const provisionalOut = rawIn <= 0.00001 && Number.isFinite(rawOut) && rawOut > 0 && rawOut <= 0.0011 && duration > Math.max(0.05, 2 / fps);
+            clip.in = Math.max(0, Math.min(duration, rawIn));
+            clip.out = !Number.isFinite(rawOut) || rawOut <= 0 || provisionalOut ? duration : Math.max(clip.in, Math.min(duration, rawOut));
+            if (!(clip.out > clip.in)) {
+                clip.in = 0;
+                clip.out = duration;
+            }
+        } else {
+            clip.in = rawIn;
+            clip.out = Number.isFinite(rawOut) && rawOut > rawIn ? rawOut : 0;
         }
         const match = /^clip-(\d+)$/.exec(String(clip.id));
         if (match) project.masterSequenceCounter = Math.max(project.masterSequenceCounter, Number(match[1]) || 0);
