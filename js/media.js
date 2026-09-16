@@ -673,10 +673,10 @@ function verificarModulo() {
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
 
-function verificarPainelAudio() {
+function verificarPainelAudio(options = {}) {
     const usaAudio = document.getElementById('input-usar-som').checked;
     document.getElementById('painel-audio').style.display = usaAudio ? "flex" : "none";
-    if (typeof renderTimeline3 === 'function') renderTimeline3();
+    if (options.renderTimeline !== false && typeof renderTimeline3 === 'function') renderTimeline3();
 }
 
 function escapeRegExp(value) {
@@ -768,7 +768,7 @@ function resetAudioState() {
     });
     ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
     currentPreviewPart = -1;
-    verificarPainelAudio();
+    verificarPainelAudio({ renderTimeline: false });
 }
 
 function setImportedAudio(part, blob, name, kind = 'imported') {

@@ -811,8 +811,18 @@ function bindTimeline3() {
     timeline3SyncText();
 }
 
+function timeline3RenderSafe() {
+    try {
+        timeline3Render();
+        return true;
+    } catch (error) {
+        console.error('Timeline 3 render failed', error);
+        return false;
+    }
+}
+
 window.BASTimeline3 = Object.freeze({
-    render: timeline3Render,
+    render: timeline3RenderSafe,
     syncText: timeline3SyncText,
     setZoom: timeline3SetZoom,
     fit: timeline3Fit,
@@ -820,5 +830,5 @@ window.BASTimeline3 = Object.freeze({
     restoreUiState: timeline3RestoreUiState
 });
 window.syncTimeline3Text = timeline3SyncText;
-window.renderTimeline3 = timeline3Render;
+window.renderTimeline3 = timeline3RenderSafe;
 window.addEventListener('DOMContentLoaded', bindTimeline3);
