@@ -10586,3 +10586,34 @@ summary:focus-visible {
         height: 66px;
     }
 }
+
+.timeline3-ruler,
+.timeline3-visual-item,
+.timeline3-layer-item,
+.timeline3-audio-item {
+    touch-action: none;
+}
+
+.timeline3-ruler {
+    cursor: ew-resize;
+}
+
+.timeline3-item.is-timeline-draggable {
+    cursor: grab;
+}
+
+.timeline3-item.is-timeline-dragging {
+    cursor: grabbing;
+    border-color: rgba(114, 232, 220, 0.72);
+    box-shadow: 0 0 0 2px rgba(3, 218, 198, 0.15), 0 12px 28px rgba(0, 0, 0, 0.28);
+    transition: none;
+}
+
+.timeline3-item.is-timeline-dragging:active {
+    transform: none;
+}
+
+.composition-editor-section[hidden],
+.edit-audio-section[hidden] {
+    display: none !important;
+}
