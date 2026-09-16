@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.8A.3';
+const BAS_PROJECT_ENGINE_VERSION = '12.7.1';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -189,7 +189,6 @@ function captureProjectEngineUiState() {
         playhead: Number.isFinite(playhead) ? playhead : 0,
         advancedPartId: currentProject && currentProject.advancedExpandedId ? String(currentProject.advancedExpandedId) : null,
         sequenceTimeline: window.BASSequenceTimeline ? BASSequenceTimeline.getUiState() : { view: 'sequence', zoom: 92 },
-        multiTrackTimeline: window.BASMultiTrackTimeline ? BASMultiTrackTimeline.getUiState() : { zoom: 88, scrollLeft: 0, currentTime: 0 },
         composition: window.BASComposition ? BASComposition.getUiState() : { selectedId: '', previewTime: 0 }
     };
 }
@@ -618,7 +617,6 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         if (savedAdvancedPartId && currentProject.advancedParts.some(part => part.id === savedAdvancedPartId)) currentProject.advancedExpandedId = String(savedAdvancedPartId);
         if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
         if (window.BASSequenceTimeline) BASSequenceTimeline.restoreUiState(ui.sequenceTimeline || {});
-        if (window.BASMultiTrackTimeline) BASMultiTrackTimeline.restoreUiState(ui.multiTrackTimeline || {});
         if (window.BASComposition) BASComposition.restoreUiState(ui.composition || {});
         if (Number.isFinite(Number(ui.playhead))) {
             if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) BASMasterSequence.seek(Number(ui.playhead), { scroll: true }).catch(() => {});
