@@ -10133,12 +10133,30 @@ summary:focus-visible {
 }
 
 .timeline3-layer .timeline3-trim {
-    display: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 6;
+    display: block;
+    width: 18px;
+    min-width: 18px;
+    opacity: 0;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.timeline3-layer .timeline3-trim-start {
+    left: 0;
+}
+
+.timeline3-layer .timeline3-trim-end {
+    right: 0;
 }
 
 .timeline3-layer.is-selected .timeline3-trim,
 .timeline3-layer.is-trimming .timeline3-trim {
-    display: block;
+    opacity: 1;
+    background: var(--accent);
 }
 
 .timeline3-marker-line {
@@ -10450,11 +10468,15 @@ summary:focus-visible {
     transform: rotate(90deg);
 }
 
-.timeline3-audio .timeline3-trim,
-.timeline3-layer .timeline3-trim {
+.timeline3-audio .timeline3-trim {
     width: 14px;
     min-width: 14px;
     touch-action: none;
+}
+
+.timeline3-layer .timeline3-trim {
+    width: 18px;
+    min-width: 18px;
 }
 
 .timeline3-audio.is-selected .timeline3-trim,
