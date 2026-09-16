@@ -406,6 +406,10 @@ async function addFilesToSourceLibrary(files) {
             if (window.BASMasterSequence) added.filter(source => source.role === 'visual').forEach(source => BASMasterSequence.appendSource(source.id, { silent: true }));
             renderSourceLibrary();
             if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: false });
+            if (added.some(source => source.role === 'visual') && window.BASMultiTrackTimeline && typeof BASMultiTrackTimeline.refreshFrames === 'function') {
+                if (loading) loading.textContent = sourceLibraryText('timeline3LoadingFrames', 'Building timeline frames {current}/{total}...').replace('{current}', '0').replace('{total}', '—');
+                await BASMultiTrackTimeline.refreshFrames({ showLoading: false });
+            }
             if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-library', { changeKey: 'source-library', immediate: true });
             if (typeof showToast === 'function') showToast(sourceLibraryText('sourceLibraryAdded', '{count} source(s) added').replace('{count}', String(added.length)), 'success');
         }

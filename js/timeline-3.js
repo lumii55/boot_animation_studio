@@ -16,7 +16,10 @@ const timeline3Runtime = {
     reorder: null,
     suppressClickUntil: 0,
     restoreSimpleAfterAdvanced: false,
-    lastAdvancedActive: false
+    lastAdvancedActive: false,
+    thumbnailCache: new Map(),
+    thumbnailGeneration: 0,
+    thumbnailBuild: null
 };
 
 function timeline3Text(key, fallback) {
@@ -156,6 +159,136 @@ function timeline3SourceHue(sourceId, index = 0) {
     return Math.abs(hash) % 360;
 }
 
+function timeline3ClearThumbnailCache() {
+    timeline3Runtime.thumbnailGeneration += 1;
+    timeline3Runtime.thumbnailBuild = null;
+    timeline3Runtime.thumbnailCache.forEach(url => URL.revokeObjectURL(url));
+    timeline3Runtime.thumbnailCache.clear();
+}
+
+function timeline3ThumbnailCount(item, totalDuration) {
+    if (item.source && item.source.kind === 'image') return 1;
+    const total = Math.max(0.001, Number(totalDuration) || 0.001);
+    const target = Math.max(12, Math.min(64, Math.ceil(total * (total < 5 ? 5 : total < 10 ? 3 : total < 20 ? 2 : 1))));
+    const proportional = Math.round(target * (Math.max(0.001, item.duration) / total));
+    return Math.max(2, Math.min(18, proportional || 2));
+}
+
+function timeline3ThumbnailSourceTime(item, index, count) {
+    const fraction = Math.max(0, Math.min(1, (index + 0.5) / Math.max(1, count)));
+    if (item.kind === 'visual-advanced' && item.part) {
+        const start = Math.max(0, Number(item.part.start) || 0);
+        const end = Math.max(start, Number(item.part.end) || start);
+        return start + (end - start) * fraction;
+    }
+    const duration = window.BASSourceLibrary && item.sourceId
+        ? Math.max(0.001, Number(BASSourceLibrary.getDuration(item.sourceId)) || item.duration || 0.001)
+        : Math.max(0.001, Number(item.duration) || 0.001);
+    return duration * fraction;
+}
+
+function timeline3ThumbnailKey(item, sourceTime) {
+    const projectId = currentProject && currentProject.projectMeta && currentProject.projectMeta.id ? currentProject.projectMeta.id : 'project';
+    const source = item.source || {};
+    const stamp = `${source.size || 0}:${source.lastModified || 0}:${source.name || ''}`;
+    return `${projectId}|${item.sourceId || 'primary'}|${stamp}|${Math.round(Math.max(0, sourceTime) * 1000)}`;
+}
+
+function timeline3ThumbnailCells(item, totalDuration) {
+    const count = timeline3ThumbnailCount(item, totalDuration);
+    const cells = [];
+    for (let index = 0; index < count; index++) {
+        const sourceTime = timeline3ThumbnailSourceTime(item, index, count);
+        const cacheKey = timeline3ThumbnailKey(item, sourceTime);
+        cells.push(`<span class="timeline3-thumb-cell${timeline3Runtime.thumbnailCache.has(cacheKey) ? ' is-ready' : ''}" data-timeline3-thumb-key="${timeline3Escape(cacheKey)}"${timeline3Runtime.thumbnailCache.has(cacheKey) ? ` style="background-image:url('${timeline3Escape(timeline3Runtime.thumbnailCache.get(cacheKey))}')"` : ''}></span>`);
+    }
+    return `<div class="timeline3-thumbnail-strip" aria-hidden="true">${cells.join('')}</div>`;
+}
+
+function timeline3ApplyThumbnail(cacheKey, url) {
+    document.querySelectorAll('[data-timeline3-thumb-key]').forEach(cell => {
+        if (cell.dataset.timeline3ThumbKey !== cacheKey) return;
+        cell.style.backgroundImage = `url("${url}")`;
+        cell.classList.add('is-ready');
+    });
+}
+
+async function timeline3CreateThumbnail(item, sourceTime) {
+    if (!window.BASSourceLibrary || typeof BASSourceLibrary.frameBlob !== 'function' || !item.sourceId) return null;
+    const blob = await BASSourceLibrary.frameBlob(item.sourceId, sourceTime, 120, 72, 'jpeg', 'cover', { x: 0.5, y: 0.5, zoom: 1 }, 0.62);
+    if (!(blob instanceof Blob)) return null;
+    return URL.createObjectURL(blob);
+}
+
+async function timeline3RefreshFrames(options = {}) {
+    if (!currentProject || !(currentProject.sourceBlob instanceof Blob)) return false;
+    if (timeline3Runtime.projectRef !== currentProject) {
+        timeline3ClearThumbnailCache();
+        timeline3Runtime.projectRef = currentProject;
+    }
+    if (isGenerating) return false;
+    const layout = timeline3VisualLayout();
+    if (!layout.length) return false;
+    const totalDuration = Math.max(0.001, timeline3Duration());
+    const jobs = [];
+    layout.forEach(item => {
+        const count = timeline3ThumbnailCount(item, totalDuration);
+        for (let index = 0; index < count; index++) {
+            const sourceTime = timeline3ThumbnailSourceTime(item, index, count);
+            const cacheKey = timeline3ThumbnailKey(item, sourceTime);
+            if (!options.force && timeline3Runtime.thumbnailCache.has(cacheKey)) {
+                timeline3ApplyThumbnail(cacheKey, timeline3Runtime.thumbnailCache.get(cacheKey));
+                continue;
+            }
+            jobs.push({ item, sourceTime, cacheKey });
+        }
+    });
+    if (!jobs.length) return true;
+    if (timeline3Runtime.thumbnailBuild && !options.force) return timeline3Runtime.thumbnailBuild;
+    const generation = ++timeline3Runtime.thumbnailGeneration;
+    const overlay = document.getElementById('loading-overlay');
+    const loading = document.getElementById('txt-loading-timeline');
+    const ownsOverlay = !!options.showLoading && overlay && overlay.style.display !== 'flex';
+    if (ownsOverlay) {
+        if (typeof setLoadingTipContext === 'function') setLoadingTipContext('timeline');
+        overlay.style.display = 'flex';
+    }
+    const build = (async () => {
+        for (let index = 0; index < jobs.length; index++) {
+            if (generation !== timeline3Runtime.thumbnailGeneration) return false;
+            const job = jobs[index];
+            if (loading && (options.showLoading || overlay && overlay.style.display === 'flex')) {
+                loading.textContent = timeline3Text('timeline3LoadingFrames', 'Building timeline frames {current}/{total}...').replace('{current}', String(index + 1)).replace('{total}', String(jobs.length));
+            }
+            try {
+                const previous = timeline3Runtime.thumbnailCache.get(job.cacheKey);
+                if (previous && options.force) URL.revokeObjectURL(previous);
+                const url = await timeline3CreateThumbnail(job.item, job.sourceTime);
+                if (generation !== timeline3Runtime.thumbnailGeneration) {
+                    if (url) URL.revokeObjectURL(url);
+                    return false;
+                }
+                if (url) {
+                    timeline3Runtime.thumbnailCache.set(job.cacheKey, url);
+                    timeline3ApplyThumbnail(job.cacheKey, url);
+                }
+            } catch (error) {
+                const cell = Array.from(document.querySelectorAll('[data-timeline3-thumb-key]')).find(element => element.dataset.timeline3ThumbKey === job.cacheKey);
+                if (cell) cell.classList.add('is-error');
+            }
+            if (index % 3 === 2 && typeof cooperativeYield === 'function') await cooperativeYield();
+        }
+        return true;
+    })();
+    timeline3Runtime.thumbnailBuild = build;
+    try {
+        return await build;
+    } finally {
+        if (timeline3Runtime.thumbnailBuild === build) timeline3Runtime.thumbnailBuild = null;
+        if (ownsOverlay && overlay) overlay.style.display = 'none';
+    }
+}
+
 function timeline3RulerStep() {
     const zoom = timeline3Runtime.zoom;
     if (zoom >= 180) return 0.5;
@@ -192,6 +325,7 @@ function timeline3MarkerTimes() {
 function timeline3VisualLane() {
     const layout = timeline3VisualLayout();
     const advanced = timeline3AdvancedActive();
+    const totalDuration = Math.max(0.001, timeline3Duration());
     const items = layout.map(item => {
         timeline3Runtime.items.set(item.key, item);
         const sourceName = item.source && item.source.name ? item.source.name : advanced ? (item.part.label || item.part.folder || `Part ${item.index + 1}`) : timeline3Text('timeline3Primary', 'Primary source');
@@ -201,9 +335,9 @@ function timeline3VisualLane() {
         const badges = advanced ? `<span class="timeline3-badge">${item.part.type === 'p' ? 'p' : 'c'}</span>${item.part.repeat === 0 ? '<span class="timeline3-badge">∞</span>' : item.part.repeat > 1 ? `<span class="timeline3-badge">${item.part.repeat}×</span>` : ''}` : '';
         const handles = advanced ? `<button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" data-timeline3-key="${timeline3Escape(item.key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim start'))}"></button><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" data-timeline3-key="${timeline3Escape(item.key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim end'))}"></button>` : '';
         const reorder = layout.length > 1 ? `<button class="timeline3-reorder-grip" data-timeline3-reorder="${timeline3Escape(item.key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3Reorder', 'Reorder clip'))}"><span></span><span></span><span></span></button>` : '';
-        return `<article class="timeline3-item timeline3-visual-item${timeline3Runtime.selectedKey === item.key ? ' is-selected' : ''}" data-timeline3-key="${timeline3Escape(item.key)}" style="left:${timeline3X(item.start)}px;width:${timeline3Width(item.duration)}px;--track-hue:${hue}">${handles}${reorder}<div class="timeline3-item-copy"><strong>${timeline3Escape(title)}</strong><small>${timeline3Escape(subtitle)}</small></div><div class="timeline3-item-badges">${badges}</div></article>`;
+        return `<article class="timeline3-item timeline3-visual-item${timeline3Runtime.selectedKey === item.key ? ' is-selected' : ''}" data-timeline3-key="${timeline3Escape(item.key)}" style="left:${timeline3X(item.start)}px;width:${timeline3Width(item.duration)}px;--track-hue:${hue}">${timeline3ThumbnailCells(item, totalDuration)}${handles}${reorder}<div class="timeline3-item-copy"><strong>${timeline3Escape(title)}</strong><small>${timeline3Escape(subtitle)}</small></div><div class="timeline3-item-badges">${badges}</div></article>`;
     }).join('');
-    return `<div class="timeline3-lane timeline3-lane-visual"><div class="timeline3-lane-label"><span class="timeline3-lane-icon">V</span><strong>${timeline3Escape(timeline3Text('timeline3Visual', 'Visual'))}</strong></div><div class="timeline3-lane-body">${items || `<span class="timeline3-empty-lane">${timeline3Escape(timeline3Text('timeline3NoVisual', 'No visual source'))}</span>`}</div></div>`;
+    return `<div class="timeline3-lane timeline3-lane-visual"><div class="timeline3-lane-label"><span class="timeline3-lane-icon">V</span><strong>${timeline3Escape(timeline3Text('timeline3Visual', 'Frames'))}</strong></div><div class="timeline3-lane-body">${items || `<span class="timeline3-empty-lane">${timeline3Escape(timeline3Text('timeline3NoVisual', 'No visual source'))}</span>`}</div></div>`;
 }
 
 function timeline3LayerLanes() {
@@ -300,7 +434,10 @@ function timeline3Render() {
     timeline3Runtime.lastAdvancedActive = advanced;
     const hasProject = !!(currentProject && currentProject.sourceBlob);
     shell.classList.toggle('is-empty', !hasProject);
-    timeline3Runtime.projectRef = currentProject;
+    if (timeline3Runtime.projectRef !== currentProject) {
+        timeline3ClearThumbnailCache();
+        timeline3Runtime.projectRef = currentProject;
+    }
     timeline3Runtime.items.clear();
     const duration = timeline3Duration();
     const width = Math.max(320, timeline3X(duration) + 72);
@@ -318,6 +455,7 @@ function timeline3Render() {
     if (zoom) zoom.value = String(Math.round(timeline3Runtime.zoom));
     timeline3UpdatePlayhead();
     timeline3SyncTransport();
+    timeline3RefreshFrames({ showLoading: false }).catch(() => {});
 }
 
 function timeline3ScheduleRender(delay = 20) {
@@ -418,7 +556,7 @@ function timeline3OpenContext(key) {
     const add = (action, label, tone = '') => buttons.push(`<button type="button" data-timeline3-action="${timeline3Escape(action)}" data-timeline3-key="${timeline3Escape(key)}"${tone ? ` class="${tone}"` : ''}>${timeline3Escape(label)}</button>`);
     if (item.kind === 'visual-simple') {
         itemTitle = item.source && item.source.name ? item.source.name : timeline3Text('timeline3Primary', 'Primary source');
-        itemKind = timeline3Text('timeline3Visual', 'Visual');
+        itemKind = timeline3Text('timeline3Visual', 'Frames');
         add('seek-start', timeline3Text('timeline3GoStart', 'Go to start'));
         if (item.sourceId && window.BASSourceLibrary) add('preview-source', timeline3Text('timeline3PreviewSource', 'Preview source'));
         if (item.clip) {
@@ -732,7 +870,7 @@ function timeline3SyncText() {
         'timeline3-zoom-fit-label': ['timeline3Fit', 'Fit'],
         'timeline3-start-label': ['timeline3Start', 'Start'],
         'timeline3-end-label': ['timeline3End', 'End'],
-        'timeline3-hint': ['timeline3Hint', 'Pinch or use the zoom controls for precision. Layer edges can be trimmed directly.']
+        'timeline3-hint': ['timeline3Hint', 'Pinch or use the zoom controls for precision. Tap or hold a clip, layer or audio item for actions.']
     };
     Object.entries(bindings).forEach(([id, [key, fallback]]) => {
         const element = document.getElementById(id);
@@ -844,7 +982,9 @@ window.BASMultiTrackTimeline = Object.freeze({
     getDuration: timeline3Duration,
     getCurrentTime: timeline3CurrentTime,
     seek: timeline3Seek,
-    isAdvancedActive: timeline3AdvancedActive
+    isAdvancedActive: timeline3AdvancedActive,
+    refreshFrames: timeline3RefreshFrames,
+    clearFrameCache: timeline3ClearThumbnailCache
 });
 window.syncTimeline3Text = timeline3SyncText;
 window.addEventListener('DOMContentLoaded', bindTimeline3);

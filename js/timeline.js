@@ -856,6 +856,14 @@ if (timelineEndButton) timelineEndButton.addEventListener('click', () => seekTim
 async function desenharFilmstrip() {
     isBuildingTimeline = true;
     filmstrip.innerHTML = '';
+    if (window.BASMultiTrackTimeline && typeof BASMultiTrackTimeline.refreshFrames === 'function' && document.body.classList.contains('timeline3-active')) {
+        await BASMultiTrackTimeline.refreshFrames({ showLoading: false });
+        isBuildingTimeline = false;
+        syncTimelineTransportUi();
+        renderSimpleSegmentTrack();
+        atualizarBotoesELinhas();
+        return;
+    }
     if (timelineUsesMasterSequence()) {
         if (window.BASMasterSequence) BASMasterSequence.renderFilmstrip();
         updatePlayerTimeReadout(BASMasterSequence.getCurrentTime());
