@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="styles.css?v=p12-8a" rel="stylesheet"/>
+<link href="styles.css?v=p12-8a-1" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta content="#070b12" name="theme-color"/></head>
@@ -75,12 +75,11 @@
 <span id="video-total-time">0.00s</span>
 </div>
 </div>
-<section class="timeline3-shell" id="timeline3-shell" aria-label="Timeline 3.0">
-<div class="timeline3-toolbar">
-<div class="timeline3-copy"><span class="timeline-kicker" id="timeline3-kicker">MULTITRACK</span><strong id="timeline3-title">Timeline 3.0</strong><p id="timeline3-desc">See visuals, layers and audio together. Tap an item for actions; drag the timeline to navigate.</p></div>
+<section class="timeline3-shell timeline3-inline" id="timeline3-shell" aria-label="Timeline">
+<div class="timeline3-controls">
+<div class="timeline3-status"><span id="timeline3-mode">Simple sequence</span><strong id="timeline3-summary">—</strong></div>
 <div class="timeline3-zoom" role="group" aria-label="Timeline zoom"><button id="timeline3-zoom-out" type="button" aria-label="Zoom out">−</button><input id="timeline3-zoom" min="36" max="220" step="4" type="range" value="88"/><button id="timeline3-zoom-in" type="button" aria-label="Zoom in">＋</button><button id="timeline3-zoom-fit" type="button"><span id="timeline3-zoom-fit-label">Fit</span></button></div>
 </div>
-<div class="timeline3-status"><span id="timeline3-mode">Simple sequence</span><strong id="timeline3-summary">—</strong></div>
 <div class="timeline3-scroll" id="timeline3-scroll" tabindex="0">
 <div class="timeline3-content" id="timeline3-content">
 <div class="timeline3-ruler" id="timeline3-ruler"></div>
@@ -89,7 +88,7 @@
 </div>
 </div>
 <div class="timeline3-transport"><button id="timeline3-start" type="button"><span aria-hidden="true">↤</span><b id="timeline3-start-label">Start</b></button><button class="timeline3-play" id="timeline3-play" type="button"><span aria-hidden="true" id="timeline3-play-icon">▶</span><b id="timeline3-play-label">Play</b></button><button id="timeline3-end" type="button"><span aria-hidden="true">↦</span><b id="timeline3-end-label">End</b></button></div>
-<p class="timeline3-hint" id="timeline3-hint">Pinch or use the zoom controls for precision. Layer edges can be trimmed directly.</p>
+<p class="timeline3-hint" id="timeline3-hint">Pinch or use the zoom controls for precision. Tap or hold a clip, layer or audio item for actions.</p>
 <div class="timeline3-context" id="timeline3-context" hidden><div class="timeline3-context-head"><div><span id="timeline3-context-kind"></span><strong id="timeline3-context-title"></strong></div><button id="timeline3-context-close" type="button" aria-label="Close">×</button></div><div class="timeline3-context-actions" id="timeline3-context-actions"></div></div>
 </section>
 <div class="timeline-view-switch timeline3-legacy" id="timeline-view-switch" role="tablist" aria-label="Timeline view" hidden>
@@ -310,26 +309,26 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p12-8a"></script>
-<script src="js/project.js?v=p12-8a"></script>
-<script src="js/i18n.js?v=p12-8a"></script>
-<script src="js/loading-tips.js?v=p12-8a"></script>
-<script src="js/ux.js?v=p12-8a"></script>
-<script src="js/workspace.js?v=p12-8a"></script><script src="js/api.js?v=p12-8a"></script>
-<script src="js/media.js?v=p12-8a"></script>
-<script src="js/source-library.js?v=p12-8a"></script>
-<script src="js/master-sequence.js?v=p12-8a"></script>
-<script src="js/timeline.js?v=p12-8a"></script>
-<script src="js/contextual.js?v=p12-8a"></script>
-<script src="js/audio.js?v=p12-8a"></script>
-<script src="js/parts.js?v=p12-8a"></script>
-<script src="js/timeline-2.js?v=p12-8a"></script>
-<script src="js/composition.js?v=p12-8a"></script>
-<script src="js/timeline-3.js?v=p12-8a"></script>
-<script src="js/performance.js?v=p12-8a"></script>
-<script src="js/release.js?v=p12-8a"></script><script src="js/export.js?v=p12-8a"></script>
-<script src="js/project-engine.js?v=p12-8a"></script>
-<script src="js/history.js?v=p12-8a"></script>
-<script src="js/autosave.js?v=p12-8a"></script>
+<script src="js/state.js?v=p12-8a-1"></script>
+<script src="js/project.js?v=p12-8a-1"></script>
+<script src="js/i18n.js?v=p12-8a-1"></script>
+<script src="js/loading-tips.js?v=p12-8a-1"></script>
+<script src="js/ux.js?v=p12-8a-1"></script>
+<script src="js/workspace.js?v=p12-8a-1"></script><script src="js/api.js?v=p12-8a-1"></script>
+<script src="js/media.js?v=p12-8a-1"></script>
+<script src="js/source-library.js?v=p12-8a-1"></script>
+<script src="js/master-sequence.js?v=p12-8a-1"></script>
+<script src="js/timeline.js?v=p12-8a-1"></script>
+<script src="js/contextual.js?v=p12-8a-1"></script>
+<script src="js/audio.js?v=p12-8a-1"></script>
+<script src="js/parts.js?v=p12-8a-1"></script>
+<script src="js/timeline-2.js?v=p12-8a-1"></script>
+<script src="js/composition.js?v=p12-8a-1"></script>
+<script src="js/timeline-3.js?v=p12-8a-1"></script>
+<script src="js/performance.js?v=p12-8a-1"></script>
+<script src="js/release.js?v=p12-8a-1"></script><script src="js/export.js?v=p12-8a-1"></script>
+<script src="js/project-engine.js?v=p12-8a-1"></script>
+<script src="js/history.js?v=p12-8a-1"></script>
+<script src="js/autosave.js?v=p12-8a-1"></script>
 </body>
 </html>
