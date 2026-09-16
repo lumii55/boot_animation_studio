@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="styles.css?v=p12-8a3" rel="stylesheet"/>
+<link href="styles.css?v=p12-8a4" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta content="#070b12" name="theme-color"/></head>
@@ -69,11 +69,11 @@
 <span class="timeline-kicker" id="p11-timeline-kicker">TIMELINE</span>
 <strong id="p11-timeline-title">Scrub and mark</strong>
 </div>
-<div aria-live="off" class="video-time-readout" id="video-time-readout" role="status">
+<div class="timeline-head-tools"><div aria-live="off" class="video-time-readout" id="video-time-readout" role="status">
 <strong id="video-current-time">0.00s</strong>
 <span class="video-time-separator">/</span>
 <span id="video-total-time">0.00s</span>
-</div>
+</div><div class="timeline3-zoom-controls" id="timeline3-inline-tools"><button id="timeline3-zoom-out" type="button" aria-label="Zoom out">−</button><input id="timeline3-zoom" min="36" max="220" step="4" type="range" value="84" aria-label="Timeline zoom"/><button id="timeline3-zoom-in" type="button" aria-label="Zoom in">＋</button><button id="timeline3-fit" type="button" aria-label="Fit timeline to view"><span id="timeline3-fit-label">Fit</span></button></div></div>
 </div>
 <div class="timeline-view-switch" id="timeline-view-switch" role="tablist" aria-label="Timeline view" hidden>
 <button class="timeline-view-tab is-active" data-timeline-view="sequence" id="timeline-view-sequence" role="tab" aria-selected="true" type="button"><span id="timeline-view-sequence-label">Sequence</span></button>
@@ -85,7 +85,7 @@
 <div class="timeline-scroll" id="timeline-scroll">
 <div class="filmstrip-container">
 <div class="pad-spacer" id="pad-left"></div>
-<div class="filmstrip" id="filmstrip"></div>
+<div class="timeline-integrated-stack" id="timeline-integrated-stack"><div class="filmstrip" id="filmstrip"></div><div class="timeline3-media-overlay" id="timeline3-media-overlay"></div><div class="timeline3-tracks timeline3-integrated-tracks" id="timeline3-tracks" hidden></div></div>
 <div class="pad-spacer" id="pad-right"></div>
 </div>
 </div>
@@ -100,12 +100,7 @@
 <div class="master-sequence-list" id="master-sequence-list"></div>
 </div>
 </div>
-<div class="timeline3-shell" id="timeline3-shell">
-<div class="timeline3-toolbar"><div class="timeline3-copy"><span class="timeline-kicker" id="timeline3-kicker">TIMELINE 3.0</span><strong id="timeline3-title">Tracks that match the final animation</strong><p id="timeline3-desc">Select clips, trim edges, zoom with two fingers and hold an item for editing actions.</p></div><div class="timeline3-zoom-controls"><button id="timeline3-zoom-out" type="button" aria-label="Zoom out">−</button><input id="timeline3-zoom" min="36" max="220" step="4" type="range" value="84" aria-label="Timeline zoom"/><button id="timeline3-zoom-in" type="button" aria-label="Zoom in">＋</button><button id="timeline3-fit" type="button" aria-label="Fit timeline to view"><span id="timeline3-fit-label">Fit</span></button></div></div>
-<div class="timeline3-meta"><span id="timeline3-summary"></span></div>
-<div class="timeline3-scroll" id="timeline3-scroll"><div class="timeline3-content"><div class="timeline3-label-spacer"></div><div class="timeline3-ruler-wrap"><div class="timeline3-ruler" id="timeline3-ruler"></div><div class="timeline3-playhead" id="timeline3-playhead"><span></span></div></div><div class="timeline3-tracks" id="timeline3-tracks"></div></div></div>
 <div class="timeline3-menu" id="timeline3-menu" hidden></div>
-</div>
 <section class="sequence-timeline-view" id="sequence-timeline-view" hidden>
 <div class="sequence-timeline-toolbar">
 <div class="sequence-timeline-copy"><span class="timeline-kicker" id="sequence-timeline-kicker">SEQUENCE TIMELINE</span><strong id="sequence-timeline-title">Edit the final order directly</strong><p id="sequence-timeline-desc">Reorder Parts, trim their edges and see which source each one uses.</p></div>
@@ -299,26 +294,26 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p12-8a3"></script>
-<script src="js/project.js?v=p12-8a3"></script>
-<script src="js/i18n.js?v=p12-8a3"></script>
-<script src="js/loading-tips.js?v=p12-8a3"></script>
-<script src="js/ux.js?v=p12-8a3"></script>
-<script src="js/workspace.js?v=p12-8a3"></script><script src="js/api.js?v=p12-8a3"></script>
-<script src="js/media.js?v=p12-8a3"></script>
-<script src="js/source-library.js?v=p12-8a3"></script>
-<script src="js/master-sequence.js?v=p12-8a3"></script>
-<script src="js/timeline.js?v=p12-8a3"></script>
-<script src="js/contextual.js?v=p12-8a3"></script>
-<script src="js/audio.js?v=p12-8a3"></script>
-<script src="js/parts.js?v=p12-8a3"></script>
-<script src="js/timeline-2.js?v=p12-8a3"></script>
-<script src="js/timeline-3.js?v=p12-8a3"></script>
-<script src="js/composition.js?v=p12-8a3"></script>
-<script src="js/performance.js?v=p12-8a3"></script>
-<script src="js/release.js?v=p12-8a3"></script><script src="js/export.js?v=p12-8a3"></script>
-<script src="js/project-engine.js?v=p12-8a3"></script>
-<script src="js/history.js?v=p12-8a3"></script>
-<script src="js/autosave.js?v=p12-8a3"></script>
+<script src="js/state.js?v=p12-8a4"></script>
+<script src="js/project.js?v=p12-8a4"></script>
+<script src="js/i18n.js?v=p12-8a4"></script>
+<script src="js/loading-tips.js?v=p12-8a4"></script>
+<script src="js/ux.js?v=p12-8a4"></script>
+<script src="js/workspace.js?v=p12-8a4"></script><script src="js/api.js?v=p12-8a4"></script>
+<script src="js/media.js?v=p12-8a4"></script>
+<script src="js/source-library.js?v=p12-8a4"></script>
+<script src="js/master-sequence.js?v=p12-8a4"></script>
+<script src="js/timeline.js?v=p12-8a4"></script>
+<script src="js/contextual.js?v=p12-8a4"></script>
+<script src="js/audio.js?v=p12-8a4"></script>
+<script src="js/parts.js?v=p12-8a4"></script>
+<script src="js/timeline-2.js?v=p12-8a4"></script>
+<script src="js/timeline-3.js?v=p12-8a4"></script>
+<script src="js/composition.js?v=p12-8a4"></script>
+<script src="js/performance.js?v=p12-8a4"></script>
+<script src="js/release.js?v=p12-8a4"></script><script src="js/export.js?v=p12-8a4"></script>
+<script src="js/project-engine.js?v=p12-8a4"></script>
+<script src="js/history.js?v=p12-8a4"></script>
+<script src="js/autosave.js?v=p12-8a4"></script>
 </body>
 </html>

@@ -10154,3 +10154,274 @@ summary:focus-visible {
 .timeline3-item {
     cursor: pointer;
 }
+
+.timeline-head-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+}
+
+.timeline-head-tools .timeline3-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid rgba(164, 184, 211, .1);
+    border-radius: 10px;
+    background: rgba(8, 13, 20, .72);
+}
+
+.timeline-head-tools .timeline3-zoom-controls button {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .04);
+    color: var(--text-soft);
+}
+
+.timeline-head-tools .timeline3-zoom-controls input {
+    width: 74px;
+    min-width: 54px;
+}
+
+.timeline-head-tools #timeline3-fit {
+    width: auto;
+    min-width: 42px;
+    padding: 0 7px;
+    font-size: 9px;
+    font-weight: 750;
+}
+
+.timeline-editor .timeline-wrapper {
+    --timeline-filmstrip-height: 116px;
+    --timeline-extra-height: 0px;
+    height: calc(var(--timeline-filmstrip-height) + var(--timeline-extra-height));
+    transition: height .18s ease;
+}
+
+.timeline-editor .filmstrip-container {
+    align-items: flex-start;
+}
+
+.timeline-integrated-stack {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    width: max-content;
+    min-width: 1px;
+    height: 100%;
+    background: #05080d;
+}
+
+.timeline-editor .timeline-integrated-stack > .filmstrip {
+    flex: 0 0 var(--timeline-filmstrip-height);
+    height: var(--timeline-filmstrip-height);
+}
+
+.timeline3-integrated-tracks {
+    position: relative;
+    display: grid;
+    flex: 0 0 auto;
+    width: 100%;
+    background: #070b11;
+}
+
+.timeline3-integrated-tracks[hidden] {
+    display: none;
+}
+
+.timeline3-integrated-tracks .timeline3-track {
+    position: relative;
+    display: block;
+    min-height: 52px;
+    height: 52px;
+    border-top: 1px solid rgba(164, 184, 211, .1);
+    border-bottom: 0;
+}
+
+.timeline3-integrated-tracks .timeline3-track-lane {
+    position: relative;
+    width: 100% !important;
+    min-width: 0;
+    min-height: 52px;
+    height: 52px;
+    overflow: hidden;
+    background-image: linear-gradient(90deg, rgba(164, 184, 211, .035) 1px, transparent 1px);
+    background-size: 54px 100%;
+    cursor: ew-resize;
+}
+
+.timeline3-integrated-tracks .timeline3-track-chip {
+    position: sticky;
+    left: 7px;
+    top: 6px;
+    z-index: 11;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: min(150px, 45vw);
+    height: 20px;
+    margin: 5px 0 0 6px;
+    padding: 0 7px;
+    border: 1px solid rgba(164, 184, 211, .14);
+    border-radius: 7px;
+    background: rgba(5, 9, 15, .86);
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 750;
+    letter-spacing: .04em;
+    pointer-events: none;
+}
+
+.timeline3-integrated-tracks .timeline3-item {
+    top: 7px;
+    bottom: 7px;
+    z-index: 5;
+    min-height: 38px;
+}
+
+.timeline3-integrated-tracks .timeline3-audio,
+.timeline3-integrated-tracks .timeline3-layer {
+    height: 38px;
+}
+
+.timeline3-integrated-tracks .timeline3-marker-line {
+    top: 0;
+    bottom: 0;
+    z-index: 4;
+}
+
+.timeline3-integrated-tracks .timeline3-marker-line::before {
+    display: none;
+}
+
+.timeline3-menu {
+    position: fixed;
+    z-index: 120;
+}
+
+.timeline-editor.timeline3-active .master-sequence-overview,
+.timeline-editor.timeline3-active .timeline-view-switch,
+.timeline-editor.timeline3-active .sequence-timeline-view {
+    display: none !important;
+}
+
+.timeline-editor.timeline3-active #timeline-source-view,
+.timeline-editor.timeline3-active .timeline-wrapper {
+    display: block !important;
+}
+
+.timeline-editor.timeline3-active .timeline-transport {
+    margin-top: 0;
+}
+
+@media (min-width: 520px) {
+    .timeline-editor .timeline-wrapper {
+        --timeline-filmstrip-height: 128px;
+    }
+}
+
+@media (min-width: 860px) {
+    .timeline-editor .timeline-wrapper {
+        --timeline-filmstrip-height: 140px;
+    }
+}
+
+@media (max-width: 560px) {
+    .timeline-editor-head {
+        align-items: flex-start;
+    }
+
+    .timeline-head-tools {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+    }
+
+    .timeline-head-tools .timeline3-zoom-controls input {
+        width: 58px;
+    }
+}
+
+.timeline3-media-overlay {
+    position: absolute;
+    z-index: 12;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--timeline-filmstrip-height);
+    pointer-events: none;
+}
+
+.timeline3-media-clip {
+    position: absolute;
+    top: 27px;
+    bottom: 0;
+    border: 0 solid transparent;
+    pointer-events: none;
+}
+
+.timeline3-media-clip.is-selected {
+    border: 2px solid var(--accent);
+    box-shadow: inset 0 0 0 1px rgba(4, 8, 13, .6);
+}
+
+.timeline3-media-clip .timeline3-trim {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    min-width: 16px;
+    height: 42px;
+    opacity: 1;
+    transform: translateY(-50%);
+    pointer-events: auto;
+    touch-action: none;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px rgba(4, 8, 13, .55);
+}
+
+.timeline3-media-clip .timeline3-trim-start {
+    left: -8px;
+    border-radius: 8px;
+}
+
+.timeline3-media-clip .timeline3-trim-end {
+    right: -8px;
+    border-radius: 8px;
+}
+
+.timeline3-media-boundary {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgba(164, 184, 211, .28);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(9, 15, 23, .92);
+    pointer-events: auto;
+    touch-action: manipulation;
+}
+
+.timeline3-media-boundary::before,
+.timeline3-media-boundary::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    top: 9px;
+    height: 1px;
+    background: var(--muted);
+}
+
+.timeline3-media-boundary::after {
+    transform: rotate(90deg);
+}
