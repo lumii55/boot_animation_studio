@@ -9988,7 +9988,6 @@ summary:focus-visible {
     background: var(--surface-hover);
 }
 
-.timeline-editor.timeline3-active .timeline-wrapper,
 .timeline-editor.timeline3-active .master-sequence-overview,
 .timeline-editor.timeline3-active .timeline-view-switch,
 .timeline-editor.timeline3-active .sequence-timeline-view {
@@ -10099,4 +10098,59 @@ summary:focus-visible {
     .build-package-panel {
         padding: 13px;
     }
+}
+
+.timeline-editor.timeline3-active .timeline-wrapper {
+    display: block !important;
+}
+
+.timeline3-shell {
+    margin-top: 12px;
+}
+
+.timeline3-layer .timeline3-trim {
+    display: none;
+}
+
+.timeline3-layer.is-selected .timeline3-trim,
+.timeline3-layer.is-trimming .timeline3-trim {
+    display: block;
+}
+
+.timeline3-marker-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    z-index: 8;
+    pointer-events: none;
+    background: currentColor;
+    opacity: .82;
+}
+
+.timeline3-marker-line::before {
+    content: attr(data-marker-label);
+    position: absolute;
+    top: 3px;
+    left: 4px;
+    padding: 2px 4px;
+    border-radius: 5px;
+    background: rgba(4, 8, 13, .82);
+    color: currentColor;
+    font-size: 9px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.timeline3-marker-m0 { color: #7dd3fc; }
+.timeline3-marker-m1 { color: #86efac; }
+.timeline3-marker-m2 { color: #fde047; }
+.timeline3-marker-m3 { color: #f9a8d4; }
+
+.timeline3-track-lane {
+    cursor: ew-resize;
+}
+
+.timeline3-item {
+    cursor: pointer;
 }
