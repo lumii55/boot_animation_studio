@@ -6,7 +6,9 @@ const sourceLibraryRuntime = {
     videoElements: new Map(),
     decoding: new Map(),
     adding: false,
-    projectRef: null
+    projectRef: null,
+    frameCanvas: document.createElement('canvas'),
+    frameContext: null
 };
 
 function sourceLibraryText(key, fallback) {
@@ -407,8 +409,10 @@ async function addFilesToSourceLibrary(files) {
             renderSourceLibrary();
             if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: false });
             if (added.some(source => source.role === 'visual') && window.BASMultiTrackTimeline && typeof BASMultiTrackTimeline.refreshFrames === 'function') {
+                if (typeof BASMultiTrackTimeline.clearFrameCache === 'function') BASMultiTrackTimeline.clearFrameCache();
+                if (typeof BASMultiTrackTimeline.render === 'function') BASMultiTrackTimeline.render();
                 if (loading) loading.textContent = sourceLibraryText('timeline3LoadingFrames', 'Building timeline frames {current}/{total}...').replace('{current}', '0').replace('{total}', '—');
-                await BASMultiTrackTimeline.refreshFrames({ showLoading: false });
+                await BASMultiTrackTimeline.refreshFrames({ showLoading: false, force: true });
             }
             if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-library', { changeKey: 'source-library', immediate: true });
             if (typeof showToast === 'function') showToast(sourceLibraryText('sourceLibraryAdded', '{count} source(s) added').replace('{count}', String(added.length)), 'success');
@@ -533,6 +537,7 @@ async function removeSourceFromLibrary(id) {
     if (affectedPart && typeof markAdvancedPartsDirty === 'function') markAdvancedPartsDirty();
     else if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-library', { changeKey: 'source-library', immediate: true });
     renderSourceLibrary();
+    if (source.role === 'visual' && window.BASMultiTrackTimeline && typeof BASMultiTrackTimeline.clearFrameCache === 'function') BASMultiTrackTimeline.clearFrameCache();
     if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: source.role === 'visual' });
     if (typeof renderAdvancedPartsEditor === 'function' && typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) renderAdvancedPartsEditor();
     return true;
@@ -705,8 +710,11 @@ function sourceLibraryFrameAtTime(frames, time) {
 }
 
 async function getSourceFrameOutputBlob(sourceId, sourceTime, width, height, format, framing = 'cover', framingFocus = null, jpegQuality = 0.9) {
-    canvasInvisivel.width = Math.max(1, Math.round(Number(width) || 1));
-    canvasInvisivel.height = Math.max(1, Math.round(Number(height) || 1));
+    const frameCanvas = sourceLibraryRuntime.frameCanvas;
+    frameCanvas.width = Math.max(1, Math.round(Number(width) || 1));
+    frameCanvas.height = Math.max(1, Math.round(Number(height) || 1));
+    const frameContext = sourceLibraryRuntime.frameContext || frameCanvas.getContext('2d', { alpha: false });
+    sourceLibraryRuntime.frameContext = frameContext;
     const source = getProjectSourceById(sourceId);
     if (!source) return await getProjectFrameOutputBlob(sourceTime, width, height, format, framing, framingFocus, jpegQuality);
     if (source.isPrimary && currentProject && currentProject.sourceMode === 'frames') return await getProjectFrameOutputBlob(sourceTime, width, height, format, framing, framingFocus, jpegQuality);
@@ -725,9 +733,9 @@ async function getSourceFrameOutputBlob(sourceId, sourceTime, width, height, for
         const blob = frame.blob || await getProjectFrameBlob(frame);
         drawable = await blobToDrawable(blob);
     }
-    drawFramedDrawable(contexto, drawable, width, height, framing, framingFocus);
+    drawFramedDrawable(frameContext, drawable, width, height, framing, framingFocus);
     if (source.kind !== 'video') releaseDrawable(drawable);
-    return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
+    return await canvasToBlobAsync(frameCanvas, mimeType, quality);
 }
 
 function sourceLibrarySupportsVideoAudio(sourceId) {

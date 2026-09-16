@@ -14,12 +14,15 @@ const timeline3Runtime = {
     hold: null,
     pinch: null,
     reorder: null,
+    scrub: null,
+    itemDrag: null,
     suppressClickUntil: 0,
     restoreSimpleAfterAdvanced: false,
     lastAdvancedActive: false,
     thumbnailCache: new Map(),
     thumbnailGeneration: 0,
-    thumbnailBuild: null
+    thumbnailBuild: null,
+    thumbnailLayoutSignature: ''
 };
 
 function timeline3Text(key, fallback) {
@@ -87,6 +90,7 @@ function timeline3CurrentSimpleTime() {
 }
 
 function timeline3CurrentTime() {
+    if (timeline3Runtime.scrub && Number.isFinite(timeline3Runtime.scrub.previewTime)) return Math.max(0, Math.min(timeline3Duration(), timeline3Runtime.scrub.previewTime));
     if (timeline3AdvancedActive()) return Math.max(0, Math.min(timeline3Duration(), Number(timeline3Runtime.currentTime) || 0));
     return Math.max(0, Math.min(timeline3Duration(), timeline3CurrentSimpleTime()));
 }
@@ -157,6 +161,13 @@ function timeline3SourceHue(sourceId, index = 0) {
     let hash = 0;
     for (const char of String(sourceId || index || 'source')) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
     return Math.abs(hash) % 360;
+}
+
+function timeline3VisualSignature(layout = timeline3VisualLayout()) {
+    return layout.map(item => {
+        const source = item.source || {};
+        return [item.key, item.sourceId || '', Number(item.start) || 0, Number(item.end) || 0, Number(item.duration) || 0, source.size || 0, source.lastModified || 0, source.name || ''].join(':');
+    }).join('|');
 }
 
 function timeline3ClearThumbnailCache() {
@@ -348,7 +359,7 @@ function timeline3LayerLanes() {
         const item = { key, kind: 'layer', id: layer.id, index, start: Number(layer.start) || 0, end: Number(layer.end) || 0, duration: Math.max(0.001, Number(layer.end) - Number(layer.start)), layer };
         timeline3Runtime.items.set(key, item);
         const type = layer.type === 'image' ? timeline3Text('timeline3Image', 'Image') : timeline3Text('timeline3Text', 'Text');
-        return `<div class="timeline3-lane timeline3-lane-layer${layer.visible === false ? ' is-muted' : ''}"><div class="timeline3-lane-label"><span class="timeline3-lane-icon">${layer.type === 'image' ? 'I' : 'T'}</span><strong>${timeline3Escape(layer.name || `${timeline3Text('timeline3Layer', 'Layer')} ${index + 1}`)}</strong></div><div class="timeline3-lane-body"><article class="timeline3-item timeline3-layer-item${timeline3Runtime.selectedKey === key ? ' is-selected' : ''}" data-timeline3-key="${timeline3Escape(key)}" style="left:${timeline3X(item.start)}px;width:${timeline3Width(item.duration)}px"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" data-timeline3-key="${timeline3Escape(key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim start'))}"></button><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" data-timeline3-key="${timeline3Escape(key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim end'))}"></button><div class="timeline3-item-copy"><strong>${timeline3Escape(layer.name || type)}</strong><small>${timeline3Escape(type)} · ${timeline3Escape(timeline3FormatTime(item.duration))}</small></div></article></div></div>`;
+        return `<div class="timeline3-lane timeline3-lane-layer${layer.visible === false ? ' is-muted' : ''}"><div class="timeline3-lane-label"><span class="timeline3-lane-icon">${layer.type === 'image' ? 'I' : 'T'}</span><strong>${timeline3Escape(layer.name || `${timeline3Text('timeline3Layer', 'Layer')} ${index + 1}`)}</strong></div><div class="timeline3-lane-body"><article class="timeline3-item timeline3-layer-item is-timeline-draggable${timeline3Runtime.selectedKey === key ? ' is-selected' : ''}" data-timeline3-key="${timeline3Escape(key)}" style="left:${timeline3X(item.start)}px;width:${timeline3Width(item.duration)}px"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" data-timeline3-key="${timeline3Escape(key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim start'))}"></button><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" data-timeline3-key="${timeline3Escape(key)}" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim end'))}"></button><div class="timeline3-item-copy"><strong>${timeline3Escape(layer.name || type)}</strong><small>${timeline3Escape(type)} · ${timeline3Escape(timeline3FormatTime(item.duration))}</small></div></article></div></div>`;
     }).join('');
 }
 
@@ -367,10 +378,14 @@ function timeline3SimpleAudioItems() {
         ['loop', marker('m1'), marker('m2')],
         ['final', marker('m2'), marker('m3')]
     ];
-    return ranges.flatMap(([role, start, end]) => {
+    return ranges.flatMap(([role, baseStart, baseEnd]) => {
         const roleState = state[role];
-        if (!roleState || roleState.mode === 'none' || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
-        return [{ key: `audio:simple:${role}`, kind: 'audio-simple', id: role, role, start, end, duration: end - start, state: roleState }];
+        if (!roleState || roleState.mode === 'none' || !Number.isFinite(baseStart) || !Number.isFinite(baseEnd) || baseEnd <= baseStart) return [];
+        const maxOffset = Math.max(0, Math.min(5, baseEnd - baseStart - 0.02));
+        const offset = Math.max(0, Math.min(maxOffset, Number(roleState.offset) || 0));
+        const start = baseStart + offset;
+        const end = baseEnd;
+        return [{ key: `audio:simple:${role}`, kind: 'audio-simple', id: role, role, start, end, duration: Math.max(0.02, end - start), baseStart, baseEnd, maxOffset, state: roleState }];
     });
 }
 
@@ -378,7 +393,11 @@ function timeline3AdvancedAudioItems() {
     return timeline3AdvancedLayout().flatMap(item => {
         const audio = item.part && item.part.audio;
         if (!audio || !audio.mode || audio.mode === 'none') return [];
-        return [{ key: `audio:advanced:${item.part.id}`, kind: 'audio-advanced', id: item.part.id, part: item.part, start: item.start, end: item.end, duration: item.duration, state: audio }];
+        const maxOffset = Math.max(0, Math.min(5, item.duration - 0.02));
+        const offset = Math.max(0, Math.min(maxOffset, Number(audio.offset) || 0));
+        const start = item.start + offset;
+        const end = item.end;
+        return [{ key: `audio:advanced:${item.part.id}`, kind: 'audio-advanced', id: item.part.id, part: item.part, start, end, duration: Math.max(0.02, end - start), baseStart: item.start, baseEnd: item.end, maxOffset, state: audio }];
     });
 }
 
@@ -391,7 +410,9 @@ function timeline3AudioLanes() {
             ? timeline3Text(item.role === 'intro' ? 'timeline3AudioIntro' : item.role === 'loop' ? 'timeline3AudioLoop' : 'timeline3AudioOutro', item.role === 'intro' ? 'Intro audio' : item.role === 'loop' ? 'Loop audio' : 'Outro audio')
             : item.part.label || item.part.folder || `${timeline3Text('timeline3Part', 'Part')} ${index + 1}`;
         const mode = item.state.mode === 'video' ? timeline3Text('timeline3VideoAudio', 'Video audio') : timeline3Text('timeline3FileAudio', 'Audio file');
-        return `<div class="timeline3-lane timeline3-lane-audio"><div class="timeline3-lane-label"><span class="timeline3-lane-icon">A</span><strong>${timeline3Escape(label)}</strong></div><div class="timeline3-lane-body"><article class="timeline3-item timeline3-audio-item${timeline3Runtime.selectedKey === item.key ? ' is-selected' : ''}" data-timeline3-key="${timeline3Escape(item.key)}" style="left:${timeline3X(item.start)}px;width:${timeline3Width(item.duration)}px"><span class="timeline3-wave" aria-hidden="true"></span><div class="timeline3-item-copy"><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(mode)} · ${timeline3Escape(timeline3FormatTime(item.duration))}</small></div></article></div></div>`;
+        const offset = Math.max(0, Number(item.state.offset) || 0);
+        const timing = offset > 0.005 ? `${timeline3FormatTime(item.duration)} · +${timeline3FormatTime(offset)}` : timeline3FormatTime(item.duration);
+        return `<div class="timeline3-lane timeline3-lane-audio"><div class="timeline3-lane-label"><span class="timeline3-lane-icon">A</span><strong>${timeline3Escape(label)}</strong></div><div class="timeline3-lane-body"><article class="timeline3-item timeline3-audio-item is-timeline-draggable${timeline3Runtime.selectedKey === item.key ? ' is-selected' : ''}" data-timeline3-key="${timeline3Escape(item.key)}" style="left:${timeline3X(item.start)}px;width:${timeline3Width(item.duration)}px"><span class="timeline3-wave" aria-hidden="true"></span><div class="timeline3-item-copy"><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(mode)} · ${timeline3Escape(timing)}</small></div></article></div></div>`;
     }).join('');
 }
 
@@ -436,9 +457,16 @@ function timeline3Render() {
     shell.classList.toggle('is-empty', !hasProject);
     if (timeline3Runtime.projectRef !== currentProject) {
         timeline3ClearThumbnailCache();
+        timeline3Runtime.thumbnailLayoutSignature = '';
         timeline3Runtime.projectRef = currentProject;
     }
     timeline3Runtime.items.clear();
+    const visualLayout = timeline3VisualLayout();
+    const visualSignature = timeline3VisualSignature(visualLayout);
+    if (timeline3Runtime.thumbnailLayoutSignature !== visualSignature) {
+        timeline3ClearThumbnailCache();
+        timeline3Runtime.thumbnailLayoutSignature = visualSignature;
+    }
     const duration = timeline3Duration();
     const width = Math.max(320, timeline3X(duration) + 72);
     content.style.width = `${width}px`;
@@ -732,13 +760,17 @@ function timeline3MoveTrim(event) {
     if (!trim || trim.pointerId !== event.pointerId) return;
     const item = timeline3Runtime.items.get(trim.key);
     if (!item) return;
+    event.preventDefault();
     const delta = (event.clientX - trim.startX) / timeline3Runtime.zoom;
     if (item.kind === 'layer') {
         const duration = timeline3Duration();
-        if (trim.edge === 'start') item.layer.start = Math.max(0, Math.min(item.layer.end - 0.02, trim.initialStart + delta));
-        else item.layer.end = Math.max(item.layer.start + 0.02, Math.min(duration, trim.initialEnd + delta));
-        item.start = item.layer.start;
-        item.end = item.layer.end;
+        const liveLayer = window.BASComposition ? BASComposition.getLayers().find(layer => layer.id === item.id) : item.layer;
+        if (!liveLayer) return;
+        if (trim.edge === 'start') liveLayer.start = Math.max(0, Math.min(liveLayer.end - 0.02, trim.initialStart + delta));
+        else liveLayer.end = Math.max(liveLayer.start + 0.02, Math.min(duration, trim.initialEnd + delta));
+        item.layer = liveLayer;
+        item.start = liveLayer.start;
+        item.end = liveLayer.end;
         item.duration = item.end - item.start;
     } else if (item.kind === 'visual-advanced') {
         const sourceDuration = window.BASSourceLibrary ? Math.max(0, Number(BASSourceLibrary.getDuration(item.sourceId)) || 0) : Math.max(0, Number(currentProject.sourceDuration) || 0);
@@ -762,16 +794,23 @@ function timeline3FinishTrim(event, cancelled = false) {
     const item = timeline3Runtime.items.get(trim.key);
     if (cancelled && item) {
         if (item.kind === 'layer') {
-            item.layer.start = trim.initialStart;
-            item.layer.end = trim.initialEnd;
+            const liveLayer = window.BASComposition ? BASComposition.getLayers().find(layer => layer.id === item.id) : item.layer;
+            if (liveLayer) {
+                liveLayer.start = trim.initialStart;
+                liveLayer.end = trim.initialEnd;
+                item.layer = liveLayer;
+            }
         } else if (item.kind === 'visual-advanced') {
             item.part.start = trim.initialStart;
             item.part.end = trim.initialEnd;
         }
     } else if (item) {
         if (item.kind === 'layer') {
-            if (window.BASComposition) BASComposition.render();
-            if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('composition', { changeKey: `composition:${item.layer.id}:timing`, immediate: true });
+            if (window.BASComposition) {
+                BASComposition.render();
+                BASComposition.renderPreview();
+            }
+            if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('composition', { changeKey: `composition:${item.id}:timing`, immediate: true });
         } else if (item.kind === 'visual-advanced') {
             if (typeof markAdvancedPartsDirty === 'function') markAdvancedPartsDirty();
             if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
@@ -789,6 +828,259 @@ function timeline3TapTime(event) {
     const rect = scroll.getBoundingClientRect();
     const contentX = scroll.scrollLeft + event.clientX - rect.left;
     return Math.max(0, Math.min(timeline3Duration(), (contentX - timeline3Runtime.gutter) / timeline3Runtime.zoom));
+}
+
+function timeline3PauseForGesture() {
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive() && BASMasterSequence.isPlaying()) BASMasterSequence.pause();
+    if (playerVideo && !playerVideo.paused) playerVideo.pause();
+}
+
+function timeline3ScrubAutoScroll(event) {
+    const scroll = document.getElementById('timeline3-scroll');
+    if (!scroll) return;
+    const rect = scroll.getBoundingClientRect();
+    const edge = Math.min(54, rect.width * 0.16);
+    if (event.clientX < rect.left + edge) scroll.scrollLeft = Math.max(0, scroll.scrollLeft - Math.max(7, (rect.left + edge - event.clientX) * 0.34));
+    else if (event.clientX > rect.right - edge) scroll.scrollLeft += Math.max(7, (event.clientX - (rect.right - edge)) * 0.34);
+}
+
+async function timeline3DrainScrub() {
+    const scrub = timeline3Runtime.scrub;
+    if (!scrub || scrub.running) return;
+    scrub.running = true;
+    try {
+        while (timeline3Runtime.scrub === scrub && Number.isFinite(scrub.desiredTime)) {
+            const target = scrub.desiredTime;
+            scrub.desiredTime = NaN;
+            await timeline3Seek(target, { follow: false, renderPart: false });
+        }
+    } finally {
+        if (timeline3Runtime.scrub === scrub) {
+            scrub.running = false;
+            if (scrub.finishWhenIdle && !Number.isFinite(scrub.desiredTime)) {
+                timeline3Runtime.scrub = null;
+                timeline3UpdatePlayhead();
+                timeline3SyncTransport();
+            }
+        }
+    }
+}
+
+function timeline3QueueScrub(time) {
+    const scrub = timeline3Runtime.scrub;
+    if (!scrub) return;
+    const safe = Math.max(0, Math.min(timeline3Duration(), Number(time) || 0));
+    scrub.previewTime = safe;
+    scrub.desiredTime = safe;
+    timeline3Runtime.currentTime = safe;
+    timeline3UpdatePlayhead();
+    timeline3DrainScrub();
+}
+
+function timeline3StartScrub(event, target, immediate = false) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return false;
+    timeline3PauseForGesture();
+    const scrub = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: !!immediate,
+        previewTime: timeline3CurrentTime(),
+        desiredTime: NaN,
+        running: false,
+        target
+    };
+    timeline3Runtime.scrub = scrub;
+    if (target && typeof target.setPointerCapture === 'function') {
+        try { target.setPointerCapture(event.pointerId); } catch (error) {}
+    }
+    if (immediate) {
+        event.preventDefault();
+        timeline3QueueScrub(timeline3TapTime(event));
+    }
+    return true;
+}
+
+function timeline3MoveScrub(event) {
+    const scrub = timeline3Runtime.scrub;
+    if (!scrub || scrub.pointerId !== event.pointerId) return;
+    const holdState = timeline3Runtime.hold;
+    if (holdState && holdState.pointerId === event.pointerId && holdState.fired) return;
+    const distance = Math.hypot(event.clientX - scrub.startX, event.clientY - scrub.startY);
+    if (!scrub.moved && distance < 6) return;
+    if (!scrub.moved) {
+        scrub.moved = true;
+        timeline3Runtime.suppressClickUntil = Date.now() + 700;
+        const hold = timeline3Runtime.hold;
+        if (hold && hold.pointerId === event.pointerId) {
+            clearTimeout(hold.timer);
+            timeline3Runtime.hold = null;
+        }
+    }
+    event.preventDefault();
+    timeline3ScrubAutoScroll(event);
+    timeline3QueueScrub(timeline3TapTime(event));
+}
+
+function timeline3FinishScrub(event, cancelled = false) {
+    const scrub = timeline3Runtime.scrub;
+    if (!scrub || scrub.pointerId !== event.pointerId) return;
+    if (cancelled && !scrub.moved) {
+        timeline3Runtime.scrub = null;
+        timeline3Runtime.currentTime = timeline3CurrentSimpleTime();
+        timeline3UpdatePlayhead();
+        timeline3SyncTransport();
+        return;
+    }
+    if (!scrub.moved) {
+        timeline3Runtime.scrub = null;
+        return;
+    }
+    timeline3Runtime.suppressClickUntil = Date.now() + 500;
+    scrub.finishWhenIdle = true;
+    scrub.desiredTime = scrub.previewTime;
+    timeline3DrainScrub();
+}
+
+function timeline3LiveLayer(item) {
+    if (!item || item.kind !== 'layer' || !window.BASComposition) return item && item.layer ? item.layer : null;
+    return BASComposition.getLayers().find(layer => layer.id === item.id) || null;
+}
+
+function timeline3StartItemDrag(event, element, item) {
+    if (!item || !['layer', 'audio-simple', 'audio-advanced'].includes(item.kind)) return false;
+    if (event.pointerType === 'mouse' && event.button !== 0) return false;
+    let initialStart = item.start;
+    let initialEnd = item.end;
+    let initialOffset = 0;
+    if (item.kind === 'layer') {
+        const layer = timeline3LiveLayer(item);
+        if (!layer) return false;
+        item.layer = layer;
+        initialStart = Number(layer.start) || 0;
+        initialEnd = Number(layer.end) || initialStart;
+    } else {
+        initialOffset = Math.max(0, Number(item.state && item.state.offset) || 0);
+    }
+    timeline3Runtime.itemDrag = {
+        key: item.key,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        initialStart,
+        initialEnd,
+        initialOffset,
+        moved: false,
+        element
+    };
+    if (element && typeof element.setPointerCapture === 'function') {
+        try { element.setPointerCapture(event.pointerId); } catch (error) {}
+    }
+    return true;
+}
+
+function timeline3SetSimpleAudioOffset(item, value) {
+    const maxOffset = Math.max(0, Number(item.maxOffset) || 0);
+    const offset = Math.max(0, Math.min(maxOffset, Number(value) || 0));
+    const input = document.getElementById(`audio-offset-${item.role}`);
+    if (input) input.value = offset.toFixed(2);
+    if (item.state) item.state.offset = offset;
+    if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(item.role);
+    item.start = item.baseStart + offset;
+    item.end = item.baseEnd;
+    item.duration = Math.max(0.02, item.end - item.start);
+    return offset;
+}
+
+function timeline3SetAdvancedAudioOffset(item, value) {
+    const maxOffset = Math.max(0, Number(item.maxOffset) || 0);
+    const offset = Math.max(0, Math.min(maxOffset, Number(value) || 0));
+    if (item.part && item.part.audio) item.part.audio.offset = offset;
+    if (item.state) item.state.offset = offset;
+    item.start = item.baseStart + offset;
+    item.end = item.baseEnd;
+    item.duration = Math.max(0.02, item.end - item.start);
+    return offset;
+}
+
+function timeline3MoveItemDrag(event) {
+    const drag = timeline3Runtime.itemDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const item = timeline3Runtime.items.get(drag.key);
+    if (!item) return;
+    const holdState = timeline3Runtime.hold;
+    if (holdState && holdState.pointerId === event.pointerId && holdState.fired) return;
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    if (!drag.moved && distance < 6) return;
+    if (!drag.moved) {
+        drag.moved = true;
+        timeline3PauseForGesture();
+        timeline3Runtime.suppressClickUntil = Date.now() + 700;
+        const hold = timeline3Runtime.hold;
+        if (hold && hold.pointerId === event.pointerId) {
+            clearTimeout(hold.timer);
+            timeline3Runtime.hold = null;
+        }
+        drag.element?.classList.add('is-timeline-dragging');
+    }
+    event.preventDefault();
+    const delta = (event.clientX - drag.startX) / timeline3Runtime.zoom;
+    if (item.kind === 'layer') {
+        const layer = timeline3LiveLayer(item);
+        if (!layer) return;
+        const span = Math.max(0.02, drag.initialEnd - drag.initialStart);
+        const limit = Math.max(0, timeline3Duration() - span);
+        const start = Math.max(0, Math.min(limit, drag.initialStart + delta));
+        layer.start = start;
+        layer.end = start + span;
+        item.layer = layer;
+        item.start = layer.start;
+        item.end = layer.end;
+        item.duration = span;
+        if (window.BASComposition) BASComposition.renderPreview();
+    } else if (item.kind === 'audio-simple') {
+        timeline3SetSimpleAudioOffset(item, drag.initialOffset + delta);
+    } else if (item.kind === 'audio-advanced') {
+        timeline3SetAdvancedAudioOffset(item, drag.initialOffset + delta);
+    }
+    if (drag.element) {
+        drag.element.style.left = `${timeline3X(item.start)}px`;
+        drag.element.style.width = `${timeline3Width(item.duration)}px`;
+    }
+}
+
+function timeline3FinishItemDrag(event, cancelled = false) {
+    const drag = timeline3Runtime.itemDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const item = timeline3Runtime.items.get(drag.key);
+    if (item && cancelled && drag.moved) {
+        if (item.kind === 'layer') {
+            const layer = timeline3LiveLayer(item);
+            if (layer) {
+                layer.start = drag.initialStart;
+                layer.end = drag.initialEnd;
+                item.layer = layer;
+            }
+        } else if (item.kind === 'audio-simple') timeline3SetSimpleAudioOffset(item, drag.initialOffset);
+        else if (item.kind === 'audio-advanced') timeline3SetAdvancedAudioOffset(item, drag.initialOffset);
+    } else if (item && drag.moved) {
+        if (item.kind === 'layer') {
+            if (window.BASComposition) {
+                BASComposition.render();
+                BASComposition.renderPreview();
+            }
+            if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('composition', { changeKey: `composition:${item.id}:timing`, immediate: true });
+        } else if (item.kind === 'audio-simple') {
+            if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${item.role}:offset`, immediate: true });
+        } else if (item.kind === 'audio-advanced') {
+            if (typeof markAdvancedPartsDirty === 'function') markAdvancedPartsDirty();
+            if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
+        }
+    }
+    drag.element?.classList.remove('is-timeline-dragging');
+    timeline3Runtime.itemDrag = null;
+    if (drag.moved) timeline3Runtime.suppressClickUntil = Date.now() + 500;
+    timeline3ScheduleRender(0);
 }
 
 function timeline3StartHold(event, item) {
@@ -933,22 +1225,35 @@ function bindTimeline3() {
             timeline3StartTrim(event, handle);
             return;
         }
-        const item = event.target.closest('[data-timeline3-key]');
-        if (item) timeline3StartHold(event, item);
+        const itemElement = event.target.closest('[data-timeline3-key]');
+        const item = itemElement ? timeline3Runtime.items.get(itemElement.dataset.timeline3Key) : null;
+        if (itemElement && item) {
+            if (['layer', 'audio-simple', 'audio-advanced'].includes(item.kind)) timeline3StartItemDrag(event, itemElement, item);
+            else if (['visual-simple', 'visual-advanced'].includes(item.kind)) timeline3StartScrub(event, itemElement, false);
+            timeline3StartHold(event, itemElement);
+            return;
+        }
+        if (event.target.closest('.timeline3-ruler')) timeline3StartScrub(event, event.target.closest('.timeline3-ruler'), true);
     });
     scroll.addEventListener('pointermove', event => {
         timeline3MoveReorder(event);
         timeline3MoveTrim(event);
+        timeline3MoveItemDrag(event);
+        timeline3MoveScrub(event);
         timeline3MoveHold(event);
     });
     scroll.addEventListener('pointerup', event => {
         timeline3FinishReorder(event, false);
         timeline3FinishTrim(event, false);
+        timeline3FinishItemDrag(event, false);
+        timeline3FinishScrub(event, false);
         timeline3EndHold(event);
     });
     scroll.addEventListener('pointercancel', event => {
         timeline3FinishReorder(event, true);
         timeline3FinishTrim(event, true);
+        timeline3FinishItemDrag(event, true);
+        timeline3FinishScrub(event, true);
         timeline3EndHold(event);
     });
     scroll.addEventListener('contextmenu', event => {

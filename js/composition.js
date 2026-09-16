@@ -85,7 +85,12 @@ function ensureProjectComposition() {
     if (!currentProject) return [];
     if (!Array.isArray(currentProject.compositionLayers)) currentProject.compositionLayers = [];
     if (!Number.isInteger(currentProject.compositionCounter)) currentProject.compositionCounter = 0;
-    currentProject.compositionLayers = currentProject.compositionLayers.map(normalizeCompositionLayer);
+    currentProject.compositionLayers = currentProject.compositionLayers.map((layer, index) => {
+        const normalized = normalizeCompositionLayer(layer, index);
+        if (!layer || typeof layer !== 'object') return normalized;
+        Object.assign(layer, normalized);
+        return layer;
+    });
     currentProject.compositionCounter = Math.max(currentProject.compositionCounter, currentProject.compositionLayers.length);
     return currentProject.compositionLayers;
 }

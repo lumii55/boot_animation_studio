@@ -60,11 +60,15 @@ function syncWorkspaceUi() {
     const hasMedia = workspaceHasMedia();
     const connected = workspaceIsConnected();
     const stateButton = document.getElementById('editor-device-toggle');
+    const compositionSection = document.getElementById('composition-editor-section');
+    const audioSection = document.getElementById('output-panel-audio');
     workspaceUi.editor.classList.toggle('has-media', hasMedia);
     workspaceUi.editor.classList.toggle('has-device', connected);
     document.body.classList.toggle('workspace-has-media', hasMedia);
     document.body.classList.toggle('workspace-has-device', connected);
     if (workspaceUi.empty) workspaceUi.empty.hidden = hasMedia;
+    if (compositionSection) compositionSection.hidden = !hasMedia;
+    if (audioSection) audioSection.hidden = !hasMedia;
     if (workspaceUi.nav) workspaceUi.nav.classList.toggle('is-visible', hasMedia);
     if (workspaceUi.sourceReady) {
         workspaceUi.sourceReady.textContent = hasMedia
