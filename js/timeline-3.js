@@ -10,7 +10,8 @@ const timeline3Runtime = {
     pressStart: null,
     pointers: new Map(),
     pinchDistance: 0,
-    pinchZoom: 84
+    pinchZoom: 84,
+    zoomUserSet: false
 };
 
 function timeline3Text(key, fallback) {
@@ -61,7 +62,16 @@ function timeline3Duration() {
 }
 
 function timeline3TrackWidth() {
+    const filmstrip = document.getElementById('filmstrip');
+    const measured = filmstrip ? filmstrip.offsetWidth : 0;
+    if (measured > 0) return measured;
     return Math.max(320, Math.ceil(timeline3Duration() * timeline3Runtime.zoom));
+}
+
+function timeline3Percent(time) {
+    const duration = timeline3Duration();
+    if (!(duration > 0)) return 0;
+    return Math.max(0, Math.min(100, (Math.max(0, Number(time) || 0) / duration) * 100));
 }
 
 function timeline3VisualHue(sourceId) {
@@ -75,20 +85,6 @@ function timeline3SourceName(sourceId) {
     return source && source.name ? source.name : timeline3Text('timeline3PrimarySource', 'Primary source');
 }
 
-function timeline3RulerHtml() {
-    const duration = timeline3Duration();
-    if (!(duration > 0)) return '';
-    const targetSpacing = 72;
-    const secondsPerTick = Math.max(0.25, targetSpacing / timeline3Runtime.zoom);
-    const choices = [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60];
-    const step = choices.find(value => value >= secondsPerTick) || 60;
-    let html = '';
-    for (let time = 0; time <= duration + 0.0001; time += step) {
-        html += `<span class="timeline3-ruler-tick" style="left:${time * timeline3Runtime.zoom}px"><i></i><b>${timeline3Escape(timeline3Format(time))}</b></span>`;
-    }
-    return html;
-}
-
 function timeline3MarkerHtml() {
     const duration = timeline3Duration();
     if (!(duration > 0) || typeof marcadores !== 'object' || !marcadores) return '';
@@ -98,7 +94,7 @@ function timeline3MarkerHtml() {
         const value = Number(raw);
         if (!Number.isFinite(value)) return '';
         const time = Math.max(0, Math.min(duration, value));
-        return `<span class="timeline3-marker-line timeline3-marker-${id}" data-marker-label="${index + 1}" style="left:${time * timeline3Runtime.zoom}px"></span>`;
+        return `<span class="timeline3-marker-line timeline3-marker-${id}" data-marker-label="${index + 1}" style="left:${timeline3Percent(time)}%"></span>`;
     }).join('');
 }
 
@@ -112,9 +108,9 @@ function timeline3SeekFromLane(event, lane) {
     const duration = timeline3Duration();
     if (!(duration > 0)) return;
     const rect = lane.getBoundingClientRect();
-    const time = Math.max(0, Math.min(duration, (event.clientX - rect.left) / timeline3Runtime.zoom));
+    if (!(rect.width > 0)) return;
+    const time = Math.max(0, Math.min(duration, ((event.clientX - rect.left) / rect.width) * duration));
     seekTimelineTo(time);
-    timeline3UpdatePlayhead();
 }
 
 function timeline3SimpleVisualHtml() {
@@ -123,11 +119,11 @@ function timeline3SimpleVisualHtml() {
     return layout.map((item, index) => {
         const sourceId = item.clip.sourceId;
         const selected = timeline3Runtime.selectedType === 'clip' && timeline3Runtime.selectedId === item.clip.id;
-        const left = item.start * timeline3Runtime.zoom;
-        const width = Math.max(34, item.duration * timeline3Runtime.zoom);
+        const left = timeline3Percent(item.start);
+        const width = Math.max(0.8, timeline3Percent(item.end) - left);
         const range = `${timeline3Format(item.sourceIn)} – ${timeline3Format(item.sourceOut)}`;
-        const boundary = index < layout.length - 1 ? `<button class="timeline3-boundary" type="button" data-timeline3-boundary="${timeline3Escape(item.clip.id)}" style="left:${(item.end * timeline3Runtime.zoom) - 13}px" aria-label="${timeline3Escape(timeline3Text('timeline3BoundaryAria', 'Clip boundary'))}"><span></span></button>` : '';
-        return `<article class="timeline3-item timeline3-clip${selected ? ' is-selected' : ''}" data-timeline3-type="clip" data-timeline3-id="${timeline3Escape(item.clip.id)}" style="left:${left}px;width:${width}px;--track-hue:${timeline3VisualHue(sourceId)}">
+        const boundary = index < layout.length - 1 ? `<button class="timeline3-boundary" type="button" data-timeline3-boundary="${timeline3Escape(item.clip.id)}" style="left:calc(${timeline3Percent(item.end)}% - 13px)" aria-label="${timeline3Escape(timeline3Text('timeline3BoundaryAria', 'Clip boundary'))}"><span></span></button>` : '';
+        return `<article class="timeline3-item timeline3-clip${selected ? ' is-selected' : ''}" data-timeline3-type="clip" data-timeline3-id="${timeline3Escape(item.clip.id)}" style="left:${left}%;width:${width}%;--track-hue:${timeline3VisualHue(sourceId)}">
             <button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim clip start'))}"></button>
             <div class="timeline3-item-copy"><strong>${timeline3Escape(timeline3SourceName(sourceId))}</strong><small>${timeline3Escape(range)}</small></div>
             <button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim clip end'))}"></button>
@@ -143,7 +139,7 @@ function timeline3AdvancedVisualHtml() {
         const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
         const selected = timeline3Runtime.selectedType === 'part' && timeline3Runtime.selectedId === part.id;
         const repeat = part.repeat === 0 ? '∞' : `${Math.max(1, Number(part.repeat) || 1)}×`;
-        return `<article class="timeline3-item timeline3-clip${selected ? ' is-selected' : ''}" data-timeline3-type="part" data-timeline3-id="${timeline3Escape(part.id)}" style="left:${item.start * timeline3Runtime.zoom}px;width:${Math.max(34, item.duration * timeline3Runtime.zoom)}px;--track-hue:${timeline3VisualHue(sourceId)}">
+        return `<article class="timeline3-item timeline3-clip${selected ? ' is-selected' : ''}" data-timeline3-type="part" data-timeline3-id="${timeline3Escape(part.id)}" style="left:${timeline3Percent(item.start)}%;width:${Math.max(0.8, timeline3Percent(item.end) - timeline3Percent(item.start))}%;--track-hue:${timeline3VisualHue(sourceId)}">
             <button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim clip start'))}"></button>
             <div class="timeline3-item-copy"><strong>${timeline3Escape(part.label || part.folder || timeline3Text('timeline3Part', 'Part'))}</strong><small>${timeline3Escape(timeline3SourceName(sourceId))} · ${timeline3Escape(repeat)}</small></div>
             <button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim clip end'))}"></button>
@@ -171,77 +167,149 @@ function timeline3AudioSegments() {
     return definitions.filter(([role, start, end]) => end > start && document.getElementById(`sel-audio-${role}`)?.value !== 'none').map(([role, start, end]) => ({ id: role, start, end, label: timeline3Text(`timeline3Audio${role[0].toUpperCase()}${role.slice(1)}`, role === 'final' ? 'Outro audio' : `${role[0].toUpperCase()}${role.slice(1)} audio`) }));
 }
 
-function timeline3AudioHtml() {
-    const segments = timeline3AudioSegments();
-    if (!segments.length) return `<div class="timeline3-empty timeline3-empty-inline">${timeline3Escape(timeline3Text('timeline3NoAudio', 'No active audio'))}</div>`;
+function timeline3AudioHtml(segments = timeline3AudioSegments()) {
     return segments.map(segment => {
         const selected = timeline3Runtime.selectedType === 'audio' && timeline3Runtime.selectedId === segment.id;
-        return `<article class="timeline3-item timeline3-audio${selected ? ' is-selected' : ''}" data-timeline3-type="audio" data-timeline3-id="${timeline3Escape(segment.id)}" style="left:${segment.start * timeline3Runtime.zoom}px;width:${Math.max(30, (segment.end - segment.start) * timeline3Runtime.zoom)}px"><div class="timeline3-wave"></div><strong>${timeline3Escape(segment.label)}</strong></article>`;
+        const left = timeline3Percent(segment.start);
+        const width = Math.max(0.8, timeline3Percent(segment.end) - left);
+        return `<article class="timeline3-item timeline3-audio${selected ? ' is-selected' : ''}" data-timeline3-type="audio" data-timeline3-id="${timeline3Escape(segment.id)}" style="left:${left}%;width:${width}%"><div class="timeline3-wave"></div><strong>${timeline3Escape(segment.label)}</strong></article>`;
     }).join('');
 }
 
 function timeline3CompositionRows() {
     const layers = currentProject && Array.isArray(currentProject.compositionLayers) ? currentProject.compositionLayers : [];
     const duration = timeline3Duration();
-    return layers.map((layer, index) => {
+    return layers.map(layer => {
         const start = Math.max(0, Math.min(duration, Number(layer.start) || 0));
         const end = Math.max(start, Math.min(duration, Number(layer.end) || duration));
         const selected = timeline3Runtime.selectedType === 'layer' && timeline3Runtime.selectedId === layer.id;
         const label = layer.name || (layer.type === 'image' ? timeline3Text('timeline3ImageLayer', 'Image') : timeline3Text('timeline3TextLayer', 'Text'));
-        return `<div class="timeline3-track timeline3-layer-track" data-timeline3-layer-row="${timeline3Escape(layer.id)}"><div class="timeline3-track-label"><span>${layer.type === 'image' ? 'IMG' : 'TXT'}</span><strong>${timeline3Escape(label)}</strong></div><div class="timeline3-track-lane" style="width:${timeline3TrackWidth()}px">${timeline3MarkerHtml()}<article class="timeline3-item timeline3-layer${selected ? ' is-selected' : ''}" data-timeline3-type="layer" data-timeline3-id="${timeline3Escape(layer.id)}" style="left:${start * timeline3Runtime.zoom}px;width:${Math.max(28, (end - start) * timeline3Runtime.zoom)}px"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerStart', 'Trim layer start'))}"></button><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(timeline3Format(end - start))}</small><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerEnd', 'Trim layer end'))}"></button></article></div></div>`;
+        const left = timeline3Percent(start);
+        const width = Math.max(0.8, timeline3Percent(end) - left);
+        const type = layer.type === 'image' ? 'IMG' : 'TXT';
+        return `<div class="timeline3-track timeline3-layer-track" data-timeline3-layer-row="${timeline3Escape(layer.id)}"><div class="timeline3-track-lane">${timeline3MarkerHtml()}<span class="timeline3-track-chip">${type} · ${timeline3Escape(label)}</span><article class="timeline3-item timeline3-layer${selected ? ' is-selected' : ''}" data-timeline3-type="layer" data-timeline3-id="${timeline3Escape(layer.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerStart', 'Trim layer start'))}"></button><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(timeline3Format(end - start))}</small><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerEnd', 'Trim layer end'))}"></button></article></div></div>`;
     }).join('');
 }
 
-function timeline3Render() {
-    const shell = document.getElementById('timeline3-shell');
-    const ruler = document.getElementById('timeline3-ruler');
-    const tracks = document.getElementById('timeline3-tracks');
-    const zoom = document.getElementById('timeline3-zoom');
-    const summary = document.getElementById('timeline3-summary');
-    if (!shell || !ruler || !tracks) return;
-    document.getElementById('timeline-editor')?.classList.add('timeline3-active');
-    const width = timeline3TrackWidth();
-    ruler.style.width = `${width}px`;
-    ruler.innerHTML = timeline3RulerHtml();
-    const visual = timeline3IsAdvanced() ? timeline3AdvancedVisualHtml() : timeline3SimpleVisualHtml();
-    const visualLabel = timeline3IsAdvanced() ? timeline3Text('timeline3PartsTrack', 'Parts') : timeline3Text('timeline3MediaTrack', 'Media');
-    const visualTrack = `<div class="timeline3-track timeline3-main-track"><div class="timeline3-track-label"><span>V1</span><strong>${timeline3Escape(visualLabel)}</strong></div><div class="timeline3-track-lane" style="width:${width}px">${timeline3MarkerHtml()}${visual}</div></div>`;
-    tracks.innerHTML = `${visualTrack}<div class="timeline3-track timeline3-audio-track"><div class="timeline3-track-label"><span>A1</span><strong>${timeline3Escape(timeline3Text('timeline3AudioTrack', 'Audio'))}</strong></div><div class="timeline3-track-lane" style="width:${width}px">${timeline3MarkerHtml()}${timeline3AudioHtml()}</div></div>${timeline3CompositionRows()}`;
-    if (zoom) zoom.value = String(Math.round(timeline3Runtime.zoom));
-    if (summary) summary.textContent = `${timeline3IsAdvanced() ? timeline3Text('timeline3AdvancedMode', 'Advanced Parts') : timeline3Text('timeline3SimpleMode', 'Master Sequence')} · ${timeline3Format(timeline3Duration())}`;
-    timeline3UpdatePlayhead();
+function timeline3AdvancedTrackHtml() {
+    if (!timeline3IsAdvanced()) return '';
+    const visual = timeline3AdvancedVisualHtml();
+    return `<div class="timeline3-track timeline3-main-track"><div class="timeline3-track-lane">${timeline3MarkerHtml()}<span class="timeline3-track-chip">V1 · ${timeline3Escape(timeline3Text('timeline3PartsTrack', 'Parts'))}</span>${visual}</div></div>`;
 }
 
-function timeline3UpdatePlayhead() {
-    const playhead = document.getElementById('timeline3-playhead');
-    if (!playhead) return;
-    const time = typeof getTimelineCurrentTimeExact === 'function' && !timeline3IsAdvanced() ? getTimelineCurrentTimeExact() : 0;
-    playhead.style.transform = `translateX(${Math.max(0, time) * timeline3Runtime.zoom}px)`;
+function timeline3AudioTrackHtml() {
+    const segments = timeline3AudioSegments();
+    if (!segments.length) return '';
+    return `<div class="timeline3-track timeline3-audio-track"><div class="timeline3-track-lane">${timeline3MarkerHtml()}<span class="timeline3-track-chip">A1 · ${timeline3Escape(timeline3Text('timeline3AudioTrack', 'Audio'))}</span>${timeline3AudioHtml(segments)}</div></div>`;
+}
+
+function timeline3MediaOverlayHtml() {
+    if (timeline3IsAdvanced()) return '';
+    const layout = timeline3SimpleLayout();
+    if (!layout.length) return '';
+    let html = '';
+    layout.forEach((item, index) => {
+        const left = timeline3Percent(item.start);
+        const width = Math.max(0.2, timeline3Percent(item.end) - left);
+        const selected = timeline3Runtime.selectedType === 'clip' && timeline3Runtime.selectedId === item.clip.id;
+        if (selected) {
+            html += `<div class="timeline3-media-clip is-selected" data-timeline3-type="clip" data-timeline3-id="${timeline3Escape(item.clip.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim clip start'))}"></button><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim clip end'))}"></button></div>`;
+        }
+        if (index < layout.length - 1) html += `<button class="timeline3-media-boundary" type="button" data-timeline3-boundary="${timeline3Escape(item.clip.id)}" style="left:${timeline3Percent(item.end)}%" aria-label="${timeline3Escape(timeline3Text('timeline3BoundaryAria', 'Clip boundary'))}"></button>`;
+    });
+    return html;
+}
+
+function timeline3Render() {
+    const tracks = document.getElementById('timeline3-tracks');
+    const overlay = document.getElementById('timeline3-media-overlay');
+    const stack = document.getElementById('timeline-integrated-stack');
+    const wrapper = document.getElementById('timeline-wrapper');
+    const filmstrip = document.getElementById('filmstrip');
+    const zoom = document.getElementById('timeline3-zoom');
+    if (!tracks || !overlay || !stack || !wrapper || !filmstrip) return;
+    document.getElementById('timeline-editor')?.classList.add('timeline3-active');
+    const duration = timeline3Duration();
+    if (!timeline3Runtime.zoomUserSet && duration > 0 && filmstrip.offsetWidth > 0) {
+        timeline3Runtime.zoom = Math.max(timeline3Runtime.minZoom, Math.min(timeline3Runtime.maxZoom, filmstrip.offsetWidth / duration));
+    }
+    overlay.innerHTML = timeline3MediaOverlayHtml();
+    const rows = [];
+    const advanced = timeline3AdvancedTrackHtml();
+    const audio = timeline3AudioTrackHtml();
+    const layers = timeline3CompositionRows();
+    if (advanced) rows.push(advanced);
+    if (audio) rows.push(audio);
+    if (layers) rows.push(layers);
+    tracks.innerHTML = rows.join('');
+    const rowCount = tracks.querySelectorAll(':scope > .timeline3-track').length;
+    tracks.hidden = rowCount === 0;
+    wrapper.style.setProperty('--timeline-extra-height', `${rowCount * 52}px`);
+    const width = Math.max(1, filmstrip.offsetWidth);
+    stack.style.width = `${width}px`;
+    tracks.style.width = `${width}px`;
+    if (zoom) zoom.value = String(Math.round(timeline3Runtime.zoom));
+}
+
+function timeline3ApplyZoom() {
+    const filmstrip = document.getElementById('filmstrip');
+    const stack = document.getElementById('timeline-integrated-stack');
+    const duration = timeline3Duration();
+    if (!filmstrip || !stack || !(duration > 0)) return;
+    const width = Math.max(160, Math.round(duration * timeline3Runtime.zoom));
+    const masterBlocks = Array.from(filmstrip.querySelectorAll('.master-filmstrip-clip'));
+    if (masterBlocks.length) {
+        const layout = timeline3SimpleLayout();
+        masterBlocks.forEach((block, index) => {
+            const item = layout[index];
+            if (!item) return;
+            const itemWidth = Math.max(1, item.duration * timeline3Runtime.zoom);
+            block.style.width = `${itemWidth}px`;
+            block.style.flexBasis = `${itemWidth}px`;
+        });
+    } else {
+        const frames = Array.from(filmstrip.querySelectorAll('img'));
+        if (frames.length) {
+            const frameWidth = width / frames.length;
+            frames.forEach(frame => {
+                frame.style.width = `${frameWidth}px`;
+                frame.style.flexBasis = `${frameWidth}px`;
+            });
+        }
+    }
+    filmstrip.style.width = `${width}px`;
+    stack.style.width = `${width}px`;
+    if (typeof renderTimelineRuler === 'function') renderTimelineRuler();
+    if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
 }
 
 function timeline3SetZoom(value, anchorClientX = null) {
-    const scroll = document.getElementById('timeline3-scroll');
+    const scroll = document.getElementById('timeline-scroll');
+    const oldWidth = document.getElementById('filmstrip')?.offsetWidth || 0;
     const oldZoom = timeline3Runtime.zoom;
     const next = Math.max(timeline3Runtime.minZoom, Math.min(timeline3Runtime.maxZoom, Number(value) || oldZoom));
     if (Math.abs(next - oldZoom) < 0.001) return;
-    let anchorTime = 0;
+    let anchorRatio = 0;
     let anchorOffset = 0;
-    if (scroll) {
+    if (scroll && oldWidth > 0) {
         const rect = scroll.getBoundingClientRect();
         anchorOffset = anchorClientX == null ? scroll.clientWidth / 2 : anchorClientX - rect.left;
-        anchorTime = (scroll.scrollLeft + anchorOffset) / oldZoom;
+        anchorRatio = Math.max(0, Math.min(1, (scroll.scrollLeft + anchorOffset) / oldWidth));
     }
     timeline3Runtime.zoom = next;
+    timeline3Runtime.zoomUserSet = true;
+    timeline3ApplyZoom();
     timeline3Render();
-    if (scroll) scroll.scrollLeft = Math.max(0, anchorTime * next - anchorOffset);
+    const newWidth = document.getElementById('filmstrip')?.offsetWidth || 0;
+    if (scroll && newWidth > 0) scroll.scrollLeft = Math.max(0, anchorRatio * newWidth - anchorOffset);
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('ui', { emit: true });
 }
 
 function timeline3Fit() {
-    const scroll = document.getElementById('timeline3-scroll');
+    const scroll = document.getElementById('timeline-scroll');
     const duration = timeline3Duration();
     if (!scroll || !(duration > 0)) return;
-    timeline3SetZoom(Math.max(timeline3Runtime.minZoom, Math.min(timeline3Runtime.maxZoom, (scroll.clientWidth - 84) / duration)));
+    timeline3SetZoom(Math.max(timeline3Runtime.minZoom, Math.min(timeline3Runtime.maxZoom, scroll.clientWidth / duration)));
     scroll.scrollLeft = 0;
 }
 
@@ -280,7 +348,10 @@ function timeline3StartTrim(event, handle) {
     const edge = handle.dataset.timeline3Trim;
     const start = type === 'clip' ? found.sourceIn : type === 'part' ? found.part.start : found.start;
     const end = type === 'clip' ? found.sourceOut : type === 'part' ? found.part.end : found.end;
-    timeline3Runtime.trim = { pointerId: event.pointerId, type, id, edge, startX: event.clientX, originalStart: start, originalEnd: end, changed: false };
+    const lane = item.closest('.timeline3-track-lane, .timeline3-media-overlay');
+    const duration = timeline3Duration();
+    const secondsPerPixel = lane && lane.clientWidth > 0 && duration > 0 ? duration / lane.clientWidth : 1 / Math.max(1, timeline3Runtime.zoom);
+    timeline3Runtime.trim = { pointerId: event.pointerId, type, id, edge, startX: event.clientX, originalStart: start, originalEnd: end, secondsPerPixel, changed: false };
     item.classList.add('is-trimming');
     handle.setPointerCapture?.(event.pointerId);
     timeline3Select(type, id, { seek: false });
@@ -290,7 +361,7 @@ function timeline3MoveTrim(event) {
     const state = timeline3Runtime.trim;
     if (!state || state.pointerId !== event.pointerId) return;
     event.preventDefault();
-    const delta = (event.clientX - state.startX) / timeline3Runtime.zoom;
+    const delta = (event.clientX - state.startX) * state.secondsPerPixel;
     let start = state.originalStart;
     let end = state.originalEnd;
     if (state.edge === 'start') start += delta;
@@ -406,12 +477,8 @@ function timeline3OpenMenu(type, id, clientX, clientY) {
     menu.dataset.timeline3Id = id;
     menu.innerHTML = actions.map(([action, label]) => `<button type="button" data-timeline3-action="${action}">${timeline3Escape(label)}</button>`).join('');
     menu.hidden = false;
-    const shell = document.getElementById('timeline3-shell');
-    const shellRect = shell?.getBoundingClientRect();
-    if (shellRect) {
-        menu.style.left = `${Math.max(8, Math.min(shellRect.width - 190, clientX - shellRect.left))}px`;
-        menu.style.top = `${Math.max(52, clientY - shellRect.top)}px`;
-    }
+    menu.style.left = `${Math.max(8, Math.min(window.innerWidth - 190, clientX))}px`;
+    menu.style.top = `${Math.max(8, Math.min(window.innerHeight - 220, clientY))}px`;
 }
 
 function timeline3RunAction(action, type, id) {
@@ -440,16 +507,8 @@ function timeline3HandleBoundary() {
 }
 
 function timeline3SyncText() {
-    const bindings = {
-        'timeline3-kicker': timeline3Text('timeline3Kicker', 'TIMELINE 3.0'),
-        'timeline3-title': timeline3Text('timeline3Title', 'Tracks that match the final animation'),
-        'timeline3-desc': timeline3Text('timeline3Desc', 'Select clips, trim edges, zoom with two fingers and hold an item for editing actions.'),
-        'timeline3-fit-label': timeline3Text('timeline3Fit', 'Fit')
-    };
-    Object.entries(bindings).forEach(([id, value]) => {
-        const element = document.getElementById(id);
-        if (element) element.textContent = value;
-    });
+    const fitLabel = document.getElementById('timeline3-fit-label');
+    if (fitLabel) fitLabel.textContent = timeline3Text('timeline3Fit', 'Fit');
     const out = document.getElementById('timeline3-zoom-out');
     const input = document.getElementById('timeline3-zoom');
     const inside = document.getElementById('timeline3-zoom-in');
@@ -461,12 +520,12 @@ function timeline3SyncText() {
     timeline3Render();
 }
 
-
 function timeline3GetUiState() {
     return {
         zoom: timeline3Runtime.zoom,
         selectedType: timeline3Runtime.selectedType,
-        selectedId: timeline3Runtime.selectedId
+        selectedId: timeline3Runtime.selectedId,
+        zoomUserSet: timeline3Runtime.zoomUserSet
     };
 }
 
@@ -474,6 +533,8 @@ function timeline3RestoreUiState(state = {}) {
     timeline3Runtime.zoom = Math.max(timeline3Runtime.minZoom, Math.min(timeline3Runtime.maxZoom, Number(state.zoom) || timeline3Runtime.zoom));
     timeline3Runtime.selectedType = String(state.selectedType || '');
     timeline3Runtime.selectedId = String(state.selectedId || '');
+    timeline3Runtime.zoomUserSet = state.zoomUserSet === true;
+    if (timeline3Runtime.zoomUserSet) timeline3ApplyZoom();
     timeline3Render();
 }
 
@@ -485,6 +546,66 @@ function bindTimeline3() {
     document.getElementById('timeline3-fit')?.addEventListener('click', timeline3Fit);
     document.getElementById('timeline3-zoom')?.addEventListener('input', event => timeline3SetZoom(event.target.value));
     const tracks = document.getElementById('timeline3-tracks');
+    const overlay = document.getElementById('timeline3-media-overlay');
+    const filmstrip = document.getElementById('filmstrip');
+    overlay?.addEventListener('click', event => {
+        const boundary = event.target.closest('[data-timeline3-boundary]');
+        if (boundary) {
+            event.preventDefault();
+            event.stopPropagation();
+            timeline3HandleBoundary();
+        }
+    });
+    overlay?.addEventListener('pointerdown', event => {
+        const trim = event.target.closest('[data-timeline3-trim]');
+        if (trim) timeline3StartTrim(event, trim);
+    });
+    overlay?.addEventListener('pointermove', event => {
+        if (timeline3Runtime.trim) timeline3MoveTrim(event);
+    });
+    overlay?.addEventListener('pointerup', event => {
+        if (timeline3Runtime.trim) timeline3FinishTrim(event, false);
+    });
+    overlay?.addEventListener('pointercancel', event => {
+        if (timeline3Runtime.trim) timeline3FinishTrim(event, true);
+    });
+    filmstrip?.addEventListener('click', event => {
+        const block = event.target.closest('.master-filmstrip-clip');
+        if (block?.dataset.masterClipId) timeline3Select('clip', block.dataset.masterClipId, { seek: false });
+    });
+    filmstrip?.addEventListener('pointerdown', event => {
+        if (timeline3IsAdvanced() || event.pointerType === 'mouse' && event.button !== 0) return;
+        const layout = timeline3SimpleLayout();
+        const rect = filmstrip.getBoundingClientRect();
+        const duration = timeline3Duration();
+        if (!layout.length || !(rect.width > 0) || !(duration > 0)) return;
+        const time = Math.max(0, Math.min(duration, ((event.clientX - rect.left) / rect.width) * duration));
+        const found = layout.find(item => time >= item.start && time <= item.end + 0.0001) || layout[layout.length - 1];
+        if (!found) return;
+        timeline3Runtime.pressStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, type: 'clip', id: found.clip.id };
+        clearTimeout(timeline3Runtime.pressTimer);
+        timeline3Runtime.pressTimer = setTimeout(() => {
+            const state = timeline3Runtime.pressStart;
+            if (state && state.pointerId === event.pointerId) timeline3OpenMenu('clip', state.id, state.x, state.y);
+            timeline3Runtime.pressStart = null;
+        }, 480);
+    });
+    filmstrip?.addEventListener('pointermove', event => {
+        const state = timeline3Runtime.pressStart;
+        if (state && state.pointerId === event.pointerId && state.type === 'clip' && Math.hypot(event.clientX - state.x, event.clientY - state.y) > 8) {
+            clearTimeout(timeline3Runtime.pressTimer);
+            timeline3Runtime.pressStart = null;
+        }
+    });
+    const clearFilmstripPress = event => {
+        const state = timeline3Runtime.pressStart;
+        if (state && state.pointerId === event.pointerId && state.type === 'clip') {
+            clearTimeout(timeline3Runtime.pressTimer);
+            timeline3Runtime.pressStart = null;
+        }
+    };
+    filmstrip?.addEventListener('pointerup', clearFilmstripPress);
+    filmstrip?.addEventListener('pointercancel', clearFilmstripPress);
     tracks?.addEventListener('click', event => {
         if (event.target.closest('[data-timeline3-trim]')) return;
         const boundary = event.target.closest('[data-timeline3-boundary]');
@@ -541,20 +662,7 @@ function bindTimeline3() {
         const menu = document.getElementById('timeline3-menu');
         if (button && menu) timeline3RunAction(button.dataset.timeline3Action, menu.dataset.timeline3Type, menu.dataset.timeline3Id);
     });
-    const scroll = document.getElementById('timeline3-scroll');
-    const legacyScroll = document.getElementById('timeline-scroll');
-    let syncingScroll = false;
-    const syncByRatio = (from, to) => {
-        if (!from || !to || syncingScroll) return;
-        const fromMax = Math.max(0, from.scrollWidth - from.clientWidth);
-        const toMax = Math.max(0, to.scrollWidth - to.clientWidth);
-        if (!(fromMax > 0) || !(toMax > 0)) return;
-        syncingScroll = true;
-        to.scrollLeft = (from.scrollLeft / fromMax) * toMax;
-        requestAnimationFrame(() => { syncingScroll = false; });
-    };
-    scroll?.addEventListener('scroll', () => syncByRatio(scroll, legacyScroll), { passive: true });
-    legacyScroll?.addEventListener('scroll', () => syncByRatio(legacyScroll, scroll), { passive: true });
+    const scroll = document.getElementById('timeline-scroll');
     scroll?.addEventListener('pointerdown', event => {
         timeline3Runtime.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (timeline3Runtime.pointers.size === 2) {
@@ -583,7 +691,6 @@ function bindTimeline3() {
         if (menu && !menu.hidden && !event.target.closest('#timeline3-menu') && !event.target.closest('[data-timeline3-type]')) timeline3CloseMenu();
     });
     window.addEventListener('bas:projectchange', () => timeline3Render());
-    playerVideo?.addEventListener('timeupdate', timeline3UpdatePlayhead);
     window.addEventListener('resize', () => timeline3Render(), { passive: true });
     timeline3SyncText();
 }

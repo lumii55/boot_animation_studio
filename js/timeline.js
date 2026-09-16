@@ -877,6 +877,7 @@ async function desenharFilmstrip() {
             syncTimelineTransportUi();
             renderSimpleSegmentTrack();
             atualizarBotoesELinhas();
+            if (window.BASTimeline3) BASTimeline3.render();
         }, 60);
         return;
     }
@@ -944,6 +945,7 @@ async function desenharFilmstrip() {
         isBuildingTimeline = false;
         syncTimelineTransportUi();
         renderSimpleSegmentTrack();
+        if (window.BASTimeline3) BASTimeline3.render();
     }, 100);
 }
 
