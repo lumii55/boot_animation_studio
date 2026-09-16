@@ -89,6 +89,34 @@ function timeline3RulerHtml() {
     return html;
 }
 
+function timeline3MarkerHtml() {
+    const duration = timeline3Duration();
+    if (!(duration > 0) || typeof marcadores !== 'object' || !marcadores) return '';
+    return ['m0', 'm1', 'm2', 'm3'].map((id, index) => {
+        const raw = marcadores[id];
+        if (raw === null || raw === undefined || raw === '') return '';
+        const value = Number(raw);
+        if (!Number.isFinite(value)) return '';
+        const time = Math.max(0, Math.min(duration, value));
+        return `<span class="timeline3-marker-line timeline3-marker-${id}" data-marker-label="${index + 1}" style="left:${time * timeline3Runtime.zoom}px"></span>`;
+    }).join('');
+}
+
+function timeline3GetLayer(id) {
+    const layers = currentProject && Array.isArray(currentProject.compositionLayers) ? currentProject.compositionLayers : [];
+    return layers.find(layer => layer.id === id) || null;
+}
+
+function timeline3SeekFromLane(event, lane) {
+    if (!lane || typeof seekTimelineTo !== 'function') return;
+    const duration = timeline3Duration();
+    if (!(duration > 0)) return;
+    const rect = lane.getBoundingClientRect();
+    const time = Math.max(0, Math.min(duration, (event.clientX - rect.left) / timeline3Runtime.zoom));
+    seekTimelineTo(time);
+    timeline3UpdatePlayhead();
+}
+
 function timeline3SimpleVisualHtml() {
     const layout = timeline3SimpleLayout();
     if (!layout.length) return `<div class="timeline3-empty">${timeline3Escape(timeline3Text('timeline3NoMedia', 'No visual media'))}</div>`;
@@ -160,7 +188,7 @@ function timeline3CompositionRows() {
         const end = Math.max(start, Math.min(duration, Number(layer.end) || duration));
         const selected = timeline3Runtime.selectedType === 'layer' && timeline3Runtime.selectedId === layer.id;
         const label = layer.name || (layer.type === 'image' ? timeline3Text('timeline3ImageLayer', 'Image') : timeline3Text('timeline3TextLayer', 'Text'));
-        return `<div class="timeline3-track timeline3-layer-track" data-timeline3-layer-row="${timeline3Escape(layer.id)}"><div class="timeline3-track-label"><span>${layer.type === 'image' ? 'IMG' : 'TXT'}</span><strong>${timeline3Escape(label)}</strong></div><div class="timeline3-track-lane" style="width:${timeline3TrackWidth()}px"><article class="timeline3-item timeline3-layer${selected ? ' is-selected' : ''}" data-timeline3-type="layer" data-timeline3-id="${timeline3Escape(layer.id)}" style="left:${start * timeline3Runtime.zoom}px;width:${Math.max(28, (end - start) * timeline3Runtime.zoom)}px"><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(timeline3Format(end - start))}</small></article></div></div>`;
+        return `<div class="timeline3-track timeline3-layer-track" data-timeline3-layer-row="${timeline3Escape(layer.id)}"><div class="timeline3-track-label"><span>${layer.type === 'image' ? 'IMG' : 'TXT'}</span><strong>${timeline3Escape(label)}</strong></div><div class="timeline3-track-lane" style="width:${timeline3TrackWidth()}px">${timeline3MarkerHtml()}<article class="timeline3-item timeline3-layer${selected ? ' is-selected' : ''}" data-timeline3-type="layer" data-timeline3-id="${timeline3Escape(layer.id)}" style="left:${start * timeline3Runtime.zoom}px;width:${Math.max(28, (end - start) * timeline3Runtime.zoom)}px"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerStart', 'Trim layer start'))}"></button><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(timeline3Format(end - start))}</small><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerEnd', 'Trim layer end'))}"></button></article></div></div>`;
     }).join('');
 }
 
@@ -177,8 +205,8 @@ function timeline3Render() {
     ruler.innerHTML = timeline3RulerHtml();
     const visual = timeline3IsAdvanced() ? timeline3AdvancedVisualHtml() : timeline3SimpleVisualHtml();
     const visualLabel = timeline3IsAdvanced() ? timeline3Text('timeline3PartsTrack', 'Parts') : timeline3Text('timeline3MediaTrack', 'Media');
-    tracks.innerHTML = `<div class="timeline3-track timeline3-main-track"><div class="timeline3-track-label"><span>V1</span><strong>${timeline3Escape(visualLabel)}</strong></div><div class="timeline3-track-lane" style="width:${width}px">${visual}</div></div>
-        <div class="timeline3-track timeline3-audio-track"><div class="timeline3-track-label"><span>A1</span><strong>${timeline3Escape(timeline3Text('timeline3AudioTrack', 'Audio'))}</strong></div><div class="timeline3-track-lane" style="width:${width}px">${timeline3AudioHtml()}</div></div>${timeline3CompositionRows()}`;
+    const visualTrack = `<div class="timeline3-track timeline3-main-track"><div class="timeline3-track-label"><span>V1</span><strong>${timeline3Escape(visualLabel)}</strong></div><div class="timeline3-track-lane" style="width:${width}px">${timeline3MarkerHtml()}${visual}</div></div>`;
+    tracks.innerHTML = `${visualTrack}<div class="timeline3-track timeline3-audio-track"><div class="timeline3-track-label"><span>A1</span><strong>${timeline3Escape(timeline3Text('timeline3AudioTrack', 'Audio'))}</strong></div><div class="timeline3-track-lane" style="width:${width}px">${timeline3MarkerHtml()}${timeline3AudioHtml()}</div></div>${timeline3CompositionRows()}`;
     if (zoom) zoom.value = String(Math.round(timeline3Runtime.zoom));
     if (summary) summary.textContent = `${timeline3IsAdvanced() ? timeline3Text('timeline3AdvancedMode', 'Advanced Parts') : timeline3Text('timeline3SimpleMode', 'Master Sequence')} · ${timeline3Format(timeline3Duration())}`;
     timeline3UpdatePlayhead();
@@ -236,21 +264,22 @@ function timeline3Select(type, id, options = {}) {
 function timeline3FindItem(type, id) {
     if (type === 'clip') return timeline3SimpleLayout().find(item => item.clip.id === id) || null;
     if (type === 'part') return timeline3AdvancedLayout().find(item => item.part.id === id) || null;
+    if (type === 'layer') return timeline3GetLayer(id);
     return null;
 }
 
 function timeline3StartTrim(event, handle) {
     const item = handle.closest('[data-timeline3-type]');
-    if (!item || !['clip', 'part'].includes(item.dataset.timeline3Type)) return;
+    if (!item || !['clip', 'part', 'layer'].includes(item.dataset.timeline3Type)) return;
     event.preventDefault();
     event.stopPropagation();
     const type = item.dataset.timeline3Type;
     const id = item.dataset.timeline3Id;
-    const found = timeline3FindItem(type, id);
+    const found = type === 'layer' ? timeline3GetLayer(id) : timeline3FindItem(type, id);
     if (!found) return;
     const edge = handle.dataset.timeline3Trim;
-    const start = type === 'clip' ? found.sourceIn : found.part.start;
-    const end = type === 'clip' ? found.sourceOut : found.part.end;
+    const start = type === 'clip' ? found.sourceIn : type === 'part' ? found.part.start : found.start;
+    const end = type === 'clip' ? found.sourceOut : type === 'part' ? found.part.end : found.end;
     timeline3Runtime.trim = { pointerId: event.pointerId, type, id, edge, startX: event.clientX, originalStart: start, originalEnd: end, changed: false };
     item.classList.add('is-trimming');
     handle.setPointerCapture?.(event.pointerId);
@@ -275,7 +304,7 @@ function timeline3MoveTrim(event) {
         end = Math.min(sourceDuration, Math.max(start + frame, end));
         found.clip.in = start;
         found.clip.out = end;
-    } else {
+    } else if (state.type === 'part') {
         const found = timeline3FindItem('part', state.id);
         if (!found) return;
         const sourceDuration = typeof getAdvancedSourceDuration === 'function' ? getAdvancedSourceDuration(found.part) : found.part.end;
@@ -284,6 +313,19 @@ function timeline3MoveTrim(event) {
         end = Math.min(sourceDuration, Math.max(start + frame, end));
         found.part.start = start;
         found.part.end = end;
+    } else {
+        const layer = timeline3GetLayer(state.id);
+        if (!layer) return;
+        const duration = timeline3Duration();
+        const frame = 1 / Math.max(1, Number(currentProject && currentProject.fps) || 30);
+        start = Math.max(0, Math.min(end - frame, start));
+        end = Math.min(duration, Math.max(start + frame, end));
+        layer.start = start;
+        layer.end = end;
+        if (window.BASComposition) {
+            BASComposition.render();
+            BASComposition.renderPreview();
+        }
     }
     state.changed = true;
     timeline3Render();
@@ -294,14 +336,19 @@ function timeline3FinishTrim(event, cancelled = false) {
     if (!state || state.pointerId !== event.pointerId) return;
     timeline3Runtime.trim = null;
     if (cancelled) {
-        const found = timeline3FindItem(state.type, state.id);
+        const found = state.type === 'layer' ? timeline3GetLayer(state.id) : timeline3FindItem(state.type, state.id);
         if (found) {
             if (state.type === 'clip') {
                 found.clip.in = state.originalStart;
                 found.clip.out = state.originalEnd;
-            } else {
+            } else if (state.type === 'part') {
                 found.part.start = state.originalStart;
                 found.part.end = state.originalEnd;
+            }
+            else {
+                found.start = state.originalStart;
+                found.end = state.originalEnd;
+                if (window.BASComposition) { BASComposition.render(); BASComposition.renderPreview(); }
             }
         }
         timeline3Render();
@@ -317,11 +364,17 @@ function timeline3FinishTrim(event, cancelled = false) {
             found.clip.out = state.originalEnd;
             BASMasterSequence.setClipRange(state.id, nextIn, nextOut, { edge: state.edge });
         }
-    } else {
+    } else if (state.type === 'part') {
         const found = timeline3FindItem('part', state.id);
         if (found && typeof normalizeAdvancedPartRange === 'function') normalizeAdvancedPartRange(found.part);
         if (typeof markAdvancedPartsDirty === 'function') markAdvancedPartsDirty();
         if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
+    } else {
+        const layer = timeline3GetLayer(state.id);
+        if (layer) {
+            if (window.BASComposition) { BASComposition.render(); BASComposition.renderPreview(); }
+            if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('composition', { changeKey: `composition:${state.id}:timing` });
+        }
     }
     timeline3Render();
 }
@@ -441,6 +494,10 @@ function bindTimeline3() {
         }
         const item = event.target.closest('[data-timeline3-type][data-timeline3-id]');
         if (item) timeline3Select(item.dataset.timeline3Type, item.dataset.timeline3Id);
+        else {
+            const lane = event.target.closest('.timeline3-track-lane');
+            if (lane) timeline3SeekFromLane(event, lane);
+        }
     });
     tracks?.addEventListener('pointerdown', event => {
         const trim = event.target.closest('[data-timeline3-trim]');
@@ -485,6 +542,19 @@ function bindTimeline3() {
         if (button && menu) timeline3RunAction(button.dataset.timeline3Action, menu.dataset.timeline3Type, menu.dataset.timeline3Id);
     });
     const scroll = document.getElementById('timeline3-scroll');
+    const legacyScroll = document.getElementById('timeline-scroll');
+    let syncingScroll = false;
+    const syncByRatio = (from, to) => {
+        if (!from || !to || syncingScroll) return;
+        const fromMax = Math.max(0, from.scrollWidth - from.clientWidth);
+        const toMax = Math.max(0, to.scrollWidth - to.clientWidth);
+        if (!(fromMax > 0) || !(toMax > 0)) return;
+        syncingScroll = true;
+        to.scrollLeft = (from.scrollLeft / fromMax) * toMax;
+        requestAnimationFrame(() => { syncingScroll = false; });
+    };
+    scroll?.addEventListener('scroll', () => syncByRatio(scroll, legacyScroll), { passive: true });
+    legacyScroll?.addEventListener('scroll', () => syncByRatio(legacyScroll, scroll), { passive: true });
     scroll?.addEventListener('pointerdown', event => {
         timeline3Runtime.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (timeline3Runtime.pointers.size === 2) {
