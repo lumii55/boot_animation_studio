@@ -647,7 +647,7 @@ function audioEditorStatesEqual(a, b) {
 }
 
 function baixarVideo() {
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) {
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
         if (typeof showToast === 'function') showToast((traducoes[idiomaAtual] || traducoes.en).masterSequenceDownloadVideoUnavailable, 'warning', 4200);
         return;
     }
@@ -852,7 +852,7 @@ async function abrirPreviewWeb() {
     document.getElementById('modal-escolha-preview').style.display = 'none';
     document.getElementById('modal-preview').style.display = 'flex';
     const advancedActive = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive();
-    const masterSimple = !advancedActive && window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+    const masterSimple = !advancedActive && window.BASMasterSequence && BASMasterSequence.isTimelineActive();
     videoPreview.muted = true;
     currentPreviewPart = -1;
     if (advancedActive && typeof startAdvancedPartsPreview === 'function') {

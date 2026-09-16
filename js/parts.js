@@ -142,7 +142,7 @@ function buildAdvancedPartsFromImportedProject() {
 
 function buildAdvancedPartsFromSimpleEditor() {
     const t = traducoes[idiomaAtual];
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return BASMasterSequence.createAdvancedParts(nextAdvancedPartId, cloneAdvancedAudioState);
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return BASMasterSequence.createAdvancedParts(nextAdvancedPartId, cloneAdvancedAudioState);
     const markers = getProjectSourceMarkers();
     const ordered = markers && ['m0', 'm1', 'm2', 'm3'].every(key => Number.isFinite(markers[key])) && markers.m0 <= markers.m1 && markers.m1 <= markers.m2 && markers.m2 <= markers.m3;
     if (ordered && markers.m3 > markers.m0) {
@@ -192,7 +192,7 @@ function ensureAdvancedPartsInitialized() {
     if (!currentProject) return false;
     if (getAdvancedParts().length === 0) {
         currentProject.advancedPartCounter = 0;
-        currentProject.advancedParts = window.BASMasterSequence && BASMasterSequence.hasMultipleClips()
+        currentProject.advancedParts = window.BASMasterSequence && BASMasterSequence.isTimelineActive()
             ? buildAdvancedPartsFromSimpleEditor()
             : isImportedBootanimationProject() && currentProject.parts.length > 0 && simpleEditorStillMatchesImportedBaseline()
                 ? buildAdvancedPartsFromImportedProject()

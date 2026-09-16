@@ -862,7 +862,7 @@ async function createMiniPreviewWebm(options = null) {
                 sourceTime += step;
                 await new Promise(r => setTimeout(r, 20));
             }
-        } else if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) {
+        } else if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
             const sampleStart = Number.isFinite(marcadores.m1) ? marcadores.m1 : 0;
             const sampleEnd = Number.isFinite(marcadores.m2) && marcadores.m2 > sampleStart ? marcadores.m2 : BASMasterSequence.getDuration();
             let t = sampleStart;

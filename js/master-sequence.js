@@ -57,13 +57,20 @@ function ensureProjectMasterSequence(project = currentProject) {
         if (!clip || !validIds.has(clip.sourceId) || seen.has(clip.sourceId)) return false;
         seen.add(clip.sourceId);
         if (!clip.id) clip.id = masterSequenceCreateClipId(project);
+        const duration = masterSequenceSourceDuration(clip.sourceId);
+        clip.in = Math.max(0, Math.min(duration, Number(clip.in) || 0));
+        clip.out = Math.max(clip.in + 0.001, Math.min(duration, Number(clip.out) || duration));
+        if (!(clip.out > clip.in)) {
+            clip.in = 0;
+            clip.out = duration;
+        }
         const match = /^clip-(\d+)$/.exec(String(clip.id));
         if (match) project.masterSequenceCounter = Math.max(project.masterSequenceCounter, Number(match[1]) || 0);
         return true;
     });
     visual.forEach(source => {
         if (seen.has(source.id)) return;
-        project.masterSequence.push({ id: masterSequenceCreateClipId(project), sourceId: source.id });
+        project.masterSequence.push({ id: masterSequenceCreateClipId(project), sourceId: source.id, in: 0, out: masterSequenceSourceDuration(source.id) });
         seen.add(source.id);
     });
     return project.masterSequence;
@@ -79,20 +86,23 @@ function masterSequenceHasMultipleClips() {
 
 function masterSequenceTimelineActive() {
     const advanced = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive();
-    return masterSequenceHasMultipleClips() && !advanced;
+    return getMasterSequence().length > 0 && !advanced && (masterSequenceHasMultipleClips() || getMasterSequence().some(clip => Math.abs((Number(clip.in) || 0)) > 0.00001 || Math.abs((Number(clip.out) || masterSequenceSourceDuration(clip.sourceId)) - masterSequenceSourceDuration(clip.sourceId)) > 0.00001));
 }
 
 function masterSequenceGetDuration() {
-    return getMasterSequence().reduce((sum, clip) => sum + masterSequenceSourceDuration(clip.sourceId), 0);
+    return getMasterSequence().reduce((sum, clip) => sum + Math.max(0, (Number(clip.out) || masterSequenceSourceDuration(clip.sourceId)) - (Number(clip.in) || 0)), 0);
 }
 
 function masterSequenceLayout() {
     let cursor = 0;
     return getMasterSequence().map((clip, index) => {
-        const duration = masterSequenceSourceDuration(clip.sourceId);
+        const sourceDuration = masterSequenceSourceDuration(clip.sourceId);
+        const sourceIn = Math.max(0, Math.min(sourceDuration, Number(clip.in) || 0));
+        const sourceOut = Math.max(sourceIn, Math.min(sourceDuration, Number(clip.out) || sourceDuration));
+        const duration = Math.max(0, sourceOut - sourceIn);
         const start = cursor;
         cursor += duration;
-        return { clip, index, start, end: cursor, duration, source: window.BASSourceLibrary ? BASSourceLibrary.getById(clip.sourceId) : null };
+        return { clip, index, start, end: cursor, duration, sourceIn, sourceOut, sourceDuration, source: window.BASSourceLibrary ? BASSourceLibrary.getById(clip.sourceId) : null };
     });
 }
 
@@ -106,18 +116,18 @@ function masterSequenceLocate(globalTime, preferPreviousAtBoundary = false) {
         const atEnd = Math.abs(safe - item.end) < 0.00001;
         if (safe < item.end || (preferPreviousAtBoundary && atEnd) || index === layout.length - 1) {
             const local = Math.max(0, Math.min(item.duration, safe - item.start));
-            return { ...item, globalTime: safe, sourceTime: local };
+            return { ...item, globalTime: safe, sourceTime: item.sourceIn + local };
         }
     }
     const last = layout[layout.length - 1];
-    return { ...last, globalTime: total, sourceTime: last.duration };
+    return { ...last, globalTime: total, sourceTime: last.sourceOut };
 }
 
 function masterSequenceSerialize() {
     if (!currentProject) return { counter: 0, clips: [] };
     return {
         counter: Math.max(0, Number(currentProject.masterSequenceCounter) || 0),
-        clips: getMasterSequence().map(clip => ({ id: String(clip.id || ''), sourceId: String(clip.sourceId || '') }))
+        clips: getMasterSequence().map(clip => ({ id: String(clip.id || ''), sourceId: String(clip.sourceId || ''), in: Math.max(0, Number(clip.in) || 0), out: Math.max(0, Number(clip.out) || masterSequenceSourceDuration(clip.sourceId)) }))
     };
 }
 
@@ -125,7 +135,7 @@ function masterSequenceRestoreState(state) {
     if (!currentProject) return false;
     const saved = state && Array.isArray(state.clips) ? state.clips : [];
     currentProject.masterSequenceCounter = Math.max(0, Number(state && state.counter) || 0);
-    currentProject.masterSequence = saved.map(clip => ({ id: String(clip.id || ''), sourceId: String(clip.sourceId || '') }));
+    currentProject.masterSequence = saved.map(clip => ({ id: String(clip.id || ''), sourceId: String(clip.sourceId || ''), in: Math.max(0, Number(clip.in) || 0), out: Math.max(0, Number(clip.out) || masterSequenceSourceDuration(clip.sourceId)) }));
     ensureProjectMasterSequence();
     if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
     masterSequenceRuntime.currentTime = Math.min(masterSequenceRuntime.currentTime, masterSequenceGetDuration());
@@ -140,7 +150,7 @@ function masterSequenceAppendSource(sourceId, options = {}) {
     if (!source || source.role !== 'visual') return false;
     const sequence = getMasterSequence();
     if (sequence.some(clip => clip.sourceId === sourceId)) return false;
-    sequence.push({ id: masterSequenceCreateClipId(), sourceId });
+    sequence.push({ id: masterSequenceCreateClipId(), sourceId, in: 0, out: masterSequenceSourceDuration(sourceId) });
     renderMasterSequenceOverview();
     if (!options.silent && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('master-sequence', { changeKey: 'master-sequence', immediate: true });
     masterSequenceRefreshTimeline({ seekToStart: false });
@@ -163,6 +173,34 @@ function masterSequenceRemoveSource(sourceId, options = {}) {
     renderMasterSequenceOverview();
     if (!options.silent && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('master-sequence', { changeKey: 'master-sequence', immediate: true });
     masterSequenceRefreshTimeline({ seekToStart: true });
+    return true;
+}
+
+
+function masterSequenceSetClipRange(clipId, sourceIn, sourceOut, options = {}) {
+    const clip = getMasterSequence().find(item => item.id === clipId);
+    if (!clip) return false;
+    const duration = masterSequenceSourceDuration(clip.sourceId);
+    const minSpan = Math.min(duration || 0.001, Math.max(0.001, 1 / Math.max(1, Number(currentProject && currentProject.fps) || 30)));
+    let nextIn = Math.max(0, Math.min(duration, Number(sourceIn) || 0));
+    let nextOut = Math.max(0, Math.min(duration, Number(sourceOut) || duration));
+    if (nextOut - nextIn < minSpan) {
+        if (options.edge === 'start') nextIn = Math.max(0, nextOut - minSpan);
+        else nextOut = Math.min(duration, nextIn + minSpan);
+    }
+    if (!(nextOut > nextIn)) return false;
+    const changed = Math.abs((Number(clip.in) || 0) - nextIn) > 0.00001 || Math.abs((Number(clip.out) || duration) - nextOut) > 0.00001;
+    if (!changed) return false;
+    clip.in = nextIn;
+    clip.out = nextOut;
+    const total = masterSequenceGetDuration();
+    masterSequenceRuntime.currentTime = Math.min(masterSequenceRuntime.currentTime, total);
+    ['m0', 'm1', 'm2', 'm3'].forEach(key => {
+        if (marcadores[key] !== null && marcadores[key] !== undefined) marcadores[key] = Math.max(0, Math.min(total, Number(marcadores[key]) || 0));
+    });
+    currentProject.markers = marcadores;
+    masterSequenceRefreshTimeline({ seekToStart: false });
+    if (!options.silent && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('master-sequence-trim', { changeKey: `master-sequence:${clipId}:trim`, immediate: true });
     return true;
 }
 
@@ -372,7 +410,7 @@ function masterSequenceCurrentTimeFromPlayer() {
     const item = layout.find(entry => entry.clip.id === masterSequenceRuntime.activeClipId);
     if (!item || masterSequenceRuntime.switchingPlayer) return masterSequenceRuntime.currentTime;
     const sourceTime = window.BASSourceLibrary ? BASSourceLibrary.previewTimeToSource(item.clip.sourceId, playerVideo.currentTime || 0, playerVideo) : playerVideo.currentTime || 0;
-    return Math.max(item.start, Math.min(item.end, item.start + sourceTime));
+    return Math.max(item.start, Math.min(item.end, item.start + Math.max(0, sourceTime - item.sourceIn)));
 }
 
 function masterSequenceGetCurrentTime() {
@@ -409,8 +447,8 @@ function masterSequenceHandlePlayerTimeUpdate() {
     const item = layout.find(entry => entry.clip.id === masterSequenceRuntime.activeClipId);
     if (!item) return true;
     const sourceTime = window.BASSourceLibrary ? BASSourceLibrary.previewTimeToSource(item.clip.sourceId, playerVideo.currentTime || 0, playerVideo) : playerVideo.currentTime || 0;
-    masterSequenceRuntime.currentTime = Math.max(item.start, Math.min(item.end, item.start + sourceTime));
-    if (masterSequenceRuntime.playing && sourceTime >= Math.max(0, item.duration - 0.025)) masterSequenceAdvance().catch(() => {});
+    masterSequenceRuntime.currentTime = Math.max(item.start, Math.min(item.end, item.start + Math.max(0, sourceTime - item.sourceIn)));
+    if (masterSequenceRuntime.playing && sourceTime >= Math.max(item.sourceIn, item.sourceOut - 0.025)) masterSequenceAdvance().catch(() => {});
     return true;
 }
 
@@ -439,8 +477,8 @@ function masterSequenceGetGlobalRangeSegments(start, end) {
             ...item,
             globalStart: intersectionStart,
             globalEnd: intersectionEnd,
-            sourceStart: intersectionStart - item.start,
-            sourceEnd: intersectionEnd - item.start,
+            sourceStart: item.sourceIn + intersectionStart - item.start,
+            sourceEnd: item.sourceIn + intersectionEnd - item.start,
             destinationStart: intersectionStart - from
         };
     }).filter(Boolean);
@@ -496,7 +534,7 @@ function masterSequenceGetSamplePoints(limit = 3) {
     for (let i = 0; i < count; i++) indexes.push(count === 1 ? 0 : Math.round(i * (layout.length - 1) / (count - 1)));
     return [...new Set(indexes)].map(index => {
         const item = layout[index];
-        return { sourceId: item.clip.sourceId, time: item.duration * 0.5 };
+        return { sourceId: item.clip.sourceId, time: item.sourceIn + item.duration * 0.5 };
     });
 }
 
@@ -568,10 +606,10 @@ function masterSequenceHandleModalPreviewTimeUpdate(element) {
     const item = layout.find(entry => entry.clip.id === state.activeClipId);
     if (!item) return { active: true, time: state.time, looped: false };
     const sourceTime = window.BASSourceLibrary ? BASSourceLibrary.previewTimeToSource(item.clip.sourceId, element.currentTime || 0, element) : element.currentTime || 0;
-    state.time = Math.max(item.start, Math.min(item.end, item.start + sourceTime));
+    state.time = Math.max(item.start, Math.min(item.end, item.start + Math.max(0, sourceTime - item.sourceIn)));
     const looped = state.looped;
     state.looped = false;
-    if (state.time >= state.end - 0.02 || sourceTime >= item.duration - 0.02) masterSequenceAdvanceModalPreview().catch(() => {});
+    if (state.time >= state.end - 0.02 || sourceTime >= item.sourceOut - 0.02) masterSequenceAdvanceModalPreview().catch(() => {});
     return { active: true, time: state.time, looped };
 }
 
@@ -589,8 +627,8 @@ function masterSequenceCreateAdvancedParts(nextId, cloneAudioState) {
         repeat: 1,
         pause: 0,
         sourceId: item.clip.sourceId,
-        start: 0,
-        end: item.duration,
+        start: item.sourceIn,
+        end: item.sourceOut,
         extraTokens: [],
         audio: cloneAudioState ? cloneAudioState() : { mode: 'none', volume: 100, fadeIn: 0, fadeOut: 0, offset: 0, normalize: false, source: null, sourceName: '', sourceKind: 'none', sourceLibraryId: '' }
     })).filter(part => part.end > part.start);
@@ -657,10 +695,12 @@ window.BASMasterSequence = Object.freeze({
     appendSource: masterSequenceAppendSource,
     removeSource: masterSequenceRemoveSource,
     moveClip: masterSequenceMoveClip,
+    setClipRange: masterSequenceSetClipRange,
     indexOfSource: masterSequenceIndexOfSource,
     hasMultipleClips: masterSequenceHasMultipleClips,
     isTimelineActive: masterSequenceTimelineActive,
     getDuration: masterSequenceGetDuration,
+    getLayout: masterSequenceLayout,
     getCurrentTime: masterSequenceGetCurrentTime,
     seek: masterSequenceSeek,
     pause: masterSequencePause,

@@ -35,7 +35,7 @@ function canPreserveImportedAudioChanges(audioState) {
 
 function canPreserveImportedRoundTrip(options) {
     if (window.BASComposition && BASComposition.hasLayers()) return false;
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return false;
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return false;
     return isImportedBootanimationProject() &&
         !(typeof isAdvancedPartsDirty === 'function' && isAdvancedPartsDirty()) &&
         projectMarkersMatchInitial() &&
@@ -44,7 +44,7 @@ function canPreserveImportedRoundTrip(options) {
 
 function importedExportIsUntouched(options) {
     if (window.BASComposition && BASComposition.hasLayers()) return false;
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) return false;
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return false;
     const baseline = currentProject && currentProject.editorBaseline;
     return !!baseline &&
         frameSettingsMatchProjectBaseline(options) &&
@@ -309,7 +309,7 @@ async function applySimpleAudio(zip, audioState, t) {
 
     try {
         const modes = ['intro', 'loop', 'final'].map(role => audioState[role].mode);
-        const masterAudio = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+        const masterAudio = window.BASMasterSequence && BASMasterSequence.isTimelineActive();
         if (modes.includes('video') && !masterAudio) videoAudioBuffer = await decodificarAudioFonte(currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : playerVideo.src, audioCtx);
 
         const definitions = [
@@ -615,7 +615,7 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, f
 
     for (let i = 0; i < totalFotos; i++) {
         const sourceTime = sourceMarkers.m0 + (i * intervalo);
-        const sourceBlob = window.BASMasterSequence && BASMasterSequence.hasMultipleClips()
+        const sourceBlob = window.BASMasterSequence && BASMasterSequence.isTimelineActive()
             ? await BASMasterSequence.frameBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality)
             : await getProjectFrameOutputBlob(sourceTime, largura, altura, formato, framing, framingFocus, jpegQuality);
         const blob = window.BASComposition && BASComposition.hasLayers()

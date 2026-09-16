@@ -540,6 +540,18 @@ function renderCompositionUi() {
     renderCompositionInspector();
 }
 
+
+function selectCompositionLayer(id, options = {}) {
+    const layers = getCompositionLayers();
+    const next = layers.find(layer => layer.id === id);
+    if (!next) return false;
+    compositionRuntime.selectedId = next.id;
+    renderCompositionUi();
+    scheduleCompositionPreview(0);
+    if (options.scroll) document.getElementById('composition-editor-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+}
+
 function touchComposition(reason = 'composition', changeKey = '') {
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch(reason, { changeKey: changeKey || reason });
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
@@ -903,6 +915,7 @@ window.BASComposition = Object.freeze({
     open: compositionOpen,
     render: renderCompositionUi,
     renderPreview: renderCompositionPreview,
+    select: selectCompositionLayer,
     syncText: syncCompositionText
 });
 window.initializeCompositionForProject = initializeCompositionForProject;

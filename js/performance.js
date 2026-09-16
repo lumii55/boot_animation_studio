@@ -102,14 +102,14 @@ function getPerformanceSampleKey(options) {
             return `${sourceId}:${part.start.toFixed(3)}-${part.end.toFixed(3)}`;
         }).join(',')
         : '';
-    const masterSignature = window.BASMasterSequence && BASMasterSequence.hasMultipleClips() && !(typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive())
-        ? BASMasterSequence.serialize().clips.map(clip => clip.sourceId).join('>')
+    const masterSignature = window.BASMasterSequence && BASMasterSequence.isTimelineActive()
+        ? BASMasterSequence.serialize().clips.map(clip => `${clip.sourceId}:${Number(clip.in || 0).toFixed(4)}-${Number(clip.out || 0).toFixed(4)}`).join('>')
         : '';
     return `${options.width}x${options.height}:${options.format}:${options.jpegQuality.toFixed(3)}:${options.framing}:${options.framingFocus.x.toFixed(3)}:${options.framingFocus.y.toFixed(3)}:${options.framingFocus.zoom.toFixed(3)}:${start}:${end}:${advancedSignature}:${masterSignature}`;
 }
 
 function performanceUsesMultipleVisualSources() {
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips() && !(typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive())) return true;
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return true;
     if (!window.BASSourceLibrary || typeof isAdvancedPartsActive !== 'function' || !isAdvancedPartsActive() || typeof getAdvancedParts !== 'function') return false;
     const primaryId = BASSourceLibrary.getPrimaryId();
     return getAdvancedParts().some(part => BASSourceLibrary.getPartSourceId(part) !== primaryId);
@@ -117,7 +117,7 @@ function performanceUsesMultipleVisualSources() {
 
 function getMultiSourcePerformanceSamples(limit = 3) {
     if (!performanceUsesMultipleVisualSources()) return [];
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips() && !(typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive())) return BASMasterSequence.getSamplePoints(limit);
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return BASMasterSequence.getSamplePoints(limit);
     if (typeof getAdvancedParts !== 'function') return [];
     const parts = getAdvancedParts().filter(part => Number.isFinite(part.start) && Number.isFinite(part.end) && part.end > part.start);
     if (!parts.length) return [];

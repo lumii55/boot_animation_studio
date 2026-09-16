@@ -182,7 +182,7 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
 
     try {
         const needsVideo = definitions.some(definition => audioState[definition.role].mode === 'video');
-        const masterAudio = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+        const masterAudio = window.BASMasterSequence && BASMasterSequence.isTimelineActive();
         if (needsVideo && !masterAudio) videoAudioBuffer = await decodificarAudioFonte(currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : playerVideo.src, audioCtx);
 
         for (const definition of definitions) {

@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.7.1';
+const BAS_PROJECT_ENGINE_VERSION = '12.8A';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -189,6 +189,7 @@ function captureProjectEngineUiState() {
         playhead: Number.isFinite(playhead) ? playhead : 0,
         advancedPartId: currentProject && currentProject.advancedExpandedId ? String(currentProject.advancedExpandedId) : null,
         sequenceTimeline: window.BASSequenceTimeline ? BASSequenceTimeline.getUiState() : { view: 'sequence', zoom: 92 },
+        timeline3: window.BASTimeline3 ? BASTimeline3.getUiState() : { zoom: 84, selectedType: '', selectedId: '' },
         composition: window.BASComposition ? BASComposition.getUiState() : { selectedId: '', previewTime: 0 }
     };
 }
@@ -284,7 +285,7 @@ function getProjectEngineSummary(project = currentProject) {
     if (!project || !project.sourceBlob) return projectEngineText('projectSourceWaiting', 'Waiting for source');
     const width = Math.max(0, Number(project.width) || 0);
     const height = Math.max(0, Number(project.height) || 0);
-    if (window.BASMasterSequence && BASMasterSequence.hasMultipleClips()) {
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
         const sourceCount = BASMasterSequence.serialize().clips.length;
         const parts = [projectEngineText('projectSourceCount', '{count} sources').replace('{count}', String(sourceCount))];
         if (width && height) parts.push(`${width} × ${height}`);
@@ -588,7 +589,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     if (window.BASMasterSequence) BASMasterSequence.restoreState(editor.masterSequence || null);
     if (window.BASComposition) BASComposition.restoreState(editor.composition || null, assetMap);
     const savedMarkers = editor.markers || {};
-    const masterMarkers = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+    const masterMarkers = window.BASMasterSequence && BASMasterSequence.isTimelineActive();
     ['m0', 'm1', 'm2', 'm3'].forEach(key => {
         const value = savedMarkers[key];
         marcadores[key] = value === null || value === undefined ? null : masterMarkers ? Math.max(0, Number(value) || 0) : projectTimeToTimelineTime(Number(value));
@@ -617,6 +618,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         if (savedAdvancedPartId && currentProject.advancedParts.some(part => part.id === savedAdvancedPartId)) currentProject.advancedExpandedId = String(savedAdvancedPartId);
         if (typeof renderAdvancedPartsEditor === 'function' && currentProject.advancedPartsEnabled) renderAdvancedPartsEditor();
         if (window.BASSequenceTimeline) BASSequenceTimeline.restoreUiState(ui.sequenceTimeline || {});
+        if (window.BASTimeline3) BASTimeline3.restoreUiState(ui.timeline3 || {});
         if (window.BASComposition) BASComposition.restoreUiState(ui.composition || {});
         if (Number.isFinite(Number(ui.playhead))) {
             if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) BASMasterSequence.seek(Number(ui.playhead), { scroll: true }).catch(() => {});

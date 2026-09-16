@@ -184,7 +184,7 @@ function projectTimeToTimelineTime(time) {
 }
 
 function getProjectSourceMarkers() {
-    const master = window.BASMasterSequence && BASMasterSequence.hasMultipleClips();
+    const master = window.BASMasterSequence && BASMasterSequence.isTimelineActive();
     return {
         m0: marcadores.m0 === null ? null : master ? Math.max(0, Number(marcadores.m0) || 0) : timelineTimeToProjectTime(marcadores.m0),
         m1: marcadores.m1 === null ? null : master ? Math.max(0, Number(marcadores.m1) || 0) : timelineTimeToProjectTime(marcadores.m1),
