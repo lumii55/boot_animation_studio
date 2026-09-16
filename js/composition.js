@@ -636,13 +636,22 @@ function moveCompositionLayer(id, direction) {
     touchComposition('composition', `composition:${id}:order`);
 }
 
-function updateCompositionLayerFromInput(input) {
+function updateCompositionLayerFromInput(input, options = {}) {
     const layer = getCompositionLayer();
     if (!layer || !input) return;
     const id = input.id;
+    const commit = !!options.commit;
+    const timingField = id === 'composition-layer-start' || id === 'composition-layer-end';
+    if (timingField && !commit) return;
+    if (timingField && (!String(input.value).trim() || !Number.isFinite(Number(input.value)))) {
+        renderCompositionInspector();
+        return;
+    }
     if (id === 'composition-layer-name') layer.name = input.value.trim() || compositionText(layer.type === 'image' ? 'compositionDefaultImageName' : 'compositionDefaultTextName', layer.type === 'image' ? 'Image' : 'Text');
-    else if (id === 'composition-layer-start') layer.start = compositionClamp(input.value, 0, 86400, 0);
-    else if (id === 'composition-layer-end') layer.end = Math.max(layer.start + 0.001, compositionClamp(input.value, 0.001, 86400, compositionDefaultEnd()));
+    else if (id === 'composition-layer-start') {
+        layer.start = compositionClamp(input.value, 0, 86400, 0);
+        if (layer.end <= layer.start) layer.end = layer.start + 0.001;
+    } else if (id === 'composition-layer-end') layer.end = Math.max(layer.start + 0.001, compositionClamp(input.value, 0.001, 86400, compositionDefaultEnd()));
     else if (id === 'composition-layer-x') layer.x = compositionClamp(input.value, 0, 100, 50) / 100;
     else if (id === 'composition-layer-y') layer.y = compositionClamp(input.value, 0, 100, 50) / 100;
     else if (id === 'composition-layer-scale') layer.scale = compositionClamp(input.value, 10, 500, 100) / 100;
@@ -655,9 +664,12 @@ function updateCompositionLayerFromInput(input) {
     else if (id === 'composition-text-bold') layer.bold = !!input.checked;
     else if (id === 'composition-text-align') layer.align = input.value;
     else if (id === 'composition-image-width') layer.imageWidth = compositionClamp(input.value, 3, 150, 35) / 100;
-    if (layer.end <= layer.start) layer.end = layer.start + 0.001;
     renderCompositionLayerList();
-    renderCompositionInspector();
+    if (commit) renderCompositionInspector();
+    else {
+        const valueLabel = document.querySelector(`[data-composition-value="${CSS.escape(id)}"]`);
+        if (valueLabel) valueLabel.textContent = `${input.value}${valueLabel.dataset.suffix || ''}`;
+    }
     scheduleCompositionPreview();
     touchComposition('composition', `composition:${layer.id}:${id}`);
 }
@@ -857,10 +869,10 @@ function bindComposition() {
         if (move) moveCompositionLayer(move.dataset.compositionMove, Number(move.dataset.direction));
     });
     document.getElementById('composition-inspector')?.addEventListener('input', event => {
-        if (event.target.matches('input, textarea, select')) updateCompositionLayerFromInput(event.target);
+        if (event.target.matches('input, textarea, select')) updateCompositionLayerFromInput(event.target, { commit: false });
     });
     document.getElementById('composition-inspector')?.addEventListener('change', event => {
-        if (event.target.matches('input, textarea, select')) updateCompositionLayerFromInput(event.target);
+        if (event.target.matches('input, textarea, select')) updateCompositionLayerFromInput(event.target, { commit: true });
     });
     document.getElementById('composition-delete')?.addEventListener('click', () => {
         const layer = getCompositionLayer();

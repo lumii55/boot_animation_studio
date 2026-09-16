@@ -22,7 +22,8 @@ const timeline3Runtime = {
     thumbnailCache: new Map(),
     thumbnailGeneration: 0,
     thumbnailBuild: null,
-    thumbnailLayoutSignature: ''
+    thumbnailLayoutSignature: '',
+    seekGeneration: 0
 };
 
 function timeline3Text(key, fallback) {
@@ -104,43 +105,49 @@ function timeline3LocateAdvanced(time) {
 
 async function timeline3SeekAdvanced(time, options = {}) {
     const located = timeline3LocateAdvanced(time);
-    if (!located) return;
+    if (!located) return false;
     const safe = Math.max(located.start, Math.min(located.end, Number(time) || 0));
-    timeline3Runtime.currentTime = safe;
+    const generation = Number(options.generation) || timeline3Runtime.seekGeneration;
     const part = located.part;
     currentProject.advancedExpandedId = part.id;
     if (typeof renderAdvancedPartsEditor === 'function' && options.renderPart !== false) renderAdvancedPartsEditor();
     const sourceTime = Math.max(Number(part.start) || 0, Math.min(Number(part.end) || 0, Number(part.start) + (safe - located.start)));
     if (window.BASSourceLibrary && located.sourceId) {
         await BASSourceLibrary.setVideoElementSource(playerVideo, located.sourceId);
+        if (generation !== timeline3Runtime.seekGeneration) return false;
         const previewTime = BASSourceLibrary.sourceTimeToPreview(located.sourceId, sourceTime, playerVideo);
         playerVideo.pause();
         playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration || previewTime, previewTime));
     } else if (playerVideo) {
+        if (generation !== timeline3Runtime.seekGeneration) return false;
         playerVideo.pause();
         playerVideo.currentTime = typeof projectTimeToTimelineTime === 'function' ? projectTimeToTimelineTime(sourceTime) : sourceTime;
     }
+    if (generation !== timeline3Runtime.seekGeneration) return false;
+    timeline3Runtime.currentTime = safe;
     if (window.BASComposition && typeof BASComposition.renderPreview === 'function') BASComposition.renderPreview();
     timeline3UpdatePlayhead({ follow: options.follow });
+    return true;
 }
 
 async function timeline3Seek(time, options = {}) {
     const duration = timeline3Duration();
-    if (!(duration > 0)) return;
+    if (!(duration > 0)) return false;
     const safe = Math.max(0, Math.min(duration, Number(time) || 0));
-    if (timeline3AdvancedActive()) {
-        await timeline3SeekAdvanced(safe, options);
-        return;
-    }
+    const generation = ++timeline3Runtime.seekGeneration;
+    if (timeline3AdvancedActive()) return await timeline3SeekAdvanced(safe, { ...options, generation });
     if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
-        await BASMasterSequence.seek(safe, { scroll: false });
+        const ready = await BASMasterSequence.seek(safe, { scroll: false });
+        if (!ready || generation !== timeline3Runtime.seekGeneration) return false;
     } else {
         playerVideo.pause();
         const previewTime = typeof projectTimeToTimelineTime === 'function' ? projectTimeToTimelineTime(safe) : safe;
         playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration || previewTime, previewTime));
+        if (generation !== timeline3Runtime.seekGeneration) return false;
     }
     timeline3Runtime.currentTime = safe;
     timeline3UpdatePlayhead({ follow: options.follow });
+    return true;
 }
 
 function timeline3FormatTime(value) {
@@ -844,37 +851,30 @@ function timeline3ScrubAutoScroll(event) {
     else if (event.clientX > rect.right - edge) scroll.scrollLeft += Math.max(7, (event.clientX - (rect.right - edge)) * 0.34);
 }
 
-async function timeline3DrainScrub() {
-    const scrub = timeline3Runtime.scrub;
-    if (!scrub || scrub.running) return;
-    scrub.running = true;
-    try {
-        while (timeline3Runtime.scrub === scrub && Number.isFinite(scrub.desiredTime)) {
-            const target = scrub.desiredTime;
-            scrub.desiredTime = NaN;
-            await timeline3Seek(target, { follow: false, renderPart: false });
-        }
-    } finally {
-        if (timeline3Runtime.scrub === scrub) {
-            scrub.running = false;
-            if (scrub.finishWhenIdle && !Number.isFinite(scrub.desiredTime)) {
-                timeline3Runtime.scrub = null;
-                timeline3UpdatePlayhead();
-                timeline3SyncTransport();
-            }
-        }
-    }
+function timeline3ScheduleScrubSeek(scrub, immediate = false) {
+    if (!scrub || timeline3Runtime.scrub !== scrub || scrub.finishing || scrub.seekTimer) return;
+    const run = () => {
+        scrub.seekTimer = 0;
+        if (timeline3Runtime.scrub !== scrub || scrub.finishing || !Number.isFinite(scrub.pendingTime)) return;
+        const target = scrub.pendingTime;
+        scrub.pendingTime = NaN;
+        timeline3Seek(target, { follow: false, renderPart: false }).catch(() => {});
+        if (Number.isFinite(scrub.pendingTime)) timeline3ScheduleScrubSeek(scrub, false);
+    };
+    if (immediate) run();
+    else scrub.seekTimer = setTimeout(run, 54);
 }
 
 function timeline3QueueScrub(time) {
     const scrub = timeline3Runtime.scrub;
-    if (!scrub) return;
+    if (!scrub || scrub.finishing) return;
     const safe = Math.max(0, Math.min(timeline3Duration(), Number(time) || 0));
     scrub.previewTime = safe;
-    scrub.desiredTime = safe;
+    scrub.pendingTime = safe;
     timeline3Runtime.currentTime = safe;
     timeline3UpdatePlayhead();
-    timeline3DrainScrub();
+    timeline3ScheduleScrubSeek(scrub, !scrub.hasSeeked);
+    scrub.hasSeeked = true;
 }
 
 function timeline3StartScrub(event, target, immediate = false) {
@@ -886,8 +886,10 @@ function timeline3StartScrub(event, target, immediate = false) {
         startY: event.clientY,
         moved: !!immediate,
         previewTime: timeline3CurrentTime(),
-        desiredTime: NaN,
-        running: false,
+        pendingTime: NaN,
+        seekTimer: 0,
+        hasSeeked: false,
+        finishing: false,
         target
     };
     timeline3Runtime.scrub = scrub;
@@ -925,6 +927,10 @@ function timeline3MoveScrub(event) {
 function timeline3FinishScrub(event, cancelled = false) {
     const scrub = timeline3Runtime.scrub;
     if (!scrub || scrub.pointerId !== event.pointerId) return;
+    if (scrub.seekTimer) {
+        clearTimeout(scrub.seekTimer);
+        scrub.seekTimer = 0;
+    }
     if (cancelled && !scrub.moved) {
         timeline3Runtime.scrub = null;
         timeline3Runtime.currentTime = timeline3CurrentSimpleTime();
@@ -937,9 +943,15 @@ function timeline3FinishScrub(event, cancelled = false) {
         return;
     }
     timeline3Runtime.suppressClickUntil = Date.now() + 500;
-    scrub.finishWhenIdle = true;
-    scrub.desiredTime = scrub.previewTime;
-    timeline3DrainScrub();
+    scrub.finishing = true;
+    const finalTime = scrub.previewTime;
+    timeline3Seek(finalTime, { follow: false, renderPart: false }).catch(() => false).finally(() => {
+        if (timeline3Runtime.scrub !== scrub) return;
+        timeline3Runtime.scrub = null;
+        timeline3Runtime.currentTime = finalTime;
+        timeline3UpdatePlayhead();
+        timeline3SyncTransport();
+    });
 }
 
 function timeline3LiveLayer(item) {

@@ -385,6 +385,7 @@ async function addFilesToSourceLibrary(files) {
     if (!currentProject || sourceLibraryRuntime.adding) return [];
     const queue = Array.from(files || []).filter(Boolean);
     if (!queue.length) return [];
+    const previewTimeBefore = typeof getTimelineCurrentTimeExact === 'function' ? Math.max(0, Number(getTimelineCurrentTimeExact()) || 0) : Math.max(0, Number(playerVideo && playerVideo.currentTime) || 0);
     sourceLibraryRuntime.adding = true;
     const overlay = document.getElementById('loading-overlay');
     const loading = document.getElementById('txt-loading-timeline');
@@ -408,11 +409,19 @@ async function addFilesToSourceLibrary(files) {
             if (window.BASMasterSequence) added.filter(source => source.role === 'visual').forEach(source => BASMasterSequence.appendSource(source.id, { silent: true }));
             renderSourceLibrary();
             if (window.BASMasterSequence) BASMasterSequence.refreshTimeline({ seekToStart: false });
+            if (added.some(source => source.role === 'visual') && window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
+                const restoreTime = Math.max(0, Math.min(BASMasterSequence.getDuration(), previewTimeBefore));
+                await BASMasterSequence.seek(restoreTime, { scroll: false }).catch(() => false);
+            }
             if (added.some(source => source.role === 'visual') && window.BASMultiTrackTimeline && typeof BASMultiTrackTimeline.refreshFrames === 'function') {
                 if (typeof BASMultiTrackTimeline.clearFrameCache === 'function') BASMultiTrackTimeline.clearFrameCache();
                 if (typeof BASMultiTrackTimeline.render === 'function') BASMultiTrackTimeline.render();
                 if (loading) loading.textContent = sourceLibraryText('timeline3LoadingFrames', 'Building timeline frames {current}/{total}...').replace('{current}', '0').replace('{total}', '—');
                 await BASMultiTrackTimeline.refreshFrames({ showLoading: false, force: true });
+            }
+            if (added.some(source => source.role === 'visual') && window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
+                const restoreTime = Math.max(0, Math.min(BASMasterSequence.getDuration(), previewTimeBefore));
+                await BASMasterSequence.seek(restoreTime, { scroll: false }).catch(() => false);
             }
             if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-library', { changeKey: 'source-library', immediate: true });
             if (typeof showToast === 'function') showToast(sourceLibraryText('sourceLibraryAdded', '{count} source(s) added').replace('{count}', String(added.length)), 'success');
@@ -612,7 +621,7 @@ async function sourceLibrarySetVideoElementSource(element, sourceId) {
         element.pause();
         element.src = src;
         await new Promise(resolve => {
-            if (element.readyState >= 1) {
+            if (element.readyState >= 2) {
                 resolve();
                 return;
             }
@@ -620,14 +629,17 @@ async function sourceLibrarySetVideoElementSource(element, sourceId) {
             const finish = () => {
                 if (done) return;
                 done = true;
-                element.removeEventListener('loadedmetadata', finish);
+                element.removeEventListener('loadeddata', finish);
+                element.removeEventListener('canplay', finish);
                 element.removeEventListener('error', finish);
                 resolve();
             };
-            element.addEventListener('loadedmetadata', finish, { once: true });
+            element.addEventListener('loadeddata', finish, { once: true });
+            element.addEventListener('canplay', finish, { once: true });
             element.addEventListener('error', finish, { once: true });
-            setTimeout(finish, 1200);
+            setTimeout(finish, 1400);
         });
+        await sourceLibraryWaitForVideoFrame(element, 520);
     }
     return source;
 }
@@ -650,6 +662,41 @@ function previewTimeToSourceTime(sourceId, previewTime, element) {
     return Math.max(0, Math.min(duration, Number(previewTime) * (duration / previewDuration)));
 }
 
+async function sourceLibraryWaitForVideoFrame(video, timeout = 700) {
+    if (!video) return;
+    if (video.readyState < 2) {
+        await new Promise(resolve => {
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                video.removeEventListener('loadeddata', finish);
+                video.removeEventListener('canplay', finish);
+                video.removeEventListener('error', finish);
+                resolve();
+            };
+            video.addEventListener('loadeddata', finish, { once: true });
+            video.addEventListener('canplay', finish, { once: true });
+            video.addEventListener('error', finish, { once: true });
+            setTimeout(finish, timeout);
+        });
+    }
+    if (typeof video.requestVideoFrameCallback === 'function') {
+        await new Promise(resolve => {
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                resolve();
+            };
+            video.requestVideoFrameCallback(finish);
+            setTimeout(finish, Math.min(timeout, 260));
+        });
+    } else {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+}
+
 async function sourceLibraryEnsureVideoElement(source) {
     const existing = sourceLibraryRuntime.videoElements.get(source.id);
     if (existing) return existing.video;
@@ -663,32 +710,36 @@ async function sourceLibraryEnsureVideoElement(source) {
     await new Promise((resolve, reject) => {
         const done = () => resolve();
         const fail = () => reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
-        video.addEventListener('loadedmetadata', done, { once: true });
+        video.addEventListener('loadeddata', done, { once: true });
+        video.addEventListener('canplay', done, { once: true });
         video.addEventListener('error', fail, { once: true });
         video.src = url;
     });
+    await sourceLibraryWaitForVideoFrame(video, 700);
     return video;
 }
 
 async function sourceLibrarySeekVideo(video, time) {
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.0001))) : Math.max(0, time);
-    if (Math.abs(video.currentTime - target) < 0.0005) return;
-    await new Promise((resolve, reject) => {
-        const done = () => {
-            video.removeEventListener('seeked', done);
-            video.removeEventListener('error', fail);
-            resolve();
-        };
-        const fail = () => {
-            video.removeEventListener('seeked', done);
-            video.removeEventListener('error', fail);
-            reject(new Error(sourceLibraryText('sourceLibrarySeekError', 'Could not seek this source.')));
-        };
-        video.addEventListener('seeked', done, { once: true });
-        video.addEventListener('error', fail, { once: true });
-        video.currentTime = target;
-    });
+    if (Math.abs(video.currentTime - target) >= 0.0005) {
+        await new Promise((resolve, reject) => {
+            const done = () => {
+                video.removeEventListener('seeked', done);
+                video.removeEventListener('error', fail);
+                resolve();
+            };
+            const fail = () => {
+                video.removeEventListener('seeked', done);
+                video.removeEventListener('error', fail);
+                reject(new Error(sourceLibraryText('sourceLibrarySeekError', 'Could not seek this source.')));
+            };
+            video.addEventListener('seeked', done, { once: true });
+            video.addEventListener('error', fail, { once: true });
+            video.currentTime = target;
+        });
+    }
+    await sourceLibraryWaitForVideoFrame(video, 520);
 }
 
 function sourceLibraryFrameAtTime(frames, time) {
