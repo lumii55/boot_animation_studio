@@ -3387,6 +3387,11 @@ body {
     display: none !important;
 }
 
+.editor-section:not(.has-media) .composition-editor-section,
+.editor-section:not(.has-media) .edit-audio-section {
+    display: none !important;
+}
+
 @media (min-width: 520px) {
     .container {
         padding-left: 18px;
@@ -9880,19 +9885,38 @@ summary:focus-visible {
 }
 
 .timeline3-audio {
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) 14px;
+    align-items: stretch;
+    padding: 0;
     background: linear-gradient(135deg, rgba(103, 222, 163, .2), rgba(13, 52, 43, .66));
     border-color: rgba(103, 222, 163, .35);
 }
 
-.timeline3-audio strong {
+.timeline3-audio-copy {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
+    overflow: hidden;
+}
+
+.timeline3-audio strong,
+.timeline3-audio small {
     position: relative;
     z-index: 2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.timeline3-audio small {
+    flex: 0 0 auto;
+    color: rgba(244, 247, 251, .62);
+    font-size: 8px;
 }
 
 .timeline3-wave {
@@ -10424,4 +10448,17 @@ summary:focus-visible {
 
 .timeline3-media-boundary::after {
     transform: rotate(90deg);
+}
+
+.timeline3-audio .timeline3-trim,
+.timeline3-layer .timeline3-trim {
+    width: 14px;
+    min-width: 14px;
+    touch-action: none;
+}
+
+.timeline3-audio.is-selected .timeline3-trim,
+.timeline3-audio.is-trimming .timeline3-trim {
+    opacity: 1;
+    background: var(--success);
 }
