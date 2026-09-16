@@ -123,7 +123,9 @@ function setPlayerBlob(blob) {
         return '';
     }
     currentPlayerObjectUrl = URL.createObjectURL(blob);
+    playerVideo.preload = 'auto';
     playerVideo.src = currentPlayerObjectUrl;
+    playerVideo.load();
     return currentPlayerObjectUrl;
 }
 

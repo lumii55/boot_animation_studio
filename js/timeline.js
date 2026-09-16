@@ -731,16 +731,26 @@ playerVideo.addEventListener('loadedmetadata', async function() {
     ajustarPaddings();
     
     if (typeof setLoadingTipContext === 'function') setLoadingTipContext('timeline');
-    document.getElementById('loading-overlay').style.display = 'flex';
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) loadingOverlay.style.display = 'flex';
     playerVideo.style.opacity = '0';
-    
-    await desenharFilmstrip();
-    if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
-    atualizarBotoesELinhas();
-    updatePlayerTimeReadout();
-    
-    playerVideo.style.opacity = '1';
-    document.getElementById('loading-overlay').style.display = 'none';
+
+    try {
+        await desenharFilmstrip();
+        if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
+        atualizarBotoesELinhas();
+        updatePlayerTimeReadout();
+    } catch (error) {
+        console.error('Timeline filmstrip generation failed', error);
+        isBuildingTimeline = false;
+        syncTimelineTransportUi();
+        renderSimpleSegmentTrack();
+        atualizarBotoesELinhas();
+        updatePlayerTimeReadout();
+    } finally {
+        playerVideo.style.opacity = '1';
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }
 });
 
 let isMouseDown = false;
@@ -881,28 +891,46 @@ async function desenharFilmstrip() {
     
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = 100;
-    tempCanvas.height = Math.floor((originalH / originalW) * 100);
+    const aspectHeight = originalW > 0 && originalH > 0 ? Math.floor((originalH / originalW) * 100) : 100;
+    tempCanvas.height = Math.max(1, aspectHeight);
     const tempCtx = tempCanvas.getContext('2d', { alpha: false });
-    
+
+    const seekForThumbnail = target => new Promise(resolve => {
+        let done = false;
+        let timer = 0;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            playerVideo.removeEventListener('seeked', onSeeked);
+            requestAnimationFrame(resolve);
+        };
+        const onSeeked = () => finish();
+        playerVideo.addEventListener('seeked', onSeeked);
+        timer = setTimeout(finish, 900);
+        try {
+            playerVideo.currentTime = target;
+            if (playerVideo.readyState >= 2 && Math.abs(playerVideo.currentTime - target) <= 0.015) requestAnimationFrame(finish);
+        } catch (error) {
+            finish();
+        }
+    });
+
     for (let i = 0; i < numFrames; i++) {
         const tempoAlvo = Math.min(dur - 0.05, Math.max(0.01, ((i + 0.5) / numFrames) * dur));
-        
-        await new Promise(r => {
-            const cb = () => { 
-                playerVideo.removeEventListener('seeked', cb); 
-                requestAnimationFrame(() => r());
-            };
-            playerVideo.addEventListener('seeked', cb);
-            playerVideo.currentTime = tempoAlvo;
-        });
+        await seekForThumbnail(tempoAlvo);
 
-        tempCtx.drawImage(playerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
-        
-        const img = document.createElement('img');
-        img.src = tempCanvas.toDataURL('image/jpeg', 0.58);
-        img.style.width = `${larguraFrame}px`;
-        img.style.flexBasis = `${larguraFrame}px`;
-        filmstrip.appendChild(img);
+        if (!tempCtx) continue;
+        try {
+            tempCtx.drawImage(playerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+            const img = document.createElement('img');
+            img.src = tempCanvas.toDataURL('image/jpeg', 0.58);
+            img.style.width = `${larguraFrame}px`;
+            img.style.flexBasis = `${larguraFrame}px`;
+            filmstrip.appendChild(img);
+        } catch (error) {
+            console.warn('Timeline thumbnail skipped', error);
+        }
     }
 
     renderTimelineRuler();
