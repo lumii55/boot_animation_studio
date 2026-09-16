@@ -639,7 +639,7 @@ function masterSequenceCreateAdvancedParts(nextId, cloneAudioState) {
         start: item.sourceIn,
         end: item.sourceOut,
         extraTokens: [],
-        audio: cloneAudioState ? cloneAudioState() : { mode: 'none', volume: 100, fadeIn: 0, fadeOut: 0, offset: 0, normalize: false, source: null, sourceName: '', sourceKind: 'none', sourceLibraryId: '' }
+        audio: cloneAudioState ? cloneAudioState() : { mode: 'none', volume: 100, fadeIn: 0, fadeOut: 0, offset: 0, endTrim: 0, normalize: false, source: null, sourceName: '', sourceKind: 'none', sourceLibraryId: '' }
     })).filter(part => part.end > part.start);
 }
 

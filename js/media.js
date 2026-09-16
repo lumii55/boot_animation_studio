@@ -601,6 +601,7 @@ function getAudioAdvancedState(part) {
         fadeIn: clampAudioControlValue(document.getElementById(`fade-in-${part}`).value, 0, 5, 0),
         fadeOut: clampAudioControlValue(document.getElementById(`fade-out-${part}`).value, 0, 5, 0),
         offset: clampAudioControlValue(document.getElementById(`audio-offset-${part}`).value, -5, 5, 0),
+        endTrim: clampAudioControlValue(document.getElementById(`audio-end-trim-${part}`)?.value, 0, 86400, 0),
         normalize: document.getElementById(`audio-normalize-${part}`).checked
     };
 }
@@ -637,6 +638,7 @@ function audioRoleStatesEqual(a, b) {
         clampAudioControlValue(a.fadeIn, 0, 5, 0) === clampAudioControlValue(b.fadeIn, 0, 5, 0) &&
         clampAudioControlValue(a.fadeOut, 0, 5, 0) === clampAudioControlValue(b.fadeOut, 0, 5, 0) &&
         clampAudioControlValue(a.offset, -5, 5, 0) === clampAudioControlValue(b.offset, -5, 5, 0) &&
+        clampAudioControlValue(a.endTrim, 0, 86400, 0) === clampAudioControlValue(b.endTrim, 0, 86400, 0) &&
         !!a.normalize === !!b.normalize &&
         audioSourceStatesEqual(a.source, b.source);
 }
@@ -674,6 +676,7 @@ function verificarModulo() {
 function verificarPainelAudio() {
     const usaAudio = document.getElementById('input-usar-som').checked;
     document.getElementById('painel-audio').style.display = usaAudio ? "flex" : "none";
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
 }
 
 function escapeRegExp(value) {
@@ -723,6 +726,8 @@ function syncAudioAdvancedVisibility(part) {
 
 function handleAudioAdvancedInput(part) {
     syncAudioAdvancedLabels(part);
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:advanced` });
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
@@ -730,6 +735,8 @@ function resetAudioAdvancedState(part) {
     document.getElementById(`fade-in-${part}`).value = 0;
     document.getElementById(`fade-out-${part}`).value = 0;
     document.getElementById(`audio-offset-${part}`).value = 0;
+    const endTrim = document.getElementById(`audio-end-trim-${part}`);
+    if (endTrim) endTrim.value = 0;
     document.getElementById(`audio-normalize-${part}`).checked = false;
     const details = document.getElementById(`audio-advanced-${part}`);
     details.open = false;
@@ -805,6 +812,8 @@ function handleAudioSelect(part) {
         document.getElementById(`opt-file-${part}`).removeAttribute('data-custom');
     }
     syncAudioAdvancedVisibility(part);
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:source` });
 }
 
 function fileAudioSelecionado(part) {
@@ -828,6 +837,8 @@ function fileAudioSelecionado(part) {
         wrap.style.display = "none";
     }
     syncAudioAdvancedVisibility(part);
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:file` });
 }
 
 function fecharModal() {

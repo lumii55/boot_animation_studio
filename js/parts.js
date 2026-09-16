@@ -31,6 +31,7 @@ function cloneAdvancedAudioState(audio = {}) {
         fadeIn: clampAudioControlValue(audio.fadeIn, 0, 5, 0),
         fadeOut: clampAudioControlValue(audio.fadeOut, 0, 5, 0),
         offset: clampAudioControlValue(audio.offset, -5, 5, 0),
+        endTrim: clampAudioControlValue(audio.endTrim, 0, 86400, 0),
         normalize: !!audio.normalize,
         source: audio.source instanceof Blob ? audio.source : null,
         sourceName: String(audio.sourceName || ''),
@@ -109,6 +110,7 @@ function advancedAudioFromSimpleRole(role) {
         fadeIn: roleState.fadeIn,
         fadeOut: roleState.fadeOut,
         offset: roleState.offset,
+        endTrim: roleState.endTrim,
         normalize: roleState.normalize,
         source: roleState.source && roleState.source.ref instanceof Blob ? roleState.source.ref : null,
         sourceName: roleState.source && roleState.source.name ? roleState.source.name : '',
@@ -946,12 +948,14 @@ function updateAdvancedPartField(part, field, value, element) {
         const label = document.querySelector(`[data-advanced-value="offset-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = formatAudioSeconds(part.audio.offset, true);
         markAdvancedPartsDirty();
+        if (typeof renderTimeline3 === 'function') renderTimeline3();
         return;
     } else if (field === 'audio-normalize') {
         part.audio.normalize = !!element.checked;
     }
     markAdvancedPartsDirty();
     renderAdvancedPartsEditor();
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (field === 'audio-mode' && part.audio.mode === 'file' && !(part.audio.source instanceof Blob)) {
         setTimeout(() => {
             const input = document.querySelector(`[data-advanced-audio-file="${part.id}"]`);
@@ -1021,7 +1025,7 @@ function clearAdvancedPreviewAudio() {
 }
 
 function advancedAudioIsNeutral(audio) {
-    return audio.volume === 100 && Math.abs(audio.fadeIn) < 0.0001 && Math.abs(audio.fadeOut) < 0.0001 && Math.abs(audio.offset) < 0.0001 && !audio.normalize;
+    return audio.volume === 100 && Math.abs(audio.fadeIn) < 0.0001 && Math.abs(audio.fadeOut) < 0.0001 && Math.abs(audio.offset) < 0.0001 && Math.abs(audio.endTrim || 0) < 0.0001 && !audio.normalize;
 }
 
 async function buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer = null) {

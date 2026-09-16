@@ -56,6 +56,7 @@ function normalizeAudioProcessingOptions(options = {}) {
         fadeIn: clampAudioControlValue(options.fadeIn, 0, 5, 0),
         fadeOut: clampAudioControlValue(options.fadeOut, 0, 5, 0),
         offset: clampAudioControlValue(options.offset, -5, 5, 0),
+        endTrim: clampAudioControlValue(options.endTrim, 0, 86400, 0),
         normalize: !!options.normalize
     };
 }
@@ -69,7 +70,8 @@ function createAudioRenderPlan(bufferDuration, startSec, endSec, options = {}) {
     const sourceShift = Math.max(0, -advanced.offset);
     const sourceStart = Math.min(Math.max(0, bufferDuration), requestedStart + sourceShift);
     const sourceAvailable = Math.max(0, bufferDuration - sourceStart);
-    const destinationAvailable = Math.max(0, outputDuration - destinationStart);
+    const destinationEnd = Math.max(destinationStart, outputDuration - advanced.endTrim);
+    const destinationAvailable = Math.max(0, destinationEnd - destinationStart);
     const sourceWindow = Math.max(0, requestedEnd - sourceStart);
     const playDuration = Math.max(0, Math.min(sourceAvailable, destinationAvailable, sourceWindow));
     let fadeIn = Math.min(advanced.fadeIn, playDuration);
@@ -200,7 +202,7 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
             } else if (state.mode === 'file') {
                 const source = getSelectedAudioFile(definition.role);
                 const decoded = await decodificarAudioFonte(source, audioCtx);
-                if (decoded) blob = await fatiarEGerarWav(decoded, 0, decoded.duration, audioCtx, state.volume / 100, state);
+                if (decoded) blob = await fatiarEGerarWav(decoded, 0, Math.max(0.001, definition.end - definition.start), audioCtx, state.volume / 100, state);
             }
 
             if (generation !== previewAudioBuildGeneration) return;

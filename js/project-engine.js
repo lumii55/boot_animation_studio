@@ -87,6 +87,7 @@ function serializeProjectAudioState() {
             fadeIn: Number(part.fadeIn) || 0,
             fadeOut: Number(part.fadeOut) || 0,
             offset: Number(part.offset) || 0,
+            endTrim: Math.max(0, Number(part.endTrim) || 0),
             normalize: !!part.normalize,
             source: serializeProjectAudioSource(part.source)
         };
@@ -102,6 +103,7 @@ function serializeProjectAdvancedAudio(audio) {
         fadeIn: Number(audio && audio.fadeIn) || 0,
         fadeOut: Number(audio && audio.fadeOut) || 0,
         offset: Number(audio && audio.offset) || 0,
+        endTrim: Math.max(0, Number(audio && audio.endTrim) || 0),
         normalize: !!(audio && audio.normalize),
         sourceName: audio && audio.sourceName ? String(audio.sourceName) : '',
         sourceKind: audio && audio.sourceKind ? String(audio.sourceKind) : 'none',
@@ -480,6 +482,7 @@ function projectEngineRestoreSimpleAudio(audioState, assetMap) {
         projectEngineSetValue(`fade-in-${role}`, Number(roleState.fadeIn) || 0);
         projectEngineSetValue(`fade-out-${role}`, Number(roleState.fadeOut) || 0);
         projectEngineSetValue(`audio-offset-${role}`, Number(roleState.offset) || 0);
+        projectEngineSetValue(`audio-end-trim-${role}`, Math.max(0, Number(roleState.endTrim) || 0));
         projectEngineSetChecked(`audio-normalize-${role}`, roleState.normalize);
         const volumeLabel = document.getElementById(`lbl-vol-${role}`);
         if (volumeLabel) volumeLabel.textContent = `${Math.max(0, Math.min(100, Number(roleState.volume) || 0))}%`;
@@ -530,6 +533,7 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
                 fadeIn: Number(audioState.fadeIn) || 0,
                 fadeOut: Number(audioState.fadeOut) || 0,
                 offset: Number(audioState.offset) || 0,
+                endTrim: Math.max(0, Number(audioState.endTrim) || 0),
                 normalize: !!audioState.normalize,
                 source,
                 sourceName: String(audioState.sourceName || (asset && asset.name) || ''),

@@ -665,6 +665,7 @@ function updateCompositionLayerFromInput(input) {
     renderCompositionLayerList();
     renderCompositionInspector();
     scheduleCompositionPreview();
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
     touchComposition('composition', `composition:${layer.id}:${id}`);
 }
 

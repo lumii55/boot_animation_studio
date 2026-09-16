@@ -162,7 +162,10 @@ async function applyImportedAudioEdits(zip, audioState) {
             } else if (state.mode === 'file') {
                 const source = getSelectedAudioFile(role);
                 const decoded = await decodificarAudioFonte(source, ctx);
-                if (decoded) outputBlob = await fatiarEGerarWav(decoded, 0, decoded.duration, ctx, volume, state);
+                if (decoded) {
+                    const [start, end] = getAudioTimelineRange(role);
+                    outputBlob = await fatiarEGerarWav(decoded, 0, Math.max(0.001, end - start), ctx, volume, state);
+                }
             }
 
             if (outputBlob) {
@@ -330,7 +333,7 @@ async function applySimpleAudio(zip, audioState, t) {
             } else {
                 const source = getSelectedAudioFile(definition.role);
                 const decoded = await decodificarAudioFonte(source, audioCtx);
-                if (decoded) blob = await fatiarEGerarWav(decoded, 0, decoded.duration, audioCtx, volume, state);
+                if (decoded) blob = await fatiarEGerarWav(decoded, 0, Math.max(0.001, definition.end - definition.start), audioCtx, volume, state);
             }
 
             if (blob) {
