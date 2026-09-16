@@ -327,6 +327,7 @@ async function applyCompositionToFrameBlob(blob, time, width, height, format, jp
 
 function compositionMainPreviewTime() {
     if (!currentProject) return 0;
+    if (window.BASMultiTrackTimeline && BASMultiTrackTimeline.getDuration() > 0) return BASMultiTrackTimeline.getCurrentTime();
     if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
         const part = typeof getAdvancedPartById === 'function' ? getAdvancedPartById(currentProject.advancedExpandedId) : null;
         if (part) {

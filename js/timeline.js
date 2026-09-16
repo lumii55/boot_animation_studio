@@ -37,13 +37,14 @@ function updatePlayerTimeReadout(timelineTime) {
     const currentEl = document.getElementById('video-current-time');
     const totalEl = document.getElementById('video-total-time');
     if (!readout || !currentEl || !totalEl) return;
-    const total = getPlayerSourceDurationExact();
+    const multiTrackAdvanced = !!(window.BASMultiTrackTimeline && BASMultiTrackTimeline.isAdvancedActive());
+    const total = multiTrackAdvanced ? BASMultiTrackTimeline.getDuration() : getPlayerSourceDurationExact();
     if (!(total > 0)) {
         readout.style.display = 'none';
         return;
     }
-    const rawCurrent = timelineTime === undefined ? getTimelineCurrentTimeExact() : Number(timelineTime) || 0;
-    const current = Math.max(0, Math.min(total, timelineUsesMasterSequence() ? rawCurrent : timelineTimeToProjectTime(rawCurrent)));
+    const rawCurrent = multiTrackAdvanced ? BASMultiTrackTimeline.getCurrentTime() : timelineTime === undefined ? getTimelineCurrentTimeExact() : Number(timelineTime) || 0;
+    const current = Math.max(0, Math.min(total, multiTrackAdvanced ? rawCurrent : timelineUsesMasterSequence() ? rawCurrent : timelineTimeToProjectTime(rawCurrent)));
     const currentText = `${formatTimelineSecondsExact(current)}s`;
     const totalText = `${formatTimelineSecondsExact(total)}s`;
     currentEl.textContent = currentText;
@@ -1054,3 +1055,5 @@ window.aoMudarTamanhoManual = function() {
     atualizarPreviewEnquadramento();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
+
+window.seekTimelineTo = seekTimelineTo;

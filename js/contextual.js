@@ -51,7 +51,8 @@ function contextualText(key, fallback) {
 }
 
 function setOutputTool(tool, options = {}) {
-    const allowed = ['basics', 'framing', 'performance', 'package'];
+    const allowed = ['basics', 'framing', 'performance'];
+    if (tool === 'package') tool = 'basics';
     if (tool === 'composition' || tool === 'audio') {
         const targetId = tool === 'composition' ? 'composition-editor-section' : 'output-panel-audio';
         contextualUi.outputTool = 'basics';
