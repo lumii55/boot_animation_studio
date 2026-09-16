@@ -10617,3 +10617,17 @@ summary:focus-visible {
 .edit-audio-section[hidden] {
     display: none !important;
 }
+
+#composition-layer-start,
+#composition-layer-end {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+#composition-layer-start::-webkit-inner-spin-button,
+#composition-layer-start::-webkit-outer-spin-button,
+#composition-layer-end::-webkit-inner-spin-button,
+#composition-layer-end::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
