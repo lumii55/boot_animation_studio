@@ -777,6 +777,22 @@ function compositionSeekKeyframe(direction) {
     compositionRefreshMotionUi();
 }
 
+function compositionAddKeyframeAtPlayhead(layerId = '') {
+    const layer = layerId ? getCompositionLayer(layerId) : getCompositionLayer();
+    if (!layer) return false;
+    const time = compositionCurrentTime();
+    if (time < layer.start - compositionKeyframeTolerance() || time > layer.end + compositionKeyframeTolerance()) {
+        if (typeof showToast === 'function') showToast(compositionText('compositionKeyframeOutsideLayer', 'Move the playhead inside the layer before adding a keyframe.'), 'info', 2800);
+        return false;
+    }
+    compositionRuntime.selectedId = layer.id;
+    const existing = compositionKeyframeAt(layer, time);
+    if (!existing) compositionToggleKeyframe(layer, time);
+    compositionRefreshMotionUi();
+    if (!existing) touchComposition('composition', `composition:${layer.id}:keyframe`);
+    return true;
+}
+
 function compositionToggleCurrentKeyframe() {
     const layer = getCompositionLayer();
     if (!layer) return;
@@ -1079,6 +1095,8 @@ function syncCompositionText() {
         'composition-motion-section': ['compositionMotionSection', 'MOTION & KEYFRAMES'],
         'composition-motion-title': ['compositionMotionTitle', 'Animate this layer'],
         'composition-motion-desc': ['compositionMotionDesc', 'Save the layer at different moments to create movement between them.'],
+        'composition-keyframe-help-summary': ['compositionKeyframeHelpSummary', 'How to use keyframes'],
+        'composition-keyframe-help-hint': ['compositionKeyframeHelpHint', 'Tap to open the mini tutorial'],
         'composition-keyframe-step1-title': ['compositionKeyframeStep1Title', 'Save the start state'],
         'composition-keyframe-step1-text': ['compositionKeyframeStep1Text', 'Place the playhead where motion should start, then set the first keyframe.'],
         'composition-keyframe-step2-title': ['compositionKeyframeStep2Title', 'Move in time'],
@@ -1261,6 +1279,7 @@ window.BASComposition = Object.freeze({
         return layer ? compositionResolvedTransform(layer, time) : null;
     },
     normalizeKeyframes: id => compositionNormalizeKeyframes(getCompositionLayer(id)),
+    addKeyframeAtPlayhead: compositionAddKeyframeAtPlayhead,
     setKeyframeTime: compositionSetKeyframeTime
 });
 window.initializeCompositionForProject = initializeCompositionForProject;

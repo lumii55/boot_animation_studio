@@ -670,6 +670,7 @@ function timeline3OpenMenu(type, id, clientX, clientY) {
         actions.push(['edit-part', timeline3Text('timeline3ActionEditPart', 'Edit Part')]);
         actions.push(['preview-part', timeline3Text('timeline3ActionPreviewPart', 'Preview source')]);
     } else if (type === 'layer') {
+        actions.push(['add-keyframe', timeline3Text('compositionKeyframeAddHere', 'Add keyframe here')]);
         actions.push(['edit-layer', timeline3Text('timeline3ActionEditLayer', 'Edit layer')]);
     } else if (type === 'audio') {
         actions.push(['edit-audio', timeline3Text('timeline3ActionEditAudio', 'Edit audio')]);
@@ -698,6 +699,7 @@ function timeline3RunAction(action, type, id) {
         if (action === 'edit-part' && typeof setEditTool === 'function') setEditTool('parts', { scroll: true });
         if (action === 'preview-part' && part && window.BASSourceLibrary) BASSourceLibrary.preview(BASSourceLibrary.getPartSourceId(part));
     }
+    if (type === 'layer' && action === 'add-keyframe' && window.BASComposition && typeof BASComposition.addKeyframeAtPlayhead === 'function') BASComposition.addKeyframeAtPlayhead(id);
     if (type === 'layer' && action === 'edit-layer' && typeof setEditTool === 'function') setEditTool('composition', { scroll: true });
     if (type === 'audio' && action === 'edit-audio' && typeof setEditTool === 'function') setEditTool('audio', { scroll: true });
     timeline3Render();
