@@ -695,11 +695,11 @@ function timeline3RunAction(action, type, id) {
     }
     if (type === 'part') {
         const part = typeof getAdvancedPartById === 'function' ? getAdvancedPartById(id) : null;
-        if (action === 'edit-part') document.getElementById('advanced-parts-launch')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (action === 'edit-part' && typeof setEditTool === 'function') setEditTool('parts', { scroll: true });
         if (action === 'preview-part' && part && window.BASSourceLibrary) BASSourceLibrary.preview(BASSourceLibrary.getPartSourceId(part));
     }
-    if (type === 'layer' && action === 'edit-layer') document.getElementById('composition-editor-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (type === 'audio' && action === 'edit-audio') document.getElementById('output-panel-audio')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (type === 'layer' && action === 'edit-layer' && typeof setEditTool === 'function') setEditTool('composition', { scroll: true });
+    if (type === 'audio' && action === 'edit-audio' && typeof setEditTool === 'function') setEditTool('audio', { scroll: true });
     timeline3Render();
 }
 

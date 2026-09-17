@@ -1,5 +1,6 @@
 const contextualUi = {
     outputTool: 'basics',
+    editTool: 'composition',
     audioRole: 'intro',
     framingFrame: 0,
     framingReference: 0.5,
@@ -51,19 +52,15 @@ function contextualText(key, fallback) {
 }
 
 function setOutputTool(tool, options = {}) {
-    const allowed = ['basics', 'framing', 'performance', 'package'];
+    const allowed = ['basics', 'framing', 'performance'];
     if (tool === 'composition' || tool === 'audio') {
         const targetId = tool === 'composition' ? 'composition-editor-section' : 'output-panel-audio';
         contextualUi.outputTool = 'basics';
         if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
-        requestAnimationFrame(() => {
-            document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            if (tool === 'composition' && window.BASComposition) BASComposition.open();
-            if (tool === 'audio') syncContextualAudioMode();
-        });
+        if (typeof setEditTool === 'function') setEditTool(tool, { scroll: true });
         tool = 'basics';
     }
-    if (!allowed.includes(tool)) return;
+    if (!allowed.includes(tool)) tool = 'basics';
     contextualUi.outputTool = tool;
     const config = document.getElementById('configuracoes');
     if (config) config.dataset.outputTool = tool;
@@ -82,6 +79,28 @@ function setOutputTool(tool, options = {}) {
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('output-tool', { emit: true });
     if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
         document.querySelector('.output-workbench')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+
+function setEditTool(tool, options = {}) {
+    const allowed = ['composition', 'audio', 'parts'];
+    if (!allowed.includes(tool)) tool = 'composition';
+    contextualUi.editTool = tool;
+    document.querySelectorAll('.edit-tool-button[data-edit-tool]').forEach(button => {
+        const active = button.dataset.editTool === tool;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.edit-inspector-pane[data-edit-tool-panel]').forEach(panel => {
+        const active = panel.dataset.editToolPanel === tool;
+        panel.classList.toggle('is-active', active);
+        panel.hidden = !active;
+    });
+    if (tool === 'composition' && window.BASComposition) window.BASComposition.open();
+    if (tool === 'audio') syncContextualAudioMode();
+    if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
+        requestAnimationFrame(() => document.getElementById('edit-inspector-deck')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
 }
 
@@ -222,8 +241,10 @@ function syncContextualToolsText() {
         'p11-tool-basics': ['contextToolBasics', 'Output'],
         'p11-tool-framing': ['contextToolFraming', 'Framing'],
         'p11-tool-audio': ['contextToolAudio', 'Audio'],
+        'edit-tool-composition-label': ['contextToolComposition', 'Compose'],
+        'edit-tool-audio-label': ['contextToolAudio', 'Audio'],
+        'edit-tool-parts-label': ['editToolParts', 'Parts'],
         'p11-tool-performance': ['contextToolPerformance', 'Optimize'],
-        'p11-tool-package': ['contextToolPackage', 'Package'],
         'p11-basics-kicker': ['contextBasicsKicker', 'OUTPUT PROFILE'],
         'p11-basics-title': ['contextBasicsTitle', 'Shape the final file'],
         'p11-basics-desc': ['contextBasicsDesc', 'Choose the file name, frame format, resolution and frame rate.'],
@@ -251,12 +272,7 @@ function syncContextualToolsText() {
         'p11-advanced-audio-action': ['contextAdvancedAudioAction', 'Edit Parts'],
         'p11-performance-kicker': ['contextPerformanceKicker', 'PERFORMANCE'],
         'p11-performance-title': ['contextPerformanceTitle', 'Balance quality and boot cost'],
-        'p11-performance-desc': ['contextPerformanceDesc', 'See the estimated workload and let Smart Optimize test lighter combinations.'],
-        'p11-package-kicker': ['contextPackageKicker', 'PACKAGE'],
-        'p11-package-title': ['contextPackageTitle', 'Choose how the file is packaged'],
-        'p11-package-desc': ['contextPackageDesc', 'The standard ZIP works without the companion module. Root module packaging stays optional.'],
-        'p11-package-local-title': ['contextPackageLocalTitle', 'Standard export stays local'],
-        'p11-package-local-desc': ['contextPackageLocalDesc', 'You can always generate a normal bootanimation.zip without connecting a phone or installing the root module.']
+        'p11-performance-desc': ['contextPerformanceDesc', 'See the estimated workload and let Smart Optimize test lighter combinations.']
     };
     Object.entries(bindings).forEach(([id, [key, fallback]]) => {
         const element = document.getElementById(id);
@@ -264,6 +280,8 @@ function syncContextualToolsText() {
     });
     const nav = document.getElementById('output-tool-nav');
     if (nav) nav.setAttribute('aria-label', contextualText('contextToolsAria', 'Output tools'));
+    const editNav = document.getElementById('edit-tool-dock');
+    if (editNav) editNav.setAttribute('aria-label', contextualText('editToolsAria', 'Editor tools'));
     const canvas = document.getElementById('framing-tool-canvas');
     if (canvas) canvas.setAttribute('aria-label', contextualText('contextFramingPreviewAria', 'Framing preview'));
     if (typeof syncCompositionText === 'function') syncCompositionText();
@@ -272,6 +290,9 @@ function syncContextualToolsText() {
 function bindContextualTools() {
     document.querySelectorAll('.output-tool-tab[data-output-tool]').forEach(button => {
         button.addEventListener('click', () => setOutputTool(button.dataset.outputTool));
+    });
+    document.querySelectorAll('.edit-tool-button[data-edit-tool]').forEach(button => {
+        button.addEventListener('click', () => setEditTool(button.dataset.editTool));
     });
     document.querySelectorAll('.audio-role-tab[data-audio-role]').forEach(button => {
         button.addEventListener('click', () => setAudioRole(button.dataset.audioRole));
@@ -370,7 +391,7 @@ function bindContextualTools() {
     if (editParts) {
         editParts.addEventListener('click', () => {
             if (typeof setWorkspaceView === 'function') setWorkspaceView('edit');
-            requestAnimationFrame(() => document.getElementById('advanced-parts-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            setEditTool('parts', { scroll: true });
         });
     }
     const editor = document.getElementById('editor-section');
@@ -380,6 +401,7 @@ function bindContextualTools() {
         }).observe(editor, { attributes: true, attributeFilter: ['data-mobile-view'] });
     }
     setOutputTool(contextualUi.outputTool);
+    setEditTool(contextualUi.editTool);
     setAudioRole(contextualUi.audioRole);
     syncContextualToolsText();
     syncContextualAudioMode();
@@ -387,6 +409,7 @@ function bindContextualTools() {
 
 window.addEventListener('DOMContentLoaded', bindContextualTools);
 window.setOutputTool = setOutputTool;
+window.setEditTool = setEditTool;
 window.setAudioRole = setAudioRole;
 window.syncFramingToolUi = syncFramingToolUi;
 window.renderFramingToolFrame = renderFramingToolFrame;

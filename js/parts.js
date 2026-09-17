@@ -990,6 +990,7 @@ function renderAdvancedPartLines() {
 
 async function enterAdvancedPartsMode() {
     if (!currentProject || isGenerating || isBuildingTimeline) return;
+    if (typeof setEditTool === 'function') setEditTool('parts');
     if (!ensureAdvancedPartsInitialized()) return;
     currentProject.advancedPartsEnabled = true;
     syncAdvancedPartsUi();
