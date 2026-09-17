@@ -240,6 +240,9 @@ let audioStudioPreviewUrl = null;
 let audioStudioPreviewRole = '';
 let audioStudioPreviewBlob = null;
 let audioStudioPreviewBuilding = false;
+let audioStudioSeamAudio = null;
+let audioStudioSeamUrl = null;
+let audioStudioSeamRole = '';
 
 function formatAudioStudioClock(value) {
     const seconds = Math.max(0, Number(value) || 0);
@@ -300,7 +303,27 @@ function resetAudioStudioTransportProgress(role) {
     if (els.total) els.total.textContent = '0:00.0';
 }
 
+function disposeAudioStudioSeamPreview() {
+    if (audioStudioSeamAudio) {
+        audioStudioSeamAudio.pause();
+        audioStudioSeamAudio.removeAttribute('src');
+        audioStudioSeamAudio.load();
+        audioStudioSeamAudio = null;
+    }
+    if (audioStudioSeamUrl) {
+        URL.revokeObjectURL(audioStudioSeamUrl);
+        audioStudioSeamUrl = null;
+    }
+    const role = audioStudioSeamRole;
+    audioStudioSeamRole = '';
+    if (role) {
+        const button = document.querySelector(`[data-audio-sync-role="${role}"][data-audio-sync-action="seam"]`);
+        if (button) button.classList.remove('is-active');
+    }
+}
+
 function disposeAudioStudioPreview() {
+    disposeAudioStudioSeamPreview();
     const previousRole = audioStudioPreviewRole;
     if (audioStudioPreviewAudio) {
         audioStudioPreviewAudio.pause();
@@ -396,6 +419,7 @@ async function ensureAudioStudioPreview(role) {
     audioStudioPreviewBlob = blob;
     if (typeof primeAudioWaveformFromBlob === 'function') primeAudioWaveformFromBlob(role, false, blob).catch(() => {});
     audioStudioPreviewAudio = new Audio();
+    audioStudioPreviewAudio.loop = audioWaveformRuntime.loopPreviewRole === role;
     audioStudioPreviewUrl = URL.createObjectURL(blob);
     audioStudioPreviewAudio.preload = 'auto';
     audioStudioPreviewAudio.src = audioStudioPreviewUrl;
@@ -439,7 +463,8 @@ const audioWaveformRuntime = {
     refreshTimers: new Map(),
     pointers: new Map(),
     pinch: null,
-    generation: 0
+    generation: 0,
+    loopPreviewRole: ''
 };
 
 let editorAudioPreviewSignature = '';
@@ -511,6 +536,7 @@ function invalidateAudioPreviewState(options = {}) {
     if (editorAudioPreviewBuildPromise) editorAudioPreviewBuildPromise = null;
     ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
     pauseEditorPreviewAudio();
+    disposeAudioStudioSeamPreview();
     if (options.transport !== false) stopAudioStudioPreview();
     if (options.waveforms !== false) {
         audioWaveformRuntime.generation += 1;
@@ -523,6 +549,7 @@ function invalidateAudioPreviewState(options = {}) {
 
 function notifyAudioMarkersChanged() {
     invalidateAudioPreviewState({ transport: true, waveforms: true });
+    refreshAudioStudioSyncUi();
 }
 
 async function ensureEditorPreviewAudioReady() {
@@ -776,6 +803,182 @@ function drawWaveformCanvas(canvas, data, options = {}) {
     }
 }
 
+function audioStudioRoleMarkerIds(role) {
+    return role === 'intro' ? ['m0', 'm1'] : role === 'loop' ? ['m1', 'm2'] : ['m2', 'm3'];
+}
+
+function audioStudioGlobalPlayheadTime() {
+    return typeof getTimelineCurrentTimeExact === 'function' ? Math.max(0, Number(getTimelineCurrentTimeExact()) || 0) : Math.max(0, Number(playerVideo && playerVideo.currentTime) || 0);
+}
+
+function ensureAudioStudioSyncControls(role) {
+    const shell = document.getElementById(`audio-studio-waveform-shell-${role}`);
+    if (!shell || shell.querySelector(`[data-audio-sync-tools="${role}"]`)) return;
+    const toolbar = document.createElement('div');
+    toolbar.className = 'audio-studio-sync-tools';
+    toolbar.dataset.audioSyncTools = role;
+    toolbar.innerHTML = `<div class="audio-studio-sync-actions"><button type="button" data-audio-sync-role="${role}" data-audio-sync-action="start"></button><button type="button" data-audio-sync-role="${role}" data-audio-sync-action="end"></button><button type="button" data-audio-sync-role="${role}" data-audio-sync-action="center"></button></div>${role === 'loop' ? `<div class="audio-studio-loop-actions"><button type="button" data-audio-sync-role="${role}" data-audio-sync-action="loop" aria-pressed="false"></button><button type="button" data-audio-sync-role="${role}" data-audio-sync-action="seam"></button></div>` : ''}`;
+    const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
+    shell.insertBefore(toolbar, scroll || shell.firstChild);
+    toolbar.addEventListener('click', event => {
+        const button = event.target.closest('[data-audio-sync-action]');
+        if (!button) return;
+        const action = button.dataset.audioSyncAction;
+        if (action === 'start' || action === 'end') setAudioTimingFromPlayhead(role, action);
+        else if (action === 'center') centerAudioWaveformOnPlayhead(role);
+        else if (action === 'loop') toggleAudioStudioLoopPreview(role).catch(() => {});
+        else if (action === 'seam') previewAudioStudioLoopSeam(role).catch(() => {});
+    });
+    syncAudioStudioSyncControlsText(role);
+}
+
+function syncAudioStudioSyncControlsText(role) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const labels = {
+        start: t.audioSyncSetStart || 'Start at playhead',
+        end: t.audioSyncSetEnd || 'End at playhead',
+        center: t.audioSyncCenter || 'Center playhead',
+        loop: t.audioSyncLoop || 'Loop preview',
+        seam: t.audioSyncSeam || 'Loop seam'
+    };
+    document.querySelectorAll(`[data-audio-sync-role="${role}"][data-audio-sync-action]`).forEach(button => {
+        const action = button.dataset.audioSyncAction;
+        if (labels[action]) button.textContent = labels[action];
+    });
+    const loopButton = document.querySelector(`[data-audio-sync-role="${role}"][data-audio-sync-action="loop"]`);
+    if (loopButton) {
+        const active = audioWaveformRuntime.loopPreviewRole === role;
+        loopButton.classList.toggle('is-active', active);
+        loopButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+}
+
+function refreshAudioStudioSyncUi() {
+    ['intro', 'loop', 'final'].forEach(role => {
+        ensureAudioStudioSyncControls(role);
+        syncAudioStudioSyncControlsText(role);
+        renderAudioWaveformMarkers(role);
+    });
+}
+
+function setAudioTimingFromPlayhead(role, edge) {
+    const [start, end] = audioStudioRoleRange(role);
+    const current = audioStudioGlobalPlayheadTime();
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (!(end > start) || current < start - 0.0001 || current > end + 0.0001) {
+        if (typeof showToast === 'function') showToast(t.audioSyncOutside || 'Move the playhead inside this section first.', 'warning');
+        return false;
+    }
+    const delayInput = document.getElementById(`audio-delay-${role}`);
+    const endInput = document.getElementById(`audio-end-trim-${role}`);
+    if (!delayInput || !endInput) return false;
+    const span = end - start;
+    const delay = Math.max(0, Number(delayInput.value) || 0);
+    const endTrim = Math.max(0, Number(endInput.value) || 0);
+    if (edge === 'start') delayInput.value = String(Math.max(0, Math.min(span - endTrim, current - start)));
+    else endInput.value = String(Math.max(0, Math.min(span - delay, end - current)));
+    if (typeof handleAudioAdvancedInput === 'function') handleAudioAdvancedInput(role);
+    centerAudioWaveformOnPlayhead(role);
+    return true;
+}
+
+function centerAudioWaveformOnPlayhead(role) {
+    const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    if (!scroll || !canvas) return false;
+    const [start, end] = audioStudioRoleRange(role);
+    if (!(end > start)) return false;
+    const current = Math.max(start, Math.min(end, audioStudioGlobalPlayheadTime()));
+    const ratio = (current - start) / (end - start);
+    const x = ratio * (canvas.getBoundingClientRect().width || canvas.clientWidth || 0);
+    scroll.scrollLeft = Math.max(0, x - scroll.clientWidth / 2);
+    renderAudioWaveformMarkers(role);
+    return true;
+}
+
+function renderAudioWaveformMarkers(role) {
+    const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    if (!scroll || !canvas) return;
+    let overlay = scroll.querySelector(`[data-audio-marker-overlay="${role}"]`);
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'audio-studio-marker-overlay';
+        overlay.dataset.audioMarkerOverlay = role;
+        scroll.appendChild(overlay);
+    }
+    const width = Math.max(1, canvas.getBoundingClientRect().width || canvas.clientWidth || 1);
+    overlay.style.width = `${width}px`;
+    const [start, end] = audioStudioRoleRange(role);
+    const ids = audioStudioRoleMarkerIds(role);
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const global = audioStudioGlobalPlayheadTime();
+    const ratio = end > start ? Math.max(0, Math.min(1, (global - start) / (end - start))) : 0;
+    const inside = end > start && global >= start && global <= end;
+    overlay.innerHTML = `<span class="audio-studio-marker audio-studio-marker-start" style="left:0"><b>${String(t[ids[0]] || ids[0]).replace(/^\d+\.\s*/, '')}</b></span><span class="audio-studio-marker audio-studio-marker-end" style="left:${width}px"><b>${String(t[ids[1]] || ids[1]).replace(/^\d+\.\s*/, '')}</b></span><span class="audio-studio-global-playhead${inside ? ' is-visible' : ''}" style="left:${ratio * width}px"></span>`;
+}
+
+function updateAllAudioStudioGlobalPlayheads() {
+    ['intro', 'loop', 'final'].forEach(renderAudioWaveformMarkers);
+}
+
+async function toggleAudioStudioLoopPreview(role) {
+    const ready = await ensureAudioStudioPreview(role);
+    if (!ready || !audioStudioPreviewAudio) return false;
+    const active = audioWaveformRuntime.loopPreviewRole === role;
+    audioWaveformRuntime.loopPreviewRole = active ? '' : role;
+    audioStudioPreviewAudio.loop = !active;
+    syncAudioStudioSyncControlsText(role);
+    if (!active && audioStudioPreviewAudio.paused) await audioStudioPreviewAudio.play().catch(() => {});
+    return !active;
+}
+
+async function buildAudioStudioLoopSeamBlob(role) {
+    const blob = await buildAudioStudioRoleBlob(role);
+    if (!blob) return null;
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        const decoded = await decodificarAudioFonte(blob, audioCtx);
+        if (!decoded || !(decoded.duration > 0.08)) return null;
+        const windowSec = Math.min(0.8, decoded.duration / 2);
+        const sampleRate = decoded.sampleRate;
+        const frames = Math.max(1, Math.ceil(windowSec * 2 * sampleRate));
+        const offline = new OfflineAudioContext(Math.max(1, decoded.numberOfChannels), frames, sampleRate);
+        const tail = offline.createBufferSource();
+        tail.buffer = decoded;
+        tail.connect(offline.destination);
+        tail.start(0, Math.max(0, decoded.duration - windowSec), windowSec);
+        const head = offline.createBufferSource();
+        head.buffer = decoded;
+        head.connect(offline.destination);
+        head.start(windowSec, 0, windowSec);
+        return audioBufferToWav(await offline.startRendering());
+    } finally {
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
+    }
+}
+
+async function previewAudioStudioLoopSeam(role) {
+    disposeAudioStudioSeamPreview();
+    stopAudioStudioPreview({ reset: false });
+    const blob = await buildAudioStudioLoopSeamBlob(role).catch(() => null);
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (!blob) {
+        if (typeof showToast === 'function') showToast(t.audioSyncSeamUnavailable || 'Not enough audio is available to preview the loop seam.', 'warning');
+        return false;
+    }
+    audioStudioSeamRole = role;
+    audioStudioSeamAudio = new Audio();
+    audioStudioSeamUrl = URL.createObjectURL(blob);
+    audioStudioSeamAudio.src = audioStudioSeamUrl;
+    audioStudioSeamAudio.preload = 'auto';
+    const button = document.querySelector(`[data-audio-sync-role="${role}"][data-audio-sync-action="seam"]`);
+    if (button) button.classList.add('is-active');
+    audioStudioSeamAudio.addEventListener('ended', disposeAudioStudioSeamPreview, { once: true });
+    await audioStudioSeamAudio.play().catch(() => {});
+    return !audioStudioSeamAudio.paused;
+}
+
 function updateAudioWaveformPlayhead(role, current, duration) {
     const shell = document.getElementById(`audio-studio-waveform-shell-${role}`);
     const canvas = document.getElementById(`audio-studio-waveform-${role}`);
@@ -817,6 +1020,7 @@ async function renderAudioStudioWaveform(role) {
     drawWaveformCanvas(canvas, data, { width, height: canvas.clientHeight || 96 });
     if (audioStudioPreviewRole === role && audioStudioPreviewAudio) syncAudioStudioTransportProgress();
     else updateAudioWaveformPlayhead(role, 0, data.duration);
+    renderAudioWaveformMarkers(role);
 }
 
 function scheduleAudioWaveformRefresh(role, delay = 160) {
@@ -843,6 +1047,7 @@ async function scrubAudioWaveform(role, event) {
 
 function initializeAudioWaveformUi() {
     ['intro', 'loop', 'final'].forEach(role => {
+        ensureAudioStudioSyncControls(role);
         const canvas = document.getElementById(`audio-studio-waveform-${role}`);
         const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
         document.getElementById(`audio-studio-waveform-zoom-out-${role}`)?.addEventListener('click', () => audioWaveformZoom(role, 0.75));
@@ -908,13 +1113,13 @@ if (playerVideo) {
     playerVideo.muted = true;
     playerVideo.addEventListener('play', () => { handleEditorAudioPreviewPlay().catch(() => {}); });
     playerVideo.addEventListener('pause', handleEditorAudioPreviewPause);
-    playerVideo.addEventListener('timeupdate', () => syncEditorPreviewAudio(false));
-    playerVideo.addEventListener('seeked', () => syncEditorPreviewAudio(true));
+    playerVideo.addEventListener('timeupdate', () => { syncEditorPreviewAudio(false); updateAllAudioStudioGlobalPlayheads(); });
+    playerVideo.addEventListener('seeked', () => { syncEditorPreviewAudio(true); updateAllAudioStudioGlobalPlayheads(); });
     playerVideo.addEventListener('ended', handleEditorAudioPreviewPause);
 }
 
 initializeAudioWaveformUi();
-setTimeout(() => refreshAllAudioWaveforms(), 0);
+setTimeout(() => { refreshAllAudioWaveforms(); refreshAudioStudioSyncUi(); }, 0);
 
 function invalidateAdvancedAudioWaveform(id) {
     const prefix = `advanced:${id}:`;

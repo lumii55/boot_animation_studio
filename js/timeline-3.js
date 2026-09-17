@@ -471,6 +471,26 @@ function timeline3StartTrim(event, handle) {
     if (type === 'part' && currentProject) currentProject.advancedExpandedId = id;
 }
 
+function timeline3SnapAudioPoint(value, state) {
+    const threshold = Math.max(0.035, Math.abs(Number(state.secondsPerPixel) || 0) * 10);
+    const baseStart = Number(state.baseStart) || 0;
+    const baseEnd = Math.max(baseStart, Number(state.baseEnd) || baseStart);
+    const candidates = [baseStart, baseEnd];
+    if (typeof getTimelineCurrentTimeExact === 'function') candidates.push(Number(getTimelineCurrentTimeExact()));
+    if (typeof marcadores === 'object' && marcadores) ['m0', 'm1', 'm2', 'm3'].forEach(id => candidates.push(Number(marcadores[id])));
+    let best = Number(value) || 0;
+    let distance = threshold + 1;
+    candidates.forEach(candidate => {
+        if (!Number.isFinite(candidate) || candidate < baseStart - 0.0001 || candidate > baseEnd + 0.0001) return;
+        const delta = Math.abs(candidate - best);
+        if (delta <= threshold && delta < distance) {
+            best = candidate;
+            distance = delta;
+        }
+    });
+    return best;
+}
+
 function timeline3MoveTrim(event) {
     const state = timeline3Runtime.trim;
     if (!state || state.pointerId !== event.pointerId) return;
@@ -516,10 +536,12 @@ function timeline3MoveTrim(event) {
         const baseStart = Number(state.baseStart) || 0;
         const baseEnd = Math.max(baseStart, Number(state.baseEnd) || baseStart);
         if (state.edge === 'start') {
+            start = timeline3SnapAudioPoint(start, state);
             start = Math.max(baseStart, Math.min(state.originalEnd - frame, start));
             const delay = Math.max(0, start - baseStart);
             timeline3SetAudioTiming(state.id, delay, state.originalEndTrim);
         } else {
+            end = timeline3SnapAudioPoint(end, state);
             end = Math.min(baseEnd, Math.max(state.originalStart + frame, end));
             const endTrim = Math.max(0, baseEnd - end);
             timeline3SetAudioTiming(state.id, state.originalDelay, endTrim);
@@ -690,6 +712,8 @@ function timeline3OpenMenu(type, id, clientX, clientY) {
         actions.push(['add-keyframe', timeline3Text('compositionKeyframeAddHere', 'Add keyframe here')]);
         actions.push(['edit-layer', timeline3Text('timeline3ActionEditLayer', 'Edit layer')]);
     } else if (type === 'audio') {
+        actions.push(['audio-start-here', timeline3Text('audioSyncSetStart', 'Start at playhead')]);
+        actions.push(['audio-end-here', timeline3Text('audioSyncSetEnd', 'End at playhead')]);
         actions.push(['edit-audio', timeline3Text('timeline3ActionEditAudio', 'Edit audio')]);
     }
     menu.dataset.timeline3Type = type;
@@ -698,6 +722,35 @@ function timeline3OpenMenu(type, id, clientX, clientY) {
     menu.hidden = false;
     menu.style.left = `${Math.max(8, Math.min(window.innerWidth - 190, clientX))}px`;
     menu.style.top = `${Math.max(8, Math.min(window.innerHeight - 220, clientY))}px`;
+}
+
+function timeline3SetAudioEdgeAtPlayhead(id, edge) {
+    const audio = timeline3AudioSegments().find(item => item.id === id);
+    if (!audio || typeof getTimelineCurrentTimeExact !== 'function') return false;
+    const current = Number(getTimelineCurrentTimeExact());
+    if (!Number.isFinite(current) || current < audio.baseStart - 0.0001 || current > audio.baseEnd + 0.0001) {
+        const table = traducoes[idiomaAtual] || traducoes.en;
+        if (typeof showToast === 'function') showToast(table.audioSyncOutside || 'Move the playhead inside this section first.', 'warning');
+        return false;
+    }
+    const span = Math.max(0, audio.baseEnd - audio.baseStart);
+    if (edge === 'start') {
+        const delay = Math.max(0, Math.min(span - audio.endTrim, current - audio.baseStart));
+        timeline3SetAudioTiming(id, delay, audio.endTrim);
+    } else {
+        const endTrim = Math.max(0, Math.min(span - audio.delay, audio.baseEnd - current));
+        timeline3SetAudioTiming(id, audio.delay, endTrim);
+    }
+    if (timeline3IsAdvanced()) {
+        if (typeof markAdvancedPartsDirty === 'function') markAdvancedPartsDirty();
+        if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(id);
+    } else {
+        if (typeof handleAudioAdvancedInput === 'function') handleAudioAdvancedInput(id);
+        if (typeof refreshAudioStudioSyncUi === 'function') refreshAudioStudioSyncUi();
+    }
+    timeline3Render();
+    return true;
 }
 
 function timeline3RunAction(action, type, id) {
@@ -718,6 +771,8 @@ function timeline3RunAction(action, type, id) {
     }
     if (type === 'layer' && action === 'add-keyframe' && window.BASComposition && typeof BASComposition.addKeyframeAtPlayhead === 'function') BASComposition.addKeyframeAtPlayhead(id);
     if (type === 'layer' && action === 'edit-layer' && typeof setEditTool === 'function') setEditTool('composition', { scroll: true });
+    if (type === 'audio' && action === 'audio-start-here') timeline3SetAudioEdgeAtPlayhead(id, 'start');
+    if (type === 'audio' && action === 'audio-end-here') timeline3SetAudioEdgeAtPlayhead(id, 'end');
     if (type === 'audio' && action === 'edit-audio') {
         if (timeline3IsAdvanced()) {
             if (currentProject) currentProject.advancedExpandedId = id;
