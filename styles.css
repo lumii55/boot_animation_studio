@@ -11167,3 +11167,97 @@ summary:focus-visible {
         background: rgba(187, 134, 252, 0.055);
     }
 }
+
+.audio-studio-timing {
+    display: none;
+    margin-top: 9px;
+    padding: 10px;
+    border: 1px solid rgba(111, 227, 244, 0.12);
+    border-radius: 13px;
+    background: linear-gradient(145deg, rgba(111, 227, 244, 0.04), rgba(255, 255, 255, 0.012));
+}
+
+.audio-studio-timing.visible {
+    display: block;
+}
+
+.audio-studio-timing-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 7px;
+}
+
+.audio-studio-timing-head > div {
+    min-width: 0;
+}
+
+.audio-studio-timing-head span {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--accent-strong);
+    font-size: 8px;
+    font-weight: 760;
+    letter-spacing: 0.12em;
+}
+
+.audio-studio-timing-head strong {
+    display: block;
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+}
+
+.audio-studio-preview {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid rgba(111, 227, 244, 0.16);
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: #baf6ff;
+    font-size: 8px;
+    font-weight: 720;
+    cursor: pointer;
+}
+
+.audio-studio-timing-help {
+    margin: 0 0 9px;
+    color: var(--muted);
+    font-size: 8px;
+    line-height: 1.45;
+}
+
+.audio-studio-timing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.audio-studio-effects {
+    margin-top: 8px;
+}
+
+.advanced-field small {
+    color: var(--muted-2);
+    font-size: 8px;
+    line-height: 1.4;
+}
+
+@media (max-width: 560px) {
+    .audio-studio-timing-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .audio-studio-timing-grid .audio-advanced-wide {
+        grid-column: auto;
+    }
+
+    .audio-studio-timing-head {
+        align-items: center;
+    }
+}
