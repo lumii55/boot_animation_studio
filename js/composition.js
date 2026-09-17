@@ -691,9 +691,19 @@ function renderCompositionMotionUi() {
     const next = document.getElementById('composition-keyframe-next');
     const easing = document.getElementById('composition-keyframe-easing');
     const reset = document.getElementById('composition-keyframe-reset');
+    const guide = document.getElementById('composition-keyframe-guide');
+    const guideBadge = document.getElementById('composition-keyframe-guide-badge');
+    const guideTitle = document.getElementById('composition-keyframe-guide-title');
+    const guideText = document.getElementById('composition-keyframe-guide-text');
+    const advancedMode = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive();
+    if (guide) guide.hidden = advancedMode;
     if (count) count.textContent = keyframes.length === 1 ? compositionText('compositionKeyframeOne', '1 keyframe') : compositionText('compositionKeyframesCount', '{count} keyframes').replace('{count}', String(keyframes.length));
     if (timeLabel) timeLabel.textContent = compositionText('compositionKeyframeTime', 'Playhead {time}').replace('{time}', compositionFormatTime(time));
-    if (toggleLabel) toggleLabel.textContent = active ? compositionText('compositionKeyframeRemove', 'Remove keyframe') : compositionText('compositionKeyframeAdd', 'Add keyframe');
+    if (toggleLabel) {
+        if (active) toggleLabel.textContent = compositionText('compositionKeyframeRemove', 'Remove keyframe');
+        else if (keyframes.length === 0) toggleLabel.textContent = compositionText('compositionKeyframeFirstAdd', 'Set first keyframe');
+        else toggleLabel.textContent = compositionText('compositionKeyframeAddHere', 'Add keyframe here');
+    }
     if (toggle) toggle.classList.toggle('is-active', !!active);
     const previousFrame = [...keyframes].reverse().find(item => item.time < time - compositionKeyframeTolerance());
     const nextFrame = keyframes.find(item => item.time > time + compositionKeyframeTolerance());
@@ -704,6 +714,46 @@ function renderCompositionMotionUi() {
         easing.value = active ? active.easing : 'linear';
     }
     if (reset) reset.disabled = keyframes.length === 0;
+    const steps = Array.from(document.querySelectorAll('[data-composition-keyframe-step]'));
+    steps.forEach(step => step.classList.remove('is-active', 'is-done'));
+    const setStep = (number, state) => {
+        const step = steps.find(item => item.dataset.compositionKeyframeStep === String(number));
+        if (step && state) step.classList.add(state);
+    };
+    if (keyframes.length === 0) {
+        if (guide) guide.dataset.state = 'static';
+        if (guideBadge) guideBadge.textContent = compositionText('compositionKeyframeGuideStaticBadge', 'Static layer');
+        if (guideTitle) guideTitle.textContent = compositionText('compositionKeyframeGuideStaticTitle', 'Keyframes save states over time');
+        if (guideText) guideText.textContent = compositionText('compositionKeyframeGuideStaticText', 'A keyframe records position, scale, rotation and opacity at the playhead. One keyframe alone does not create motion.');
+        setStep(1, 'is-active');
+    } else if (keyframes.length === 1) {
+        if (guide) guide.dataset.state = 'ready';
+        if (guideBadge) guideBadge.textContent = compositionText('compositionKeyframeGuideReadyBadge', 'Auto-key ready');
+        if (guideTitle) guideTitle.textContent = compositionText('compositionKeyframeGuideFirstTitle', 'First state saved');
+        if (guideText) guideText.textContent = compositionText('compositionKeyframeGuideFirstText', 'Move the playhead to another moment inside this layer, then move the layer or change a motion control. BAS will create the second keyframe automatically.');
+        setStep(1, 'is-done');
+        if (active) setStep(2, 'is-active');
+        else {
+            setStep(2, 'is-done');
+            setStep(3, 'is-active');
+        }
+    } else if (active) {
+        if (guide) guide.dataset.state = 'editing';
+        if (guideBadge) guideBadge.textContent = compositionText('compositionKeyframeGuideEditingBadge', 'Editing keyframe');
+        if (guideTitle) guideTitle.textContent = compositionText('compositionKeyframeGuideEditingTitle', 'Editing a saved state');
+        if (guideText) guideText.textContent = compositionText('compositionKeyframeGuideEditingText', 'Changes now update the keyframe at {time}. Move the playhead elsewhere before changing the layer to create a new keyframe.').replace('{time}', compositionFormatTime(active.time));
+        setStep(1, 'is-done');
+        setStep(2, 'is-done');
+        setStep(3, 'is-done');
+    } else {
+        if (guide) guide.dataset.state = 'motion';
+        if (guideBadge) guideBadge.textContent = compositionText('compositionKeyframeGuideReadyBadge', 'Auto-key ready');
+        if (guideTitle) guideTitle.textContent = compositionText('compositionKeyframeGuideMotionTitle', 'Motion is active');
+        if (guideText) guideText.textContent = compositionText('compositionKeyframeGuideMotionText', 'Play across the diamonds to preview the movement. Move the playhead and change the layer to create another keyframe automatically.');
+        setStep(1, 'is-done');
+        setStep(2, 'is-done');
+        setStep(3, 'is-active');
+    }
 }
 
 function compositionRefreshMotionUi() {
@@ -1028,7 +1078,17 @@ function syncCompositionText() {
         'composition-label-opacity': ['compositionLabelOpacity', 'Opacity'],
         'composition-motion-section': ['compositionMotionSection', 'MOTION & KEYFRAMES'],
         'composition-motion-title': ['compositionMotionTitle', 'Animate this layer'],
-        'composition-motion-desc': ['compositionMotionDesc', 'Add keyframes at the playhead to animate position, scale, rotation and opacity.'],
+        'composition-motion-desc': ['compositionMotionDesc', 'Save the layer at different moments to create movement between them.'],
+        'composition-keyframe-step1-title': ['compositionKeyframeStep1Title', 'Save the start state'],
+        'composition-keyframe-step1-text': ['compositionKeyframeStep1Text', 'Place the playhead where motion should start, then set the first keyframe.'],
+        'composition-keyframe-step2-title': ['compositionKeyframeStep2Title', 'Move in time'],
+        'composition-keyframe-step2-text': ['compositionKeyframeStep2Text', 'Move the playhead to where the layer should look different.'],
+        'composition-keyframe-step3-title': ['compositionKeyframeStep3Title', 'Change the layer'],
+        'composition-keyframe-step3-text': ['compositionKeyframeStep3Text', 'Move it in the preview or change position, scale, rotation or opacity. Auto-key saves the new state.'],
+        'composition-keyframe-autokey-title': ['compositionKeyframeAutokeyTitle', 'Auto-key:'],
+        'composition-keyframe-autokey-text': ['compositionKeyframeAutokeyText', 'After the first keyframe, changing a motion property at a different time creates or updates a keyframe there.'],
+        'composition-keyframe-diamond-help': ['compositionKeyframeDiamondHelp', 'Diamonds on the layer track are keyframes. Tap one to jump to it; drag it to change its time.'],
+        'composition-keyframe-easing-help': ['compositionKeyframeEasingHelp', 'Easing controls how motion leaves the selected keyframe toward the next one.'],
         'composition-keyframe-prev': ['compositionKeyframePrev', 'Previous'],
         'composition-keyframe-next': ['compositionKeyframeNext', 'Next'],
         'composition-keyframe-easing-label': ['compositionKeyframeEasing', 'Easing'],
