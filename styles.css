@@ -10484,3 +10484,203 @@ summary:focus-visible {
     opacity: 1;
     background: var(--success);
 }
+
+.composition-motion-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    padding: 12px;
+    border: 1px solid rgba(187, 134, 252, 0.18);
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(187, 134, 252, 0.055), rgba(3, 218, 198, 0.025));
+}
+
+.composition-motion-panel[hidden] {
+    display: none !important;
+}
+
+.composition-motion-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.composition-motion-heading > div {
+    min-width: 0;
+}
+
+.composition-motion-heading strong {
+    display: block;
+    color: #f1e9f9;
+    font-size: 0.84rem;
+}
+
+.composition-motion-heading p {
+    margin: 4px 0 0;
+    color: var(--text-muted, #9ca8b8);
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.composition-keyframe-count {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    border: 1px solid rgba(3, 218, 198, 0.18);
+    border-radius: 999px;
+    background: rgba(3, 218, 198, 0.055);
+    color: #7ff6ea;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.composition-keyframe-nav {
+    display: grid;
+    grid-template-columns: minmax(0, .78fr) minmax(0, 1.44fr) minmax(0, .78fr);
+    gap: 7px;
+}
+
+.composition-keyframe-nav button,
+.composition-keyframe-reset {
+    min-height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 11px;
+    background: rgba(4, 7, 11, 0.72);
+    color: #dce4ed;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.composition-keyframe-nav button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.composition-keyframe-nav button:disabled,
+.composition-keyframe-reset:disabled {
+    opacity: .36;
+    cursor: default;
+}
+
+.composition-keyframe-toggle.is-active {
+    border-color: rgba(3, 218, 198, .48);
+    background: rgba(3, 218, 198, .09);
+    color: #a9fff6;
+}
+
+.composition-keyframe-diamond {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    border-radius: 1px;
+}
+
+.composition-keyframe-toggle.is-active .composition-keyframe-diamond {
+    background: currentColor;
+}
+
+.composition-motion-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, .9fr);
+    align-items: end;
+    gap: 10px;
+}
+
+.composition-motion-meta > span {
+    color: var(--text-muted, #9ca8b8);
+    font-size: 0.72rem;
+    padding-bottom: 10px;
+}
+
+.composition-motion-meta label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--text-muted, #9ca8b8);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.composition-motion-meta select {
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 10px;
+    background: rgba(4, 7, 11, 0.78);
+    color: #edf3f8;
+    font: inherit;
+}
+
+.composition-keyframe-reset {
+    min-height: 38px;
+    color: #c8d0db;
+}
+
+.timeline3-keyframe {
+    position: absolute;
+    z-index: 9;
+    top: 50%;
+    width: 26px;
+    height: 38px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    transform: translate(-50%, -50%);
+    touch-action: none;
+    cursor: grab;
+}
+
+.timeline3-keyframe span {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #f5d76e;
+    border-radius: 1px;
+    background: #251f0d;
+    box-shadow: 0 0 0 2px rgba(8, 11, 17, .78), 0 0 12px rgba(245, 215, 110, .24);
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.timeline3-keyframe:active span,
+.timeline3-keyframe.is-dragging span {
+    background: #f5d76e;
+    box-shadow: 0 0 0 2px rgba(8, 11, 17, .82), 0 0 14px rgba(245, 215, 110, .48);
+}
+
+.timeline3-keyframe.is-dragging {
+    cursor: grabbing;
+}
+
+@media (max-width: 560px) {
+    .composition-motion-heading {
+        flex-direction: column;
+    }
+
+    .composition-keyframe-count {
+        align-self: flex-start;
+    }
+
+    .composition-keyframe-nav {
+        grid-template-columns: 1fr 1.35fr 1fr;
+    }
+
+    .composition-keyframe-nav button b {
+        font-size: .68rem;
+    }
+
+    .composition-motion-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .composition-motion-meta > span {
+        padding-bottom: 0;
+    }
+}
