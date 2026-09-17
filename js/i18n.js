@@ -482,6 +482,11 @@ const traducoes = {
         audioTimingHint: "Audio cannot start before its section. Delay moves it later; Source start skips into the selected audio without moving the track.",
         audioStudioTimingSummary: "Part {part} · plays {start}–{end} · source +{source}",
         audioStudioPreview: "Preview audio",
+        audioStudioPlay: "Play audio",
+        audioStudioPause: "Pause audio",
+        audioStudioLoading: "Preparing audio",
+        audioStudioPreviewAnimation: "Preview with animation",
+        audioStudioProgress: "Audio preview progress",
         audioStudioTimingKicker: "TIMING",
         audioStudioPreviewUnavailable: "No audio is available for this section yet.",
         audioNormalize: "Normalize peak",
@@ -1197,6 +1202,11 @@ const traducoes = {
         audioTimingHint: "O áudio não pode começar antes do trecho. Atraso move o som para depois; Início da fonte pula o começo do áudio escolhido sem mover a faixa.",
         audioStudioTimingSummary: "Trecho {part} · toca {start}–{end} · fonte +{source}",
         audioStudioPreview: "Ouvir áudio",
+        audioStudioPlay: "Reproduzir áudio",
+        audioStudioPause: "Pausar áudio",
+        audioStudioLoading: "Preparando áudio",
+        audioStudioPreviewAnimation: "Prévia com animação",
+        audioStudioProgress: "Progresso da prévia de áudio",
         audioStudioTimingKicker: "TEMPO",
         audioStudioPreviewUnavailable: "Ainda não há áudio disponível para este trecho.",
         audioNormalize: "Normalizar pico",
@@ -1912,6 +1922,11 @@ const traducoes = {
         audioTimingHint: "El audio no puede empezar antes de su sección. Retraso lo mueve hacia después; Inicio de la fuente salta el comienzo del audio elegido sin mover la pista.",
         audioStudioTimingSummary: "Sección {part} · reproduce {start}–{end} · fuente +{source}",
         audioStudioPreview: "Escuchar audio",
+        audioStudioPlay: "Reproducir audio",
+        audioStudioPause: "Pausar audio",
+        audioStudioLoading: "Preparando audio",
+        audioStudioPreviewAnimation: "Vista previa con animación",
+        audioStudioProgress: "Progreso de la vista previa de audio",
         audioStudioTimingKicker: "TIEMPO",
         audioStudioPreviewUnavailable: "Todavía no hay audio disponible para esta sección.",
         audioNormalize: "Normalizar pico",
@@ -2627,6 +2642,11 @@ const traducoes = {
         audioTimingHint: "L’audio ne peut pas commencer avant sa section. Retard le décale vers plus tard ; Début de la source saute le début de l’audio choisi sans déplacer la piste.",
         audioStudioTimingSummary: "Section {part} · lecture {start}–{end} · source +{source}",
         audioStudioPreview: "Écouter l’audio",
+        audioStudioPlay: "Lire l’audio",
+        audioStudioPause: "Mettre l’audio en pause",
+        audioStudioLoading: "Préparation de l’audio",
+        audioStudioPreviewAnimation: "Aperçu avec l’animation",
+        audioStudioProgress: "Progression de l’aperçu audio",
         audioStudioTimingKicker: "TEMPS",
         audioStudioPreviewUnavailable: "Aucun audio n’est encore disponible pour cette section.",
         audioNormalize: "Normaliser le pic",
@@ -3073,7 +3093,12 @@ function mudarIdioma(lang) {
         document.getElementById(`lbl-end-trim-${part}`).textContent = t.audioEndTrim;
         document.getElementById(`audio-studio-timing-kicker-${part}`).textContent = t.audioStudioTimingKicker;
         document.getElementById(`audio-studio-timing-help-${part}`).textContent = t.audioTimingHint;
-        document.getElementById(`audio-studio-preview-label-${part}`).textContent = t.audioStudioPreview;
+        const animationPreviewLabel = document.getElementById(`audio-studio-animation-preview-label-${part}`);
+        if (animationPreviewLabel) animationPreviewLabel.textContent = t.audioStudioPreviewAnimation;
+        const transportButton = document.getElementById(`audio-studio-preview-${part}`);
+        if (transportButton) transportButton.setAttribute('aria-label', t.audioStudioPlay);
+        const transportProgress = document.getElementById(`audio-studio-progress-${part}`);
+        if (transportProgress) transportProgress.setAttribute('aria-label', t.audioStudioProgress);
         document.getElementById(`lbl-normalize-${part}`).textContent = t.audioNormalize;
         if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(part);
         if (typeof syncAudioAdvancedVisibility === 'function') syncAudioAdvancedVisibility(part);

@@ -219,8 +219,70 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
 
 let audioStudioPreviewAudio = null;
 let audioStudioPreviewUrl = null;
+let audioStudioPreviewRole = '';
+let audioStudioPreviewBlob = null;
+let audioStudioPreviewBuilding = false;
 
-function stopAudioStudioPreview() {
+function formatAudioStudioClock(value) {
+    const seconds = Math.max(0, Number(value) || 0);
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds - minutes * 60;
+    return `${minutes}:${rest.toFixed(1).padStart(4, '0')}`;
+}
+
+function getAudioStudioTransportElements(role) {
+    return {
+        root: document.getElementById(`audio-studio-transport-${role}`),
+        button: document.getElementById(`audio-studio-preview-${role}`),
+        progress: document.getElementById(`audio-studio-progress-${role}`),
+        current: document.getElementById(`audio-studio-time-current-${role}`),
+        total: document.getElementById(`audio-studio-time-total-${role}`)
+    };
+}
+
+function setAudioStudioTransportState(role, state = 'idle') {
+    ['intro', 'loop', 'final'].forEach(candidate => {
+        const els = getAudioStudioTransportElements(candidate);
+        if (!els.root || !els.button) return;
+        const active = candidate === role;
+        els.root.dataset.state = active ? state : 'idle';
+        els.button.classList.toggle('is-playing', active && state === 'playing');
+        els.button.classList.toggle('is-loading', active && state === 'loading');
+        els.button.disabled = active && state === 'loading';
+        const table = traducoes[idiomaAtual] || traducoes.en;
+        const label = active && state === 'playing'
+            ? (table.audioStudioPause || 'Pause audio')
+            : active && state === 'loading'
+                ? (table.audioStudioLoading || 'Preparing audio')
+                : (table.audioStudioPlay || 'Play audio');
+        els.button.setAttribute('aria-label', label);
+    });
+}
+
+function syncAudioStudioTransportProgress() {
+    if (!audioStudioPreviewRole) return;
+    const els = getAudioStudioTransportElements(audioStudioPreviewRole);
+    if (!els.progress || !audioStudioPreviewAudio) return;
+    const duration = Number.isFinite(audioStudioPreviewAudio.duration) ? audioStudioPreviewAudio.duration : 0;
+    const current = Math.max(0, Math.min(duration || Infinity, Number(audioStudioPreviewAudio.currentTime) || 0));
+    els.progress.max = String(Math.max(0.001, duration || 0.001));
+    els.progress.value = String(current);
+    if (els.current) els.current.textContent = formatAudioStudioClock(current);
+    if (els.total) els.total.textContent = formatAudioStudioClock(duration);
+}
+
+function resetAudioStudioTransportProgress(role) {
+    const els = getAudioStudioTransportElements(role);
+    if (els.progress) {
+        els.progress.max = '1';
+        els.progress.value = '0';
+    }
+    if (els.current) els.current.textContent = '0:00.0';
+    if (els.total) els.total.textContent = '0:00.0';
+}
+
+function disposeAudioStudioPreview() {
+    const previousRole = audioStudioPreviewRole;
     if (audioStudioPreviewAudio) {
         audioStudioPreviewAudio.pause();
         audioStudioPreviewAudio.removeAttribute('src');
@@ -231,6 +293,22 @@ function stopAudioStudioPreview() {
         URL.revokeObjectURL(audioStudioPreviewUrl);
         audioStudioPreviewUrl = null;
     }
+    audioStudioPreviewRole = '';
+    audioStudioPreviewBlob = null;
+    audioStudioPreviewBuilding = false;
+    if (previousRole) resetAudioStudioTransportProgress(previousRole);
+    setAudioStudioTransportState('', 'idle');
+}
+
+function stopAudioStudioPreview(options = {}) {
+    const reset = options.reset !== false;
+    if (!audioStudioPreviewAudio) {
+        if (reset) disposeAudioStudioPreview();
+        return;
+    }
+    audioStudioPreviewAudio.pause();
+    if (reset) disposeAudioStudioPreview();
+    else setAudioStudioTransportState(audioStudioPreviewRole, 'paused');
 }
 
 async function buildAudioStudioRoleBlob(role, audioState = captureAudioEditorState()) {
@@ -263,18 +341,86 @@ async function buildAudioStudioRoleBlob(role, audioState = captureAudioEditorSta
     }
 }
 
-async function previewAudioStudioRole(role) {
-    const t = traducoes[idiomaAtual] || traducoes.en;
-    stopAudioStudioPreview();
+function attachAudioStudioPreviewEvents(role) {
+    if (!audioStudioPreviewAudio) return;
+    audioStudioPreviewAudio.addEventListener('loadedmetadata', syncAudioStudioTransportProgress);
+    audioStudioPreviewAudio.addEventListener('durationchange', syncAudioStudioTransportProgress);
+    audioStudioPreviewAudio.addEventListener('timeupdate', syncAudioStudioTransportProgress);
+    audioStudioPreviewAudio.addEventListener('play', () => setAudioStudioTransportState(role, 'playing'));
+    audioStudioPreviewAudio.addEventListener('pause', () => {
+        if (!audioStudioPreviewAudio || audioStudioPreviewAudio.ended) return;
+        setAudioStudioTransportState(role, 'paused');
+    });
+    audioStudioPreviewAudio.addEventListener('ended', () => {
+        if (!audioStudioPreviewAudio) return;
+        audioStudioPreviewAudio.currentTime = 0;
+        syncAudioStudioTransportProgress();
+        setAudioStudioTransportState(role, 'paused');
+    });
+}
+
+async function ensureAudioStudioPreview(role) {
+    if (audioStudioPreviewAudio && audioStudioPreviewRole === role && audioStudioPreviewBlob) return true;
+    if (audioStudioPreviewBuilding) return false;
+    disposeAudioStudioPreview();
+    audioStudioPreviewBuilding = true;
+    audioStudioPreviewRole = role;
+    setAudioStudioTransportState(role, 'loading');
     const blob = await buildAudioStudioRoleBlob(role).catch(() => null);
-    if (!blob) {
+    audioStudioPreviewBuilding = false;
+    if (!blob || audioStudioPreviewRole !== role) {
+        disposeAudioStudioPreview();
+        const t = traducoes[idiomaAtual] || traducoes.en;
         if (typeof showToast === 'function') showToast(t.audioStudioPreviewUnavailable || 'No audio is available for this section.', 'warning');
         return false;
     }
+    audioStudioPreviewBlob = blob;
     audioStudioPreviewAudio = new Audio();
     audioStudioPreviewUrl = URL.createObjectURL(blob);
+    audioStudioPreviewAudio.preload = 'auto';
     audioStudioPreviewAudio.src = audioStudioPreviewUrl;
-    audioStudioPreviewAudio.addEventListener('ended', stopAudioStudioPreview, { once: true });
-    await audioStudioPreviewAudio.play().catch(() => {});
+    attachAudioStudioPreviewEvents(role);
+    audioStudioPreviewAudio.load();
+    setAudioStudioTransportState(role, 'paused');
     return true;
 }
+
+async function toggleAudioStudioPreview(role) {
+    if (audioStudioPreviewAudio && audioStudioPreviewRole === role && !audioStudioPreviewAudio.paused) {
+        stopAudioStudioPreview({ reset: false });
+        return true;
+    }
+    const ready = await ensureAudioStudioPreview(role);
+    if (!ready || !audioStudioPreviewAudio) return false;
+    if (audioStudioPreviewAudio.ended) audioStudioPreviewAudio.currentTime = 0;
+    await audioStudioPreviewAudio.play().catch(() => {});
+    syncAudioStudioTransportProgress();
+    return !audioStudioPreviewAudio.paused;
+}
+
+function seekAudioStudioPreview(role, value) {
+    if (!audioStudioPreviewAudio || audioStudioPreviewRole !== role) return;
+    const duration = Number.isFinite(audioStudioPreviewAudio.duration) ? audioStudioPreviewAudio.duration : 0;
+    audioStudioPreviewAudio.currentTime = Math.max(0, Math.min(duration, Number(value) || 0));
+    syncAudioStudioTransportProgress();
+}
+
+async function previewAudioStudioRole(role) {
+    return toggleAudioStudioPreview(role);
+}
+
+async function previewAudioStudioWithAnimation(role) {
+    stopAudioStudioPreview();
+    const select = document.getElementById(`sel-audio-${role}`);
+    if (!select || select.value === 'none') {
+        const t = traducoes[idiomaAtual] || traducoes.en;
+        if (typeof showToast === 'function') showToast(t.audioStudioPreviewUnavailable || 'No audio is available for this section.', 'warning');
+        return false;
+    }
+    if (typeof abrirPreviewWeb === 'function') {
+        await abrirPreviewWeb();
+        return true;
+    }
+    return false;
+}
+
