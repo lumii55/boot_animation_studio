@@ -11,7 +11,8 @@ const timeline3Runtime = {
     pointers: new Map(),
     pinchDistance: 0,
     pinchZoom: 84,
-    zoomUserSet: false
+    zoomUserSet: false,
+    keyframeDrag: null
 };
 
 function timeline3Text(key, fallback) {
@@ -226,6 +227,14 @@ function timeline3AudioHtml(segments = timeline3AudioSegments()) {
     }).join('');
 }
 
+function timeline3CompositionKeyframesHtml(layer) {
+    if (!window.BASComposition || typeof BASComposition.getKeyframes !== 'function') return '';
+    return BASComposition.getKeyframes(layer.id).map(keyframe => {
+        const left = timeline3Percent(keyframe.time);
+        return `<button class="timeline3-keyframe" type="button" data-timeline3-keyframe="${timeline3Escape(keyframe.id)}" data-timeline3-keyframe-layer="${timeline3Escape(layer.id)}" style="left:${left}%" aria-label="${timeline3Escape(timeline3Text('timeline3KeyframeAria', 'Layer keyframe'))}"><span></span></button>`;
+    }).join('');
+}
+
 function timeline3CompositionRows() {
     const layers = currentProject && Array.isArray(currentProject.compositionLayers) ? currentProject.compositionLayers : [];
     const duration = timeline3Duration();
@@ -237,7 +246,8 @@ function timeline3CompositionRows() {
         const left = timeline3Percent(start);
         const width = Math.max(0.8, timeline3Percent(end) - left);
         const type = layer.type === 'image' ? 'IMG' : 'TXT';
-        return `<div class="timeline3-track timeline3-layer-track" data-timeline3-layer-row="${timeline3Escape(layer.id)}"><div class="timeline3-track-lane">${timeline3MarkerHtml()}<span class="timeline3-track-chip">${type} · ${timeline3Escape(label)}</span><article class="timeline3-item timeline3-layer${selected ? ' is-selected' : ''}" data-timeline3-type="layer" data-timeline3-id="${timeline3Escape(layer.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerStart', 'Trim layer start'))}"></button><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(`${timeline3Format(start)}–${timeline3Format(end)}`)}</small><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerEnd', 'Trim layer end'))}"></button></article></div></div>`;
+        const keyframes = timeline3CompositionKeyframesHtml(layer);
+        return `<div class="timeline3-track timeline3-layer-track" data-timeline3-layer-row="${timeline3Escape(layer.id)}"><div class="timeline3-track-lane">${timeline3MarkerHtml()}<span class="timeline3-track-chip">${type} · ${timeline3Escape(label)}</span><article class="timeline3-item timeline3-layer${selected ? ' is-selected' : ''}" data-timeline3-type="layer" data-timeline3-id="${timeline3Escape(layer.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerStart', 'Trim layer start'))}"></button><strong>${timeline3Escape(label)}</strong><small>${timeline3Escape(`${timeline3Format(start)}–${timeline3Format(end)}`)}</small><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimLayerEnd', 'Trim layer end'))}"></button></article>${keyframes}</div></div>`;
     }).join('');
 }
 
@@ -550,7 +560,11 @@ function timeline3FinishTrim(event, cancelled = false) {
     } else if (state.type === 'layer') {
         const layer = timeline3GetLayer(state.id);
         if (layer) {
-            if (window.BASComposition) { BASComposition.render(); BASComposition.renderPreview(); }
+            if (window.BASComposition) {
+                if (typeof BASComposition.normalizeKeyframes === 'function') BASComposition.normalizeKeyframes(state.id);
+                BASComposition.render();
+                BASComposition.renderPreview();
+            }
             if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('composition', { changeKey: `composition:${state.id}:timing` });
         }
     } else if (state.type === 'audio') {
@@ -563,6 +577,77 @@ function timeline3FinishTrim(event, cancelled = false) {
             if (typeof preparePreviewAudioFromCurrentState === 'function') preparePreviewAudioFromCurrentState().catch(() => {});
         }
     }
+    timeline3Render();
+}
+
+function timeline3StartKeyframeDrag(event, button) {
+    if (!window.BASComposition || typeof BASComposition.getKeyframes !== 'function') return;
+    const layerId = button.dataset.timeline3KeyframeLayer;
+    const keyframeId = button.dataset.timeline3Keyframe;
+    const layer = timeline3GetLayer(layerId);
+    const keyframe = BASComposition.getKeyframes(layerId).find(item => item.id === keyframeId);
+    const lane = button.closest('.timeline3-track-lane');
+    const duration = timeline3Duration();
+    if (!layer || !keyframe || !lane || !(lane.clientWidth > 0) || !(duration > 0)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    timeline3Runtime.selectedType = 'layer';
+    timeline3Runtime.selectedId = layerId;
+    if (typeof BASComposition.select === 'function') BASComposition.select(layerId);
+    timeline3Runtime.keyframeDrag = {
+        pointerId: event.pointerId,
+        layerId,
+        keyframeId,
+        startX: event.clientX,
+        originalTime: keyframe.time,
+        secondsPerPixel: duration / lane.clientWidth,
+        moved: false,
+        button
+    };
+    button.classList.add('is-dragging');
+    button.setPointerCapture?.(event.pointerId);
+}
+
+function timeline3MoveKeyframeDrag(event) {
+    const state = timeline3Runtime.keyframeDrag;
+    if (!state || state.pointerId !== event.pointerId || !window.BASComposition) return;
+    const layer = timeline3GetLayer(state.layerId);
+    if (!layer) return;
+    const deltaPx = event.clientX - state.startX;
+    if (!state.moved && Math.abs(deltaPx) < 3) return;
+    state.moved = true;
+    event.preventDefault();
+    const frame = 1 / Math.max(1, Number(currentProject && currentProject.fps) || 30);
+    let nextTime = Math.max(Number(layer.start) || 0, Math.min(Number(layer.end) || 0, state.originalTime + deltaPx * state.secondsPerPixel));
+    const others = BASComposition.getKeyframes(state.layerId).filter(item => item.id !== state.keyframeId);
+    others.forEach(item => {
+        if (Math.abs(item.time - nextTime) < frame) nextTime = nextTime < item.time ? item.time - frame : item.time + frame;
+    });
+    nextTime = Math.max(Number(layer.start) || 0, Math.min(Number(layer.end) || 0, nextTime));
+    BASComposition.setKeyframeTime(state.layerId, state.keyframeId, nextTime, { render: false, commit: false });
+    state.button.style.left = `${timeline3Percent(nextTime)}%`;
+}
+
+function timeline3FinishKeyframeDrag(event, cancelled = false) {
+    const state = timeline3Runtime.keyframeDrag;
+    if (!state || state.pointerId !== event.pointerId) return;
+    timeline3Runtime.keyframeDrag = null;
+    state.button?.classList.remove('is-dragging');
+    if (cancelled && window.BASComposition) BASComposition.setKeyframeTime(state.layerId, state.keyframeId, state.originalTime, { render: false, commit: false });
+    else if (state.moved && window.BASComposition) BASComposition.setKeyframeTime(state.layerId, state.keyframeId, BASComposition.getKeyframes(state.layerId).find(item => item.id === state.keyframeId)?.time ?? state.originalTime, { render: true, commit: true });
+    timeline3Render();
+}
+
+function timeline3ActivateKeyframe(button) {
+    if (!button || !window.BASComposition) return;
+    const layerId = button.dataset.timeline3KeyframeLayer;
+    const keyframeId = button.dataset.timeline3Keyframe;
+    const keyframe = BASComposition.getKeyframes(layerId).find(item => item.id === keyframeId);
+    if (!keyframe) return;
+    timeline3Runtime.selectedType = 'layer';
+    timeline3Runtime.selectedId = layerId;
+    if (typeof BASComposition.select === 'function') BASComposition.select(layerId);
+    if (typeof seekTimelineTo === 'function') seekTimelineTo(keyframe.time);
     timeline3Render();
 }
 
@@ -723,6 +808,11 @@ function bindTimeline3() {
     filmstrip?.addEventListener('pointerup', clearFilmstripPress);
     filmstrip?.addEventListener('pointercancel', clearFilmstripPress);
     tracks?.addEventListener('click', event => {
+        const keyframe = event.target.closest('[data-timeline3-keyframe]');
+        if (keyframe) {
+            if (!timeline3Runtime.keyframeDrag?.moved) timeline3ActivateKeyframe(keyframe);
+            return;
+        }
         if (event.target.closest('[data-timeline3-trim]')) return;
         const boundary = event.target.closest('[data-timeline3-boundary]');
         if (boundary) {
@@ -737,6 +827,11 @@ function bindTimeline3() {
         }
     });
     tracks?.addEventListener('pointerdown', event => {
+        const keyframe = event.target.closest('[data-timeline3-keyframe]');
+        if (keyframe) {
+            timeline3StartKeyframeDrag(event, keyframe);
+            return;
+        }
         const trim = event.target.closest('[data-timeline3-trim]');
         if (trim) {
             timeline3StartTrim(event, trim);
@@ -753,6 +848,10 @@ function bindTimeline3() {
         }, 480);
     });
     tracks?.addEventListener('pointermove', event => {
+        if (timeline3Runtime.keyframeDrag) {
+            timeline3MoveKeyframeDrag(event);
+            return;
+        }
         if (timeline3Runtime.trim) {
             timeline3MoveTrim(event);
             return;
@@ -766,11 +865,19 @@ function bindTimeline3() {
     tracks?.addEventListener('pointerup', event => {
         clearTimeout(timeline3Runtime.pressTimer);
         timeline3Runtime.pressStart = null;
+        if (timeline3Runtime.keyframeDrag) {
+            timeline3FinishKeyframeDrag(event, false);
+            return;
+        }
         if (timeline3Runtime.trim) timeline3FinishTrim(event, false);
     });
     tracks?.addEventListener('pointercancel', event => {
         clearTimeout(timeline3Runtime.pressTimer);
         timeline3Runtime.pressStart = null;
+        if (timeline3Runtime.keyframeDrag) {
+            timeline3FinishKeyframeDrag(event, true);
+            return;
+        }
         if (timeline3Runtime.trim) timeline3FinishTrim(event, true);
     });
     document.getElementById('timeline3-menu')?.addEventListener('click', event => {

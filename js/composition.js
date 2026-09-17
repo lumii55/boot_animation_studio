@@ -1,4 +1,4 @@
-const BAS_COMPOSITION_VERSION = 1;
+const BAS_COMPOSITION_VERSION = 2;
 const BAS_COMPOSITION_LAYER_LIMIT = 24;
 
 const compositionRuntime = {
@@ -36,6 +36,145 @@ function compositionClamp(value, min, max, fallback = min) {
     return Math.max(min, Math.min(max, number));
 }
 
+const BAS_COMPOSITION_MOTION_KEYS = ['x', 'y', 'scale', 'rotation', 'opacity'];
+const BAS_COMPOSITION_EASINGS = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
+
+function compositionMotionSnapshot(layer) {
+    return {
+        x: compositionClamp(layer && layer.x, 0, 1, 0.5),
+        y: compositionClamp(layer && layer.y, 0, 1, 0.5),
+        scale: compositionClamp(layer && layer.scale, 0.1, 5, 1),
+        rotation: compositionClamp(layer && layer.rotation, -360, 360, 0),
+        opacity: compositionClamp(layer && layer.opacity, 0, 1, 1)
+    };
+}
+
+function normalizeCompositionKeyframe(keyframe, index, start, end, fallback) {
+    return {
+        id: String(keyframe && keyframe.id || `kf-${index + 1}`),
+        time: compositionClamp(keyframe && keyframe.time, start, end, start),
+        x: compositionClamp(keyframe && keyframe.x, 0, 1, fallback.x),
+        y: compositionClamp(keyframe && keyframe.y, 0, 1, fallback.y),
+        scale: compositionClamp(keyframe && keyframe.scale, 0.1, 5, fallback.scale),
+        rotation: compositionClamp(keyframe && keyframe.rotation, -360, 360, fallback.rotation),
+        opacity: compositionClamp(keyframe && keyframe.opacity, 0, 1, fallback.opacity),
+        easing: BAS_COMPOSITION_EASINGS.includes(keyframe && keyframe.easing) ? keyframe.easing : 'linear'
+    };
+}
+
+function compositionNormalizeKeyframes(layer) {
+    if (!layer) return [];
+    const fallback = compositionMotionSnapshot(layer);
+    const start = Math.max(0, Number(layer.start) || 0);
+    const end = Math.max(start + 0.001, Number(layer.end) || start + 0.001);
+    const source = Array.isArray(layer.keyframes) ? layer.keyframes : [];
+    const normalized = source.map((item, index) => normalizeCompositionKeyframe(item, index, start, end, fallback)).sort((a, b) => a.time - b.time);
+    const merged = [];
+    normalized.forEach(item => {
+        const previous = merged[merged.length - 1];
+        if (previous && Math.abs(previous.time - item.time) < 0.0005) merged[merged.length - 1] = item;
+        else merged.push(item);
+    });
+    layer.keyframes = merged;
+    return layer.keyframes;
+}
+
+function compositionEase(value, easing) {
+    const t = Math.max(0, Math.min(1, Number(value) || 0));
+    if (easing === 'ease-in') return t * t;
+    if (easing === 'ease-out') return 1 - Math.pow(1 - t, 2);
+    if (easing === 'ease-in-out') return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    return t;
+}
+
+function compositionInterpolateMotion(from, to, progress, easing) {
+    const t = compositionEase(progress, easing);
+    const result = {};
+    BAS_COMPOSITION_MOTION_KEYS.forEach(key => {
+        result[key] = Number(from[key]) + (Number(to[key]) - Number(from[key])) * t;
+    });
+    return result;
+}
+
+function compositionResolvedTransform(layer, time) {
+    const base = compositionMotionSnapshot(layer);
+    const keyframes = compositionNormalizeKeyframes(layer);
+    if (!keyframes.length) return base;
+    const current = compositionClamp(time, Number(layer.start) || 0, Number(layer.end) || 0, Number(layer.start) || 0);
+    const first = keyframes[0];
+    if (current <= first.time) {
+        const origin = Math.max(0, Number(layer.start) || 0);
+        if (first.time <= origin + 0.0005) return compositionMotionSnapshot(first);
+        return compositionInterpolateMotion(base, first, (current - origin) / Math.max(0.0005, first.time - origin), first.easing);
+    }
+    for (let index = 1; index < keyframes.length; index++) {
+        const next = keyframes[index];
+        const previous = keyframes[index - 1];
+        if (current <= next.time) return compositionInterpolateMotion(previous, next, (current - previous.time) / Math.max(0.0005, next.time - previous.time), next.easing);
+    }
+    return compositionMotionSnapshot(keyframes[keyframes.length - 1]);
+}
+
+function compositionResolvedLayer(layer, time) {
+    return { ...layer, ...compositionResolvedTransform(layer, time) };
+}
+
+function compositionKeyframeTolerance() {
+    const fps = Math.max(1, Number(currentProject && currentProject.fps) || Number(document.getElementById('input-fps')?.value) || 30);
+    return Math.max(0.004, 0.5 / fps);
+}
+
+function compositionKeyframeAt(layer, time) {
+    const tolerance = compositionKeyframeTolerance();
+    return compositionNormalizeKeyframes(layer).find(item => Math.abs(item.time - time) <= tolerance) || null;
+}
+
+function compositionCurrentTime() {
+    return compositionClamp(compositionMainPreviewTime(), 0, Math.max(0, compositionDuration()), 0);
+}
+
+function compositionNextKeyframeId(layer) {
+    return `${layer.id}-kf-${Date.now().toString(36)}-${compositionNormalizeKeyframes(layer).length + 1}`;
+}
+
+function compositionSetMotionAtTime(layer, values, time, forceKeyframe = false) {
+    if (!layer) return null;
+    const hasMotion = compositionNormalizeKeyframes(layer).length > 0;
+    if (!hasMotion && !forceKeyframe) {
+        BAS_COMPOSITION_MOTION_KEYS.forEach(key => {
+            if (values[key] !== undefined) layer[key] = values[key];
+        });
+        return null;
+    }
+    const clampedTime = compositionClamp(time, layer.start, layer.end, layer.start);
+    let keyframe = compositionKeyframeAt(layer, clampedTime);
+    if (!keyframe) {
+        const snapshot = compositionResolvedTransform(layer, clampedTime);
+        keyframe = { id: compositionNextKeyframeId(layer), time: clampedTime, ...snapshot, easing: 'linear' };
+        layer.keyframes.push(keyframe);
+        compositionNormalizeKeyframes(layer);
+        keyframe = compositionKeyframeAt(layer, clampedTime) || keyframe;
+    }
+    BAS_COMPOSITION_MOTION_KEYS.forEach(key => {
+        if (values[key] !== undefined) keyframe[key] = values[key];
+    });
+    return keyframe;
+}
+
+function compositionToggleKeyframe(layer, time) {
+    if (!layer) return null;
+    const existing = compositionKeyframeAt(layer, time);
+    if (existing) {
+        layer.keyframes = compositionNormalizeKeyframes(layer).filter(item => item.id !== existing.id);
+        return { removed: true, keyframe: existing };
+    }
+    const snapshot = compositionResolvedTransform(layer, time);
+    const keyframe = { id: compositionNextKeyframeId(layer), time: compositionClamp(time, layer.start, layer.end, layer.start), ...snapshot, easing: 'linear' };
+    layer.keyframes.push(keyframe);
+    compositionNormalizeKeyframes(layer);
+    return { removed: false, keyframe: compositionKeyframeAt(layer, keyframe.time) || keyframe };
+}
+
 function compositionDuration() {
     if (!currentProject) return 0;
     if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
@@ -54,7 +193,7 @@ function normalizeCompositionLayer(layer, index = 0) {
     const endFallback = compositionDefaultEnd();
     const start = compositionClamp(layer && layer.start, 0, 86400, 0);
     const end = Math.max(start + 0.001, compositionClamp(layer && layer.end, 0.001, 86400, endFallback));
-    return {
+    const normalized = {
         id: String(layer && layer.id || `layer-${index + 1}`),
         type,
         name: String(layer && layer.name || (type === 'text' ? compositionText('compositionDefaultTextName', 'Text') : compositionText('compositionDefaultImageName', 'Image'))),
@@ -77,8 +216,11 @@ function normalizeCompositionLayer(layer, index = 0) {
         naturalHeight: Math.max(0, Number(layer && layer.naturalHeight) || 0),
         assetName: String(layer && layer.assetName || ''),
         assetType: String(layer && layer.assetType || ''),
-        blob: layer && layer.blob instanceof Blob ? layer.blob : null
+        blob: layer && layer.blob instanceof Blob ? layer.blob : null,
+        keyframes: Array.isArray(layer && layer.keyframes) ? layer.keyframes.map(item => ({ ...item })) : []
     };
+    compositionNormalizeKeyframes(normalized);
+    return normalized;
 }
 
 function ensureProjectComposition() {
@@ -189,7 +331,8 @@ async function renderCompositionLayers(ctx, time, width, height, options = {}) {
     const layers = getCompositionLayers();
     for (const layer of layers) {
         if (!compositionLayerActive(layer, time)) continue;
-        const box = await drawCompositionLayer(ctx, layer, width, height, { selected: options.showSelection && layer.id === compositionRuntime.selectedId });
+        const resolved = compositionResolvedLayer(layer, time);
+        const box = await drawCompositionLayer(ctx, resolved, width, height, { selected: options.showSelection && layer.id === compositionRuntime.selectedId });
         if (box) bounds.push(box);
     }
     return bounds;
@@ -221,7 +364,8 @@ function compositionSerialize() {
             naturalWidth: layer.naturalWidth,
             naturalHeight: layer.naturalHeight,
             assetName: layer.assetName,
-            assetType: layer.assetType
+            assetType: layer.assetType,
+            keyframes: compositionNormalizeKeyframes(layer).map(keyframe => ({ ...keyframe }))
         }))
     };
 }
@@ -500,11 +644,13 @@ function renderCompositionInspector() {
     compositionSetField('composition-layer-name', layer.name);
     compositionSetField('composition-layer-start', layer.start.toFixed(3));
     compositionSetField('composition-layer-end', layer.end.toFixed(3));
-    compositionSetField('composition-layer-x', Math.round(layer.x * 100));
-    compositionSetField('composition-layer-y', Math.round(layer.y * 100));
-    compositionSetField('composition-layer-scale', Math.round(layer.scale * 100));
-    compositionSetField('composition-layer-rotation', Math.round(layer.rotation));
-    compositionSetField('composition-layer-opacity', Math.round(layer.opacity * 100));
+    const currentTime = compositionCurrentTime();
+    const transform = compositionResolvedTransform(layer, currentTime);
+    compositionSetField('composition-layer-x', Math.round(transform.x * 100));
+    compositionSetField('composition-layer-y', Math.round(transform.y * 100));
+    compositionSetField('composition-layer-scale', Math.round(transform.scale * 100));
+    compositionSetField('composition-layer-rotation', Math.round(transform.rotation));
+    compositionSetField('composition-layer-opacity', Math.round(transform.opacity * 100));
     if (textFields) textFields.hidden = layer.type !== 'text';
     if (imageFields) imageFields.hidden = layer.type !== 'image';
     if (layer.type === 'text') {
@@ -528,6 +674,104 @@ function renderCompositionInspector() {
     });
 }
 
+function renderCompositionMotionUi() {
+    const layer = getCompositionLayer();
+    const panel = document.getElementById('composition-motion-panel');
+    if (!panel) return;
+    panel.hidden = !layer;
+    if (!layer) return;
+    const keyframes = compositionNormalizeKeyframes(layer);
+    const time = compositionCurrentTime();
+    const active = compositionKeyframeAt(layer, time);
+    const count = document.getElementById('composition-keyframe-count');
+    const timeLabel = document.getElementById('composition-motion-time');
+    const toggleLabel = document.getElementById('composition-keyframe-toggle-label');
+    const toggle = document.getElementById('composition-keyframe-toggle');
+    const previous = document.getElementById('composition-keyframe-prev');
+    const next = document.getElementById('composition-keyframe-next');
+    const easing = document.getElementById('composition-keyframe-easing');
+    const reset = document.getElementById('composition-keyframe-reset');
+    if (count) count.textContent = keyframes.length === 1 ? compositionText('compositionKeyframeOne', '1 keyframe') : compositionText('compositionKeyframesCount', '{count} keyframes').replace('{count}', String(keyframes.length));
+    if (timeLabel) timeLabel.textContent = compositionText('compositionKeyframeTime', 'Playhead {time}').replace('{time}', compositionFormatTime(time));
+    if (toggleLabel) toggleLabel.textContent = active ? compositionText('compositionKeyframeRemove', 'Remove keyframe') : compositionText('compositionKeyframeAdd', 'Add keyframe');
+    if (toggle) toggle.classList.toggle('is-active', !!active);
+    const previousFrame = [...keyframes].reverse().find(item => item.time < time - compositionKeyframeTolerance());
+    const nextFrame = keyframes.find(item => item.time > time + compositionKeyframeTolerance());
+    if (previous) previous.disabled = !previousFrame;
+    if (next) next.disabled = !nextFrame;
+    if (easing) {
+        easing.disabled = !active;
+        easing.value = active ? active.easing : 'linear';
+    }
+    if (reset) reset.disabled = keyframes.length === 0;
+}
+
+function compositionRefreshMotionUi() {
+    renderCompositionInspector();
+    renderCompositionMotionUi();
+    scheduleCompositionPreview(0);
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+}
+
+function compositionSeekKeyframe(direction) {
+    const layer = getCompositionLayer();
+    if (!layer) return;
+    const time = compositionCurrentTime();
+    const keyframes = compositionNormalizeKeyframes(layer);
+    const target = direction < 0
+        ? [...keyframes].reverse().find(item => item.time < time - compositionKeyframeTolerance())
+        : keyframes.find(item => item.time > time + compositionKeyframeTolerance());
+    if (!target) return;
+    if (typeof seekTimelineTo === 'function') seekTimelineTo(target.time);
+    compositionRuntime.previewTime = target.time;
+    compositionRefreshMotionUi();
+}
+
+function compositionToggleCurrentKeyframe() {
+    const layer = getCompositionLayer();
+    if (!layer) return;
+    const time = compositionCurrentTime();
+    compositionToggleKeyframe(layer, time);
+    compositionRefreshMotionUi();
+    touchComposition('composition', `composition:${layer.id}:keyframe`);
+}
+
+function compositionSetCurrentKeyframeEasing(value) {
+    const layer = getCompositionLayer();
+    if (!layer || !BAS_COMPOSITION_EASINGS.includes(value)) return;
+    const keyframe = compositionKeyframeAt(layer, compositionCurrentTime());
+    if (!keyframe) return;
+    keyframe.easing = value;
+    compositionRefreshMotionUi();
+    touchComposition('composition', `composition:${layer.id}:easing`);
+}
+
+function compositionClearKeyframes() {
+    const layer = getCompositionLayer();
+    if (!layer || !compositionNormalizeKeyframes(layer).length) return;
+    const message = compositionText('compositionKeyframeClearConfirm', 'Clear all keyframes from this layer?');
+    if (typeof window.confirm === 'function' && !window.confirm(message)) return;
+    layer.keyframes = [];
+    compositionRefreshMotionUi();
+    touchComposition('composition', `composition:${layer.id}:keyframes-clear`);
+}
+
+function compositionSetKeyframeTime(layerId, keyframeId, time, options = {}) {
+    const layer = getCompositionLayer(layerId);
+    if (!layer) return false;
+    const keyframe = compositionNormalizeKeyframes(layer).find(item => item.id === keyframeId);
+    if (!keyframe) return false;
+    keyframe.time = compositionClamp(time, layer.start, layer.end, keyframe.time);
+    compositionNormalizeKeyframes(layer);
+    if (options.render !== false) {
+        renderCompositionInspector();
+        renderCompositionMotionUi();
+        scheduleCompositionPreview(0);
+    }
+    if (options.commit) touchComposition('composition', `composition:${layer.id}:keyframe-time`);
+    return true;
+}
+
 function renderCompositionUi() {
     if (compositionRuntime.projectRef !== currentProject) compositionRuntime.projectRef = currentProject;
     const layers = getCompositionLayers();
@@ -538,6 +782,7 @@ function renderCompositionUi() {
         : compositionText('compositionCount', '{count} layers').replace('{count}', String(layers.length));
     renderCompositionLayerList();
     renderCompositionInspector();
+    renderCompositionMotionUi();
 }
 
 
@@ -649,11 +894,11 @@ function updateCompositionLayerFromInput(input) {
     if (id === 'composition-layer-name') layer.name = input.value.trim() || compositionText(layer.type === 'image' ? 'compositionDefaultImageName' : 'compositionDefaultTextName', layer.type === 'image' ? 'Image' : 'Text');
     else if (id === 'composition-layer-start') layer.start = compositionClamp(input.value, 0, 86400, 0);
     else if (id === 'composition-layer-end') layer.end = Math.max(layer.start + 0.001, compositionClamp(input.value, 0.001, 86400, compositionDefaultEnd()));
-    else if (id === 'composition-layer-x') layer.x = compositionClamp(input.value, 0, 100, 50) / 100;
-    else if (id === 'composition-layer-y') layer.y = compositionClamp(input.value, 0, 100, 50) / 100;
-    else if (id === 'composition-layer-scale') layer.scale = compositionClamp(input.value, 10, 500, 100) / 100;
-    else if (id === 'composition-layer-rotation') layer.rotation = compositionClamp(input.value, -360, 360, 0);
-    else if (id === 'composition-layer-opacity') layer.opacity = compositionClamp(input.value, 0, 100, 100) / 100;
+    else if (id === 'composition-layer-x') compositionSetMotionAtTime(layer, { x: compositionClamp(input.value, 0, 100, 50) / 100 }, compositionCurrentTime());
+    else if (id === 'composition-layer-y') compositionSetMotionAtTime(layer, { y: compositionClamp(input.value, 0, 100, 50) / 100 }, compositionCurrentTime());
+    else if (id === 'composition-layer-scale') compositionSetMotionAtTime(layer, { scale: compositionClamp(input.value, 10, 500, 100) / 100 }, compositionCurrentTime());
+    else if (id === 'composition-layer-rotation') compositionSetMotionAtTime(layer, { rotation: compositionClamp(input.value, -360, 360, 0) }, compositionCurrentTime());
+    else if (id === 'composition-layer-opacity') compositionSetMotionAtTime(layer, { opacity: compositionClamp(input.value, 0, 100, 100) / 100 }, compositionCurrentTime());
     else if (id === 'composition-text-content') layer.text = input.value;
     else if (id === 'composition-text-font') layer.fontFamily = input.value;
     else if (id === 'composition-text-size') layer.fontSize = compositionClamp(input.value, 1.5, 40, 8) / 100;
@@ -662,8 +907,10 @@ function updateCompositionLayerFromInput(input) {
     else if (id === 'composition-text-align') layer.align = input.value;
     else if (id === 'composition-image-width') layer.imageWidth = compositionClamp(input.value, 3, 150, 35) / 100;
     if (layer.end <= layer.start) layer.end = layer.start + 0.001;
+    compositionNormalizeKeyframes(layer);
     renderCompositionLayerList();
     renderCompositionInspector();
+    renderCompositionMotionUi();
     scheduleCompositionPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     touchComposition('composition', `composition:${layer.id}:${id}`);
@@ -706,7 +953,8 @@ function compositionPointerDown(event) {
     else playerVideo?.pause();
     compositionRuntime.pointerId = event.pointerId;
     compositionRuntime.pointerStart = point;
-    compositionRuntime.pointerLayerStart = { x: layer.x, y: layer.y };
+    const transform = compositionResolvedTransform(layer, compositionCurrentTime());
+    compositionRuntime.pointerLayerStart = { x: transform.x, y: transform.y };
     compositionRuntime.moved = false;
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('is-dragging');
@@ -722,8 +970,9 @@ function compositionPointerMove(event) {
     const dy = (point.y - compositionRuntime.pointerStart.y) / Math.max(1, point.height);
     if (!compositionRuntime.moved && Math.hypot(dx * point.width, dy * point.height) > 2) compositionRuntime.moved = true;
     if (!compositionRuntime.moved) return;
-    layer.x = compositionClamp(compositionRuntime.pointerLayerStart.x + dx, 0, 1, 0.5);
-    layer.y = compositionClamp(compositionRuntime.pointerLayerStart.y + dy, 0, 1, 0.5);
+    const nextX = compositionClamp(compositionRuntime.pointerLayerStart.x + dx, 0, 1, 0.5);
+    const nextY = compositionClamp(compositionRuntime.pointerLayerStart.y + dy, 0, 1, 0.5);
+    compositionSetMotionAtTime(layer, { x: nextX, y: nextY }, compositionCurrentTime());
     renderCompositionInspector();
     scheduleCompositionDragPreview();
     event.preventDefault();
@@ -746,6 +995,8 @@ function compositionPointerUp(event) {
     }
     if (moved && layer) {
         renderCompositionOverlayFromBase();
+        renderCompositionMotionUi();
+        if (typeof renderTimeline3 === 'function') renderTimeline3();
         touchComposition('composition', `composition:${layer.id}:position`);
     }
 }
@@ -775,6 +1026,17 @@ function syncCompositionText() {
         'composition-label-scale': ['compositionLabelScale', 'Scale'],
         'composition-label-rotation': ['compositionLabelRotation', 'Rotation'],
         'composition-label-opacity': ['compositionLabelOpacity', 'Opacity'],
+        'composition-motion-section': ['compositionMotionSection', 'MOTION & KEYFRAMES'],
+        'composition-motion-title': ['compositionMotionTitle', 'Animate this layer'],
+        'composition-motion-desc': ['compositionMotionDesc', 'Add keyframes at the playhead to animate position, scale, rotation and opacity.'],
+        'composition-keyframe-prev': ['compositionKeyframePrev', 'Previous'],
+        'composition-keyframe-next': ['compositionKeyframeNext', 'Next'],
+        'composition-keyframe-easing-label': ['compositionKeyframeEasing', 'Easing'],
+        'composition-ease-linear': ['compositionEaseLinear', 'Linear'],
+        'composition-ease-in': ['compositionEaseIn', 'Ease in'],
+        'composition-ease-out': ['compositionEaseOut', 'Ease out'],
+        'composition-ease-in-out': ['compositionEaseInOut', 'Ease in/out'],
+        'composition-keyframe-reset': ['compositionKeyframeClear', 'Clear keyframes'],
         'composition-text-section': ['compositionTextSection', 'TEXT'],
         'composition-label-text': ['compositionLabelText', 'Content'],
         'composition-label-font': ['compositionLabelFont', 'Font'],
@@ -869,6 +1131,11 @@ function bindComposition() {
     document.getElementById('composition-inspector')?.addEventListener('change', event => {
         if (event.target.matches('input, textarea, select')) updateCompositionLayerFromInput(event.target);
     });
+    document.getElementById('composition-keyframe-prev')?.addEventListener('click', () => compositionSeekKeyframe(-1));
+    document.getElementById('composition-keyframe-next')?.addEventListener('click', () => compositionSeekKeyframe(1));
+    document.getElementById('composition-keyframe-toggle')?.addEventListener('click', compositionToggleCurrentKeyframe);
+    document.getElementById('composition-keyframe-easing')?.addEventListener('change', event => compositionSetCurrentKeyframeEasing(event.target.value));
+    document.getElementById('composition-keyframe-reset')?.addEventListener('click', compositionClearKeyframes);
     document.getElementById('composition-delete')?.addEventListener('click', () => {
         const layer = getCompositionLayer();
         if (layer) deleteCompositionLayer(layer.id);
@@ -887,8 +1154,18 @@ function bindComposition() {
         if (point && compositionHitLayer(point)) return;
         if (!isGenerating && !isBuildingTimeline) playerVideo?.click();
     });
-    playerVideo?.addEventListener('timeupdate', () => scheduleCompositionPreview(0));
-    playerVideo?.addEventListener('seeked', () => scheduleCompositionPreview(0));
+    playerVideo?.addEventListener('timeupdate', () => {
+        scheduleCompositionPreview(0);
+        if (getCompositionLayer()?.keyframes?.length) {
+            renderCompositionInspector();
+            renderCompositionMotionUi();
+        }
+    });
+    playerVideo?.addEventListener('seeked', () => {
+        scheduleCompositionPreview(0);
+        renderCompositionInspector();
+        renderCompositionMotionUi();
+    });
     playerVideo?.addEventListener('loadeddata', () => scheduleCompositionPreview(0));
     playerVideo?.addEventListener('play', startCompositionPlaybackLoop);
     playerVideo?.addEventListener('pause', stopCompositionPlaybackLoop);
@@ -917,7 +1194,14 @@ window.BASComposition = Object.freeze({
     render: renderCompositionUi,
     renderPreview: renderCompositionPreview,
     select: selectCompositionLayer,
-    syncText: syncCompositionText
+    syncText: syncCompositionText,
+    getKeyframes: id => compositionNormalizeKeyframes(getCompositionLayer(id)),
+    getResolvedTransform: (id, time) => {
+        const layer = getCompositionLayer(id);
+        return layer ? compositionResolvedTransform(layer, time) : null;
+    },
+    normalizeKeyframes: id => compositionNormalizeKeyframes(getCompositionLayer(id)),
+    setKeyframeTime: compositionSetKeyframeTime
 });
 window.initializeCompositionForProject = initializeCompositionForProject;
 window.syncCompositionText = syncCompositionText;
