@@ -11521,3 +11521,121 @@ summary:focus-visible {
         height: 88px;
     }
 }
+
+.audio-studio-sync-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    margin: 0 0 7px;
+}
+
+.audio-studio-sync-actions,
+.audio-studio-loop-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.audio-studio-sync-tools button {
+    min-height: 29px;
+    padding: 0 8px;
+    border: 1px solid rgba(111, 227, 244, 0.13);
+    border-radius: 8px;
+    background: rgba(111, 227, 244, 0.045);
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 720;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.audio-studio-sync-tools button.is-active {
+    border-color: rgba(111, 227, 244, 0.38);
+    background: rgba(111, 227, 244, 0.13);
+    color: #c8f8ff;
+}
+
+.audio-studio-marker-overlay {
+    position: absolute;
+    inset: 0 auto 0 0;
+    min-width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.audio-studio-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(-0.5px);
+}
+
+.audio-studio-marker b {
+    position: absolute;
+    top: 5px;
+    max-width: 112px;
+    padding: 2px 5px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    background: rgba(4, 9, 16, 0.82);
+    color: var(--muted-2);
+    font-size: 6px;
+    font-weight: 760;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.audio-studio-marker-start b {
+    left: 4px;
+}
+
+.audio-studio-marker-end b {
+    right: 4px;
+}
+
+.audio-studio-global-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(205, 181, 235, 0.92);
+    box-shadow: 0 0 7px rgba(205, 181, 235, 0.38);
+    opacity: 0;
+    transform: translateX(-1px);
+}
+
+.audio-studio-global-playhead.is-visible {
+    opacity: 1;
+}
+
+.audio-studio-waveform-playhead {
+    z-index: 3;
+}
+
+@media (max-width: 560px) {
+    .audio-studio-sync-tools {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .audio-studio-sync-actions,
+    .audio-studio-loop-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .audio-studio-loop-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .audio-studio-sync-tools button {
+        min-height: 32px;
+        padding: 5px 6px;
+    }
+}
