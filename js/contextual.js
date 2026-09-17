@@ -115,6 +115,7 @@ function setAudioRole(role) {
     document.querySelectorAll('.audio-role-card[data-audio-panel]').forEach(panel => {
         panel.classList.toggle('is-active', panel.dataset.audioPanel === role);
     });
+    if (typeof scheduleAudioWaveformRefresh === 'function') scheduleAudioWaveformRefresh(role, 20);
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio-role', { emit: true });
 }
 

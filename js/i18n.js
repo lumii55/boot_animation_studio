@@ -487,6 +487,12 @@ const traducoes = {
         audioStudioLoading: "Preparing audio",
         audioStudioPreviewAnimation: "Preview with animation",
         audioStudioProgress: "Audio preview progress",
+        audioWaveformKicker: "WAVEFORM",
+        audioWaveformTitle: "Audio shape",
+        audioWaveformHint: "Tap or drag the waveform to seek. Pinch or use the controls to zoom.",
+        audioWaveformZoomOut: "Zoom out waveform",
+        audioWaveformZoomIn: "Zoom in waveform",
+        audioWaveformFit: "Fit",
         audioStudioTimingKicker: "TIMING",
         audioStudioPreviewUnavailable: "No audio is available for this section yet.",
         audioNormalize: "Normalize peak",
@@ -1207,6 +1213,12 @@ const traducoes = {
         audioStudioLoading: "Preparando áudio",
         audioStudioPreviewAnimation: "Prévia com animação",
         audioStudioProgress: "Progresso da prévia de áudio",
+        audioWaveformKicker: "FORMA DE ONDA",
+        audioWaveformTitle: "Forma do áudio",
+        audioWaveformHint: "Toque ou arraste na forma de onda para buscar. Faça pinça ou use os controles para dar zoom.",
+        audioWaveformZoomOut: "Diminuir zoom da forma de onda",
+        audioWaveformZoomIn: "Aumentar zoom da forma de onda",
+        audioWaveformFit: "Ajustar",
         audioStudioTimingKicker: "TEMPO",
         audioStudioPreviewUnavailable: "Ainda não há áudio disponível para este trecho.",
         audioNormalize: "Normalizar pico",
@@ -1927,6 +1939,12 @@ const traducoes = {
         audioStudioLoading: "Preparando audio",
         audioStudioPreviewAnimation: "Vista previa con animación",
         audioStudioProgress: "Progreso de la vista previa de audio",
+        audioWaveformKicker: "FORMA DE ONDA",
+        audioWaveformTitle: "Forma del audio",
+        audioWaveformHint: "Toca o arrastra sobre la forma de onda para buscar. Pellizca o usa los controles para ampliar.",
+        audioWaveformZoomOut: "Alejar la forma de onda",
+        audioWaveformZoomIn: "Acercar la forma de onda",
+        audioWaveformFit: "Ajustar",
         audioStudioTimingKicker: "TIEMPO",
         audioStudioPreviewUnavailable: "Todavía no hay audio disponible para esta sección.",
         audioNormalize: "Normalizar pico",
@@ -2647,6 +2665,12 @@ const traducoes = {
         audioStudioLoading: "Préparation de l’audio",
         audioStudioPreviewAnimation: "Aperçu avec l’animation",
         audioStudioProgress: "Progression de l’aperçu audio",
+        audioWaveformKicker: "FORME D’ONDE",
+        audioWaveformTitle: "Forme de l’audio",
+        audioWaveformHint: "Touchez ou faites glisser la forme d’onde pour vous déplacer. Pincez ou utilisez les commandes pour zoomer.",
+        audioWaveformZoomOut: "Réduire le zoom de la forme d’onde",
+        audioWaveformZoomIn: "Augmenter le zoom de la forme d’onde",
+        audioWaveformFit: "Ajuster",
         audioStudioTimingKicker: "TEMPS",
         audioStudioPreviewUnavailable: "Aucun audio n’est encore disponible pour cette section.",
         audioNormalize: "Normaliser le pic",
@@ -3093,8 +3117,20 @@ function mudarIdioma(lang) {
         document.getElementById(`lbl-end-trim-${part}`).textContent = t.audioEndTrim;
         document.getElementById(`audio-studio-timing-kicker-${part}`).textContent = t.audioStudioTimingKicker;
         document.getElementById(`audio-studio-timing-help-${part}`).textContent = t.audioTimingHint;
-        const animationPreviewLabel = document.getElementById(`audio-studio-animation-preview-label-${part}`);
-        if (animationPreviewLabel) animationPreviewLabel.textContent = t.audioStudioPreviewAnimation;
+        const waveformKicker = document.getElementById(`audio-studio-waveform-kicker-${part}`);
+        const waveformTitle = document.getElementById(`audio-studio-waveform-title-${part}`);
+        const waveformHint = document.getElementById(`audio-studio-waveform-hint-${part}`);
+        const waveformZoomOut = document.getElementById(`audio-studio-waveform-zoom-out-${part}`);
+        const waveformZoomIn = document.getElementById(`audio-studio-waveform-zoom-in-${part}`);
+        const waveformFit = document.getElementById(`audio-studio-waveform-fit-${part}`);
+        const waveformCanvas = document.getElementById(`audio-studio-waveform-${part}`);
+        if (waveformKicker) waveformKicker.textContent = t.audioWaveformKicker;
+        if (waveformTitle) waveformTitle.textContent = t.audioWaveformTitle;
+        if (waveformHint) waveformHint.textContent = t.audioWaveformHint;
+        if (waveformZoomOut) waveformZoomOut.setAttribute('aria-label', t.audioWaveformZoomOut);
+        if (waveformZoomIn) waveformZoomIn.setAttribute('aria-label', t.audioWaveformZoomIn);
+        if (waveformFit) waveformFit.textContent = t.audioWaveformFit;
+        if (waveformCanvas) waveformCanvas.setAttribute('aria-label', t.audioWaveformTitle);
         const transportButton = document.getElementById(`audio-studio-preview-${part}`);
         if (transportButton) transportButton.setAttribute('aria-label', t.audioStudioPlay);
         const transportProgress = document.getElementById(`audio-studio-progress-${part}`);

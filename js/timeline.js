@@ -952,6 +952,7 @@ async function desenharFilmstrip() {
 window.marcarTrecho = function(id) {
     if (isGenerating || isBuildingTimeline) return; 
     marcadores[id] = getTimelineCurrentTimeExact(); 
+    if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
     atualizarBotoesELinhas();
     renderSimpleSegmentTrack();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('markers');

@@ -108,6 +108,7 @@ function resetProjectMarkers() {
     const nextMarkers = createMarkerState();
     if (currentProject) currentProject.markers = nextMarkers;
     marcadores = nextMarkers;
+    if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
 }
 
 function setPlayerBlob(blob) {
@@ -117,6 +118,7 @@ function setPlayerBlob(blob) {
     }
     playerVideo.defaultPlaybackRate = 1;
     playerVideo.playbackRate = 1;
+    playerVideo.muted = true;
     if (!blob) {
         playerVideo.removeAttribute('src');
         playerVideo.load();
@@ -163,6 +165,7 @@ function syncCurrentProjectWithPlayer() {
             marcadores[key] = value === null ? null : projectTimeToTimelineTime(value);
         });
         currentProject.initialMarkersApplied = true;
+        if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
     }
     if (typeof window.syncPrimarySourceLibraryMetadata === 'function') window.syncPrimarySourceLibraryMetadata();
     if (window.BASMasterSequence) BASMasterSequence.ensure();

@@ -596,6 +596,7 @@ function sourceLibraryGetPreviewUrl(source, blob) {
 async function sourceLibrarySetVideoElementSource(element, sourceId) {
     const source = getProjectSourceById(sourceId);
     if (!element || !source || source.role !== 'visual') return null;
+    element.muted = true;
     const previewBlob = await ensureSourcePreviewBlob(source);
     if (!(previewBlob instanceof Blob)) return null;
     const src = sourceLibraryGetPreviewUrl(source, previewBlob);

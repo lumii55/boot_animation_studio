@@ -179,6 +179,7 @@ function masterSequenceRemoveSource(sourceId, options = {}) {
         if (marcadores[key] !== null && marcadores[key] !== undefined) marcadores[key] = Math.max(0, Math.min(duration, Number(marcadores[key]) || 0));
     });
     currentProject.markers = marcadores;
+    if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
     renderMasterSequenceOverview();
     if (!options.silent && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('master-sequence', { changeKey: 'master-sequence', immediate: true });
     masterSequenceRefreshTimeline({ seekToStart: true });
@@ -208,6 +209,7 @@ function masterSequenceSetClipRange(clipId, sourceIn, sourceOut, options = {}) {
         if (marcadores[key] !== null && marcadores[key] !== undefined) marcadores[key] = Math.max(0, Math.min(total, Number(marcadores[key]) || 0));
     });
     currentProject.markers = marcadores;
+    if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
     masterSequenceRefreshTimeline({ seekToStart: false });
     if (!options.silent && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('master-sequence-trim', { changeKey: `master-sequence:${clipId}:trim`, immediate: true });
     return true;

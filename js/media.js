@@ -782,9 +782,17 @@ function syncAudioAdvancedVisibility(part) {
 
 function handleAudioAdvancedInput(part) {
     syncAudioAdvancedLabels(part);
-    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
+    if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
+    else if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:advanced` });
+    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+}
+
+function handleAudioVolumeInput(part) {
+    if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:volume` });
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }
 
@@ -832,6 +840,7 @@ function resetAudioState() {
     ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
     currentPreviewPart = -1;
     verificarPainelAudio({ renderTimeline: false });
+    if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
 }
 
 function setImportedAudio(part, blob, name, kind = 'imported') {
@@ -876,7 +885,8 @@ function handleAudioSelect(part) {
     }
     syncAudioAdvancedVisibility(part);
     syncAudioAdvancedLabels(part);
-    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
+    if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
+    else if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:source` });
 }
@@ -903,7 +913,8 @@ function fileAudioSelecionado(part) {
     }
     syncAudioAdvancedVisibility(part);
     syncAudioAdvancedLabels(part);
-    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
+    if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
+    else if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:file` });
 }

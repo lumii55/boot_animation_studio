@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.9A';
+const BAS_PROJECT_ENGINE_VERSION = '12.9B';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -496,6 +496,7 @@ function projectEngineRestoreSimpleAudio(audioState, assetMap) {
         if (typeof syncAudioAdvancedVisibility === 'function') syncAudioAdvancedVisibility(role);
     });
     if (typeof verificarPainelAudio === 'function') verificarPainelAudio();
+    if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
 }
 
 function projectEngineResolveImportedAdvancedAudio(part) {
@@ -605,6 +606,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     });
     currentProject.markers = marcadores;
     currentProject.initialMarkersApplied = true;
+    if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
     projectEngineRestoreSimpleAudio(editor.audio, assetMap);
     projectEngineRestoreAdvancedState(editor.advanced, assetMap);
     projectEngineSetChecked('input-gerar-modulo', packageState.generateModule);

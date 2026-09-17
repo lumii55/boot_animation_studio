@@ -942,18 +942,21 @@ function updateAdvancedPartField(part, field, value, element) {
         const label = document.querySelector(`[data-advanced-value="volume-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = `${Math.round(part.audio.volume)}%`;
         markAdvancedPartsDirty();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         return;
     } else if (field === 'audio-fade-in') {
         part.audio.fadeIn = clampAudioControlValue(value, 0, 5, 0);
         const label = document.querySelector(`[data-advanced-value="fadeIn-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = formatAudioSeconds(part.audio.fadeIn);
         markAdvancedPartsDirty();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         return;
     } else if (field === 'audio-fade-out') {
         part.audio.fadeOut = clampAudioControlValue(value, 0, 5, 0);
         const label = document.querySelector(`[data-advanced-value="fadeOut-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = formatAudioSeconds(part.audio.fadeOut);
         markAdvancedPartsDirty();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         return;
     } else if (field === 'audio-delay') {
         const span = Math.max(0, part.end - part.start);
@@ -961,6 +964,7 @@ function updateAdvancedPartField(part, field, value, element) {
         const label = document.querySelector(`[data-advanced-value="delay-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = formatAudioSeconds(part.audio.delay);
         markAdvancedPartsDirty();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         renderAdvancedPartsEditor();
         if (typeof renderTimeline3 === 'function') renderTimeline3();
         return;
@@ -969,6 +973,7 @@ function updateAdvancedPartField(part, field, value, element) {
         const label = document.querySelector(`[data-advanced-value="sourceIn-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = formatAudioSeconds(part.audio.sourceIn);
         markAdvancedPartsDirty();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         return;
     } else if (field === 'audio-end-trim') {
         const span = Math.max(0, part.end - part.start);
@@ -976,6 +981,7 @@ function updateAdvancedPartField(part, field, value, element) {
         const label = document.querySelector(`[data-advanced-value="endTrim-${CSS.escape(part.id)}"]`);
         if (label) label.textContent = formatAudioSeconds(part.audio.endTrim);
         markAdvancedPartsDirty();
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         renderAdvancedPartsEditor();
         if (typeof renderTimeline3 === 'function') renderTimeline3();
         return;
@@ -983,6 +989,9 @@ function updateAdvancedPartField(part, field, value, element) {
         part.audio.normalize = !!element.checked;
     }
     markAdvancedPartsDirty();
+    if (field === 'audio-mode' || field === 'audio-normalize') {
+        if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
+    }
     renderAdvancedPartsEditor();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (field === 'audio-mode' && part.audio.mode === 'file' && !(part.audio.source instanceof Blob)) {
@@ -1456,6 +1465,7 @@ if (advancedEditor) {
                 part.audio.sourceKind = 'file';
                 part.audio.sourceLibraryId = '';
                 markAdvancedPartsDirty();
+                if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
                 renderAdvancedPartsEditor();
             } else if (part && !(part.audio.source instanceof Blob)) {
                 part.audio.mode = 'none';

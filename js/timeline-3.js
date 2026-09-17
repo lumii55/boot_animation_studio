@@ -229,7 +229,8 @@ function timeline3AudioHtml(segments = timeline3AudioSegments()) {
         const width = Math.max(0.8, timeline3Percent(segment.end) - left);
         const duration = Math.max(0, segment.end - segment.start);
         const sourceInfo = segment.sourceIn > 0 ? ` · ${timeline3Text('audioSourceIn', 'Source start')} ${timeline3Format(segment.sourceIn)}` : '';
-        return `<article class="timeline3-item timeline3-audio${selected ? ' is-selected' : ''}" data-timeline3-type="audio" data-timeline3-id="${timeline3Escape(segment.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioStart', 'Adjust audio delay'))}"></button><div class="timeline3-audio-copy"><div class="timeline3-wave"></div><strong>${timeline3Escape(segment.label)}</strong><small>${timeline3Escape(timeline3Format(duration) + sourceInfo)}</small></div><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioEnd', 'Trim audio end'))}"></button></article>`;
+        const baseDuration = Math.max(0.001, segment.baseEnd - segment.baseStart);
+        return `<article class="timeline3-item timeline3-audio${selected ? ' is-selected' : ''}" data-timeline3-type="audio" data-timeline3-id="${timeline3Escape(segment.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioStart', 'Adjust audio delay'))}"></button><div class="timeline3-audio-copy"><canvas class="timeline3-mini-waveform" data-audio-waveform-id="${timeline3Escape(segment.id)}" data-audio-waveform-advanced="${segment.advanced ? 'true' : 'false'}" data-audio-base-duration="${baseDuration}" data-audio-delay="${segment.delay}" data-audio-end-trim="${segment.endTrim}"></canvas><div class="timeline3-wave"></div><strong>${timeline3Escape(segment.label)}</strong><small>${timeline3Escape(timeline3Format(duration) + sourceInfo)}</small></div><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioEnd', 'Trim audio end'))}"></button></article>`;
     }).join('');
 }
 
@@ -315,6 +316,7 @@ function timeline3Render() {
     stack.style.width = `${width}px`;
     tracks.style.width = `${width}px`;
     if (zoom) zoom.value = String(Math.round(timeline3Runtime.zoom));
+    if (typeof renderTimelineAudioWaveforms === 'function') requestAnimationFrame(() => renderTimelineAudioWaveforms());
 }
 
 function timeline3ApplyZoom() {
@@ -588,7 +590,8 @@ function timeline3FinishTrim(event, cancelled = false) {
         } else {
             if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${state.id}:timeline` });
             if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-            if (typeof preparePreviewAudioFromCurrentState === 'function') preparePreviewAudioFromCurrentState().catch(() => {});
+            if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
+            else if (typeof preparePreviewAudioFromCurrentState === 'function') preparePreviewAudioFromCurrentState().catch(() => {});
         }
     }
     timeline3Render();

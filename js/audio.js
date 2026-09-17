@@ -27,24 +27,39 @@ function audioBufferToWav(buffer) {
     return new Blob([bufferData], { type: "audio/wav" });
 }
 
+const decodedAudioBufferCache = new WeakMap();
+
 async function decodificarAudioFonte(fonte, audioCtx) {
     try {
-        let arrBuf;
+        if (fonte instanceof Blob && decodedAudioBufferCache.has(fonte)) return await decodedAudioBufferCache.get(fonte);
+        const decode = async () => {
+            let arrBuf;
+            if (fonte instanceof Blob) {
+                arrBuf = await fonte.arrayBuffer();
+            } else if (typeof fonte === 'string' && fonte.length > 0) {
+                const res = await fetch(fonte);
+                arrBuf = await res.arrayBuffer();
+            } else {
+                return null;
+            }
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            return await new Promise((resolve) => {
+                const res = audioCtx.decodeAudioData(arrBuf, resolve, () => resolve(null));
+                if (res && res.then) res.then(resolve).catch(() => resolve(null));
+            });
+        };
         if (fonte instanceof Blob) {
-            arrBuf = await fonte.arrayBuffer();
-        } else if (typeof fonte === 'string' && fonte.length > 0) {
-            const res = await fetch(fonte);
-            arrBuf = await res.arrayBuffer();
-        } else {
-            return null;
+            const promise = decode().then(buffer => {
+                if (!buffer) decodedAudioBufferCache.delete(fonte);
+                return buffer;
+            }).catch(() => {
+                decodedAudioBufferCache.delete(fonte);
+                return null;
+            });
+            decodedAudioBufferCache.set(fonte, promise);
+            return await promise;
         }
-        if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-        return await new Promise((resolve) => {
-            const res = audioCtx.decodeAudioData(arrBuf, resolve, () => resolve(null));
-            if (res && res.then) res.then(resolve).catch(() => resolve(null));
-        });
+        return await decode();
     } catch (e) {
         console.error("Failed to decode audio source:", e);
         return null;
@@ -211,6 +226,9 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
             if (generation !== previewAudioBuildGeneration) return;
             if (blob) setPreviewAudio(definition.preview, blob);
         }
+        if (generation === previewAudioBuildGeneration && typeof getEditorAudioPreviewSignature === 'function') {
+            editorAudioPreviewSignature = getEditorAudioPreviewSignature(audioState);
+        }
     } finally {
         videoAudioBuffer = null;
         if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
@@ -269,6 +287,7 @@ function syncAudioStudioTransportProgress() {
     els.progress.value = String(current);
     if (els.current) els.current.textContent = formatAudioStudioClock(current);
     if (els.total) els.total.textContent = formatAudioStudioClock(duration);
+    if (typeof updateAudioWaveformPlayhead === 'function') updateAudioWaveformPlayhead(audioStudioPreviewRole, current, duration);
 }
 
 function resetAudioStudioTransportProgress(role) {
@@ -375,6 +394,7 @@ async function ensureAudioStudioPreview(role) {
         return false;
     }
     audioStudioPreviewBlob = blob;
+    if (typeof primeAudioWaveformFromBlob === 'function') primeAudioWaveformFromBlob(role, false, blob).catch(() => {});
     audioStudioPreviewAudio = new Audio();
     audioStudioPreviewUrl = URL.createObjectURL(blob);
     audioStudioPreviewAudio.preload = 'auto';
@@ -409,18 +429,497 @@ async function previewAudioStudioRole(role) {
     return toggleAudioStudioPreview(role);
 }
 
-async function previewAudioStudioWithAnimation(role) {
-    stopAudioStudioPreview();
-    const select = document.getElementById(`sel-audio-${role}`);
-    if (!select || select.value === 'none') {
-        const t = traducoes[idiomaAtual] || traducoes.en;
-        if (typeof showToast === 'function') showToast(t.audioStudioPreviewUnavailable || 'No audio is available for this section.', 'warning');
-        return false;
-    }
-    if (typeof abrirPreviewWeb === 'function') {
-        await abrirPreviewWeb();
-        return true;
-    }
-    return false;
+
+
+
+
+const audioWaveformRuntime = {
+    cache: new Map(),
+    roleZoom: { intro: 1, loop: 1, final: 1 },
+    refreshTimers: new Map(),
+    pointers: new Map(),
+    pinch: null,
+    generation: 0
+};
+
+let editorAudioPreviewSignature = '';
+let editorAudioPreviewBuildPromise = null;
+let editorAudioPreviewActiveRole = '';
+let editorAudioPreviewDirectVideo = false;
+
+function audioStudioBlobIdentity(blob) {
+    if (!(blob instanceof Blob)) return 'none';
+    return [blob.name || '', blob.size || 0, blob.type || '', blob.lastModified || 0].join(':');
 }
 
+function audioStudioRoleRange(role) {
+    const total = Math.max(0, Number.isFinite(Number(marcadores.m3)) ? Number(marcadores.m3) : (typeof getTimelineDurationExact === 'function' ? getTimelineDurationExact() : 0));
+    const ranges = {
+        intro: [Number(marcadores.m0) || 0, Number(marcadores.m1) || 0],
+        loop: [Number(marcadores.m1) || 0, Number(marcadores.m2) || 0],
+        final: [Number(marcadores.m2) || 0, total]
+    };
+    return ranges[role] || [0, 0];
+}
+
+function audioStudioStateSignature(role, state = null) {
+    const audioState = state || captureAudioEditorState();
+    const roleState = audioState && audioState[role] ? audioState[role] : {};
+    const source = roleState.mode === 'file' ? getSelectedAudioFile(role) : (currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : null);
+    const range = audioStudioRoleRange(role);
+    return JSON.stringify({
+        role,
+        range,
+        mode: roleState.mode || 'none',
+        volume: Number(roleState.volume) || 0,
+        fadeIn: Number(roleState.fadeIn) || 0,
+        fadeOut: Number(roleState.fadeOut) || 0,
+        delay: Number(roleState.delay) || 0,
+        sourceIn: Number(roleState.sourceIn) || 0,
+        endTrim: Number(roleState.endTrim) || 0,
+        normalize: !!roleState.normalize,
+        source: audioStudioBlobIdentity(source),
+        master: window.BASMasterSequence && BASMasterSequence.isTimelineActive() ? BASMasterSequence.serialize() : null
+    });
+}
+
+function getEditorAudioPreviewSignature(state = null) {
+    const audioState = state || captureAudioEditorState();
+    return JSON.stringify({
+        enabled: !!audioState.enabled,
+        markers: ['m0', 'm1', 'm2', 'm3'].map(key => marcadores[key] == null ? null : Number(marcadores[key])),
+        roles: ['intro', 'loop', 'final'].map(role => audioStudioStateSignature(role, audioState))
+    });
+}
+
+function pauseEditorPreviewAudio() {
+    ['m0', 'm1', 'm2'].forEach(key => {
+        const audio = previewAudios[key];
+        if (audio) audio.pause();
+    });
+    editorAudioPreviewActiveRole = '';
+    editorAudioPreviewDirectVideo = false;
+    if (playerVideo) {
+        playerVideo.muted = true;
+        playerVideo.volume = 1;
+    }
+}
+
+function invalidateAudioPreviewState(options = {}) {
+    cancelPreviewAudioBuild();
+    editorAudioPreviewSignature = '';
+    if (editorAudioPreviewBuildPromise) editorAudioPreviewBuildPromise = null;
+    ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
+    pauseEditorPreviewAudio();
+    if (options.transport !== false) stopAudioStudioPreview();
+    if (options.waveforms !== false) {
+        audioWaveformRuntime.generation += 1;
+        audioWaveformRuntime.cache.clear();
+        ['intro', 'loop', 'final'].forEach(role => scheduleAudioWaveformRefresh(role, 80));
+    }
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+    if (playerVideo && !playerVideo.paused) ensureEditorPreviewAudioReady().then(() => syncEditorPreviewAudio(true)).catch(() => {});
+}
+
+function notifyAudioMarkersChanged() {
+    invalidateAudioPreviewState({ transport: true, waveforms: true });
+}
+
+async function ensureEditorPreviewAudioReady() {
+    const state = captureAudioEditorState();
+    const signature = getEditorAudioPreviewSignature(state);
+    if (editorAudioPreviewSignature === signature) return true;
+    if (editorAudioPreviewBuildPromise) return editorAudioPreviewBuildPromise;
+    editorAudioPreviewBuildPromise = preparePreviewAudioFromCurrentState(state).then(() => editorAudioPreviewSignature === signature).catch(() => false).finally(() => {
+        editorAudioPreviewBuildPromise = null;
+    });
+    return editorAudioPreviewBuildPromise;
+}
+
+function editorAudioRoleAtTime(time) {
+    const t = Math.max(0, Number(time) || 0);
+    const definitions = [
+        { role: 'intro', key: 'm0', start: Number(marcadores.m0), end: Number(marcadores.m1) },
+        { role: 'loop', key: 'm1', start: Number(marcadores.m1), end: Number(marcadores.m2) },
+        { role: 'final', key: 'm2', start: Number(marcadores.m2), end: Number(marcadores.m3) }
+    ];
+    return definitions.find(item => Number.isFinite(item.start) && Number.isFinite(item.end) && item.end > item.start && t >= item.start && t < item.end) || null;
+}
+
+function directVideoAudioCompatible(state) {
+    if (!state || state.mode !== 'video' || state.normalize) return false;
+    return Math.abs((Number(state.sourceIn) || 0) - (Number(state.delay) || 0)) < 0.015;
+}
+
+function directVideoAudioGain(state, localTime, roleDuration) {
+    const delay = Math.max(0, Number(state.delay) || 0);
+    const endTrim = Math.max(0, Number(state.endTrim) || 0);
+    const start = delay;
+    const end = Math.max(start, roleDuration - endTrim);
+    if (localTime < start || localTime >= end) return 0;
+    const audible = localTime - start;
+    const audibleDuration = Math.max(0, end - start);
+    let gain = Math.max(0, Math.min(1, (Number(state.volume) || 0) / 100));
+    const fadeIn = Math.min(audibleDuration, Math.max(0, Number(state.fadeIn) || 0));
+    const fadeOut = Math.min(audibleDuration, Math.max(0, Number(state.fadeOut) || 0));
+    if (fadeIn > 0 && audible < fadeIn) gain *= audible / fadeIn;
+    if (fadeOut > 0 && audible > audibleDuration - fadeOut) gain *= Math.max(0, (audibleDuration - audible) / fadeOut);
+    return Math.max(0, Math.min(1, gain));
+}
+
+function syncEditorPreviewAudio(forceSeek = false) {
+    if (!playerVideo) return;
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
+        pauseEditorPreviewAudio();
+        return;
+    }
+    const audioState = captureAudioEditorState();
+    if (!audioState.enabled) {
+        pauseEditorPreviewAudio();
+        return;
+    }
+    const time = typeof getTimelineCurrentTimeExact === 'function' ? getTimelineCurrentTimeExact() : Number(playerVideo.currentTime) || 0;
+    const active = editorAudioRoleAtTime(time);
+    if (!active) {
+        pauseEditorPreviewAudio();
+        return;
+    }
+    const state = audioState[active.role];
+    if (!state || state.mode === 'none') {
+        pauseEditorPreviewAudio();
+        return;
+    }
+    const local = Math.max(0, time - active.start);
+    const roleDuration = Math.max(0, active.end - active.start);
+    const audibleStart = Math.max(0, Number(state.delay) || 0);
+    const audibleEnd = Math.max(audibleStart, roleDuration - Math.max(0, Number(state.endTrim) || 0));
+    if (local < audibleStart || local >= audibleEnd) {
+        pauseEditorPreviewAudio();
+        return;
+    }
+    if (directVideoAudioCompatible(state)) {
+        ['m0', 'm1', 'm2'].forEach(key => previewAudios[key].pause());
+        editorAudioPreviewActiveRole = active.role;
+        editorAudioPreviewDirectVideo = true;
+        playerVideo.muted = false;
+        playerVideo.volume = directVideoAudioGain(state, local, roleDuration);
+        return;
+    }
+    playerVideo.muted = true;
+    playerVideo.volume = 1;
+    editorAudioPreviewDirectVideo = false;
+    if (editorAudioPreviewSignature !== getEditorAudioPreviewSignature(audioState)) {
+        ensureEditorPreviewAudioReady().then(() => syncEditorPreviewAudio(true)).catch(() => {});
+        return;
+    }
+    const target = previewAudios[active.key];
+    if (!target || !target.src) return;
+    ['m0', 'm1', 'm2'].forEach(key => {
+        if (key !== active.key) previewAudios[key].pause();
+    });
+    if (editorAudioPreviewActiveRole !== active.role || forceSeek || Math.abs((Number(target.currentTime) || 0) - local) > 0.18) {
+        try { target.currentTime = Math.max(0, Math.min(Number(target.duration) || roleDuration, local)); } catch (error) {}
+    }
+    editorAudioPreviewActiveRole = active.role;
+    if (!playerVideo.paused && target.paused) target.play().catch(() => {});
+}
+
+async function handleEditorAudioPreviewPlay() {
+    if (!playerVideo) return;
+    playerVideo.muted = true;
+    const state = captureAudioEditorState();
+    const time = typeof getTimelineCurrentTimeExact === 'function' ? getTimelineCurrentTimeExact() : Number(playerVideo.currentTime) || 0;
+    const active = editorAudioRoleAtTime(time);
+    if (state.enabled && active && state[active.role] && state[active.role].mode !== 'none' && !directVideoAudioCompatible(state[active.role])) {
+        await ensureEditorPreviewAudioReady().catch(() => false);
+    }
+    syncEditorPreviewAudio(true);
+}
+
+function handleEditorAudioPreviewPause() {
+    ['m0', 'm1', 'm2'].forEach(key => previewAudios[key].pause());
+    if (playerVideo) playerVideo.muted = true;
+}
+
+function audioWaveformCacheKey(id, advanced = false) {
+    if (advanced) {
+        const part = typeof getAdvancedParts === 'function' ? getAdvancedParts().find(item => item.id === id) : null;
+        if (!part || !part.audio) return `advanced:${id}:none`;
+        return `advanced:${id}:${JSON.stringify({ start: part.start, end: part.end, sourceId: part.sourceId || '', audio: { mode: part.audio.mode, volume: part.audio.volume, fadeIn: part.audio.fadeIn, fadeOut: part.audio.fadeOut, delay: part.audio.delay, sourceIn: part.audio.sourceIn, endTrim: part.audio.endTrim, normalize: !!part.audio.normalize, source: audioStudioBlobIdentity(part.audio.source) } })}`;
+    }
+    return `simple:${audioStudioStateSignature(id)}`;
+}
+
+async function buildWaveformBlob(id, advanced = false) {
+    if (!advanced) return await buildAudioStudioRoleBlob(id);
+    const part = typeof getAdvancedParts === 'function' ? getAdvancedParts().find(item => item.id === id) : null;
+    if (!part || !part.audio || part.audio.mode === 'none' || typeof buildAdvancedPartAudioBlob !== 'function') return null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    const audioCtx = new AudioContextClass();
+    try {
+        let videoAudioBuffer = null;
+        if (part.audio.mode === 'video') {
+            const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
+            const sourceBlob = window.BASSourceLibrary ? BASSourceLibrary.getVideoAudioBlob(sourceId) : currentProject && currentProject.sourceBlob;
+            if (sourceBlob) videoAudioBuffer = await decodificarAudioFonte(sourceBlob, audioCtx);
+        }
+        return await buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer);
+    } finally {
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
+    }
+}
+
+async function analyzeWaveformBlob(blob, bins = 640) {
+    if (!(blob instanceof Blob)) return null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    const audioCtx = new AudioContextClass();
+    try {
+        const buffer = await decodificarAudioFonte(blob, audioCtx);
+        if (!buffer) return null;
+        const count = Math.max(80, Math.min(1200, Math.round(bins)));
+        const peaks = new Float32Array(count);
+        const length = buffer.length;
+        const channels = Math.max(1, buffer.numberOfChannels);
+        let maxPeak = 0;
+        for (let i = 0; i < count; i++) {
+            const start = Math.floor((i / count) * length);
+            const end = Math.max(start + 1, Math.floor(((i + 1) / count) * length));
+            let peak = 0;
+            for (let channel = 0; channel < channels; channel++) {
+                const data = buffer.getChannelData(channel);
+                const stride = Math.max(1, Math.floor((end - start) / 32));
+                for (let sample = start; sample < end; sample += stride) peak = Math.max(peak, Math.abs(data[sample] || 0));
+            }
+            peaks[i] = peak;
+            maxPeak = Math.max(maxPeak, peak);
+        }
+        if (maxPeak > 0) for (let i = 0; i < peaks.length; i++) peaks[i] /= maxPeak;
+        return { peaks: Array.from(peaks), duration: buffer.duration, blob };
+    } finally {
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
+    }
+}
+
+async function primeAudioWaveformFromBlob(id, advanced, blob) {
+    const key = audioWaveformCacheKey(id, advanced);
+    const cached = audioWaveformRuntime.cache.get(key);
+    if (cached && cached.data) return cached.data;
+    if (cached && cached.promise) return cached.promise;
+    const promise = analyzeWaveformBlob(blob).then(data => {
+        if (data) audioWaveformRuntime.cache.set(key, { data });
+        else audioWaveformRuntime.cache.delete(key);
+        return data;
+    }).catch(() => {
+        audioWaveformRuntime.cache.delete(key);
+        return null;
+    });
+    audioWaveformRuntime.cache.set(key, { promise });
+    return promise;
+}
+
+async function getAudioWaveformData(id, advanced = false) {
+    const key = audioWaveformCacheKey(id, advanced);
+    const cached = audioWaveformRuntime.cache.get(key);
+    if (cached && cached.data) return cached.data;
+    if (cached && cached.promise) return cached.promise;
+    const promise = buildWaveformBlob(id, advanced).then(blob => blob ? analyzeWaveformBlob(blob) : null).then(data => {
+        if (data) audioWaveformRuntime.cache.set(key, { data });
+        else audioWaveformRuntime.cache.delete(key);
+        return data;
+    }).catch(() => {
+        audioWaveformRuntime.cache.delete(key);
+        return null;
+    });
+    audioWaveformRuntime.cache.set(key, { promise });
+    return promise;
+}
+
+function waveformCanvasColors(canvas) {
+    const style = getComputedStyle(document.documentElement);
+    return {
+        wave: style.getPropertyValue('--accent-strong').trim() || '#6fe3f4',
+        center: style.getPropertyValue('--border').trim() || 'rgba(255,255,255,.12)',
+        silent: style.getPropertyValue('--muted-2').trim() || '#6b7788'
+    };
+}
+
+function drawWaveformCanvas(canvas, data, options = {}) {
+    if (!canvas || !data || !Array.isArray(data.peaks)) return;
+    const cssWidth = Math.max(1, Number(options.width) || canvas.clientWidth || 320);
+    const cssHeight = Math.max(1, Number(options.height) || canvas.clientHeight || 96);
+    const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.max(1, Math.round(cssWidth * ratio));
+    canvas.height = Math.max(1, Math.round(cssHeight * ratio));
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+    const colors = waveformCanvasColors(canvas);
+    ctx.fillStyle = colors.center;
+    ctx.fillRect(0, Math.floor(cssHeight / 2), cssWidth, 1);
+    const from = Math.max(0, Math.min(1, Number(options.fromRatio) || 0));
+    const to = Math.max(from, Math.min(1, Number(options.toRatio) || 1));
+    const startIndex = Math.floor(from * data.peaks.length);
+    const endIndex = Math.max(startIndex + 1, Math.ceil(to * data.peaks.length));
+    const count = Math.max(1, endIndex - startIndex);
+    const barWidth = cssWidth / count;
+    ctx.fillStyle = colors.wave;
+    for (let i = 0; i < count; i++) {
+        const peak = Math.max(0.015, Number(data.peaks[startIndex + i]) || 0);
+        const height = Math.max(1, peak * (cssHeight * 0.82));
+        const x = i * barWidth;
+        ctx.fillRect(x, (cssHeight - height) / 2, Math.max(1, barWidth * 0.72), height);
+    }
+}
+
+function updateAudioWaveformPlayhead(role, current, duration) {
+    const shell = document.getElementById(`audio-studio-waveform-shell-${role}`);
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    const playhead = document.getElementById(`audio-studio-waveform-playhead-${role}`);
+    if (!shell || !canvas || !playhead) return;
+    const safeDuration = Math.max(0, Number(duration) || 0);
+    const ratio = safeDuration > 0 ? Math.max(0, Math.min(1, (Number(current) || 0) / safeDuration)) : 0;
+    playhead.style.left = `${ratio * canvas.getBoundingClientRect().width}px`;
+}
+
+function audioWaveformZoom(role, factor) {
+    const current = Math.max(1, Number(audioWaveformRuntime.roleZoom[role]) || 1);
+    audioWaveformRuntime.roleZoom[role] = Math.max(1, Math.min(8, factor === 0 ? 1 : current * factor));
+    renderAudioStudioWaveform(role).catch(() => {});
+}
+
+async function renderAudioStudioWaveform(role) {
+    const shell = document.getElementById(`audio-studio-waveform-shell-${role}`);
+    const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    if (!shell || !scroll || !canvas) return;
+    const select = document.getElementById(`sel-audio-${role}`);
+    if (!document.getElementById('input-usar-som')?.checked || !select || select.value === 'none') {
+        shell.dataset.ready = 'false';
+        shell.dataset.loading = 'false';
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    shell.dataset.loading = 'true';
+    const expectedKey = audioWaveformCacheKey(role, false);
+    const data = await getAudioWaveformData(role, false);
+    if (!canvas.isConnected || expectedKey !== audioWaveformCacheKey(role, false)) return;
+    shell.dataset.loading = 'false';
+    shell.dataset.ready = data ? 'true' : 'false';
+    if (!data) return;
+    const zoom = Math.max(1, Number(audioWaveformRuntime.roleZoom[role]) || 1);
+    const width = Math.max(scroll.clientWidth || 280, (scroll.clientWidth || 280) * zoom);
+    drawWaveformCanvas(canvas, data, { width, height: canvas.clientHeight || 96 });
+    if (audioStudioPreviewRole === role && audioStudioPreviewAudio) syncAudioStudioTransportProgress();
+    else updateAudioWaveformPlayhead(role, 0, data.duration);
+}
+
+function scheduleAudioWaveformRefresh(role, delay = 160) {
+    clearTimeout(audioWaveformRuntime.refreshTimers.get(role));
+    const timer = setTimeout(() => {
+        audioWaveformRuntime.refreshTimers.delete(role);
+        renderAudioStudioWaveform(role).catch(() => {});
+        if (typeof renderTimelineAudioWaveforms === 'function') renderTimelineAudioWaveforms();
+    }, delay);
+    audioWaveformRuntime.refreshTimers.set(role, timer);
+}
+
+async function scrubAudioWaveform(role, event) {
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    if (!canvas) return;
+    const ready = await ensureAudioStudioPreview(role);
+    if (!ready || !audioStudioPreviewAudio) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!(rect.width > 0)) return;
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const duration = Number(audioStudioPreviewAudio.duration) || 0;
+    seekAudioStudioPreview(role, ratio * duration);
+}
+
+function initializeAudioWaveformUi() {
+    ['intro', 'loop', 'final'].forEach(role => {
+        const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+        const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
+        document.getElementById(`audio-studio-waveform-zoom-out-${role}`)?.addEventListener('click', () => audioWaveformZoom(role, 0.75));
+        document.getElementById(`audio-studio-waveform-zoom-in-${role}`)?.addEventListener('click', () => audioWaveformZoom(role, 1.333333));
+        document.getElementById(`audio-studio-waveform-fit-${role}`)?.addEventListener('click', () => audioWaveformZoom(role, 0));
+        if (!canvas || !scroll) return;
+        canvas.addEventListener('pointerdown', event => {
+            audioWaveformRuntime.pointers.set(event.pointerId, { x: event.clientX, role });
+            canvas.setPointerCapture?.(event.pointerId);
+            if (audioWaveformRuntime.pointers.size === 1) scrubAudioWaveform(role, event).catch(() => {});
+            if (audioWaveformRuntime.pointers.size === 2) {
+                const points = Array.from(audioWaveformRuntime.pointers.values()).filter(item => item.role === role);
+                if (points.length === 2) audioWaveformRuntime.pinch = { role, distance: Math.abs(points[0].x - points[1].x), zoom: audioWaveformRuntime.roleZoom[role] || 1 };
+            }
+        });
+        canvas.addEventListener('pointermove', event => {
+            if (!audioWaveformRuntime.pointers.has(event.pointerId)) return;
+            audioWaveformRuntime.pointers.set(event.pointerId, { x: event.clientX, role });
+            const points = Array.from(audioWaveformRuntime.pointers.values()).filter(item => item.role === role);
+            if (points.length >= 2 && audioWaveformRuntime.pinch && audioWaveformRuntime.pinch.role === role) {
+                event.preventDefault();
+                const distance = Math.max(1, Math.abs(points[0].x - points[1].x));
+                const next = Math.max(1, Math.min(8, audioWaveformRuntime.pinch.zoom * distance / Math.max(1, audioWaveformRuntime.pinch.distance)));
+                audioWaveformRuntime.roleZoom[role] = next;
+                renderAudioStudioWaveform(role).catch(() => {});
+            } else if (points.length === 1 && (event.buttons & 1)) {
+                scrubAudioWaveform(role, event).catch(() => {});
+            }
+        });
+        const finish = event => {
+            audioWaveformRuntime.pointers.delete(event.pointerId);
+            if (audioWaveformRuntime.pointers.size < 2) audioWaveformRuntime.pinch = null;
+        };
+        canvas.addEventListener('pointerup', finish);
+        canvas.addEventListener('pointercancel', finish);
+    });
+}
+
+async function renderTimelineAudioWaveforms() {
+    const canvases = Array.from(document.querySelectorAll('.timeline3-mini-waveform'));
+    await Promise.all(canvases.map(async canvas => {
+        const id = canvas.dataset.audioWaveformId || '';
+        const advanced = canvas.dataset.audioWaveformAdvanced === 'true';
+        if (!id) return;
+        const expectedKey = audioWaveformCacheKey(id, advanced);
+        const data = await getAudioWaveformData(id, advanced);
+        if (!data || !canvas.isConnected || expectedKey !== audioWaveformCacheKey(id, advanced)) return;
+        const baseDuration = Math.max(0.001, Number(canvas.dataset.audioBaseDuration) || data.duration || 0.001);
+        const delay = Math.max(0, Number(canvas.dataset.audioDelay) || 0);
+        const endTrim = Math.max(0, Number(canvas.dataset.audioEndTrim) || 0);
+        const fromRatio = Math.max(0, Math.min(1, delay / Math.max(data.duration, baseDuration)));
+        const toRatio = Math.max(fromRatio, Math.min(1, (baseDuration - endTrim) / Math.max(data.duration, baseDuration)));
+        drawWaveformCanvas(canvas, data, { width: canvas.clientWidth || 180, height: canvas.clientHeight || 30, fromRatio, toRatio });
+    }));
+}
+
+function refreshAllAudioWaveforms() {
+    ['intro', 'loop', 'final'].forEach(role => scheduleAudioWaveformRefresh(role, 20));
+    if (typeof renderTimelineAudioWaveforms === 'function') renderTimelineAudioWaveforms();
+}
+
+if (playerVideo) {
+    playerVideo.muted = true;
+    playerVideo.addEventListener('play', () => { handleEditorAudioPreviewPlay().catch(() => {}); });
+    playerVideo.addEventListener('pause', handleEditorAudioPreviewPause);
+    playerVideo.addEventListener('timeupdate', () => syncEditorPreviewAudio(false));
+    playerVideo.addEventListener('seeked', () => syncEditorPreviewAudio(true));
+    playerVideo.addEventListener('ended', handleEditorAudioPreviewPause);
+}
+
+initializeAudioWaveformUi();
+setTimeout(() => refreshAllAudioWaveforms(), 0);
+
+function invalidateAdvancedAudioWaveform(id) {
+    const prefix = `advanced:${id}:`;
+    Array.from(audioWaveformRuntime.cache.keys()).forEach(key => {
+        if (String(key).startsWith(prefix)) audioWaveformRuntime.cache.delete(key);
+    });
+    if (typeof renderTimeline3 === 'function') renderTimeline3();
+}
