@@ -1035,6 +1035,7 @@ function atualizarBotoesELinhas() {
         btnGerar.style.display = 'none';
     }
     renderSimpleSegmentTrack();
+    if (typeof syncAudioAdvancedLabels === 'function') ['intro', 'loop', 'final'].forEach(syncAudioAdvancedLabels);
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
 }

@@ -151,9 +151,11 @@ function timeline3AdvancedVisualHtml() {
 function timeline3AudioSegments() {
     if (timeline3IsAdvanced()) {
         return timeline3AdvancedLayout().filter(item => item.part.audio && item.part.audio.mode !== 'none').map(item => {
-            const offset = Math.max(-5, Math.min(5, Number(item.part.audio.offset) || 0));
+            const legacyOffset = Number(item.part.audio.offset) || 0;
+            const delay = Math.max(0, Number(item.part.audio.delay !== undefined ? item.part.audio.delay : Math.max(0, legacyOffset)) || 0);
+            const sourceIn = Math.max(0, Number(item.part.audio.sourceIn !== undefined ? item.part.audio.sourceIn : Math.max(0, -legacyOffset)) || 0);
             const endTrim = Math.max(0, Number(item.part.audio.endTrim) || 0);
-            const start = Math.min(item.end, item.start + Math.max(0, offset));
+            const start = Math.min(item.end, item.start + delay);
             const end = Math.max(start, Math.min(item.end, item.end - endTrim));
             return {
                 id: item.part.id,
@@ -161,7 +163,8 @@ function timeline3AudioSegments() {
                 end,
                 baseStart: item.start,
                 baseEnd: item.end,
-                offset,
+                delay,
+                sourceIn,
                 endTrim,
                 advanced: true,
                 label: item.part.audio.sourceName || timeline3Text('timeline3PartAudio', 'Part audio')
@@ -182,9 +185,10 @@ function timeline3AudioSegments() {
         ['final', points.m2, points.m3]
     ];
     return definitions.filter(([role, start, end]) => end > start && document.getElementById(`sel-audio-${role}`)?.value !== 'none').map(([role, baseStart, baseEnd]) => {
-        const offset = Math.max(-5, Math.min(5, Number(document.getElementById(`audio-offset-${role}`)?.value) || 0));
+        const delay = Math.max(0, Number(document.getElementById(`audio-delay-${role}`)?.value) || 0);
+        const sourceIn = Math.max(0, Number(document.getElementById(`audio-source-in-${role}`)?.value) || 0);
         const endTrim = Math.max(0, Number(document.getElementById(`audio-end-trim-${role}`)?.value) || 0);
-        const start = Math.min(baseEnd, baseStart + Math.max(0, offset));
+        const start = Math.min(baseEnd, baseStart + delay);
         const end = Math.max(start, Math.min(baseEnd, baseEnd - endTrim));
         return {
             id: role,
@@ -192,7 +196,8 @@ function timeline3AudioSegments() {
             end,
             baseStart,
             baseEnd,
-            offset,
+            delay,
+            sourceIn,
             endTrim,
             advanced: false,
             label: timeline3Text(`timeline3Audio${role[0].toUpperCase()}${role.slice(1)}`, role === 'final' ? 'Outro audio' : `${role[0].toUpperCase()}${role.slice(1)} audio`)
@@ -200,18 +205,18 @@ function timeline3AudioSegments() {
     });
 }
 
-function timeline3SetAudioTiming(id, offset, endTrim) {
+function timeline3SetAudioTiming(id, delay, endTrim) {
     if (timeline3IsAdvanced()) {
         const found = timeline3AdvancedLayout().find(item => item.part.id === id);
         if (!found || !found.part.audio) return false;
-        found.part.audio.offset = Math.max(-5, Math.min(5, Number(offset) || 0));
+        found.part.audio.delay = Math.max(0, Number(delay) || 0);
         found.part.audio.endTrim = Math.max(0, Number(endTrim) || 0);
         return true;
     }
-    const offsetInput = document.getElementById(`audio-offset-${id}`);
+    const delayInput = document.getElementById(`audio-delay-${id}`);
     const endTrimInput = document.getElementById(`audio-end-trim-${id}`);
-    if (!offsetInput || !endTrimInput) return false;
-    offsetInput.value = String(Math.max(-5, Math.min(5, Number(offset) || 0)));
+    if (!delayInput || !endTrimInput) return false;
+    delayInput.value = String(Math.max(0, Number(delay) || 0));
     endTrimInput.value = String(Math.max(0, Number(endTrim) || 0));
     if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(id);
     return true;
@@ -223,7 +228,8 @@ function timeline3AudioHtml(segments = timeline3AudioSegments()) {
         const left = timeline3Percent(segment.start);
         const width = Math.max(0.8, timeline3Percent(segment.end) - left);
         const duration = Math.max(0, segment.end - segment.start);
-        return `<article class="timeline3-item timeline3-audio${selected ? ' is-selected' : ''}" data-timeline3-type="audio" data-timeline3-id="${timeline3Escape(segment.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioStart', 'Adjust audio start'))}"></button><div class="timeline3-audio-copy"><div class="timeline3-wave"></div><strong>${timeline3Escape(segment.label)}</strong><small>${timeline3Escape(timeline3Format(duration))}</small></div><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioEnd', 'Trim audio end'))}"></button></article>`;
+        const sourceInfo = segment.sourceIn > 0 ? ` · ${timeline3Text('audioSourceIn', 'Source start')} ${timeline3Format(segment.sourceIn)}` : '';
+        return `<article class="timeline3-item timeline3-audio${selected ? ' is-selected' : ''}" data-timeline3-type="audio" data-timeline3-id="${timeline3Escape(segment.id)}" style="left:${left}%;width:${width}%"><button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioStart', 'Adjust audio delay'))}"></button><div class="timeline3-audio-copy"><div class="timeline3-wave"></div><strong>${timeline3Escape(segment.label)}</strong><small>${timeline3Escape(timeline3Format(duration) + sourceInfo)}</small></div><button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimAudioEnd', 'Trim audio end'))}"></button></article>`;
     }).join('');
 }
 
@@ -381,6 +387,14 @@ function timeline3Select(type, id, options = {}) {
         if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
     }
     if (type === 'layer' && window.BASComposition && typeof BASComposition.select === 'function') BASComposition.select(id);
+    if (type === 'audio') {
+        if (timeline3IsAdvanced()) {
+            if (currentProject) currentProject.advancedExpandedId = id;
+            if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
+        } else if (typeof setAudioRole === 'function') {
+            setAudioRole(id);
+        }
+    }
     timeline3Render();
     if (options.seek !== false && type === 'clip') {
         const item = timeline3SimpleLayout().find(entry => entry.clip.id === id);
@@ -442,7 +456,7 @@ function timeline3StartTrim(event, handle) {
         originalEnd: end,
         baseStart: type === 'audio' ? found.baseStart : null,
         baseEnd: type === 'audio' ? found.baseEnd : null,
-        originalOffset: type === 'audio' ? found.offset : null,
+        originalDelay: type === 'audio' ? found.delay : null,
         originalEndTrim: type === 'audio' ? found.endTrim : null,
         secondsPerPixel,
         changed: false
@@ -501,12 +515,12 @@ function timeline3MoveTrim(event) {
         const baseEnd = Math.max(baseStart, Number(state.baseEnd) || baseStart);
         if (state.edge === 'start') {
             start = Math.max(baseStart, Math.min(state.originalEnd - frame, start));
-            const offset = Math.max(0, start - baseStart);
-            timeline3SetAudioTiming(state.id, offset, state.originalEndTrim);
+            const delay = Math.max(0, start - baseStart);
+            timeline3SetAudioTiming(state.id, delay, state.originalEndTrim);
         } else {
             end = Math.min(baseEnd, Math.max(state.originalStart + frame, end));
             const endTrim = Math.max(0, baseEnd - end);
-            timeline3SetAudioTiming(state.id, state.originalOffset, endTrim);
+            timeline3SetAudioTiming(state.id, state.originalDelay, endTrim);
         }
     }
     state.changed = true;
@@ -536,7 +550,7 @@ function timeline3FinishTrim(event, cancelled = false) {
                 found.end = state.originalEnd;
                 if (window.BASComposition) { BASComposition.render(); BASComposition.renderPreview(); }
             } else if (state.type === 'audio') {
-                timeline3SetAudioTiming(state.id, state.originalOffset, state.originalEndTrim);
+                timeline3SetAudioTiming(state.id, state.originalDelay, state.originalEndTrim);
             }
         }
         timeline3Render();
@@ -701,7 +715,16 @@ function timeline3RunAction(action, type, id) {
     }
     if (type === 'layer' && action === 'add-keyframe' && window.BASComposition && typeof BASComposition.addKeyframeAtPlayhead === 'function') BASComposition.addKeyframeAtPlayhead(id);
     if (type === 'layer' && action === 'edit-layer' && typeof setEditTool === 'function') setEditTool('composition', { scroll: true });
-    if (type === 'audio' && action === 'edit-audio' && typeof setEditTool === 'function') setEditTool('audio', { scroll: true });
+    if (type === 'audio' && action === 'edit-audio') {
+        if (timeline3IsAdvanced()) {
+            if (currentProject) currentProject.advancedExpandedId = id;
+            if (typeof setEditTool === 'function') setEditTool('parts', { scroll: true });
+            if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
+        } else {
+            if (typeof setAudioRole === 'function') setAudioRole(id);
+            if (typeof setEditTool === 'function') setEditTool('audio', { scroll: true });
+        }
+    }
     timeline3Render();
 }
 

@@ -25,12 +25,14 @@ function getAdvancedSourceDuration(part = null) {
 
 function cloneAdvancedAudioState(audio = {}) {
     const volume = Number(audio.volume);
+    const legacyOffset = clampAudioControlValue(audio.offset, -86400, 86400, 0);
     return {
         mode: ['none', 'video', 'file'].includes(audio.mode) ? audio.mode : 'none',
         volume: Math.max(0, Math.min(100, Number.isFinite(volume) ? volume : 100)),
         fadeIn: clampAudioControlValue(audio.fadeIn, 0, 5, 0),
         fadeOut: clampAudioControlValue(audio.fadeOut, 0, 5, 0),
-        offset: clampAudioControlValue(audio.offset, -5, 5, 0),
+        delay: clampAudioControlValue(audio.delay !== undefined ? audio.delay : Math.max(0, legacyOffset), 0, 86400, 0),
+        sourceIn: clampAudioControlValue(audio.sourceIn !== undefined ? audio.sourceIn : Math.max(0, -legacyOffset), 0, 86400, 0),
         endTrim: clampAudioControlValue(audio.endTrim, 0, 86400, 0),
         normalize: !!audio.normalize,
         source: audio.source instanceof Blob ? audio.source : null,
@@ -109,7 +111,8 @@ function advancedAudioFromSimpleRole(role) {
         volume: roleState.volume,
         fadeIn: roleState.fadeIn,
         fadeOut: roleState.fadeOut,
-        offset: roleState.offset,
+        delay: roleState.delay,
+        sourceIn: roleState.sourceIn,
         endTrim: roleState.endTrim,
         normalize: roleState.normalize,
         source: roleState.source && roleState.source.ref instanceof Blob ? roleState.source.ref : null,
@@ -487,9 +490,18 @@ function renderAdvancedAudioEditor(part) {
                     <label>${escapeAdvancedHtml(t.audioFadeOut)} <strong data-advanced-value="fadeOut-${escapeAdvancedHtml(part.id)}">${formatAudioSeconds(audio.fadeOut)}</strong></label>
                     <input type="range" min="0" max="5" step="0.1" value="${audio.fadeOut}" data-advanced-field="audio-fade-out" data-part-id="${escapeAdvancedHtml(part.id)}">
                 </div>
+                <div class="advanced-field">
+                    <label>${escapeAdvancedHtml(t.audioDelay || 'Delay')} <strong data-advanced-value="delay-${escapeAdvancedHtml(part.id)}">${formatAudioSeconds(audio.delay)}</strong></label>
+                    <input type="range" min="0" max="${Math.max(0, (part.end - part.start) - audio.endTrim)}" step="0.1" value="${audio.delay}" data-advanced-field="audio-delay" data-part-id="${escapeAdvancedHtml(part.id)}">
+                </div>
+                <div class="advanced-field">
+                    <label>${escapeAdvancedHtml(t.audioSourceIn || 'Source start')} <strong data-advanced-value="sourceIn-${escapeAdvancedHtml(part.id)}">${formatAudioSeconds(audio.sourceIn)}</strong></label>
+                    <input type="range" min="0" max="${Math.max(30, part.end - part.start, audio.sourceIn)}" step="0.1" value="${audio.sourceIn}" data-advanced-field="audio-source-in" data-part-id="${escapeAdvancedHtml(part.id)}">
+                </div>
                 <div class="advanced-field advanced-field-wide">
-                    <label>${escapeAdvancedHtml(t.audioOffset)} <strong data-advanced-value="offset-${escapeAdvancedHtml(part.id)}">${formatAudioSeconds(audio.offset, true)}</strong></label>
-                    <input type="range" min="-5" max="5" step="0.1" value="${audio.offset}" data-advanced-field="audio-offset" data-part-id="${escapeAdvancedHtml(part.id)}">
+                    <label>${escapeAdvancedHtml(t.audioEndTrim || 'End trim')} <strong data-advanced-value="endTrim-${escapeAdvancedHtml(part.id)}">${formatAudioSeconds(audio.endTrim)}</strong></label>
+                    <input type="range" min="0" max="${Math.max(0, (part.end - part.start) - audio.delay)}" step="0.1" value="${audio.endTrim}" data-advanced-field="audio-end-trim" data-part-id="${escapeAdvancedHtml(part.id)}">
+                    <small>${escapeAdvancedHtml(t.audioTimingHint || 'Audio cannot start before its Part. Delay moves it later; Source start skips into the source.')}</small>
                 </div>
                 <label class="advanced-normalize advanced-field-wide"><input type="checkbox" data-advanced-field="audio-normalize" data-part-id="${escapeAdvancedHtml(part.id)}"${audio.normalize ? ' checked' : ''}><span>${escapeAdvancedHtml(t.audioNormalize)}</span></label>
             </div>
@@ -943,11 +955,28 @@ function updateAdvancedPartField(part, field, value, element) {
         if (label) label.textContent = formatAudioSeconds(part.audio.fadeOut);
         markAdvancedPartsDirty();
         return;
-    } else if (field === 'audio-offset') {
-        part.audio.offset = clampAudioControlValue(value, -5, 5, 0);
-        const label = document.querySelector(`[data-advanced-value="offset-${CSS.escape(part.id)}"]`);
-        if (label) label.textContent = formatAudioSeconds(part.audio.offset, true);
+    } else if (field === 'audio-delay') {
+        const span = Math.max(0, part.end - part.start);
+        part.audio.delay = clampAudioControlValue(value, 0, Math.max(0, span - Math.max(0, Number(part.audio.endTrim) || 0)), 0);
+        const label = document.querySelector(`[data-advanced-value="delay-${CSS.escape(part.id)}"]`);
+        if (label) label.textContent = formatAudioSeconds(part.audio.delay);
         markAdvancedPartsDirty();
+        renderAdvancedPartsEditor();
+        if (typeof renderTimeline3 === 'function') renderTimeline3();
+        return;
+    } else if (field === 'audio-source-in') {
+        part.audio.sourceIn = clampAudioControlValue(value, 0, 86400, 0);
+        const label = document.querySelector(`[data-advanced-value="sourceIn-${CSS.escape(part.id)}"]`);
+        if (label) label.textContent = formatAudioSeconds(part.audio.sourceIn);
+        markAdvancedPartsDirty();
+        return;
+    } else if (field === 'audio-end-trim') {
+        const span = Math.max(0, part.end - part.start);
+        part.audio.endTrim = clampAudioControlValue(value, 0, Math.max(0, span - Math.max(0, Number(part.audio.delay) || 0)), 0);
+        const label = document.querySelector(`[data-advanced-value="endTrim-${CSS.escape(part.id)}"]`);
+        if (label) label.textContent = formatAudioSeconds(part.audio.endTrim);
+        markAdvancedPartsDirty();
+        renderAdvancedPartsEditor();
         if (typeof renderTimeline3 === 'function') renderTimeline3();
         return;
     } else if (field === 'audio-normalize') {
@@ -1026,7 +1055,7 @@ function clearAdvancedPreviewAudio() {
 }
 
 function advancedAudioIsNeutral(audio) {
-    return audio.volume === 100 && Math.abs(audio.fadeIn) < 0.0001 && Math.abs(audio.fadeOut) < 0.0001 && Math.abs(audio.offset) < 0.0001 && Math.abs(audio.endTrim || 0) < 0.0001 && !audio.normalize;
+    return audio.volume === 100 && Math.abs(audio.fadeIn) < 0.0001 && Math.abs(audio.fadeOut) < 0.0001 && Math.abs(audio.delay || 0) < 0.0001 && Math.abs(audio.sourceIn || 0) < 0.0001 && Math.abs(audio.endTrim || 0) < 0.0001 && !audio.normalize;
 }
 
 async function buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer = null) {
@@ -1444,7 +1473,7 @@ if (advancedEditor) {
     advancedEditor.addEventListener('input', event => {
         const field = event.target.dataset.advancedField;
         const id = event.target.dataset.partId;
-        if (!field || !id || !['audio-volume', 'audio-fade-in', 'audio-fade-out', 'audio-offset'].includes(field)) return;
+        if (!field || !id || !['audio-volume', 'audio-fade-in', 'audio-fade-out', 'audio-delay', 'audio-source-in', 'audio-end-trim'].includes(field)) return;
         const part = getAdvancedPartById(id);
         updateAdvancedPartField(part, field, event.target.value, event.target);
     });

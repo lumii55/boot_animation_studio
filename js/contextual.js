@@ -262,7 +262,7 @@ function syncContextualToolsText() {
         'p11-framing-reset': ['contextFramingReset', 'Reset framing'],
         'p11-framing-reference': ['contextFramingReference', 'Preview frame'],
         'p11-audio-kicker': ['contextAudioKicker', 'AUDIO'],
-        'p11-audio-title': ['contextAudioTitle', 'Give each section its own sound'],
+        'p11-audio-title': ['contextAudioTitle', 'Audio Studio'],
         'p11-audio-desc': ['contextAudioDesc', 'Enable audio, choose a section, then set its source, volume and timing.'],
         'p11-audio-tab-intro': ['contextAudioIntro', 'Intro'],
         'p11-audio-tab-loop': ['contextAudioLoop', 'Loop'],

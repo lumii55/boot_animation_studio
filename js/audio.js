@@ -52,10 +52,14 @@ async function decodificarAudioFonte(fonte, audioCtx) {
 }
 
 function normalizeAudioProcessingOptions(options = {}) {
+    const legacyOffset = clampAudioControlValue(options.offset, -86400, 86400, 0);
+    const hasDelay = options.delay !== undefined && options.delay !== null;
+    const hasSourceIn = options.sourceIn !== undefined && options.sourceIn !== null;
     return {
         fadeIn: clampAudioControlValue(options.fadeIn, 0, 5, 0),
         fadeOut: clampAudioControlValue(options.fadeOut, 0, 5, 0),
-        offset: clampAudioControlValue(options.offset, -5, 5, 0),
+        delay: clampAudioControlValue(hasDelay ? options.delay : Math.max(0, legacyOffset), 0, 86400, 0),
+        sourceIn: clampAudioControlValue(hasSourceIn ? options.sourceIn : Math.max(0, -legacyOffset), 0, 86400, 0),
         endTrim: clampAudioControlValue(options.endTrim, 0, 86400, 0),
         normalize: !!options.normalize
     };
@@ -66,9 +70,8 @@ function createAudioRenderPlan(bufferDuration, startSec, endSec, options = {}) {
     const requestedStart = Math.max(0, Number(startSec) || 0);
     const requestedEnd = Math.max(requestedStart, Number(endSec) || requestedStart);
     const outputDuration = Math.max(0, requestedEnd - requestedStart);
-    const destinationStart = Math.max(0, advanced.offset);
-    const sourceShift = Math.max(0, -advanced.offset);
-    const sourceStart = Math.min(Math.max(0, bufferDuration), requestedStart + sourceShift);
+    const destinationStart = Math.min(outputDuration, Math.max(0, advanced.delay));
+    const sourceStart = Math.min(Math.max(0, bufferDuration), requestedStart + Math.max(0, advanced.sourceIn));
     const sourceAvailable = Math.max(0, bufferDuration - sourceStart);
     const destinationEnd = Math.max(destinationStart, outputDuration - advanced.endTrim);
     const destinationAvailable = Math.max(0, destinationEnd - destinationStart);
@@ -212,4 +215,66 @@ async function preparePreviewAudioFromCurrentState(audioState = captureAudioEdit
         videoAudioBuffer = null;
         if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
     }
+}
+
+let audioStudioPreviewAudio = null;
+let audioStudioPreviewUrl = null;
+
+function stopAudioStudioPreview() {
+    if (audioStudioPreviewAudio) {
+        audioStudioPreviewAudio.pause();
+        audioStudioPreviewAudio.removeAttribute('src');
+        audioStudioPreviewAudio.load();
+        audioStudioPreviewAudio = null;
+    }
+    if (audioStudioPreviewUrl) {
+        URL.revokeObjectURL(audioStudioPreviewUrl);
+        audioStudioPreviewUrl = null;
+    }
+}
+
+async function buildAudioStudioRoleBlob(role, audioState = captureAudioEditorState()) {
+    if (!audioState || !audioState.enabled || !audioState[role] || audioState[role].mode === 'none') return null;
+    const ranges = {
+        intro: [marcadores.m0, marcadores.m1],
+        loop: [marcadores.m1, marcadores.m2],
+        final: [marcadores.m2, marcadores.m3]
+    };
+    const range = ranges[role];
+    if (!range || !Number.isFinite(range[0]) || !Number.isFinite(range[1]) || range[1] <= range[0]) return null;
+    const state = audioState[role];
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        if (state.mode === 'video') {
+            if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return await BASMasterSequence.audioBlob(range[0], range[1], audioCtx, state.volume / 100, state);
+            const decoded = await decodificarAudioFonte(currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : playerVideo.src, audioCtx);
+            if (!decoded) return null;
+            return await fatiarEGerarWav(decoded, range[0], range[1], audioCtx, state.volume / 100, state);
+        }
+        if (state.mode === 'file') {
+            const source = getSelectedAudioFile(role);
+            const decoded = await decodificarAudioFonte(source, audioCtx);
+            if (!decoded) return null;
+            return await fatiarEGerarWav(decoded, 0, Math.max(0.001, range[1] - range[0]), audioCtx, state.volume / 100, state);
+        }
+        return null;
+    } finally {
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
+    }
+}
+
+async function previewAudioStudioRole(role) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    stopAudioStudioPreview();
+    const blob = await buildAudioStudioRoleBlob(role).catch(() => null);
+    if (!blob) {
+        if (typeof showToast === 'function') showToast(t.audioStudioPreviewUnavailable || 'No audio is available for this section.', 'warning');
+        return false;
+    }
+    audioStudioPreviewAudio = new Audio();
+    audioStudioPreviewUrl = URL.createObjectURL(blob);
+    audioStudioPreviewAudio.src = audioStudioPreviewUrl;
+    audioStudioPreviewAudio.addEventListener('ended', stopAudioStudioPreview, { once: true });
+    await audioStudioPreviewAudio.play().catch(() => {});
+    return true;
 }

@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.8B';
+const BAS_PROJECT_ENGINE_VERSION = '12.9';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -86,7 +86,8 @@ function serializeProjectAudioState() {
             volume: Number(part.volume) || 0,
             fadeIn: Number(part.fadeIn) || 0,
             fadeOut: Number(part.fadeOut) || 0,
-            offset: Number(part.offset) || 0,
+            delay: Math.max(0, Number(part.delay !== undefined ? part.delay : Math.max(0, Number(part.offset) || 0)) || 0),
+            sourceIn: Math.max(0, Number(part.sourceIn !== undefined ? part.sourceIn : Math.max(0, -(Number(part.offset) || 0))) || 0),
             endTrim: Math.max(0, Number(part.endTrim) || 0),
             normalize: !!part.normalize,
             source: serializeProjectAudioSource(part.source)
@@ -102,7 +103,8 @@ function serializeProjectAdvancedAudio(audio) {
         volume: Math.max(0, Math.min(100, Number(audio && audio.volume) || 0)),
         fadeIn: Number(audio && audio.fadeIn) || 0,
         fadeOut: Number(audio && audio.fadeOut) || 0,
-        offset: Number(audio && audio.offset) || 0,
+        delay: Math.max(0, Number(audio && (audio.delay !== undefined ? audio.delay : Math.max(0, Number(audio.offset) || 0))) || 0),
+        sourceIn: Math.max(0, Number(audio && (audio.sourceIn !== undefined ? audio.sourceIn : Math.max(0, -(Number(audio.offset) || 0)))) || 0),
         endTrim: Math.max(0, Number(audio && audio.endTrim) || 0),
         normalize: !!(audio && audio.normalize),
         sourceName: audio && audio.sourceName ? String(audio.sourceName) : '',
@@ -481,7 +483,9 @@ function projectEngineRestoreSimpleAudio(audioState, assetMap) {
         projectEngineSetValue(`vol-${role}`, Number.isFinite(Number(roleState.volume)) ? roleState.volume : 100);
         projectEngineSetValue(`fade-in-${role}`, Number(roleState.fadeIn) || 0);
         projectEngineSetValue(`fade-out-${role}`, Number(roleState.fadeOut) || 0);
-        projectEngineSetValue(`audio-offset-${role}`, Number(roleState.offset) || 0);
+        const legacyOffset = Number(roleState.offset) || 0;
+        projectEngineSetValue(`audio-delay-${role}`, Math.max(0, Number(roleState.delay !== undefined ? roleState.delay : Math.max(0, legacyOffset)) || 0));
+        projectEngineSetValue(`audio-source-in-${role}`, Math.max(0, Number(roleState.sourceIn !== undefined ? roleState.sourceIn : Math.max(0, -legacyOffset)) || 0));
         projectEngineSetValue(`audio-end-trim-${role}`, Math.max(0, Number(roleState.endTrim) || 0));
         projectEngineSetChecked(`audio-normalize-${role}`, roleState.normalize);
         const volumeLabel = document.getElementById(`lbl-vol-${role}`);
@@ -532,7 +536,8 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
                 volume: Math.max(0, Math.min(100, Number(audioState.volume) || 0)),
                 fadeIn: Number(audioState.fadeIn) || 0,
                 fadeOut: Number(audioState.fadeOut) || 0,
-                offset: Number(audioState.offset) || 0,
+                delay: Math.max(0, Number(audioState.delay !== undefined ? audioState.delay : Math.max(0, Number(audioState.offset) || 0)) || 0),
+                sourceIn: Math.max(0, Number(audioState.sourceIn !== undefined ? audioState.sourceIn : Math.max(0, -(Number(audioState.offset) || 0))) || 0),
                 endTrim: Math.max(0, Number(audioState.endTrim) || 0),
                 normalize: !!audioState.normalize,
                 source,

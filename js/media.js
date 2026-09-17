@@ -596,11 +596,27 @@ function clampAudioControlValue(value, min, max, fallback = 0) {
     return Math.max(min, Math.min(max, numeric));
 }
 
+function getAudioRoleDuration(part) {
+    const total = Math.max(0, Number.isFinite(Number(marcadores.m3)) ? Number(marcadores.m3) : timelineTimeToProjectTime(playerVideo.duration || 0));
+    const ranges = {
+        intro: [Number(marcadores.m0) || 0, Number(marcadores.m1) || 0],
+        loop: [Number(marcadores.m1) || 0, Number(marcadores.m2) || 0],
+        final: [Number(marcadores.m2) || 0, total]
+    };
+    const range = ranges[part] || [0, 0];
+    return Math.max(0, range[1] - range[0]);
+}
+
 function getAudioAdvancedState(part) {
+    const legacy = document.getElementById(`audio-offset-${part}`);
+    const legacyOffset = legacy ? clampAudioControlValue(legacy.value, -86400, 86400, 0) : 0;
+    const delayInput = document.getElementById(`audio-delay-${part}`);
+    const sourceInInput = document.getElementById(`audio-source-in-${part}`);
     return {
         fadeIn: clampAudioControlValue(document.getElementById(`fade-in-${part}`).value, 0, 5, 0),
         fadeOut: clampAudioControlValue(document.getElementById(`fade-out-${part}`).value, 0, 5, 0),
-        offset: clampAudioControlValue(document.getElementById(`audio-offset-${part}`).value, -5, 5, 0),
+        delay: clampAudioControlValue(delayInput ? delayInput.value : Math.max(0, legacyOffset), 0, 86400, 0),
+        sourceIn: clampAudioControlValue(sourceInInput ? sourceInInput.value : Math.max(0, -legacyOffset), 0, 86400, 0),
         endTrim: clampAudioControlValue(document.getElementById(`audio-end-trim-${part}`)?.value, 0, 86400, 0),
         normalize: document.getElementById(`audio-normalize-${part}`).checked
     };
@@ -637,7 +653,8 @@ function audioRoleStatesEqual(a, b) {
         a.volume === b.volume &&
         clampAudioControlValue(a.fadeIn, 0, 5, 0) === clampAudioControlValue(b.fadeIn, 0, 5, 0) &&
         clampAudioControlValue(a.fadeOut, 0, 5, 0) === clampAudioControlValue(b.fadeOut, 0, 5, 0) &&
-        clampAudioControlValue(a.offset, -5, 5, 0) === clampAudioControlValue(b.offset, -5, 5, 0) &&
+        clampAudioControlValue(a.delay !== undefined ? a.delay : Math.max(0, Number(a.offset) || 0), 0, 86400, 0) === clampAudioControlValue(b.delay !== undefined ? b.delay : Math.max(0, Number(b.offset) || 0), 0, 86400, 0) &&
+        clampAudioControlValue(a.sourceIn !== undefined ? a.sourceIn : Math.max(0, -(Number(a.offset) || 0)), 0, 86400, 0) === clampAudioControlValue(b.sourceIn !== undefined ? b.sourceIn : Math.max(0, -(Number(b.offset) || 0)), 0, 86400, 0) &&
         clampAudioControlValue(a.endTrim, 0, 86400, 0) === clampAudioControlValue(b.endTrim, 0, 86400, 0) &&
         !!a.normalize === !!b.normalize &&
         audioSourceStatesEqual(a.source, b.source);
@@ -709,23 +726,63 @@ function formatAudioSeconds(value, signed = false) {
 }
 
 function syncAudioAdvancedLabels(part) {
+    const duration = getAudioRoleDuration(part);
+    const delayInput = document.getElementById(`audio-delay-${part}`);
+    const sourceInInput = document.getElementById(`audio-source-in-${part}`);
+    const endTrimInput = document.getElementById(`audio-end-trim-${part}`);
+    let delayValue = clampAudioControlValue(delayInput?.value, 0, duration, 0);
+    let endTrimValue = clampAudioControlValue(endTrimInput?.value, 0, duration, 0);
+    const activeId = document.activeElement?.id || '';
+    if (delayValue + endTrimValue > duration) {
+        if (activeId === `audio-end-trim-${part}`) delayValue = Math.max(0, duration - endTrimValue);
+        else endTrimValue = Math.max(0, duration - delayValue);
+    }
+    if (delayInput) {
+        delayInput.value = String(delayValue);
+        delayInput.max = String(Math.max(0, duration - endTrimValue));
+    }
+    if (endTrimInput) {
+        endTrimInput.value = String(endTrimValue);
+        endTrimInput.max = String(Math.max(0, duration - delayValue));
+    }
+    if (sourceInInput) sourceInInput.max = String(Math.max(30, duration, clampAudioControlValue(sourceInInput.value, 0, 86400, 0)));
     const state = getAudioAdvancedState(part);
-    document.getElementById(`val-fade-in-${part}`).textContent = formatAudioSeconds(state.fadeIn);
-    document.getElementById(`val-fade-out-${part}`).textContent = formatAudioSeconds(state.fadeOut);
-    document.getElementById(`val-offset-${part}`).textContent = formatAudioSeconds(state.offset, true);
+    const fadeIn = document.getElementById(`val-fade-in-${part}`);
+    const fadeOut = document.getElementById(`val-fade-out-${part}`);
+    const delay = document.getElementById(`val-delay-${part}`);
+    const sourceIn = document.getElementById(`val-source-in-${part}`);
+    const endTrim = document.getElementById(`val-end-trim-${part}`);
+    if (fadeIn) fadeIn.textContent = formatAudioSeconds(state.fadeIn);
+    if (fadeOut) fadeOut.textContent = formatAudioSeconds(state.fadeOut);
+    if (delay) delay.textContent = formatAudioSeconds(state.delay);
+    if (sourceIn) sourceIn.textContent = formatAudioSeconds(state.sourceIn);
+    if (endTrim) endTrim.textContent = formatAudioSeconds(state.endTrim);
+    const summary = document.getElementById(`audio-studio-summary-${part}`);
+    if (summary) {
+        const t = traducoes[idiomaAtual] || traducoes.en;
+        const audibleStart = Math.min(duration, state.delay);
+        const audibleEnd = Math.max(audibleStart, duration - state.endTrim);
+        summary.textContent = (t.audioStudioTimingSummary || 'Part {part} · plays {start}–{end} · source +{source}').replace('{part}', formatAudioSeconds(duration)).replace('{start}', formatAudioSeconds(audibleStart)).replace('{end}', formatAudioSeconds(audibleEnd)).replace('{source}', formatAudioSeconds(state.sourceIn));
+    }
 }
 
 function syncAudioAdvancedVisibility(part) {
     const select = document.getElementById(`sel-audio-${part}`);
     const details = document.getElementById(`audio-advanced-${part}`);
+    const timing = document.getElementById(`audio-studio-timing-${part}`);
     if (!select || !details) return;
     const visible = select.value !== 'none';
     details.classList.toggle('visible', visible);
-    if (!visible) details.open = false;
+    timing?.classList.toggle('visible', visible);
+    if (!visible) {
+        details.open = false;
+        if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
+    }
 }
 
 function handleAudioAdvancedInput(part) {
     syncAudioAdvancedLabels(part);
+    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:advanced` });
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
@@ -734,7 +791,12 @@ function handleAudioAdvancedInput(part) {
 function resetAudioAdvancedState(part) {
     document.getElementById(`fade-in-${part}`).value = 0;
     document.getElementById(`fade-out-${part}`).value = 0;
-    document.getElementById(`audio-offset-${part}`).value = 0;
+    const delay = document.getElementById(`audio-delay-${part}`);
+    if (delay) delay.value = 0;
+    const sourceIn = document.getElementById(`audio-source-in-${part}`);
+    if (sourceIn) sourceIn.value = 0;
+    const legacy = document.getElementById(`audio-offset-${part}`);
+    if (legacy) legacy.value = 0;
     const endTrim = document.getElementById(`audio-end-trim-${part}`);
     if (endTrim) endTrim.value = 0;
     document.getElementById(`audio-normalize-${part}`).checked = false;
@@ -746,6 +808,7 @@ function resetAudioAdvancedState(part) {
 
 function resetAudioState() {
     const t = traducoes[idiomaAtual];
+    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     document.getElementById('input-usar-som').checked = false;
     ['intro', 'loop', 'final'].forEach(part => {
         importedAudioFiles[part] = null;
@@ -812,6 +875,8 @@ function handleAudioSelect(part) {
         document.getElementById(`opt-file-${part}`).removeAttribute('data-custom');
     }
     syncAudioAdvancedVisibility(part);
+    syncAudioAdvancedLabels(part);
+    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:source` });
 }
@@ -837,6 +902,8 @@ function fileAudioSelecionado(part) {
         wrap.style.display = "none";
     }
     syncAudioAdvancedVisibility(part);
+    syncAudioAdvancedLabels(part);
+    if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:file` });
 }
