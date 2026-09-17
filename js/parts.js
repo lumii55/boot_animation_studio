@@ -25,16 +25,20 @@ function getAdvancedSourceDuration(part = null) {
 
 function cloneAdvancedAudioState(audio = {}) {
     const volume = Number(audio.volume);
+    const legacyVolume = Math.max(0, Math.min(100, Number.isFinite(volume) ? volume : 100));
     const legacyOffset = clampAudioControlValue(audio.offset, -86400, 86400, 0);
     return {
         mode: ['none', 'video', 'file'].includes(audio.mode) ? audio.mode : 'none',
-        volume: Math.max(0, Math.min(100, Number.isFinite(volume) ? volume : 100)),
+        volume: 100,
+        gainDb: normalizeAudioGainDb(audio.gainDb, legacyVolume),
         fadeIn: clampAudioControlValue(audio.fadeIn, 0, 5, 0),
         fadeOut: clampAudioControlValue(audio.fadeOut, 0, 5, 0),
+        fadeCurve: normalizeAudioFadeCurve(audio.fadeCurve),
         delay: clampAudioControlValue(audio.delay !== undefined ? audio.delay : Math.max(0, legacyOffset), 0, 86400, 0),
         sourceIn: clampAudioControlValue(audio.sourceIn !== undefined ? audio.sourceIn : Math.max(0, -legacyOffset), 0, 86400, 0),
         endTrim: clampAudioControlValue(audio.endTrim, 0, 86400, 0),
         normalize: !!audio.normalize,
+        normalizeTargetDb: normalizeAudioTargetDb(audio.normalizeTargetDb),
         source: audio.source instanceof Blob ? audio.source : null,
         sourceName: String(audio.sourceName || ''),
         sourceKind: ['imported', 'file', 'library'].includes(audio.sourceKind) ? audio.sourceKind : 'none',
@@ -108,13 +112,16 @@ function advancedAudioFromSimpleRole(role) {
     if (!state || !state.enabled || !roleState) return cloneAdvancedAudioState();
     return cloneAdvancedAudioState({
         mode: roleState.mode,
-        volume: roleState.volume,
+        volume: 100,
+        gainDb: roleState.gainDb,
         fadeIn: roleState.fadeIn,
         fadeOut: roleState.fadeOut,
+        fadeCurve: roleState.fadeCurve,
         delay: roleState.delay,
         sourceIn: roleState.sourceIn,
         endTrim: roleState.endTrim,
         normalize: roleState.normalize,
+        normalizeTargetDb: roleState.normalizeTargetDb,
         source: roleState.source && roleState.source.ref instanceof Blob ? roleState.source.ref : null,
         sourceName: roleState.source && roleState.source.name ? roleState.source.name : '',
         sourceKind: roleState.source && roleState.source.kind === 'imported' ? 'imported' : roleState.source && roleState.source.kind === 'file' ? 'file' : 'none'
@@ -476,8 +483,8 @@ function renderAdvancedAudioEditor(part) {
         ${audio.mode === 'file' ? renderAdvancedLibraryAudioPicker(part) : ''}
         ${hasAudio ? `
         <div class="advanced-field advanced-field-wide advanced-volume-row">
-            <label>${escapeAdvancedHtml(t.advVolume)} <strong data-advanced-value="volume-${escapeAdvancedHtml(part.id)}">${Math.round(audio.volume)}%</strong></label>
-            <input type="range" min="0" max="100" step="1" value="${audio.volume}" data-advanced-field="audio-volume" data-part-id="${escapeAdvancedHtml(part.id)}">
+            <label>${escapeAdvancedHtml(t.audioGain || 'Gain')} <strong data-advanced-value="gain-${escapeAdvancedHtml(part.id)}">${escapeAdvancedHtml(formatAudioGainDb(audio.gainDb))}</strong></label>
+            <input type="range" min="-60" max="12" step="0.5" value="${audio.gainDb}" data-advanced-field="audio-gain" data-part-id="${escapeAdvancedHtml(part.id)}">
         </div>
         <details class="advanced-audio-details">
             <summary>${escapeAdvancedHtml(t.audioAdvanced)}</summary>
@@ -502,6 +509,14 @@ function renderAdvancedAudioEditor(part) {
                     <label>${escapeAdvancedHtml(t.audioEndTrim || 'End trim')} <strong data-advanced-value="endTrim-${escapeAdvancedHtml(part.id)}">${formatAudioSeconds(audio.endTrim)}</strong></label>
                     <input type="range" min="0" max="${Math.max(0, (part.end - part.start) - audio.delay)}" step="0.1" value="${audio.endTrim}" data-advanced-field="audio-end-trim" data-part-id="${escapeAdvancedHtml(part.id)}">
                     <small>${escapeAdvancedHtml(t.audioTimingHint || 'Audio cannot start before its Part. Delay moves it later; Source start skips into the source.')}</small>
+                </div>
+                <div class="advanced-field">
+                    <label>${escapeAdvancedHtml(t.audioFadeCurve || 'Fade curve')}</label>
+                    <select data-advanced-field="audio-fade-curve" data-part-id="${escapeAdvancedHtml(part.id)}"><option value="linear"${audio.fadeCurve === 'linear' ? ' selected' : ''}>${escapeAdvancedHtml(t.audioFadeCurveLinear || 'Linear')}</option><option value="smooth"${audio.fadeCurve === 'smooth' ? ' selected' : ''}>${escapeAdvancedHtml(t.audioFadeCurveSmooth || 'Smooth')}</option><option value="exponential"${audio.fadeCurve === 'exponential' ? ' selected' : ''}>${escapeAdvancedHtml(t.audioFadeCurveExponential || 'Exponential')}</option></select>
+                </div>
+                <div class="advanced-field">
+                    <label>${escapeAdvancedHtml(t.audioNormalizeTarget || 'Normalize target')}</label>
+                    <select data-advanced-field="audio-normalize-target" data-part-id="${escapeAdvancedHtml(part.id)}"${audio.normalize ? '' : ' disabled'}><option value="-0.1"${audio.normalizeTargetDb === -0.1 ? ' selected' : ''}>-0.1 dBFS</option><option value="-1"${audio.normalizeTargetDb === -1 ? ' selected' : ''}>-1.0 dBFS</option><option value="-3"${audio.normalizeTargetDb === -3 ? ' selected' : ''}>-3.0 dBFS</option><option value="-6"${audio.normalizeTargetDb === -6 ? ' selected' : ''}>-6.0 dBFS</option></select>
                 </div>
                 <label class="advanced-normalize advanced-field-wide"><input type="checkbox" data-advanced-field="audio-normalize" data-part-id="${escapeAdvancedHtml(part.id)}"${audio.normalize ? ' checked' : ''}><span>${escapeAdvancedHtml(t.audioNormalize)}</span></label>
             </div>
@@ -937,10 +952,11 @@ function updateAdvancedPartField(part, field, value, element) {
             part.audio.sourceKind = 'none';
             part.audio.sourceLibraryId = '';
         }
-    } else if (field === 'audio-volume') {
-        part.audio.volume = Math.max(0, Math.min(100, Number(value) || 0));
-        const label = document.querySelector(`[data-advanced-value="volume-${CSS.escape(part.id)}"]`);
-        if (label) label.textContent = `${Math.round(part.audio.volume)}%`;
+    } else if (field === 'audio-gain') {
+        part.audio.volume = 100;
+        part.audio.gainDb = normalizeAudioGainDb(value, 100);
+        const label = document.querySelector(`[data-advanced-value="gain-${CSS.escape(part.id)}"]`);
+        if (label) label.textContent = formatAudioGainDb(part.audio.gainDb);
         markAdvancedPartsDirty();
         if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
         return;
@@ -985,11 +1001,15 @@ function updateAdvancedPartField(part, field, value, element) {
         renderAdvancedPartsEditor();
         if (typeof renderTimeline3 === 'function') renderTimeline3();
         return;
+    } else if (field === 'audio-fade-curve') {
+        part.audio.fadeCurve = normalizeAudioFadeCurve(value);
+    } else if (field === 'audio-normalize-target') {
+        part.audio.normalizeTargetDb = normalizeAudioTargetDb(value);
     } else if (field === 'audio-normalize') {
         part.audio.normalize = !!element.checked;
     }
     markAdvancedPartsDirty();
-    if (field === 'audio-mode' || field === 'audio-normalize') {
+    if (field === 'audio-mode' || field === 'audio-normalize' || field === 'audio-fade-curve' || field === 'audio-normalize-target') {
         if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
     }
     renderAdvancedPartsEditor();
@@ -1064,7 +1084,7 @@ function clearAdvancedPreviewAudio() {
 }
 
 function advancedAudioIsNeutral(audio) {
-    return audio.volume === 100 && Math.abs(audio.fadeIn) < 0.0001 && Math.abs(audio.fadeOut) < 0.0001 && Math.abs(audio.delay || 0) < 0.0001 && Math.abs(audio.sourceIn || 0) < 0.0001 && Math.abs(audio.endTrim || 0) < 0.0001 && !audio.normalize;
+    return Math.abs(normalizeAudioGainDb(audio.gainDb, audio.volume)) < 0.0001 && Math.abs(audio.fadeIn) < 0.0001 && Math.abs(audio.fadeOut) < 0.0001 && normalizeAudioFadeCurve(audio.fadeCurve) === 'linear' && Math.abs(audio.delay || 0) < 0.0001 && Math.abs(audio.sourceIn || 0) < 0.0001 && Math.abs(audio.endTrim || 0) < 0.0001 && !audio.normalize;
 }
 
 async function buildAdvancedPartAudioBlob(part, audioCtx, videoAudioBuffer = null) {
@@ -1483,7 +1503,7 @@ if (advancedEditor) {
     advancedEditor.addEventListener('input', event => {
         const field = event.target.dataset.advancedField;
         const id = event.target.dataset.partId;
-        if (!field || !id || !['audio-volume', 'audio-fade-in', 'audio-fade-out', 'audio-delay', 'audio-source-in', 'audio-end-trim'].includes(field)) return;
+        if (!field || !id || !['audio-gain', 'audio-fade-in', 'audio-fade-out', 'audio-delay', 'audio-source-in', 'audio-end-trim'].includes(field)) return;
         const part = getAdvancedPartById(id);
         updateAdvancedPartField(part, field, event.target.value, event.target);
     });

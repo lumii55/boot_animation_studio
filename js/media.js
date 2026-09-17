@@ -596,6 +596,32 @@ function clampAudioControlValue(value, min, max, fallback = 0) {
     return Math.max(min, Math.min(max, numeric));
 }
 
+function audioGainDbFromLegacyVolume(value) {
+    const volume = Math.max(0, Number(value) || 0) / 100;
+    if (volume <= 0) return -60;
+    return clampAudioControlValue(20 * Math.log10(volume), -60, 12, 0);
+}
+
+function normalizeAudioGainDb(value, legacyVolume = 100) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return clampAudioControlValue(numeric, -60, 12, 0);
+    return audioGainDbFromLegacyVolume(legacyVolume);
+}
+
+function normalizeAudioFadeCurve(value) {
+    return ['linear', 'smooth', 'exponential'].includes(value) ? value : 'linear';
+}
+
+function normalizeAudioTargetDb(value) {
+    return clampAudioControlValue(value, -12, -0.1, -1);
+}
+
+function formatAudioGainDb(value) {
+    const numeric = normalizeAudioGainDb(value, 100);
+    if (numeric <= -59.95) return '−∞ dB';
+    return `${numeric > 0 ? '+' : ''}${numeric.toFixed(1)} dB`;
+}
+
 function getAudioRoleDuration(part) {
     const total = Math.max(0, Number.isFinite(Number(marcadores.m3)) ? Number(marcadores.m3) : timelineTimeToProjectTime(playerVideo.duration || 0));
     const ranges = {
@@ -615,10 +641,13 @@ function getAudioAdvancedState(part) {
     return {
         fadeIn: clampAudioControlValue(document.getElementById(`fade-in-${part}`).value, 0, 5, 0),
         fadeOut: clampAudioControlValue(document.getElementById(`fade-out-${part}`).value, 0, 5, 0),
+        fadeCurve: normalizeAudioFadeCurve(document.getElementById(`audio-fade-curve-${part}`)?.value),
+        gainDb: normalizeAudioGainDb(document.getElementById(`vol-${part}`)?.value, 100),
         delay: clampAudioControlValue(delayInput ? delayInput.value : Math.max(0, legacyOffset), 0, 86400, 0),
         sourceIn: clampAudioControlValue(sourceInInput ? sourceInInput.value : Math.max(0, -legacyOffset), 0, 86400, 0),
         endTrim: clampAudioControlValue(document.getElementById(`audio-end-trim-${part}`)?.value, 0, 86400, 0),
-        normalize: document.getElementById(`audio-normalize-${part}`).checked
+        normalize: document.getElementById(`audio-normalize-${part}`).checked,
+        normalizeTargetDb: normalizeAudioTargetDb(document.getElementById(`audio-normalize-target-${part}`)?.value)
     };
 }
 
@@ -627,7 +656,7 @@ function captureAudioEditorState() {
     ['intro', 'loop', 'final'].forEach(part => {
         state[part] = {
             mode: document.getElementById(`sel-audio-${part}`).value,
-            volume: parseInt(document.getElementById(`vol-${part}`).value) || 0,
+            volume: 100,
             source: captureAudioSourceState(part),
             ...getAudioAdvancedState(part)
         };
@@ -650,13 +679,15 @@ function audioSourceStatesEqual(a, b) {
 function audioRoleStatesEqual(a, b) {
     if (!a || !b) return false;
     return a.mode === b.mode &&
-        a.volume === b.volume &&
+        normalizeAudioGainDb(a.gainDb, a.volume) === normalizeAudioGainDb(b.gainDb, b.volume) &&
         clampAudioControlValue(a.fadeIn, 0, 5, 0) === clampAudioControlValue(b.fadeIn, 0, 5, 0) &&
         clampAudioControlValue(a.fadeOut, 0, 5, 0) === clampAudioControlValue(b.fadeOut, 0, 5, 0) &&
+        normalizeAudioFadeCurve(a.fadeCurve) === normalizeAudioFadeCurve(b.fadeCurve) &&
         clampAudioControlValue(a.delay !== undefined ? a.delay : Math.max(0, Number(a.offset) || 0), 0, 86400, 0) === clampAudioControlValue(b.delay !== undefined ? b.delay : Math.max(0, Number(b.offset) || 0), 0, 86400, 0) &&
         clampAudioControlValue(a.sourceIn !== undefined ? a.sourceIn : Math.max(0, -(Number(a.offset) || 0)), 0, 86400, 0) === clampAudioControlValue(b.sourceIn !== undefined ? b.sourceIn : Math.max(0, -(Number(b.offset) || 0)), 0, 86400, 0) &&
         clampAudioControlValue(a.endTrim, 0, 86400, 0) === clampAudioControlValue(b.endTrim, 0, 86400, 0) &&
         !!a.normalize === !!b.normalize &&
+        normalizeAudioTargetDb(a.normalizeTargetDb) === normalizeAudioTargetDb(b.normalizeTargetDb) &&
         audioSourceStatesEqual(a.source, b.source);
 }
 
@@ -746,14 +777,38 @@ function syncAudioAdvancedLabels(part) {
         endTrimInput.max = String(Math.max(0, duration - delayValue));
     }
     if (sourceInInput) sourceInInput.max = String(Math.max(30, duration, clampAudioControlValue(sourceInInput.value, 0, 86400, 0)));
+    const fadeInInput = document.getElementById(`fade-in-${part}`);
+    const fadeOutInput = document.getElementById(`fade-out-${part}`);
+    const audibleDuration = Math.max(0, duration - delayValue - endTrimValue);
+    let fadeInValue = clampAudioControlValue(fadeInInput?.value, 0, audibleDuration, 0);
+    let fadeOutValue = clampAudioControlValue(fadeOutInput?.value, 0, audibleDuration, 0);
+    const activeFadeId = document.activeElement?.id || '';
+    if (fadeInValue + fadeOutValue > audibleDuration) {
+        if (activeFadeId === `fade-out-${part}`) fadeInValue = Math.max(0, audibleDuration - fadeOutValue);
+        else fadeOutValue = Math.max(0, audibleDuration - fadeInValue);
+    }
+    if (fadeInInput) {
+        fadeInInput.value = String(fadeInValue);
+        fadeInInput.max = String(Math.max(0, audibleDuration - fadeOutValue));
+    }
+    if (fadeOutInput) {
+        fadeOutInput.value = String(fadeOutValue);
+        fadeOutInput.max = String(Math.max(0, audibleDuration - fadeInValue));
+    }
     const state = getAudioAdvancedState(part);
     const fadeIn = document.getElementById(`val-fade-in-${part}`);
     const fadeOut = document.getElementById(`val-fade-out-${part}`);
+    const gain = document.getElementById(`lbl-vol-${part}`);
+    const normalizeTarget = document.getElementById(`val-normalize-target-${part}`);
     const delay = document.getElementById(`val-delay-${part}`);
     const sourceIn = document.getElementById(`val-source-in-${part}`);
     const endTrim = document.getElementById(`val-end-trim-${part}`);
     if (fadeIn) fadeIn.textContent = formatAudioSeconds(state.fadeIn);
     if (fadeOut) fadeOut.textContent = formatAudioSeconds(state.fadeOut);
+    if (gain) gain.textContent = formatAudioGainDb(state.gainDb);
+    if (normalizeTarget) normalizeTarget.textContent = `${state.normalizeTargetDb.toFixed(1)} dBFS`;
+    const normalizeTargetSelect = document.getElementById(`audio-normalize-target-${part}`);
+    if (normalizeTargetSelect) normalizeTargetSelect.disabled = !state.normalize;
     if (delay) delay.textContent = formatAudioSeconds(state.delay);
     if (sourceIn) sourceIn.textContent = formatAudioSeconds(state.sourceIn);
     if (endTrim) endTrim.textContent = formatAudioSeconds(state.endTrim);
@@ -782,6 +837,7 @@ function syncAudioAdvancedVisibility(part) {
 
 function handleAudioAdvancedInput(part) {
     syncAudioAdvancedLabels(part);
+    if (typeof renderAudioFadeHandles === 'function') renderAudioFadeHandles(part);
     if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
     else if (typeof stopAudioStudioPreview === 'function') stopAudioStudioPreview();
     if (typeof renderTimeline3 === 'function') renderTimeline3();
@@ -790,6 +846,8 @@ function handleAudioAdvancedInput(part) {
 }
 
 function handleAudioVolumeInput(part) {
+    const label = document.getElementById(`lbl-vol-${part}`);
+    if (label) label.textContent = formatAudioGainDb(document.getElementById(`vol-${part}`)?.value);
     if (typeof invalidateAudioPreviewState === 'function') invalidateAudioPreviewState({ transport: true, waveforms: true });
     if (typeof renderTimeline3 === 'function') renderTimeline3();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:volume` });
@@ -799,6 +857,10 @@ function handleAudioVolumeInput(part) {
 function resetAudioAdvancedState(part) {
     document.getElementById(`fade-in-${part}`).value = 0;
     document.getElementById(`fade-out-${part}`).value = 0;
+    const fadeCurve = document.getElementById(`audio-fade-curve-${part}`);
+    if (fadeCurve) fadeCurve.value = 'linear';
+    const normalizeTarget = document.getElementById(`audio-normalize-target-${part}`);
+    if (normalizeTarget) normalizeTarget.value = -1;
     const delay = document.getElementById(`audio-delay-${part}`);
     if (delay) delay.value = 0;
     const sourceIn = document.getElementById(`audio-source-in-${part}`);
@@ -833,8 +895,8 @@ function resetAudioState() {
         optFile.textContent = t.optFile;
         optFile.removeAttribute('data-custom');
         wrap.style.display = 'none';
-        volume.value = 100;
-        volumeLabel.textContent = '100%';
+        volume.value = 0;
+        volumeLabel.textContent = '0.0 dB';
         resetAudioAdvancedState(part);
     });
     ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
@@ -854,7 +916,7 @@ function setImportedAudio(part, blob, name, kind = 'imported') {
     select.value = 'file';
     optFile.textContent = label;
     optFile.setAttribute('data-custom', label);
-    wrap.style.display = 'flex';
+    wrap.style.display = 'grid';
     syncAudioAdvancedVisibility(part);
 }
 
@@ -868,12 +930,12 @@ function handleAudioSelect(part) {
     const wrap = document.getElementById(`vol-wrap-${part}`);
     if (select.value === 'file') {
         document.getElementById(`file-audio-${part}`).click();
-        wrap.style.display = "flex";
+        wrap.style.display = "grid";
     } else if (select.value === 'video') {
         importedAudioFiles[part] = null;
         importedAudioKinds[part] = 'none';
         importedAudioNames[part] = '';
-        wrap.style.display = "flex";
+        wrap.style.display = "grid";
     } else {
         importedAudioFiles[part] = null;
         importedAudioKinds[part] = 'none';
@@ -903,7 +965,7 @@ function fileAudioSelecionado(part) {
         const nome = inputFile.files[0].name;
         optFile.textContent = `${nome}`;
         optFile.setAttribute('data-custom', `${nome}`);
-        wrap.style.display = "flex";
+        wrap.style.display = "grid";
     } else if (!importedAudioFiles[part]) {
         select.value = "none";
         const t = traducoes[idiomaAtual];

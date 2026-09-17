@@ -73,10 +73,13 @@ function normalizeAudioProcessingOptions(options = {}) {
     return {
         fadeIn: clampAudioControlValue(options.fadeIn, 0, 5, 0),
         fadeOut: clampAudioControlValue(options.fadeOut, 0, 5, 0),
+        fadeCurve: normalizeAudioFadeCurve(options.fadeCurve),
+        gainDb: normalizeAudioGainDb(options.gainDb, options.volume),
         delay: clampAudioControlValue(hasDelay ? options.delay : Math.max(0, legacyOffset), 0, 86400, 0),
         sourceIn: clampAudioControlValue(hasSourceIn ? options.sourceIn : Math.max(0, -legacyOffset), 0, 86400, 0),
         endTrim: clampAudioControlValue(options.endTrim, 0, 86400, 0),
-        normalize: !!options.normalize
+        normalize: !!options.normalize,
+        normalizeTargetDb: normalizeAudioTargetDb(options.normalizeTargetDb)
     };
 }
 
@@ -107,7 +110,10 @@ function createAudioRenderPlan(bufferDuration, startSec, endSec, options = {}) {
         playDuration,
         fadeIn,
         fadeOut,
-        normalize: advanced.normalize
+        fadeCurve: advanced.fadeCurve,
+        gainDb: advanced.gainDb,
+        normalize: advanced.normalize,
+        normalizeTargetDb: advanced.normalizeTargetDb
     };
 }
 
@@ -129,6 +135,42 @@ function getAudioBufferPeak(audioBuf, startSec, durationSec) {
     return peak;
 }
 
+function audioDbToLinear(value) {
+    return Math.pow(10, (Number(value) || 0) / 20);
+}
+
+function audioPeakToDb(value) {
+    const peak = Math.max(0, Number(value) || 0);
+    return peak > 0.000001 ? 20 * Math.log10(peak) : -120;
+}
+
+function audioFadeCurveProgress(value, curve) {
+    const t = Math.max(0, Math.min(1, Number(value) || 0));
+    if (curve === 'smooth') return t * t * (3 - 2 * t);
+    if (curve === 'exponential') return t <= 0 ? 0 : (Math.pow(256, t) - 1) / 255;
+    return t;
+}
+
+function buildAudioGainEnvelope(plan, finalGain, points = 384) {
+    const count = Math.max(32, Math.min(1024, Math.floor(points)));
+    const values = new Float32Array(count);
+    const duration = Math.max(0.000001, plan.playDuration);
+    for (let i = 0; i < count; i++) {
+        const time = (i / Math.max(1, count - 1)) * duration;
+        let factor = 1;
+        if (plan.fadeIn > 0 && time < plan.fadeIn) factor *= audioFadeCurveProgress(time / plan.fadeIn, plan.fadeCurve);
+        if (plan.fadeOut > 0 && time > duration - plan.fadeOut) factor *= audioFadeCurveProgress((duration - time) / plan.fadeOut, plan.fadeCurve);
+        values[i] = Math.max(0, finalGain * factor);
+    }
+    return values;
+}
+
+const audioRenderMetadata = new WeakMap();
+
+function getAudioRenderMetadata(blob) {
+    return blob instanceof Blob ? audioRenderMetadata.get(blob) || null : null;
+}
+
 async function fatiarEGerarWav(audioBuf, startSec, endSec, audioCtx, volume = 1.0, advancedOptions = {}) {
     if (!audioBuf) return null;
     try {
@@ -141,14 +183,15 @@ async function fatiarEGerarWav(audioBuf, startSec, endSec, audioCtx, volume = 1.
         const offlineCtx = new OfflineAudioContext(channels, totalFrames, sampleRate);
         const gainNode = offlineCtx.createGain();
         let normalizeGain = 1;
+        let sourcePeak = 0;
 
-        if (plan.normalize && plan.playDuration > 0) {
-            const peak = getAudioBufferPeak(audioBuf, plan.sourceStart, plan.playDuration);
-            if (peak > 0.00001) normalizeGain = Math.min(8, 0.95 / peak);
+        if (plan.playDuration > 0) sourcePeak = getAudioBufferPeak(audioBuf, plan.sourceStart, plan.playDuration);
+        if (plan.normalize && sourcePeak > 0.00001) {
+            normalizeGain = Math.min(16, audioDbToLinear(plan.normalizeTargetDb) / sourcePeak);
         }
 
-        const finalGain = Math.max(0, Number(volume) || 0) * normalizeGain;
-        gainNode.gain.setValueAtTime(finalGain, 0);
+        const finalGain = Math.max(0, Number(volume) || 0) * audioDbToLinear(plan.gainDb) * normalizeGain;
+        gainNode.gain.setValueAtTime(0, 0);
         gainNode.connect(offlineCtx.destination);
 
         if (plan.playDuration > 0) {
@@ -156,25 +199,27 @@ async function fatiarEGerarWav(audioBuf, startSec, endSec, audioCtx, volume = 1.
             source.buffer = audioBuf;
             source.connect(gainNode);
             const audioStart = plan.destinationStart;
-            const audioEnd = audioStart + plan.playDuration;
-
-            if (plan.fadeIn > 0) {
-                gainNode.gain.setValueAtTime(0, audioStart);
-                gainNode.gain.linearRampToValueAtTime(finalGain, audioStart + plan.fadeIn);
-            } else {
-                gainNode.gain.setValueAtTime(finalGain, audioStart);
-            }
-
-            if (plan.fadeOut > 0) {
-                gainNode.gain.setValueAtTime(finalGain, Math.max(audioStart, audioEnd - plan.fadeOut));
-                gainNode.gain.linearRampToValueAtTime(0, audioEnd);
-            }
-
+            const envelope = buildAudioGainEnvelope(plan, finalGain);
+            gainNode.gain.setValueAtTime(0, audioStart);
+            gainNode.gain.setValueCurveAtTime(envelope, audioStart, Math.max(0.000001, plan.playDuration));
             source.start(audioStart, plan.sourceStart, plan.playDuration);
         }
 
         const rendered = await offlineCtx.startRendering();
-        return audioBufferToWav(rendered);
+        const peak = getAudioBufferPeak(rendered, 0, rendered.duration);
+        const blob = audioBufferToWav(rendered);
+        audioRenderMetadata.set(blob, {
+            peak,
+            peakDb: audioPeakToDb(peak),
+            clipped: peak > 1.0001,
+            sourcePeak,
+            normalizeGain,
+            finalGain,
+            gainDb: plan.gainDb,
+            normalizeTargetDb: plan.normalizeTargetDb,
+            fadeCurve: plan.fadeCurve
+        });
+        return blob;
     } catch (e) {
         console.error("Failed to process audio segment:", e);
         return null;
@@ -497,12 +542,15 @@ function audioStudioStateSignature(role, state = null) {
         range,
         mode: roleState.mode || 'none',
         volume: Number(roleState.volume) || 0,
+        gainDb: normalizeAudioGainDb(roleState.gainDb, roleState.volume),
         fadeIn: Number(roleState.fadeIn) || 0,
         fadeOut: Number(roleState.fadeOut) || 0,
+        fadeCurve: normalizeAudioFadeCurve(roleState.fadeCurve),
         delay: Number(roleState.delay) || 0,
         sourceIn: Number(roleState.sourceIn) || 0,
         endTrim: Number(roleState.endTrim) || 0,
         normalize: !!roleState.normalize,
+        normalizeTargetDb: normalizeAudioTargetDb(roleState.normalizeTargetDb),
         source: audioStudioBlobIdentity(source),
         master: window.BASMasterSequence && BASMasterSequence.isTimelineActive() ? BASMasterSequence.serialize() : null
     });
@@ -575,6 +623,7 @@ function editorAudioRoleAtTime(time) {
 
 function directVideoAudioCompatible(state) {
     if (!state || state.mode !== 'video' || state.normalize) return false;
+    if (normalizeAudioGainDb(state.gainDb, state.volume) > 0.001) return false;
     return Math.abs((Number(state.sourceIn) || 0) - (Number(state.delay) || 0)) < 0.015;
 }
 
@@ -586,11 +635,12 @@ function directVideoAudioGain(state, localTime, roleDuration) {
     if (localTime < start || localTime >= end) return 0;
     const audible = localTime - start;
     const audibleDuration = Math.max(0, end - start);
-    let gain = Math.max(0, Math.min(1, (Number(state.volume) || 0) / 100));
+    let gain = Math.max(0, Math.min(1, audioDbToLinear(normalizeAudioGainDb(state.gainDb, state.volume))));
     const fadeIn = Math.min(audibleDuration, Math.max(0, Number(state.fadeIn) || 0));
     const fadeOut = Math.min(audibleDuration, Math.max(0, Number(state.fadeOut) || 0));
-    if (fadeIn > 0 && audible < fadeIn) gain *= audible / fadeIn;
-    if (fadeOut > 0 && audible > audibleDuration - fadeOut) gain *= Math.max(0, (audibleDuration - audible) / fadeOut);
+    const fadeCurve = normalizeAudioFadeCurve(state.fadeCurve);
+    if (fadeIn > 0 && audible < fadeIn) gain *= audioFadeCurveProgress(audible / fadeIn, fadeCurve);
+    if (fadeOut > 0 && audible > audibleDuration - fadeOut) gain *= audioFadeCurveProgress((audibleDuration - audible) / fadeOut, fadeCurve);
     return Math.max(0, Math.min(1, gain));
 }
 
@@ -672,7 +722,7 @@ function audioWaveformCacheKey(id, advanced = false) {
     if (advanced) {
         const part = typeof getAdvancedParts === 'function' ? getAdvancedParts().find(item => item.id === id) : null;
         if (!part || !part.audio) return `advanced:${id}:none`;
-        return `advanced:${id}:${JSON.stringify({ start: part.start, end: part.end, sourceId: part.sourceId || '', audio: { mode: part.audio.mode, volume: part.audio.volume, fadeIn: part.audio.fadeIn, fadeOut: part.audio.fadeOut, delay: part.audio.delay, sourceIn: part.audio.sourceIn, endTrim: part.audio.endTrim, normalize: !!part.audio.normalize, source: audioStudioBlobIdentity(part.audio.source) } })}`;
+        return `advanced:${id}:${JSON.stringify({ start: part.start, end: part.end, sourceId: part.sourceId || '', audio: { mode: part.audio.mode, volume: part.audio.volume, gainDb: normalizeAudioGainDb(part.audio.gainDb, part.audio.volume), fadeIn: part.audio.fadeIn, fadeOut: part.audio.fadeOut, fadeCurve: normalizeAudioFadeCurve(part.audio.fadeCurve), delay: part.audio.delay, sourceIn: part.audio.sourceIn, endTrim: part.audio.endTrim, normalize: !!part.audio.normalize, normalizeTargetDb: normalizeAudioTargetDb(part.audio.normalizeTargetDb), source: audioStudioBlobIdentity(part.audio.source) } })}`;
     }
     return `simple:${audioStudioStateSignature(id)}`;
 }
@@ -723,7 +773,7 @@ async function analyzeWaveformBlob(blob, bins = 640) {
             maxPeak = Math.max(maxPeak, peak);
         }
         if (maxPeak > 0) for (let i = 0; i < peaks.length; i++) peaks[i] /= maxPeak;
-        return { peaks: Array.from(peaks), duration: buffer.duration, blob };
+        return { peaks: Array.from(peaks), duration: buffer.duration, blob, rawPeak: maxPeak };
     } finally {
         if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
     }
@@ -1006,6 +1056,8 @@ async function renderAudioStudioWaveform(role) {
         shell.dataset.loading = 'false';
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        renderAudioFadeHandles(role);
+        resetAudioProcessingMeter(role);
         return;
     }
     shell.dataset.loading = 'true';
@@ -1021,6 +1073,190 @@ async function renderAudioStudioWaveform(role) {
     if (audioStudioPreviewRole === role && audioStudioPreviewAudio) syncAudioStudioTransportProgress();
     else updateAudioWaveformPlayhead(role, 0, data.duration);
     renderAudioWaveformMarkers(role);
+    renderAudioFadeHandles(role);
+    renderAudioProcessingMeter(role, data.blob, data.rawPeak);
+}
+
+function getAudioProcessingMeterElements(role) {
+    return {
+        root: document.getElementById(`audio-processing-meter-${role}`),
+        fill: document.getElementById(`audio-processing-meter-fill-${role}`),
+        value: document.getElementById(`val-processing-peak-${role}`),
+        status: document.getElementById(`audio-processing-status-${role}`)
+    };
+}
+
+function resetAudioProcessingMeter(role) {
+    const els = getAudioProcessingMeterElements(role);
+    if (!els.root) return;
+    els.root.dataset.state = 'idle';
+    if (els.fill) els.fill.style.width = '0%';
+    if (els.value) els.value.textContent = '—';
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (els.status) els.status.textContent = t.audioProcessingAnalyzeHint || 'Play or edit audio to analyze the processed output.';
+}
+
+function renderAudioProcessingMeter(role, blob, fallbackPeak = 0) {
+    const els = getAudioProcessingMeterElements(role);
+    if (!els.root) return;
+    const metadata = getAudioRenderMetadata(blob);
+    const peak = Math.max(0, Number(metadata && metadata.peak !== undefined ? metadata.peak : fallbackPeak) || 0);
+    const db = audioPeakToDb(peak);
+    const clipped = peak > 1.0001;
+    const hot = !clipped && db > -1;
+    els.root.dataset.state = clipped ? 'clipping' : hot ? 'hot' : 'safe';
+    const normalized = Math.max(0, Math.min(1, (Math.max(-60, Math.min(6, db)) + 60) / 66));
+    if (els.fill) els.fill.style.width = `${normalized * 100}%`;
+    if (els.value) els.value.textContent = db <= -119 ? '−∞ dBFS' : `${db > 0 ? '+' : ''}${db.toFixed(1)} dBFS`;
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (els.status) {
+        if (clipped) els.status.textContent = (t.audioProcessingClipping || 'Clipping by {db} dB. Lower Gain or enable Normalize.').replace('{db}', Math.max(0, db).toFixed(1));
+        else els.status.textContent = (t.audioProcessingHeadroom || '{db} dB of headroom before clipping.').replace('{db}', Math.max(0, -db).toFixed(1));
+    }
+}
+
+function ensureAudioFadeHandles(role) {
+    const scroll = document.getElementById(`audio-studio-waveform-scroll-${role}`);
+    if (!scroll) return [];
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    return ['in', 'out'].map(kind => {
+        let handle = scroll.querySelector(`.audio-fade-handle[data-fade-kind="${kind}"]`);
+        if (!handle) {
+            handle = document.createElement('button');
+            handle.type = 'button';
+            handle.className = `audio-fade-handle audio-fade-handle-${kind}`;
+            handle.dataset.fadeKind = kind;
+            handle.dataset.role = role;
+            scroll.appendChild(handle);
+            const begin = event => {
+                event.stopPropagation();
+                handle.setPointerCapture?.(event.pointerId);
+                handle.dataset.dragging = 'true';
+                updateAudioFadeHandleFromPointer(role, kind, event, false);
+            };
+            const move = event => {
+                if (handle.dataset.dragging !== 'true') return;
+                event.preventDefault();
+                updateAudioFadeHandleFromPointer(role, kind, event, false);
+            };
+            const end = event => {
+                if (handle.dataset.dragging !== 'true') return;
+                handle.dataset.dragging = 'false';
+                updateAudioFadeHandleFromPointer(role, kind, event, true);
+            };
+            handle.addEventListener('pointerdown', begin);
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', end);
+            handle.addEventListener('pointercancel', end);
+        }
+        handle.setAttribute('aria-label', kind === 'in' ? (t.audioFadeHandleIn || 'Adjust fade in') : (t.audioFadeHandleOut || 'Adjust fade out'));
+        return handle;
+    });
+}
+
+function renderAudioFadeHandles(role) {
+    const handles = ensureAudioFadeHandles(role);
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    const select = document.getElementById(`sel-audio-${role}`);
+    const duration = getAudioRoleDuration(role);
+    if (!canvas || !select || select.value === 'none' || duration <= 0) {
+        handles.forEach(handle => { handle.hidden = true; });
+        return;
+    }
+    const state = getAudioAdvancedState(role);
+    const audibleStart = Math.max(0, Math.min(duration, state.delay));
+    const audibleEnd = Math.max(audibleStart, duration - state.endTrim);
+    const fadeInEnd = Math.min(audibleEnd, audibleStart + state.fadeIn);
+    const fadeOutStart = Math.max(audibleStart, audibleEnd - state.fadeOut);
+    const width = canvas.getBoundingClientRect().width || canvas.clientWidth || 1;
+    const positions = [fadeInEnd / duration, fadeOutStart / duration];
+    handles.forEach((handle, index) => {
+        handle.hidden = false;
+        handle.style.left = `${Math.max(0, Math.min(width, positions[index] * width))}px`;
+    });
+}
+
+function updateAudioFadeHandleFromPointer(role, kind, event, commit) {
+    const canvas = document.getElementById(`audio-studio-waveform-${role}`);
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const duration = getAudioRoleDuration(role);
+    if (!(rect.width > 0) || duration <= 0) return;
+    const position = Math.max(0, Math.min(duration, ((event.clientX - rect.left) / rect.width) * duration));
+    const state = getAudioAdvancedState(role);
+    const audibleStart = Math.max(0, Math.min(duration, state.delay));
+    const audibleEnd = Math.max(audibleStart, duration - state.endTrim);
+    if (kind === 'in') {
+        const input = document.getElementById(`fade-in-${role}`);
+        if (input) input.value = String(Math.max(0, Math.min(audibleEnd - audibleStart - state.fadeOut, position - audibleStart)));
+    } else {
+        const input = document.getElementById(`fade-out-${role}`);
+        if (input) input.value = String(Math.max(0, Math.min(audibleEnd - audibleStart - state.fadeIn, audibleEnd - position)));
+    }
+    syncAudioAdvancedLabels(role);
+    renderAudioFadeHandles(role);
+    if (commit) handleAudioAdvancedInput(role);
+}
+
+async function getAudioSourceBufferForRole(role, audioCtx) {
+    const state = captureAudioEditorState();
+    const roleState = state && state[role] ? state[role] : null;
+    if (!roleState || roleState.mode === 'none') return null;
+    if (roleState.mode === 'file') return await decodificarAudioFonte(getSelectedAudioFile(role), audioCtx);
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return null;
+    return await decodificarAudioFonte(currentProject && currentProject.sourceBlob ? currentProject.sourceBlob : playerVideo.src, audioCtx);
+}
+
+async function fitAudioToPartEnd(role) {
+    const state = captureAudioEditorState();
+    const roleState = state && state[role] ? state[role] : null;
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (!state.enabled || !roleState || roleState.mode === 'none') {
+        if (typeof showToast === 'function') showToast(t.audioProcessingNoSource || 'Choose audio for this section first.', 'warning');
+        return false;
+    }
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass || (roleState.mode === 'video' && window.BASMasterSequence && BASMasterSequence.isTimelineActive())) {
+        if (typeof showToast === 'function') showToast(t.audioProcessingFitUnavailable || 'This source cannot be aligned automatically in the current sequence.', 'warning');
+        return false;
+    }
+    const audioCtx = new AudioContextClass();
+    try {
+        const buffer = await getAudioSourceBufferForRole(role, audioCtx);
+        if (!buffer) return false;
+        const range = audioStudioRoleRange(role);
+        const duration = Math.max(0, range[1] - range[0]);
+        const startSec = roleState.mode === 'video' ? range[0] : 0;
+        const endSec = roleState.mode === 'video' ? range[1] : duration;
+        const plan = createAudioRenderPlan(buffer.duration, startSec, endSec, { ...roleState, delay: 0, endTrim: 0 });
+        const delay = Math.max(0, duration - plan.playDuration);
+        const delayInput = document.getElementById(`audio-delay-${role}`);
+        const endTrimInput = document.getElementById(`audio-end-trim-${role}`);
+        if (delayInput) delayInput.value = String(delay);
+        if (endTrimInput) endTrimInput.value = '0';
+        handleAudioAdvancedInput(role);
+        if (typeof showToast === 'function') showToast(t.audioProcessingFitDone || 'Audio end aligned to the Part.', 'success');
+        return true;
+    } finally {
+        if (audioCtx.state !== 'closed') await audioCtx.close().catch(() => {});
+    }
+}
+
+function resetAudioProcessing(role) {
+    const gain = document.getElementById(`vol-${role}`);
+    const fadeIn = document.getElementById(`fade-in-${role}`);
+    const fadeOut = document.getElementById(`fade-out-${role}`);
+    const fadeCurve = document.getElementById(`audio-fade-curve-${role}`);
+    const normalize = document.getElementById(`audio-normalize-${role}`);
+    const target = document.getElementById(`audio-normalize-target-${role}`);
+    if (gain) gain.value = '0';
+    if (fadeIn) fadeIn.value = '0';
+    if (fadeOut) fadeOut.value = '0';
+    if (fadeCurve) fadeCurve.value = 'linear';
+    if (normalize) normalize.checked = false;
+    if (target) target.value = '-1';
+    syncAudioAdvancedLabels(role);
+    handleAudioAdvancedInput(role);
 }
 
 function scheduleAudioWaveformRefresh(role, delay = 160) {
@@ -1043,6 +1279,43 @@ async function scrubAudioWaveform(role, event) {
     const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     const duration = Number(audioStudioPreviewAudio.duration) || 0;
     seekAudioStudioPreview(role, ratio * duration);
+}
+
+function syncAudioProcessingStudioText(role) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const map = {
+        [`lbl-gain-${role}`]: t.audioGain || 'Gain',
+        [`lbl-fade-curve-${role}`]: t.audioFadeCurve || 'Fade curve',
+        [`lbl-normalize-target-${role}`]: t.audioNormalizeTarget || 'Normalize target',
+        [`lbl-processing-peak-${role}`]: t.audioProcessingPeak || 'Output peak',
+        [`audio-fit-part-${role}`]: t.audioProcessingFit || 'Align end to Part',
+        [`audio-reset-processing-${role}`]: t.audioProcessingReset || 'Reset processing'
+    };
+    Object.entries(map).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+    const curve = document.getElementById(`audio-fade-curve-${role}`);
+    if (curve) {
+        const labels = {
+            linear: t.audioFadeCurveLinear || 'Linear',
+            smooth: t.audioFadeCurveSmooth || 'Smooth',
+            exponential: t.audioFadeCurveExponential || 'Exponential'
+        };
+        Array.from(curve.options).forEach(option => { option.textContent = labels[option.value] || option.textContent; });
+    }
+    ensureAudioFadeHandles(role);
+    renderAudioFadeHandles(role);
+    const meter = getAudioProcessingMeterElements(role);
+    if (meter.root && meter.root.dataset.state === 'idle' && meter.status) meter.status.textContent = t.audioProcessingAnalyzeHint || 'Play or edit audio to analyze the processed output.';
+}
+
+function initializeAudioProcessingStudio() {
+    ['intro', 'loop', 'final'].forEach(role => {
+        syncAudioProcessingStudioText(role);
+        syncAudioAdvancedLabels(role);
+        resetAudioProcessingMeter(role);
+    });
 }
 
 function initializeAudioWaveformUi() {
@@ -1119,6 +1392,7 @@ if (playerVideo) {
 }
 
 initializeAudioWaveformUi();
+initializeAudioProcessingStudio();
 setTimeout(() => { refreshAllAudioWaveforms(); refreshAudioStudioSyncUi(); }, 0);
 
 function invalidateAdvancedAudioWaveform(id) {

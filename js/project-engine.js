@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.9C';
+const BAS_PROJECT_ENGINE_VERSION = '12.9D';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -83,13 +83,16 @@ function serializeProjectAudioState() {
         const part = state[role] || {};
         result[role] = {
             mode: part.mode || 'none',
-            volume: Number(part.volume) || 0,
+            volume: 100,
+            gainDb: normalizeAudioGainDb(part.gainDb, part.volume),
             fadeIn: Number(part.fadeIn) || 0,
             fadeOut: Number(part.fadeOut) || 0,
+            fadeCurve: normalizeAudioFadeCurve(part.fadeCurve),
             delay: Math.max(0, Number(part.delay !== undefined ? part.delay : Math.max(0, Number(part.offset) || 0)) || 0),
             sourceIn: Math.max(0, Number(part.sourceIn !== undefined ? part.sourceIn : Math.max(0, -(Number(part.offset) || 0))) || 0),
             endTrim: Math.max(0, Number(part.endTrim) || 0),
             normalize: !!part.normalize,
+            normalizeTargetDb: normalizeAudioTargetDb(part.normalizeTargetDb),
             source: serializeProjectAudioSource(part.source)
         };
     });
@@ -100,13 +103,16 @@ function serializeProjectAdvancedAudio(audio) {
     const source = audio && audio.source instanceof Blob ? audio.source : null;
     return {
         mode: audio && audio.mode ? audio.mode : 'none',
-        volume: Math.max(0, Math.min(100, Number(audio && audio.volume) || 0)),
+        volume: 100,
+        gainDb: normalizeAudioGainDb(audio && audio.gainDb, audio && audio.volume),
         fadeIn: Number(audio && audio.fadeIn) || 0,
         fadeOut: Number(audio && audio.fadeOut) || 0,
+        fadeCurve: normalizeAudioFadeCurve(audio && audio.fadeCurve),
         delay: Math.max(0, Number(audio && (audio.delay !== undefined ? audio.delay : Math.max(0, Number(audio.offset) || 0))) || 0),
         sourceIn: Math.max(0, Number(audio && (audio.sourceIn !== undefined ? audio.sourceIn : Math.max(0, -(Number(audio.offset) || 0)))) || 0),
         endTrim: Math.max(0, Number(audio && audio.endTrim) || 0),
         normalize: !!(audio && audio.normalize),
+        normalizeTargetDb: normalizeAudioTargetDb(audio && audio.normalizeTargetDb),
         sourceName: audio && audio.sourceName ? String(audio.sourceName) : '',
         sourceKind: audio && audio.sourceKind ? String(audio.sourceKind) : 'none',
         sourceLibraryId: audio && audio.sourceLibraryId ? String(audio.sourceLibraryId) : '',
@@ -480,18 +486,20 @@ function projectEngineRestoreSimpleAudio(audioState, assetMap) {
             const hasSource = requestedMode !== 'file' || sourceKind === 'imported' || !!asset;
             select.value = hasSource ? requestedMode : 'none';
         }
-        projectEngineSetValue(`vol-${role}`, Number.isFinite(Number(roleState.volume)) ? roleState.volume : 100);
+        projectEngineSetValue(`vol-${role}`, normalizeAudioGainDb(roleState.gainDb, roleState.volume));
         projectEngineSetValue(`fade-in-${role}`, Number(roleState.fadeIn) || 0);
         projectEngineSetValue(`fade-out-${role}`, Number(roleState.fadeOut) || 0);
+        projectEngineSetValue(`audio-fade-curve-${role}`, normalizeAudioFadeCurve(roleState.fadeCurve));
+        projectEngineSetValue(`audio-normalize-target-${role}`, normalizeAudioTargetDb(roleState.normalizeTargetDb));
         const legacyOffset = Number(roleState.offset) || 0;
         projectEngineSetValue(`audio-delay-${role}`, Math.max(0, Number(roleState.delay !== undefined ? roleState.delay : Math.max(0, legacyOffset)) || 0));
         projectEngineSetValue(`audio-source-in-${role}`, Math.max(0, Number(roleState.sourceIn !== undefined ? roleState.sourceIn : Math.max(0, -legacyOffset)) || 0));
         projectEngineSetValue(`audio-end-trim-${role}`, Math.max(0, Number(roleState.endTrim) || 0));
         projectEngineSetChecked(`audio-normalize-${role}`, roleState.normalize);
         const volumeLabel = document.getElementById(`lbl-vol-${role}`);
-        if (volumeLabel) volumeLabel.textContent = `${Math.max(0, Math.min(100, Number(roleState.volume) || 0))}%`;
+        if (volumeLabel) volumeLabel.textContent = formatAudioGainDb(normalizeAudioGainDb(roleState.gainDb, roleState.volume));
         const wrap = document.getElementById(`vol-wrap-${role}`);
-        if (wrap && select) wrap.style.display = select.value === 'none' ? 'none' : 'flex';
+        if (wrap && select) wrap.style.display = select.value === 'none' ? 'none' : 'grid';
         if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(role);
         if (typeof syncAudioAdvancedVisibility === 'function') syncAudioAdvancedVisibility(role);
     });
@@ -534,13 +542,16 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
             extraTokens: Array.isArray(savedPart.extraTokens) ? [...savedPart.extraTokens] : [],
             audio: {
                 mode: audioState.mode || 'none',
-                volume: Math.max(0, Math.min(100, Number(audioState.volume) || 0)),
+                volume: 100,
+                gainDb: normalizeAudioGainDb(audioState.gainDb, audioState.volume),
                 fadeIn: Number(audioState.fadeIn) || 0,
                 fadeOut: Number(audioState.fadeOut) || 0,
+                fadeCurve: normalizeAudioFadeCurve(audioState.fadeCurve),
                 delay: Math.max(0, Number(audioState.delay !== undefined ? audioState.delay : Math.max(0, Number(audioState.offset) || 0)) || 0),
                 sourceIn: Math.max(0, Number(audioState.sourceIn !== undefined ? audioState.sourceIn : Math.max(0, -(Number(audioState.offset) || 0))) || 0),
                 endTrim: Math.max(0, Number(audioState.endTrim) || 0),
                 normalize: !!audioState.normalize,
+                normalizeTargetDb: normalizeAudioTargetDb(audioState.normalizeTargetDb),
                 source,
                 sourceName: String(audioState.sourceName || (asset && asset.name) || ''),
                 sourceKind: source ? (audioState.sourceKind === 'imported' ? 'imported' : audioState.sourceKind === 'library' ? 'library' : 'file') : 'none',
