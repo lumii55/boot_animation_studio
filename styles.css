@@ -13859,3 +13859,289 @@ summary:focus-visible {
         justify-content: flex-end;
     }
 }
+
+@media (min-width: 860px) {
+    .editor-section {
+        padding-bottom: 0;
+    }
+
+    .editor-topbar {
+        order: 1;
+    }
+
+    .source-dock {
+        order: 2;
+    }
+
+    .mobile-workflow-nav {
+        position: sticky;
+        top: 72px;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        z-index: 48;
+        order: 3;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 5px;
+        border-radius: 16px;
+        background: rgba(13, 9, 18, 0.9);
+        box-shadow: 0 12px 34px rgba(3, 0, 8, 0.24);
+    }
+
+    .mobile-workflow-nav.is-visible {
+        display: grid !important;
+    }
+
+    .workflow-tab {
+        min-height: 44px;
+        border-radius: 12px;
+        font-size: 10px;
+    }
+
+    .workflow-tab-index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+    .workflow-tab.is-active .workflow-tab-index {
+        background: rgba(3, 218, 198, 0.09);
+    }
+
+    .editor-grid {
+        display: block;
+        order: 4;
+        width: 100%;
+    }
+
+    .editor-section[data-mobile-view="edit"] .workspace-stage {
+        display: flex !important;
+    }
+
+    .editor-section[data-mobile-view="edit"] .settings-stage,
+    .editor-section[data-mobile-view="edit"] .export-stage,
+    .editor-section[data-mobile-view="settings"] .workspace-stage,
+    .editor-section[data-mobile-view="settings"] .export-stage,
+    .editor-section[data-mobile-view="export"] .workspace-stage,
+    .editor-section[data-mobile-view="export"] .settings-stage {
+        display: none !important;
+    }
+
+    .editor-section[data-mobile-view="settings"] .settings-stage {
+        position: relative;
+        top: auto;
+        display: flex !important;
+        width: 100%;
+        max-height: none;
+        flex-direction: column;
+        gap: 14px;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .editor-section[data-mobile-view="export"] .export-stage {
+        display: flex !important;
+        width: 100%;
+        max-width: none;
+        padding: 0;
+    }
+
+    .workspace-stage,
+    .workspace-stage:has(#video-container[style*="display: block"]) {
+        width: 100%;
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .workflow-step-actions {
+        display: none !important;
+    }
+
+    .output-workbench {
+        grid-template-columns: minmax(170px, 210px) minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+    }
+
+    .output-tool-nav {
+        position: sticky;
+        top: 136px;
+        flex-direction: column;
+        gap: 5px;
+        overflow: visible;
+        padding: 6px;
+    }
+
+    .output-tool-tab {
+        flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+        min-height: 48px;
+        justify-content: flex-start;
+        padding: 8px 12px;
+        text-align: left;
+    }
+
+    .output-tool-panel {
+        padding: 18px;
+    }
+
+    .context-panel-heading h3 {
+        font-size: 18px;
+    }
+
+    .context-panel-heading p {
+        font-size: 10px;
+    }
+
+    .export-stage > .stage-heading,
+    .settings-stage > .stage-heading {
+        margin-bottom: 2px;
+    }
+}
+
+@media (min-width: 1180px) {
+    :root {
+        --content: 1480px;
+    }
+
+    .container {
+        width: min(100%, 1480px);
+        padding-right: 28px;
+        padding-left: 28px;
+    }
+
+    .editor-section.has-media[data-mobile-view="edit"] .workspace-stage {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.62fr) minmax(360px, 0.78fr);
+        grid-template-rows: auto auto auto auto auto auto;
+        column-gap: 18px;
+        row-gap: 0;
+        align-items: start;
+    }
+
+    .editor-section.has-media .workspace-heading {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+
+    .editor-section.has-media #video-container {
+        grid-column: 1;
+        grid-row: 2;
+        min-width: 0;
+        padding: 18px;
+    }
+
+    .editor-section.has-media .timeline-editor {
+        grid-column: 1;
+        grid-row: 3;
+        min-width: 0;
+    }
+
+    .editor-section.has-media .hint-tooltip {
+        grid-column: 1;
+        grid-row: 4;
+    }
+
+    .editor-section.has-media .grid-marcadores {
+        grid-column: 1;
+        grid-row: 5;
+    }
+
+    .editor-section.has-media .edit-tool-dock {
+        position: relative;
+        z-index: 2;
+        grid-column: 2;
+        grid-row: 2 / 6;
+        align-self: start;
+        margin: 14px 14px 0;
+        padding: 6px;
+        border: 1px solid rgba(164, 184, 211, 0.08);
+        border-radius: 14px;
+        background: rgba(8, 7, 12, 0.92);
+    }
+
+    .editor-section.has-media .edit-tool-button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .editor-section.has-media .edit-inspector-deck {
+        grid-column: 2;
+        grid-row: 2 / 6;
+        min-width: 0;
+        min-height: 100%;
+        padding: 76px 14px 14px;
+        border-left: 1px solid rgba(164, 184, 211, 0.08);
+        background: linear-gradient(180deg, rgba(9, 7, 13, 0.72), rgba(5, 5, 9, 0.94));
+    }
+
+    .editor-section.has-media .edit-inspector-pane {
+        padding: 0;
+    }
+
+    .editor-section.has-media .workflow-edit-actions {
+        grid-column: 1 / -1;
+        grid-row: 6;
+    }
+
+    .editor-section[data-mobile-view="export"] .export-stage {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+    }
+
+    .export-stage > .stage-heading,
+    .export-stage > .build-readiness,
+    .export-stage > .build-secondary-actions,
+    .export-stage > .output-intent,
+    .export-stage > .container-progresso,
+    .export-stage > .workflow-build-actions {
+        grid-column: 1 / -1;
+    }
+
+    .export-stage > .compatibility-center,
+    .export-stage > .build-package-panel,
+    .export-stage > #btn-gerar {
+        grid-column: 1;
+    }
+
+    .export-stage > .release-review,
+    .export-stage > .delivery-panel,
+    .export-stage > #btn-ver-preview {
+        grid-column: 2;
+    }
+
+    .export-stage > #btn-gerar,
+    .export-stage > #btn-ver-preview {
+        width: 100%;
+        margin: 0;
+    }
+
+    .compatibility-center,
+    .release-review,
+    .build-package-panel,
+    .delivery-panel {
+        height: 100%;
+    }
+}
+
+@media (min-width: 1560px) {
+    .editor-section.has-media .workspace-stage {
+        grid-template-columns: minmax(0, 1.72fr) minmax(390px, 0.72fr);
+    }
+
+    .output-workbench {
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 18px;
+    }
+}
