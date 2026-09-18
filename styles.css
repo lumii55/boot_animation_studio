@@ -12545,3 +12545,158 @@ summary:focus-visible {
         min-height: 42px;
     }
 }
+
+/* P12.10B.1 — collapsible output presets + direct JPEG quality control */
+.output-presets-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.output-presets-heading > div {
+    min-width: 0;
+}
+
+.output-presets-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.output-presets-toggle-icon {
+    display: inline-block;
+    color: var(--accent);
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 160ms var(--ease);
+}
+
+.output-presets-toggle[aria-expanded="true"] .output-presets-toggle-icon {
+    transform: rotate(180deg);
+}
+
+.output-presets-body {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    min-width: 0;
+}
+
+.output-presets-body[hidden] {
+    display: none;
+}
+
+.output-presets.is-collapsed {
+    gap: 0;
+    padding-block: 13px;
+}
+
+.output-presets.is-collapsed .output-presets-heading p {
+    display: none;
+}
+
+.jpeg-quality-field {
+    padding: 11px 12px;
+    border: 1px solid rgba(164, 184, 211, 0.1);
+    border-radius: 14px;
+    background: rgba(16, 24, 34, 0.72);
+}
+
+.jpeg-quality-field[hidden] {
+    display: none;
+}
+
+.jpeg-quality-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.jpeg-quality-heading label {
+    color: #7f8da0;
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: 0.015em;
+}
+
+.jpeg-quality-heading strong {
+    color: var(--accent);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.jpeg-quality-field input[type="range"] {
+    width: 100%;
+    min-height: 24px;
+    margin: 0;
+    accent-color: var(--accent-strong);
+}
+
+.jpeg-quality-field > small {
+    color: var(--muted-2);
+    font-size: 0.66rem;
+    line-height: 1.4;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .output-presets-toggle:hover {
+        border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
+        color: var(--text);
+    }
+}
+
+@media (max-width: 560px) {
+    .output-presets-heading {
+        align-items: center;
+    }
+
+    .output-presets-toggle {
+        min-height: 34px;
+        padding-inline: 9px;
+    }
+
+    .output-presets.is-collapsed {
+        padding-block: 11px;
+    }
+
+    .jpeg-quality-field {
+        padding: 10px 11px;
+    }
+}
+
+@media (max-width: 560px) {
+    .output-presets-toggle {
+        width: 36px;
+        min-width: 36px;
+        padding-inline: 0;
+    }
+
+    .output-presets-toggle > span:first-child {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .output-presets.is-collapsed .output-presets-heading h4 {
+        margin-bottom: 0;
+    }
+}
