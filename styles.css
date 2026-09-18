@@ -13499,3 +13499,57 @@ summary:focus-visible {
         display: none;
     }
 }
+
+.project-file-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.project-file-actions[aria-busy="true"] .project-file-button:not([data-busy="true"]) {
+    opacity: 0.48;
+}
+
+@media (max-width: 430px) {
+    .project-file-button .project-file-label {
+        display: none;
+    }
+}
+
+.launch-project-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 1px solid rgba(164, 184, 211, 0.1);
+    border-radius: 16px;
+    background: rgba(12, 18, 27, 0.46);
+}
+
+.launch-project-file .btn-upload {
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding-inline: 14px;
+}
+
+.launch-project-file p {
+    min-width: 0;
+    margin: 0;
+    color: #748297;
+    font-size: 9px;
+    line-height: 1.45;
+}
+
+@media (max-width: 430px) {
+    .launch-project-file {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .launch-project-file p {
+        padding-inline: 4px;
+        text-align: center;
+    }
+}
