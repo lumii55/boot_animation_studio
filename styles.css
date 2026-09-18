@@ -13034,3 +13034,282 @@ summary:focus-visible {
         grid-auto-columns: minmax(200px, 84vw);
     }
 }
+
+/* P12.10D — connected device profile */
+.device-profile-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface-2)), rgba(255,255,255,0.01));
+}
+
+.device-profile-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.device-profile-offline,
+.device-profile-online {
+    min-width: 0;
+}
+
+.device-profile-offline[hidden],
+.device-profile-online[hidden] {
+    display: none;
+}
+
+.device-profile-offline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.device-profile-offline h4,
+.device-profile-identity h4 {
+    margin: 1px 0 5px;
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.device-profile-offline p,
+.device-profile-identity p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.device-profile-offline > div,
+.device-profile-identity > div {
+    min-width: 0;
+}
+
+#device-profile-connect,
+#device-profile-match-output,
+#device-profile-save {
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    color: var(--text);
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#device-profile-match-output:disabled,
+#device-profile-save:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.device-profile-online {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.device-profile-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.device-profile-live-badge {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid color-mix(in srgb, var(--success) 30%, var(--border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 8%, transparent);
+    color: var(--success);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.055em;
+}
+
+.device-profile-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.device-profile-metrics > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+}
+
+.device-profile-metrics span,
+.device-profile-animation-row > span,
+.device-profile-capability-label {
+    color: var(--muted-2);
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.device-profile-metrics strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.device-profile-animation-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(0,0,0,0.06);
+}
+
+.device-profile-animation-row strong {
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.device-profile-animation-row strong[data-state="active"] {
+    color: var(--success);
+}
+
+.device-profile-capability-section {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.device-profile-capabilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.device-profile-capability {
+    display: inline-flex;
+    align-items: center;
+    min-height: 27px;
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted-2);
+    font-size: 0.67rem;
+    font-weight: 750;
+}
+
+.device-profile-capability[data-state="available"] {
+    border-color: color-mix(in srgb, var(--success) 24%, var(--border));
+    background: color-mix(in srgb, var(--success) 6%, transparent);
+    color: color-mix(in srgb, var(--success) 76%, var(--text));
+}
+
+.device-profile-capability[data-state="available"]::before,
+.device-profile-capability[data-state="unavailable"]::before {
+    margin-right: 5px;
+    font-size: 0.63rem;
+}
+
+.device-profile-capability[data-state="available"]::before {
+    content: "✓";
+}
+
+.device-profile-capability[data-state="unavailable"]::before {
+    content: "—";
+}
+
+.device-profile-output-status {
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(0,0,0,0.055);
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.device-profile-output-status[data-state="match"] {
+    border-color: color-mix(in srgb, var(--success) 22%, var(--border));
+    color: color-mix(in srgb, var(--success) 70%, var(--text));
+}
+
+.device-profile-output-status[data-state="mismatch"] {
+    border-color: color-mix(in srgb, var(--warning) 20%, var(--border));
+    color: color-mix(in srgb, var(--warning) 72%, var(--text));
+}
+
+.device-profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    #device-profile-connect:hover,
+    #device-profile-match-output:not(:disabled):hover,
+    #device-profile-save:not(:disabled):hover {
+        border-color: var(--accent);
+    }
+}
+
+@media (max-width: 640px) {
+    .device-profile-card {
+        margin-inline: -2px;
+        padding: 13px;
+        border-radius: 16px;
+    }
+
+    .device-profile-offline {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 11px;
+    }
+
+    #device-profile-connect {
+        width: 100%;
+        min-height: 40px;
+    }
+
+    .device-profile-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .device-profile-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .device-profile-actions button {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 360px) {
+    .device-profile-actions {
+        grid-template-columns: 1fr;
+    }
+}
