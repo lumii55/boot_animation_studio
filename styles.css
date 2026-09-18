@@ -13553,3 +13553,68 @@ summary:focus-visible {
         text-align: center;
     }
 }
+
+@media (max-width: 859px) {
+    .editor-topbar {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .editor-context {
+        width: 100%;
+    }
+
+    .editor-topbar-actions {
+        display: grid;
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .project-file-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    .project-file-button {
+        min-width: 0;
+        flex: 1 1 0;
+    }
+
+    .project-history-controls {
+        grid-column: 1;
+        justify-self: start;
+    }
+
+    .editor-context-state {
+        grid-column: 2;
+        max-width: 100%;
+        justify-self: end;
+    }
+}
+
+@media (max-width: 430px) {
+    .editor-topbar-actions {
+        align-items: center;
+    }
+
+    .project-file-actions {
+        gap: 5px;
+    }
+
+    .project-file-button {
+        min-height: 34px;
+        padding-inline: 8px;
+    }
+
+    .editor-context-state {
+        min-height: 32px;
+        padding-inline: 9px;
+    }
+}
