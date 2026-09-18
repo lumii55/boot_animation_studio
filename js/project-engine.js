@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.11A';
+const BAS_PROJECT_ENGINE_VERSION = '12.11B';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -422,6 +422,29 @@ function markProjectEngineClean() {
     emitProjectEngineChange('clean', false);
 }
 
+const BAS_PROJECT_SCHEMA_MIGRATIONS = Object.freeze({});
+
+function cloneProjectManifestForMigration(manifest) {
+    return JSON.parse(JSON.stringify(manifest));
+}
+
+function migrateProjectManifest(manifest) {
+    if (!manifest || typeof manifest !== 'object') throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
+    if (manifest.format !== 'boot-animation-studio-project') throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
+    let migrated = cloneProjectManifestForMigration(manifest);
+    let version = Number(migrated.schemaVersion);
+    if (!Number.isInteger(version) || version < 1) throw new Error(projectEngineText('projectManifestVersionUnsupported', 'This project uses an unsupported schema version.'));
+    if (version > BAS_PROJECT_SCHEMA_VERSION) throw new Error(projectEngineText('projectManifestVersionNewer', 'This project was created by a newer Boot Animation Studio version.'));
+    while (version < BAS_PROJECT_SCHEMA_VERSION) {
+        const migration = BAS_PROJECT_SCHEMA_MIGRATIONS[version];
+        if (typeof migration !== 'function') throw new Error(projectEngineText('projectManifestVersionUnsupported', 'This project uses an unsupported schema version.'));
+        migrated = migration(migrated);
+        version = Number(migrated.schemaVersion);
+        if (!Number.isInteger(version)) throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
+    }
+    return migrated;
+}
+
 function validateProjectManifest(manifest) {
     if (!manifest || typeof manifest !== 'object') return false;
     if (manifest.format !== 'boot-animation-studio-project') return false;
@@ -730,6 +753,7 @@ window.BASProjectEngine = Object.freeze({
     captureManifest: captureProjectManifest,
     getAssets: getProjectAssetInventory,
     validateManifest: validateProjectManifest,
+    migrateManifest: migrateProjectManifest,
     restoreState: restoreProjectEngineState,
     commitRestoredState: commitProjectEngineRestoredState,
     sync: syncProjectEngineState,

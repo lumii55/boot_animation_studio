@@ -349,61 +349,6 @@ function syncAutosaveUiText() {
     renderRecentProjects();
 }
 
-function autosaveFileFromRecord(asset, fallbackName = 'source.bin') {
-    if (!asset || !(asset.blob instanceof Blob)) return null;
-    if (asset.blob instanceof File) return asset.blob;
-    try {
-        return new File([asset.blob], asset.name || fallbackName, {
-            type: asset.type || asset.blob.type || '',
-            lastModified: asset.lastModified || Date.now()
-        });
-    } catch (error) {
-        return asset.blob;
-    }
-}
-
-function waitForAutosaveCondition(check, timeout = 30000, interval = 40) {
-    return new Promise((resolve, reject) => {
-        const started = performance.now();
-        const run = () => {
-            try {
-                if (check()) {
-                    resolve();
-                    return;
-                }
-            } catch (error) {}
-            if (performance.now() - started >= timeout) {
-                reject(new Error('Timed out while restoring project'));
-                return;
-            }
-            setTimeout(run, interval);
-        };
-        run();
-    });
-}
-
-async function openAutosavedSource(record, sourceAsset) {
-    const sourceName = record.manifest && record.manifest.source && record.manifest.source.name
-        ? record.manifest.source.name
-        : sourceAsset.name || 'source';
-    const blob = autosaveFileFromRecord(sourceAsset, sourceName);
-    if (!blob) throw new Error(autosaveText('autosaveSourceMissing', 'The saved source file is unavailable.'));
-    const type = record.manifest.source.type || record.sourceType || 'video';
-    if (type === 'bootanimation') {
-        await abrirZipNoEditor(blob);
-    } else if (type === 'gif') {
-        await converterGifParaVideo(blob);
-    } else if (type === 'image' && typeof openImageSourceInEditor === 'function') {
-        await openImageSourceInEditor(blob, { sourceName });
-    } else if (typeof openVideoSourceInEditor === 'function') {
-        openVideoSourceInEditor(blob, { sourceName });
-    } else {
-        throw new Error('Video source loader unavailable');
-    }
-    await waitForAutosaveCondition(() => !!currentProject && currentProject.sourceType === type && !!currentProject.sourceBlob && playerVideo.readyState >= 1, 30000);
-    await waitForAutosaveCondition(() => !isBuildingTimeline, 30000);
-}
-
 async function restoreAutosavedProject(id) {
     if (autosaveRuntime.restoring) return;
     autosaveRuntime.restoring = true;
@@ -417,18 +362,10 @@ async function restoreAutosavedProject(id) {
     if (loadingText) loadingText.textContent = autosaveText('autosaveRestoring', 'Restoring project...');
     try {
         const record = await getAutosaveProjectRecord(id);
-        if (!record || !record.manifest || !window.BASProjectEngine || !BASProjectEngine.validateManifest(record.manifest)) throw new Error(autosaveText('autosaveInvalidProject', 'This saved project cannot be restored.'));
+        if (!record || !record.manifest || !window.BASProjectRestore) throw new Error(autosaveText('autosaveInvalidProject', 'This saved project cannot be restored.'));
         const assetRecords = await getAutosaveAssets(id);
-        const sourceAsset = assetRecords.find(asset => asset.key === 'source');
-        if (!sourceAsset) throw new Error(autosaveText('autosaveSourceMissing', 'The saved source file is unavailable.'));
         const assetMap = new Map(assetRecords.map(asset => [asset.key, asset]));
-        if (typeof startManualMode === 'function') startManualMode();
-        await BASProjectEngine.suspend(async () => {
-            await openAutosavedSource(record, sourceAsset);
-            BASProjectEngine.restoreState(record.manifest, assetMap);
-        });
-        BASProjectEngine.sync('restore', { baseline: true, emit: true });
-        BASProjectEngine.markClean();
+        await BASProjectRestore.restore(record.manifest, assetMap, { reason: 'restore' });
         autosaveRuntime.assetSignatures.set(id, record.assetSignature || '');
         setAutosaveStatus('saved', autosaveText('autosaveRecovered', 'Project restored'));
         if (typeof showToast === 'function') showToast(autosaveText('autosaveRecovered', 'Project restored'), 'success');

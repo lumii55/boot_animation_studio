@@ -194,6 +194,10 @@ function bindProjectHistory() {
             resetProjectHistory();
             return;
         }
+        if (detail.reason === 'project-file-open') {
+            resetProjectHistory();
+            return;
+        }
         if (['source', 'source-metadata', 'startup', 'restore'].includes(detail.reason)) {
             replaceProjectHistoryBaseline();
             return;
