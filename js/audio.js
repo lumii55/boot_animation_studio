@@ -1463,11 +1463,18 @@ function markAudioExportCompatibilityUnavailable(role) {
 function getAudioCompatibilitySilenceCauses(roleState, plan, waveformData) {
     const gainDb = normalizeAudioGainDb(roleState && roleState.gainDb, roleState && roleState.volume);
     const effectivePeakDb = audioPeakToDb(Number(waveformData && waveformData.rawPeak) || 0);
+    const meaningfulDuration = 0.100001;
+    const delay = Math.max(0, Number(roleState && roleState.delay) || 0);
+    const sourceIn = Math.max(0, Number(roleState && roleState.sourceIn) || 0);
+    const endTrim = Math.max(0, Number(roleState && roleState.endTrim) || 0);
+    const sourceAudibleAvailable = plan ? Math.max(0, Math.min(plan.sourceAvailable, plan.sourceWindow)) : 0;
     return {
         gainDb,
         effectivePeakDb,
-        delayConsumesWindow: !!plan && plan.destinationAvailable <= 0.02 && Math.max(0, Number(roleState && roleState.delay) || 0) > 0,
-        sourceInConsumesWindow: !!plan && plan.sourceWindow <= 0.02 && Math.max(0, Number(roleState && roleState.sourceIn) || 0) > 0,
+        meaningfulDuration,
+        delayConsumesWindow: !!plan && plan.destinationAvailable <= meaningfulDuration && delay > 0,
+        sourceInConsumesWindow: !!plan && sourceAudibleAvailable <= meaningfulDuration && sourceIn > 0,
+        endTrimConsumesWindow: !!plan && plan.destinationAvailable <= meaningfulDuration && endTrim > 0,
         gainEffectivelySilent: gainDb <= -59.5 || (effectivePeakDb <= -60 && gainDb < -24)
     };
 }
@@ -1554,18 +1561,21 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
         plan = createAudioRenderPlan(sourceBuffer.duration, sourceStart, sourceEnd, roleState);
         const silence = getAudioCompatibilitySilenceCauses(roleState, plan, data);
         if (silence.delayConsumesWindow) {
-            warn('warning', t.audioExportWarnDelaySilent || 'Delay consumes the available Part window, leaving no meaningful audible content.');
+            warn('warning', t.audioExportWarnDelaySilent || 'Delay leaves 0.1s or less of meaningful audible content in the Part window.');
         }
-        if (plan.sourceStart >= sourceBuffer.duration - 0.01 || silence.sourceInConsumesWindow) {
-            warn('warning', t.audioExportWarnSourceInSilent || 'Source start skips past the audio available to this Part.');
+        if (silence.sourceInConsumesWindow) {
+            warn('warning', t.audioExportWarnSourceInSilent || 'Source start leaves 0.1s or less of source audio available to this Part.');
+        }
+        if (silence.endTrimConsumesWindow) {
+            warn('warning', t.audioExportWarnEndTrimSilent || 'End trim leaves 0.1s or less of meaningful audible content in the Part window.');
         }
         if (silence.gainEffectivelySilent) {
             warn('warning', (t.audioExportWarnGainSilent || 'Gain leaves the final signal effectively silent ({db} dBFS peak).').replace('{db}', silence.effectivePeakDb <= -119 ? '−∞' : silence.effectivePeakDb.toFixed(1)));
         }
-        if (!silence.delayConsumesWindow && !(plan.sourceStart >= sourceBuffer.duration - 0.01 || silence.sourceInConsumesWindow) && !silence.gainEffectivelySilent && plan.playDuration <= 0.02) {
+        if (!silence.delayConsumesWindow && !silence.sourceInConsumesWindow && !silence.endTrimConsumesWindow && !silence.gainEffectivelySilent && plan.playDuration <= silence.meaningfulDuration) {
             warn('warning', t.audioExportWarnSilent || 'Current timing leaves no meaningful audible content in this section.');
         }
-        if (plan.playDuration > 0.02) {
+        if (plan.playDuration > silence.meaningfulDuration) {
             if (plan.sourceAvailable + 0.03 < plan.destinationAvailable) {
                 const gap = Math.max(0, plan.destinationAvailable - plan.playDuration);
                 warn('warning', (t.audioExportWarnSourceShort || 'The source ends about {time} before the available section window.').replace('{time}', formatAudioSeconds(gap)));
