@@ -13477,6 +13477,28 @@ summary:focus-visible {
     line-height: 1;
 }
 
+.project-file-open-glyph {
+    position: relative;
+    width: 13px;
+    height: 16px;
+    border: 1.4px solid currentColor;
+    border-radius: 3px;
+    opacity: 0.88;
+}
+
+.project-file-open-glyph::before {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    right: -1.4px;
+    top: -1.4px;
+    border-left: 1.4px solid currentColor;
+    border-bottom: 1.4px solid currentColor;
+    border-bottom-left-radius: 2px;
+    background: var(--surface-raised);
+}
+
 .project-file-button:focus-visible {
     outline: 2px solid rgba(3, 218, 198, 0.68);
     outline-offset: 2px;
@@ -13525,6 +13547,37 @@ summary:focus-visible {
     border: 1px solid rgba(164, 184, 211, 0.1);
     border-radius: 16px;
     background: rgba(12, 18, 27, 0.46);
+}
+
+
+.launch-project-file-icon {
+    position: relative;
+    flex: 0 0 17px;
+    width: 17px;
+    height: 20px;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    opacity: 0.84;
+}
+
+.launch-project-file-icon::before {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    right: -1.5px;
+    top: -1.5px;
+    border-left: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    border-bottom-left-radius: 3px;
+    background: rgba(24, 18, 32, 0.96);
+}
+
+.launch-project-file .btn-upload {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
 }
 
 .launch-project-file .btn-upload {
