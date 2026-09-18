@@ -107,16 +107,10 @@ async function decodificarGifNativo(file, t) {
 }
 
 async function carregarGifuct() {
-    let timer = null;
-    const carregamento = import('https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm');
-    const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('GIF decoder loading timed out')), 12000);
-    });
-    try {
-        return await Promise.race([carregamento, timeout]);
-    } finally {
-        if (timer) clearTimeout(timer);
+    if (!window.Gifuct || typeof window.Gifuct.parseGIF !== 'function' || typeof window.Gifuct.decompressFrames !== 'function') {
+        throw new Error('GIF decoder is unavailable');
     }
+    return window.Gifuct;
 }
 
 async function decodificarGifFallback(file, t) {
