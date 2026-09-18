@@ -106,7 +106,11 @@ function createAudioRenderPlan(bufferDuration, startSec, endSec, options = {}) {
     return {
         outputDuration,
         destinationStart,
+        destinationEnd,
+        destinationAvailable,
         sourceStart,
+        sourceAvailable,
+        sourceWindow,
         playDuration,
         fadeIn,
         fadeOut,
@@ -1058,6 +1062,7 @@ async function renderAudioStudioWaveform(role) {
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         renderAudioFadeHandles(role);
         resetAudioProcessingMeter(role);
+        if (typeof resetAudioExportCompatibility === 'function') resetAudioExportCompatibility(role);
         return;
     }
     shell.dataset.loading = 'true';
@@ -1075,6 +1080,7 @@ async function renderAudioStudioWaveform(role) {
     renderAudioWaveformMarkers(role);
     renderAudioFadeHandles(role);
     renderAudioProcessingMeter(role, data.blob, data.rawPeak);
+    if (typeof renderAudioExportCompatibility === 'function') renderAudioExportCompatibility(role, data).catch(() => {});
 }
 
 function getAudioProcessingMeterElements(role) {
@@ -1259,6 +1265,323 @@ function resetAudioProcessing(role) {
     handleAudioAdvancedInput(role);
 }
 
+
+const audioExportCompatibilityRuntime = {
+    generations: { intro: 0, loop: 0, final: 0 }
+};
+
+function formatAudioExportBytes(value) {
+    const bytes = Math.max(0, Number(value) || 0);
+    if (bytes < 1024) return `${Math.round(bytes)} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 2 : 1)} MB`;
+}
+
+function formatAudioExportRate(value) {
+    const rate = Math.max(0, Number(value) || 0);
+    if (!rate) return '—';
+    return rate >= 1000 && rate % 1000 === 0 ? `${rate / 1000} kHz` : `${(rate / 1000).toFixed(1)} kHz`;
+}
+
+function formatAudioExportChannels(value) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const count = Math.max(0, Math.round(Number(value) || 0));
+    if (count === 1) return t.audioExportMono || 'Mono';
+    if (count === 2) return t.audioExportStereo || 'Stereo';
+    return count > 0 ? (t.audioExportChannels || '{count} channels').replace('{count}', count) : '—';
+}
+
+function audioExportSourceFormat(blob, fallbackName = '') {
+    const type = String(blob && blob.type || '').toLowerCase();
+    const name = String(blob && blob.name || fallbackName || '').toLowerCase();
+    if (/wav|wave/.test(type) || /\.wav$/i.test(name)) return 'WAV';
+    if (/mpeg|mp3/.test(type) || /\.mp3$/i.test(name)) return 'MP3';
+    if (/ogg/.test(type) || /\.ogg$/i.test(name)) return 'OGG';
+    if (/aac/.test(type) || /\.aac$/i.test(name)) return 'AAC';
+    if (/flac/.test(type) || /\.flac$/i.test(name)) return 'FLAC';
+    if (/mp4|m4a/.test(type) || /\.(m4a|mp4)$/i.test(name)) return 'M4A/MP4';
+    if (/webm/.test(type) || /\.webm$/i.test(name)) return 'WebM';
+    if (/video\//.test(type)) return 'Video';
+    if (/audio\//.test(type)) return type.split('/')[1].toUpperCase();
+    return 'Media';
+}
+
+function ensureAudioExportCompatibilityCard(role) {
+    const host = document.querySelector(`.audio-role-card[data-audio-panel="${role}"]`);
+    if (!host) return null;
+    let card = host.querySelector(`[data-audio-export-card="${role}"]`);
+    if (card) return card;
+    card = document.createElement('section');
+    card.className = 'audio-export-compatibility';
+    card.dataset.audioExportCard = role;
+    card.dataset.state = 'idle';
+    card.innerHTML = `<div class="audio-export-head"><div><span data-audio-export-field="kicker"></span><strong data-audio-export-field="title"></strong></div><span class="audio-export-status" data-audio-export-field="status"></span></div><div class="audio-export-grid"><div class="audio-export-fact"><span data-audio-export-field="source-label"></span><strong data-audio-export-field="source-name">—</strong><small data-audio-export-field="source-meta">—</small></div><div class="audio-export-fact"><span data-audio-export-field="output-label"></span><strong data-audio-export-field="output-name">WAV PCM 16-bit</strong><small data-audio-export-field="output-meta">—</small></div></div><div class="audio-export-conversion" data-audio-export-field="conversion"></div><div class="audio-export-warnings" data-audio-export-field="warnings"></div><div class="audio-export-actions"><button type="button" data-audio-export-action="audition"></button><button type="button" data-audio-export-action="recheck"></button></div><p class="audio-export-hint" data-audio-export-field="hint"></p>`;
+    host.appendChild(card);
+    card.addEventListener('click', event => {
+        const button = event.target.closest('[data-audio-export-action]');
+        if (!button) return;
+        const action = button.dataset.audioExportAction;
+        if (action === 'audition') auditionAudioExport(role).catch(() => {});
+        else if (action === 'recheck') refreshAudioExportCompatibility(role).catch(() => {});
+    });
+    syncAudioExportCompatibilityText(role);
+    return card;
+}
+
+function getAudioExportCardFields(role) {
+    const card = ensureAudioExportCompatibilityCard(role);
+    const get = name => card ? card.querySelector(`[data-audio-export-field="${name}"]`) : null;
+    return {
+        card,
+        kicker: get('kicker'),
+        title: get('title'),
+        status: get('status'),
+        sourceLabel: get('source-label'),
+        sourceName: get('source-name'),
+        sourceMeta: get('source-meta'),
+        outputLabel: get('output-label'),
+        outputName: get('output-name'),
+        outputMeta: get('output-meta'),
+        conversion: get('conversion'),
+        warnings: get('warnings'),
+        hint: get('hint'),
+        audition: card ? card.querySelector('[data-audio-export-action="audition"]') : null,
+        recheck: card ? card.querySelector('[data-audio-export-action="recheck"]') : null
+    };
+}
+
+function syncAudioExportCompatibilityText(role) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const els = getAudioExportCardFields(role);
+    if (!els.card) return;
+    if (els.kicker) els.kicker.textContent = t.audioExportKicker || 'EXPORT & COMPATIBILITY';
+    if (els.title) els.title.textContent = t.audioExportTitle || 'Final audio check';
+    if (els.sourceLabel) els.sourceLabel.textContent = t.audioExportSource || 'Source';
+    if (els.outputLabel) els.outputLabel.textContent = t.audioExportFinal || 'Final WAV';
+    if (els.outputName) els.outputName.textContent = t.audioExportWav || 'WAV PCM 16-bit';
+    if (els.audition) els.audition.textContent = t.audioExportAudition || 'Audition exported WAV';
+    if (els.recheck) els.recheck.textContent = t.audioExportRecheck || 'Recheck';
+    if (els.hint) els.hint.textContent = t.audioExportHint || 'Audition uses the same processed WAV renderer used by bootanimation export.';
+    const currentState = els.card.dataset.state || 'idle';
+    const labels = {
+        idle: t.audioExportStatusIdle || 'Waiting',
+        checking: t.audioExportStatusChecking || 'Checking',
+        ready: t.audioExportStatusReady || 'Ready',
+        warning: t.audioExportStatusWarning || 'Check',
+        danger: t.audioExportStatusDanger || 'Clipping',
+        empty: t.audioExportStatusEmpty || 'No audio'
+    };
+    if (els.status) els.status.textContent = labels[currentState] || labels.idle;
+}
+
+function resetAudioExportCompatibility(role) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const els = getAudioExportCardFields(role);
+    if (!els.card) return;
+    audioExportCompatibilityRuntime.generations[role] = (audioExportCompatibilityRuntime.generations[role] || 0) + 1;
+    els.card.hidden = true;
+    els.card.dataset.state = 'empty';
+    if (els.status) els.status.textContent = t.audioExportStatusEmpty || 'No audio';
+    if (els.sourceName) els.sourceName.textContent = '—';
+    if (els.sourceMeta) els.sourceMeta.textContent = t.audioExportNoSource || 'Choose an audio source for this section.';
+    if (els.outputMeta) els.outputMeta.textContent = '—';
+    if (els.conversion) els.conversion.textContent = '';
+    if (els.warnings) els.warnings.replaceChildren();
+    if (els.audition) els.audition.disabled = true;
+}
+
+function audioExportSourceDescriptor(role, roleState) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (!roleState || roleState.mode === 'none') return { name: '—', blob: null, format: '—', kind: 'none' };
+    if (roleState.mode === 'file') {
+        const blob = getSelectedAudioFile(role);
+        const sourceState = roleState.source || {};
+        const name = sourceState.name || (blob && blob.name) || (t.audioExportAudioFile || 'Audio file');
+        return { name, blob, format: audioExportSourceFormat(blob, name), kind: 'file' };
+    }
+    if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
+        return { name: t.audioExportMasterSequence || 'Master Sequence audio', blob: null, format: t.audioExportSequence || 'Sequence', kind: 'master' };
+    }
+    const blob = currentProject && currentProject.sourceBlob instanceof Blob ? currentProject.sourceBlob : null;
+    const name = currentProject && currentProject.sourceName ? currentProject.sourceName : (blob && blob.name) || (t.audioExportVideoAudio || 'Video audio');
+    return { name, blob, format: audioExportSourceFormat(blob, name), kind: 'video' };
+}
+
+async function decodeAudioExportBlob(blob) {
+    if (!(blob instanceof Blob)) return null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    const ctx = new AudioContextClass();
+    try {
+        return await decodificarAudioFonte(blob, ctx);
+    } finally {
+        if (ctx.state !== 'closed') await ctx.close().catch(() => {});
+    }
+}
+
+function appendAudioExportMessage(container, kind, text) {
+    if (!container || !text) return;
+    const item = document.createElement('div');
+    item.className = `audio-export-message audio-export-message-${kind}`;
+    item.textContent = text;
+    container.appendChild(item);
+}
+
+async function renderAudioExportCompatibility(role, waveformData = null) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const els = getAudioExportCardFields(role);
+    if (!els.card) return null;
+    const state = captureAudioEditorState();
+    const roleState = state && state[role] ? state[role] : null;
+    if (!state.enabled || !roleState || roleState.mode === 'none') {
+        resetAudioExportCompatibility(role);
+        return null;
+    }
+
+    const generation = (audioExportCompatibilityRuntime.generations[role] || 0) + 1;
+    audioExportCompatibilityRuntime.generations[role] = generation;
+    els.card.hidden = false;
+    els.card.dataset.state = 'checking';
+    if (els.status) els.status.textContent = t.audioExportStatusChecking || 'Checking';
+    if (els.audition) els.audition.disabled = true;
+    if (els.recheck) els.recheck.disabled = true;
+
+    const signature = audioStudioStateSignature(role, state);
+    const data = waveformData || await getAudioWaveformData(role, false);
+    if (generation !== audioExportCompatibilityRuntime.generations[role] || signature !== audioStudioStateSignature(role)) return null;
+    if (!data || !(data.blob instanceof Blob)) {
+        els.card.dataset.state = 'warning';
+        if (els.status) els.status.textContent = t.audioExportStatusWarning || 'Check';
+        if (els.outputMeta) els.outputMeta.textContent = t.audioExportUnavailable || 'Final WAV could not be rendered.';
+        if (els.recheck) els.recheck.disabled = false;
+        return null;
+    }
+
+    const source = audioExportSourceDescriptor(role, roleState);
+    const [rangeStart, rangeEnd] = audioStudioRoleRange(role);
+    const partDuration = Math.max(0, rangeEnd - rangeStart);
+    const outputBuffer = await decodeAudioExportBlob(data.blob);
+    let sourceBuffer = null;
+    if (source.blob instanceof Blob) sourceBuffer = await decodeAudioExportBlob(source.blob);
+    if (generation !== audioExportCompatibilityRuntime.generations[role] || signature !== audioStudioStateSignature(role)) return null;
+
+    const metadata = getAudioRenderMetadata(data.blob);
+    const sourceMetaParts = [];
+    if (sourceBuffer) {
+        sourceMetaParts.push(formatAudioStudioClock(sourceBuffer.duration));
+        sourceMetaParts.push(formatAudioExportRate(sourceBuffer.sampleRate));
+        sourceMetaParts.push(formatAudioExportChannels(sourceBuffer.numberOfChannels));
+    }
+    if (source.blob instanceof Blob) sourceMetaParts.push(formatAudioExportBytes(source.blob.size));
+
+    const outputMetaParts = [];
+    if (outputBuffer) {
+        outputMetaParts.push(formatAudioStudioClock(outputBuffer.duration));
+        outputMetaParts.push(formatAudioExportRate(outputBuffer.sampleRate));
+        outputMetaParts.push(formatAudioExportChannels(outputBuffer.numberOfChannels));
+    } else if (Number.isFinite(data.duration)) {
+        outputMetaParts.push(formatAudioStudioClock(data.duration));
+    }
+    outputMetaParts.push(formatAudioExportBytes(data.blob.size));
+
+    if (els.sourceName) els.sourceName.textContent = source.name || '—';
+    if (els.sourceMeta) els.sourceMeta.textContent = sourceMetaParts.length ? sourceMetaParts.join(' · ') : source.format;
+    if (els.outputMeta) els.outputMeta.textContent = outputMetaParts.join(' · ');
+    if (els.conversion) els.conversion.textContent = (t.audioExportConversion || '{source} → WAV PCM 16-bit').replace('{source}', source.format || 'Media');
+    if (els.warnings) els.warnings.replaceChildren();
+
+    let severity = 'ready';
+    let warningCount = 0;
+    const warn = (kind, text) => {
+        appendAudioExportMessage(els.warnings, kind, text);
+        warningCount++;
+        if (kind === 'danger') severity = 'danger';
+        else if (severity !== 'danger') severity = 'warning';
+    };
+    const info = text => appendAudioExportMessage(els.warnings, 'info', text);
+
+    const peakDb = metadata && Number.isFinite(metadata.peakDb) ? metadata.peakDb : audioPeakToDb(Number(data.rawPeak) || 0);
+    if (metadata && metadata.clipped) {
+        warn('danger', (t.audioExportWarnClipping || 'The processed signal exceeds 0 dBFS by {db} dB before WAV encoding.').replace('{db}', Math.max(0, peakDb).toFixed(1)));
+    }
+
+    let plan = null;
+    if (sourceBuffer) {
+        const sourceStart = roleState.mode === 'video' ? rangeStart : 0;
+        const sourceEnd = roleState.mode === 'video' ? rangeEnd : partDuration;
+        plan = createAudioRenderPlan(sourceBuffer.duration, sourceStart, sourceEnd, roleState);
+        if (plan.sourceStart >= sourceBuffer.duration - 0.01) {
+            warn('warning', t.audioExportWarnSourcePastEnd || 'Source start is at or beyond the end of the source.');
+        } else if (plan.playDuration <= 0.02) {
+            warn('warning', t.audioExportWarnSilent || 'Current timing leaves no meaningful audible content in this section.');
+        } else {
+            if (plan.sourceAvailable + 0.03 < plan.destinationAvailable) {
+                const gap = Math.max(0, plan.destinationAvailable - plan.playDuration);
+                warn('warning', (t.audioExportWarnSourceShort || 'The source ends about {time} before the available section window.').replace('{time}', formatAudioSeconds(gap)));
+            }
+            if (roleState.sourceIn > 0 && roleState.sourceIn >= sourceBuffer.duration * 0.5) {
+                info((t.audioExportInfoSkipped || '{time} of the source is skipped before playback.').replace('{time}', formatAudioSeconds(roleState.sourceIn)));
+            }
+            const fades = Math.max(0, Number(plan.fadeIn) || 0) + Math.max(0, Number(plan.fadeOut) || 0);
+            if (plan.playDuration > 0 && fades >= plan.playDuration * 0.8) {
+                info(t.audioExportInfoFades || 'Fade In + Fade Out cover most of the audible section.');
+            }
+        }
+    }
+
+    if (source.kind === 'file' && source.format !== 'WAV') {
+        info((t.audioExportInfoConverted || '{format} will be decoded and exported as PCM 16-bit WAV.').replace('{format}', source.format));
+    }
+    if (!warningCount && !els.warnings.children.length) {
+        info(t.audioExportReadyHint || 'Final WAV timing and level look ready for export.');
+    }
+
+    els.card.dataset.state = severity;
+    const statusLabels = {
+        ready: t.audioExportStatusReady || 'Ready',
+        warning: t.audioExportStatusWarning || 'Check',
+        danger: t.audioExportStatusDanger || 'Clipping'
+    };
+    if (els.status) els.status.textContent = statusLabels[severity] || statusLabels.ready;
+    if (els.audition) els.audition.disabled = false;
+    if (els.recheck) els.recheck.disabled = false;
+    return { role, severity, source, outputBlob: data.blob, outputBuffer, sourceBuffer, metadata, plan };
+}
+
+async function refreshAudioExportCompatibility(role) {
+    const key = audioWaveformCacheKey(role, false);
+    const cached = audioWaveformRuntime.cache.get(key);
+    if (cached && cached.data) return await renderAudioExportCompatibility(role, cached.data);
+    return await renderAudioExportCompatibility(role);
+}
+
+async function auditionAudioExport(role) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    const state = captureAudioEditorState();
+    if (!state.enabled || !state[role] || state[role].mode === 'none') {
+        if (typeof showToast === 'function') showToast(t.audioExportNoSource || 'Choose an audio source for this section.', 'warning');
+        return false;
+    }
+    stopAudioStudioPreview();
+    const ready = await ensureAudioStudioPreview(role);
+    if (!ready || !audioStudioPreviewAudio) return false;
+    if (typeof showToast === 'function') showToast(t.audioExportAuditionToast || 'Playing the exact processed WAV used for export.', 'success');
+    audioStudioPreviewAudio.currentTime = 0;
+    await audioStudioPreviewAudio.play().catch(() => {});
+    syncAudioStudioTransportProgress();
+    return !audioStudioPreviewAudio.paused;
+}
+
+function initializeAudioExportCompatibility() {
+    ['intro', 'loop', 'final'].forEach(role => {
+        ensureAudioExportCompatibilityCard(role);
+        syncAudioExportCompatibilityText(role);
+        const select = document.getElementById(`sel-audio-${role}`);
+        if (!document.getElementById('input-usar-som')?.checked || !select || select.value === 'none') resetAudioExportCompatibility(role);
+        else refreshAudioExportCompatibility(role).catch(() => {});
+    });
+}
+
 function scheduleAudioWaveformRefresh(role, delay = 160) {
     clearTimeout(audioWaveformRuntime.refreshTimers.get(role));
     const timer = setTimeout(() => {
@@ -1393,6 +1716,7 @@ if (playerVideo) {
 
 initializeAudioWaveformUi();
 initializeAudioProcessingStudio();
+initializeAudioExportCompatibility();
 setTimeout(() => { refreshAllAudioWaveforms(); refreshAudioStudioSyncUi(); }, 0);
 
 function invalidateAdvancedAudioWaveform(id) {
