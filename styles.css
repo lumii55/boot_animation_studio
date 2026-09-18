@@ -13313,3 +13313,124 @@ summary:focus-visible {
         grid-template-columns: 1fr;
     }
 }
+
+/* P12.10E — polish: compact Connected Device Profile in the module surface */
+.device-panel .device-profile-card {
+    gap: 12px;
+    margin: 0;
+    padding: 12px;
+    border-color: rgba(142, 163, 255, 0.13);
+    border-radius: 15px;
+    background: linear-gradient(145deg, rgba(142, 163, 255, 0.055), rgba(111, 227, 244, 0.025));
+}
+
+.device-panel .device-profile-card.is-collapsed {
+    gap: 0;
+}
+
+.device-profile-heading-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#device-profile-compact-summary {
+    overflow: hidden;
+    color: #c7d0dc;
+    font-size: 0.78rem;
+    font-weight: 720;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.device-profile-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid rgba(142, 163, 255, 0.17);
+    border-radius: 10px;
+    background: rgba(142, 163, 255, 0.055);
+    color: #aab5c8;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.device-profile-toggle-icon {
+    display: inline-block;
+    color: var(--accent);
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 160ms var(--ease);
+}
+
+.device-profile-toggle[aria-expanded="true"] .device-profile-toggle-icon {
+    transform: rotate(180deg);
+}
+
+.device-profile-body {
+    min-width: 0;
+    padding-top: 1px;
+}
+
+.device-profile-body[hidden] {
+    display: none;
+}
+
+.device-panel .device-profile-online {
+    gap: 11px;
+}
+
+.device-panel .device-profile-metrics > div,
+.device-panel .device-profile-animation-row,
+.device-panel .device-profile-output-status {
+    background: rgba(4, 8, 14, 0.22);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .device-profile-toggle:hover {
+        border-color: rgba(142, 163, 255, 0.34);
+        color: #e0e5ef;
+    }
+}
+
+@media (max-width: 520px) {
+    .device-panel .device-profile-card {
+        margin-inline: 0;
+        padding: 11px;
+        border-radius: 14px;
+    }
+
+    .device-profile-heading {
+        align-items: center;
+    }
+
+    .device-profile-toggle {
+        width: 34px;
+        min-width: 34px;
+        padding-inline: 0;
+    }
+
+    .device-profile-toggle > span:first-child {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    #device-profile-compact-summary {
+        font-size: 0.74rem;
+    }
+}
