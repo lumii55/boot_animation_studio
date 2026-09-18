@@ -11820,3 +11820,199 @@ summary:focus-visible {
         margin-left: -12px;
     }
 }
+
+.audio-export-compatibility {
+    display: grid;
+    gap: 9px;
+    margin-top: 10px;
+    padding: 11px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.audio-export-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.audio-export-head > div {
+    display: grid;
+    gap: 2px;
+}
+
+.audio-export-head span[data-audio-export-field="kicker"] {
+    color: var(--muted);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+}
+
+.audio-export-head strong {
+    color: var(--text);
+    font-size: 10px;
+}
+
+.audio-export-status {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--muted);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.audio-export-compatibility[data-state="ready"] .audio-export-status {
+    border-color: rgba(88, 220, 157, 0.24);
+    background: rgba(88, 220, 157, 0.07);
+    color: var(--success);
+}
+
+.audio-export-compatibility[data-state="warning"] .audio-export-status {
+    border-color: rgba(255, 189, 112, 0.28);
+    background: rgba(255, 189, 112, 0.07);
+    color: var(--warning);
+}
+
+.audio-export-compatibility[data-state="danger"] .audio-export-status {
+    border-color: rgba(255, 104, 119, 0.3);
+    background: rgba(255, 104, 119, 0.08);
+    color: var(--danger);
+}
+
+.audio-export-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.audio-export-fact {
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.016);
+}
+
+.audio-export-fact > span,
+.audio-export-fact > small {
+    display: block;
+    color: var(--muted);
+    font-size: 7px;
+    line-height: 1.4;
+}
+
+.audio-export-fact > strong {
+    display: block;
+    overflow: hidden;
+    margin: 3px 0 2px;
+    color: var(--text-soft);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.audio-export-conversion {
+    padding: 7px 8px;
+    border-radius: 8px;
+    background: rgba(111, 227, 244, 0.04);
+    color: var(--muted);
+    font-size: 7px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.audio-export-warnings {
+    display: grid;
+    gap: 5px;
+}
+
+.audio-export-message {
+    position: relative;
+    padding: 7px 8px 7px 21px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-size: 7px;
+    line-height: 1.45;
+}
+
+.audio-export-message::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 9px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-strong);
+}
+
+.audio-export-message-info {
+    background: rgba(111, 227, 244, 0.025);
+}
+
+.audio-export-message-warning {
+    border-color: rgba(255, 189, 112, 0.2);
+    background: rgba(255, 189, 112, 0.035);
+}
+
+.audio-export-message-warning::before {
+    background: var(--warning);
+}
+
+.audio-export-message-danger {
+    border-color: rgba(255, 104, 119, 0.22);
+    background: rgba(255, 104, 119, 0.04);
+}
+
+.audio-export-message-danger::before {
+    background: var(--danger);
+}
+
+.audio-export-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+}
+
+.audio-export-actions button {
+    min-height: 36px;
+    padding: 7px 10px;
+    border: 1px solid rgba(111, 227, 244, 0.13);
+    border-radius: 9px;
+    background: rgba(111, 227, 244, 0.045);
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 740;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.audio-export-actions button:disabled {
+    cursor: default;
+    opacity: 0.42;
+}
+
+.audio-export-hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 7px;
+    line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+    .audio-export-grid,
+    .audio-export-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .audio-export-actions button {
+        min-height: 40px;
+    }
+}
