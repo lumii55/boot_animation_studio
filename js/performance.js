@@ -1067,6 +1067,7 @@ function applyOptimizerRecommendation() {
     syncJpegQualityControl();
     updateOptimizerQualityBadge();
     schedulePerformanceEstimate();
+    if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
     const button = document.getElementById('btn-optimizer-apply');
     if (button) {
         button.disabled = true;

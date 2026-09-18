@@ -486,6 +486,10 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
         formData.append('preview', previewWebmBlob, 'preview.webm');
         const uploadRes = await apiFetch('/upload', { method: 'POST', body: formData });
         if (!uploadRes.ok) throw new Error('Upload failed');
+        window.hasCustomAnimApplied = true;
+        const removeButton = document.getElementById('btn-remove');
+        if (removeButton && typeof hasModuleFeature === 'function' && hasModuleFeature('remove')) removeButton.style.display = 'flex';
+        if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
         await loadHistory();
         return { kind: 'installed', outputBytes: rawBootAnimBlob.size, bootBytes: rawBootAnimBlob.size, filename: 'bootanimation.zip' };
     }

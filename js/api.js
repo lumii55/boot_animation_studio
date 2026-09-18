@@ -388,7 +388,7 @@ function completeConnectedState(data) {
     atualizarBotoesELinhas();
     if (hasModuleFeature('history')) loadHistory();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
+    syncConnectedDeviceSurfaces();
 }
 
 function apiFetch(path, options = {}) {
@@ -475,6 +475,13 @@ function applyConnectedCapabilities(data) {
     document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') ? 'flex' : 'none';
     document.getElementById('btn-reset').style.display = hasModuleFeature('reset') ? 'flex' : 'none';
     if (!hasModuleFeature('history')) document.getElementById('history-wrapper').style.display = 'none';
+}
+
+function syncConnectedDeviceSurfaces() {
+    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
+    if (typeof syncCustomProfilesUi === 'function') syncCustomProfilesUi();
+    if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
 function forcarDesconexao() {
@@ -663,7 +670,7 @@ function startManualMode() {
     if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('download', { skipButtons: true });
     atualizarBotoesELinhas();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
+    syncConnectedDeviceSurfaces();
 }
 
 async function disconnectPhone() {
@@ -687,7 +694,7 @@ async function disconnectPhone() {
     atualizarBotoesELinhas();
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
+    syncConnectedDeviceSurfaces();
 }
 
 async function removeAnimation() {
@@ -703,6 +710,7 @@ async function removeAnimation() {
                     showToast(t.msgRemoveSuccess, 'success');
                     document.getElementById('btn-remove').style.display = "none";
                     window.hasCustomAnimApplied = false;
+                    syncConnectedDeviceSurfaces();
                 } else {
                     alert(t.msgRemoveError + data.message);
                 }
@@ -726,6 +734,7 @@ async function resetarModulo() {
                 showToast(data.message, 'success');
                 document.getElementById('btn-remove').style.display = "none";
                 window.hasCustomAnimApplied = false;
+                syncConnectedDeviceSurfaces();
                 await loadHistory();
             } else {
                 alert(t.msgResetError);
@@ -832,6 +841,7 @@ async function applyHistory(id) {
             showToast(t.msgApplyHistorySuccess, 'success');
             document.getElementById('btn-remove').style.display = "flex";
             window.hasCustomAnimApplied = true;
+            syncConnectedDeviceSurfaces();
         } else {
             throw new Error();
         }
@@ -985,6 +995,7 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
             showToast(t.msgZipInjectSuccess, 'success');
             document.getElementById('btn-remove').style.display = "flex";
             window.hasCustomAnimApplied = true;
+            syncConnectedDeviceSurfaces();
             loadHistory(); 
         } else {
             throw new Error(t.msgZipInjectRefused);

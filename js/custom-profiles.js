@@ -7,7 +7,8 @@ const customProfileRuntime = {
     profiles: [],
     editorOpen: false,
     menuId: '',
-    renameId: ''
+    renameId: '',
+    editorSourceOptions: null
 };
 
 function customProfileText(key, fallback) {
@@ -109,7 +110,18 @@ function customProfileNextName() {
     return candidate;
 }
 
-function customProfileOpenEditor() {
+function customProfileSuggestedName(value) {
+    const base = customProfileNormalizeName(value);
+    if (!base) return customProfileNextName();
+    const used = new Set(customProfileRuntime.profiles.map(profile => profile.name.toLowerCase()));
+    if (!used.has(base.toLowerCase())) return base;
+    let index = 2;
+    let candidate = `${base} ${index}`;
+    while (used.has(candidate.toLowerCase())) candidate = `${base} ${++index}`;
+    return candidate.slice(0, 40);
+}
+
+function customProfileOpenEditor(editorOptions = {}) {
     if (customProfileRuntime.profiles.length >= BAS_CUSTOM_PROFILE_LIMIT) {
         if (typeof showToast === 'function') showToast(customProfileText('customProfileLimitToast', 'You can save up to 12 custom profiles.'), 'info', 3200);
         return;
@@ -117,6 +129,9 @@ function customProfileOpenEditor() {
     const options = customProfileCurrentOptions();
     if (!options) return;
     customProfileRuntime.editorOpen = true;
+    customProfileRuntime.editorSourceOptions = editorOptions.outputOverrides
+        ? { ...options, ...editorOptions.outputOverrides }
+        : null;
     const editor = document.getElementById('custom-profile-editor');
     const name = document.getElementById('custom-profile-name');
     const policy = document.getElementById('custom-profile-resolution-policy');
@@ -124,24 +139,27 @@ function customProfileOpenEditor() {
     const variant = document.getElementById('custom-profile-include-variant');
     if (editor) editor.hidden = false;
     if (name) {
-        name.value = customProfileNextName();
+        name.value = editorOptions.suggestedName
+            ? customProfileSuggestedName(editorOptions.suggestedName)
+            : customProfileNextName();
         requestAnimationFrame(() => name.focus());
     }
-    if (policy) policy.value = 'exact';
-    if (framing) framing.checked = false;
-    if (variant) variant.checked = false;
+    if (policy) policy.value = customProfileNormalizeResolutionPolicy(editorOptions.resolutionPolicy);
+    if (framing) framing.checked = !!editorOptions.includeFraming;
+    if (variant) variant.checked = !!editorOptions.includeVariant;
     syncCustomProfilesUi();
 }
 
 function customProfileCloseEditor() {
     customProfileRuntime.editorOpen = false;
+    customProfileRuntime.editorSourceOptions = null;
     const editor = document.getElementById('custom-profile-editor');
     if (editor) editor.hidden = true;
 }
 
 function customProfileSaveCurrent() {
     if (customProfileRuntime.profiles.length >= BAS_CUSTOM_PROFILE_LIMIT) return;
-    const options = customProfileCurrentOptions();
+    const options = customProfileRuntime.editorSourceOptions || customProfileCurrentOptions();
     if (!options) return;
     const nameInput = document.getElementById('custom-profile-name');
     const policyInput = document.getElementById('custom-profile-resolution-policy');
@@ -473,6 +491,7 @@ window.BASCustomProfiles = Object.freeze({
     limit: BAS_CUSTOM_PROFILE_LIMIT,
     getAll: () => customProfileRuntime.profiles.map(profile => ({ ...profile })),
     apply: customProfileApply,
+    openEditor: customProfileOpenEditor,
     sync: syncCustomProfilesUi
 });
 window.syncCustomProfilesUi = syncCustomProfilesUi;

@@ -1,4 +1,4 @@
-const BAS_OUTPUT_PRESET_VERSION = 3;
+const BAS_OUTPUT_PRESET_VERSION = 4;
 const BAS_OUTPUT_PRESET_BALANCED_PIXELS = 1080 * 2400;
 const BAS_OUTPUT_PRESET_LIGHT_PIXELS = 720 * 1600;
 
@@ -9,7 +9,6 @@ const outputPresetRuntime = {
     expanded: false
 };
 
-const BAS_OUTPUT_PRESET_EXPANDED_KEY = 'bas-output-presets-expanded';
 
 function outputPresetText(key, fallback) {
     try {
@@ -17,14 +16,6 @@ function outputPresetText(key, fallback) {
         return table && table[key] ? table[key] : fallback;
     } catch (error) {
         return fallback;
-    }
-}
-
-function outputPresetStoredExpanded() {
-    try {
-        return localStorage.getItem(BAS_OUTPUT_PRESET_EXPANDED_KEY) === '1';
-    } catch (error) {
-        return false;
     }
 }
 
@@ -36,9 +27,6 @@ function outputPresetSetExpanded(expanded, options = {}) {
     if (root) root.classList.toggle('is-collapsed', !outputPresetRuntime.expanded);
     if (body) body.hidden = !outputPresetRuntime.expanded;
     if (toggle) toggle.setAttribute('aria-expanded', outputPresetRuntime.expanded ? 'true' : 'false');
-    if (options.persist !== false) {
-        try { localStorage.setItem(BAS_OUTPUT_PRESET_EXPANDED_KEY, outputPresetRuntime.expanded ? '1' : '0'); } catch (error) {}
-    }
     syncOutputPresetsToggleText();
 }
 
@@ -372,6 +360,7 @@ function outputPresetApplyResolvedOptions(candidate, options = {}) {
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
     if (typeof syncCustomProfilesUi === 'function') syncCustomProfilesUi();
+    if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
     if (typeof projectEngineTouch === 'function' && options.reason !== false) {
         const reason = options.reason || 'output-preset';
         projectEngineTouch(reason, { changeKey: options.changeKey || reason, immediate: true });
@@ -475,7 +464,8 @@ function bindOutputPresets() {
         });
     }
     window.addEventListener('bas:projectchange', () => syncOutputPresetsUi());
-    outputPresetSetExpanded(outputPresetStoredExpanded(), { persist: false });
+    try { localStorage.removeItem('bas-output-presets-expanded'); } catch (error) {}
+    outputPresetSetExpanded(false, { persist: false });
     syncOutputPresetsUi();
 }
 
