@@ -1,7 +1,8 @@
-const BAS_CACHE = 'bas-shell-p12-11c-v1';
+const BAS_CACHE = 'bas-shell-p12-11d-v1';
 const BAS_CACHE_PREFIX = 'bas-shell-';
-const BAS_SHELL = ["./", "./index.html", "./styles.css?v=p12-11c", "./manifest.webmanifest?v=p12-11c", "./js/api.js?v=p12-11c", "./js/audio.js?v=p12-11c", "./js/autosave.js?v=p12-11c", "./js/compatibility.js?v=p12-11c", "./js/composition.js?v=p12-11c", "./js/contextual.js?v=p12-11c", "./js/custom-profiles.js?v=p12-11c", "./js/device-profile.js?v=p12-11c", "./js/export.js?v=p12-11c", "./js/history.js?v=p12-11c", "./js/i18n.js?v=p12-11c", "./js/loading-tips.js?v=p12-11c", "./js/master-sequence.js?v=p12-11c", "./js/media.js?v=p12-11c", "./js/output-presets.js?v=p12-11c", "./js/parts.js?v=p12-11c", "./js/performance.js?v=p12-11c", "./js/project-engine.js?v=p12-11c", "./js/project-file.js?v=p12-11c", "./js/project-restore.js?v=p12-11c", "./js/project.js?v=p12-11c", "./js/pwa.js?v=p12-11c", "./js/release.js?v=p12-11c", "./js/source-library.js?v=p12-11c", "./js/state.js?v=p12-11c", "./js/timeline-2.js?v=p12-11c", "./js/timeline-3.js?v=p12-11c", "./js/timeline.js?v=p12-11c", "./js/ux.js?v=p12-11c", "./js/workspace.js?v=p12-11c", "./vendor/jszip.min.js?v=p12-11c", "./vendor/qrcode.min.js?v=p12-11c", "./vendor/gifuct.min.js?v=p12-11c", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
+const BAS_SHELL = ["./", "./index.html", "./styles.css?v=p12-11d", "./manifest.webmanifest?v=p12-11d", "./js/api.js?v=p12-11d", "./js/audio.js?v=p12-11d", "./js/autosave.js?v=p12-11d", "./js/compatibility.js?v=p12-11d", "./js/composition.js?v=p12-11d", "./js/contextual.js?v=p12-11d", "./js/custom-profiles.js?v=p12-11d", "./js/device-profile.js?v=p12-11d", "./js/export.js?v=p12-11d", "./js/history.js?v=p12-11d", "./js/i18n.js?v=p12-11d", "./js/loading-tips.js?v=p12-11d", "./js/master-sequence.js?v=p12-11d", "./js/media.js?v=p12-11d", "./js/output-presets.js?v=p12-11d", "./js/parts.js?v=p12-11d", "./js/performance.js?v=p12-11d", "./js/project-engine.js?v=p12-11d", "./js/project-file.js?v=p12-11d", "./js/project-restore.js?v=p12-11d", "./js/project.js?v=p12-11d", "./js/pwa.js?v=p12-11d", "./js/release.js?v=p12-11d", "./js/source-library.js?v=p12-11d", "./js/state.js?v=p12-11d", "./js/timeline-2.js?v=p12-11d", "./js/timeline-3.js?v=p12-11d", "./js/timeline.js?v=p12-11d", "./js/ux.js?v=p12-11d", "./js/workspace.js?v=p12-11d", "./vendor/jszip.min.js?v=p12-11d", "./vendor/qrcode.min.js?v=p12-11d", "./vendor/gifuct.min.js?v=p12-11d", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
 const BAS_SHELL_URLS = new Set(BAS_SHELL.map(path => new URL(path, self.location.href).href));
+const BAS_INDEX_URL = new URL('./index.html', self.location.href).href;
 
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(BAS_CACHE).then(cache => cache.addAll(BAS_SHELL)));
@@ -13,6 +14,10 @@ self.addEventListener('activate', event => {
     );
 });
 
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'BAS_SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', event => {
     const request = event.request;
     if (request.method !== 'GET') return;
@@ -20,13 +25,7 @@ self.addEventListener('fetch', event => {
     if (url.origin !== self.location.origin) return;
     if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(request).then(response => {
-                if (response && response.ok) {
-                    const copy = response.clone();
-                    caches.open(BAS_CACHE).then(cache => cache.put('./index.html', copy));
-                }
-                return response;
-            }).catch(() => caches.match('./index.html'))
+            caches.match(BAS_INDEX_URL).then(cached => cached || fetch(request))
         );
         return;
     }

@@ -5,13 +5,13 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="manifest.webmanifest?v=p12-11c" rel="manifest"/>
+<link href="manifest.webmanifest?v=p12-11d" rel="manifest"/>
 <link href="icons/icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
 <link href="icons/apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=p12-11c" rel="stylesheet"/>
-<script src="vendor/jszip.min.js?v=p12-11c"></script>
-<script src="vendor/qrcode.min.js?v=p12-11c"></script>
-<script src="vendor/gifuct.min.js?v=p12-11c"></script>
+<link href="styles.css?v=p12-11d" rel="stylesheet"/>
+<script src="vendor/jszip.min.js?v=p12-11d"></script>
+<script src="vendor/qrcode.min.js?v=p12-11d"></script>
+<script src="vendor/gifuct.min.js?v=p12-11d"></script>
 <meta content="#070b12" name="theme-color"/>
 <meta content="Boot Animation Studio" name="application-name"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -20,6 +20,7 @@
 <meta content="BAS" name="apple-mobile-web-app-title"/></head>
 <body>
 <div class="tooltip-estiloso" id="tooltip-flutuante"></div>
+<section aria-live="polite" class="pwa-update-banner" hidden id="pwa-update-banner" role="status"><div class="pwa-update-copy"><strong id="pwa-update-title">Update available</strong><span id="pwa-update-desc">A newer version of Boot Animation Studio is ready.</span></div><div class="pwa-update-actions"><button id="pwa-update-later" type="button"><span id="pwa-update-later-label">Later</span></button><button id="pwa-update-reload" type="button"><span id="pwa-update-reload-label">Reload to update</span></button></div></section>
 <div aria-hidden="true" aria-modal="false" class="advanced-time-popover" id="advanced-time-popover" role="dialog">
 <strong id="advanced-time-popover-title"></strong>
 <span id="advanced-time-popover-prompt"></span>
@@ -39,7 +40,7 @@
 </select>
 </div></header>
 <main class="studio-main"><div class="launch-panel" id="initial-state"><div class="launch-hero"><div class="launch-kicker" id="p11-launch-kicker">BOOT ANIMATION WORKSPACE</div><h2 id="p11-launch-title">Build a boot animation your way.</h2><p id="p11-launch-desc">Start from media or an existing bootanimation.zip. Work entirely in the browser or connect the companion module for direct phone integration.</p></div>
-<div class="launch-actions"><div class="launch-choice launch-choice-local"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()">Create locally</button><p id="p11-launch-local-desc">Create, edit and download entirely in the browser.</p></div><div class="launch-choice launch-choice-device"><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button><p id="p11-launch-device-desc">Pair the companion module for direct install, history and phone testing.</p></div></div><div class="launch-project-file"><button class="btn-upload" id="p12-open-project-launch" type="button"><span aria-hidden="true" class="launch-project-file-icon"></span><span id="p12-open-project-launch-label">Open project file</span></button><p id="p12-open-project-launch-desc">Continue from an editable .basproject file.</p></div><section class="recent-projects" hidden="" id="recent-projects"><div class="recent-projects-head"><div><span class="section-kicker" id="p12-recent-kicker">RECOVERY</span><h3 id="p12-recent-title">Recent projects</h3><p id="p12-recent-desc">Saved automatically in this browser.</p></div><span class="recent-projects-badge" id="p12-recent-badge">LOCAL</span></div><div class="recent-projects-list" id="recent-projects-list"></div></section><p class="launch-privacy" id="p11-launch-privacy">Use the Studio locally or connect the companion module at any time.</p><details class="dicas-container" id="dicas-iniciais" open="">
+<div class="launch-actions"><div class="launch-choice launch-choice-local"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()">Create locally</button><p id="p11-launch-local-desc">Create, edit and download entirely in the browser.</p></div><div class="launch-choice launch-choice-device"><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button><p id="p11-launch-device-desc">Pair the companion module for direct install, history and phone testing.</p></div></div><div class="launch-project-file"><button class="btn-upload" id="p12-open-project-launch" type="button"><span aria-hidden="true" class="launch-project-file-icon"></span><span id="p12-open-project-launch-label">Open project file</span></button><p id="p12-open-project-launch-desc">Continue from an editable .basproject file.</p></div><section class="pwa-install-card" hidden id="pwa-install-card"><div class="pwa-install-copy"><span class="section-kicker" id="pwa-install-kicker">APP</span><strong id="pwa-install-title">Install Boot Animation Studio</strong><p id="pwa-install-desc">Open the Studio in its own window and keep the app shell available offline.</p></div><button class="pwa-install-button" id="pwa-install-button" type="button"><span aria-hidden="true" class="pwa-install-glyph"></span><span id="pwa-install-button-label">Install app</span></button></section><section class="recent-projects" hidden="" id="recent-projects"><div class="recent-projects-head"><div><span class="section-kicker" id="p12-recent-kicker">RECOVERY</span><h3 id="p12-recent-title">Recent projects</h3><p id="p12-recent-desc">Saved automatically in this browser.</p></div><span class="recent-projects-badge" id="p12-recent-badge">LOCAL</span></div><div class="recent-projects-list" id="recent-projects-list"></div></section><p class="launch-privacy" id="p11-launch-privacy">Use the Studio locally or connect the companion module at any time.</p><details class="dicas-container" id="dicas-iniciais" open="">
 <summary class="tips-summary" id="txt-dicas-titulo">Tips</summary>
 <ul>
 <li class="dica-destaque" id="txt-dica-modulo">
@@ -339,33 +340,33 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p12-11c"></script>
-<script src="js/project.js?v=p12-11c"></script>
-<script src="js/i18n.js?v=p12-11c"></script>
-<script src="js/loading-tips.js?v=p12-11c"></script>
-<script src="js/ux.js?v=p12-11c"></script>
-<script src="js/workspace.js?v=p12-11c"></script><script src="js/api.js?v=p12-11c"></script>
-<script src="js/media.js?v=p12-11c"></script>
-<script src="js/source-library.js?v=p12-11c"></script>
-<script src="js/master-sequence.js?v=p12-11c"></script>
-<script src="js/timeline.js?v=p12-11c"></script>
-<script src="js/contextual.js?v=p12-11c"></script>
-<script src="js/audio.js?v=p12-11c"></script>
-<script src="js/parts.js?v=p12-11c"></script>
-<script src="js/timeline-2.js?v=p12-11c"></script>
-<script src="js/timeline-3.js?v=p12-11c"></script>
-<script src="js/composition.js?v=p12-11c"></script>
-<script src="js/performance.js?v=p12-11c"></script>
-<script src="js/output-presets.js?v=p12-11c"></script>
-<script src="js/custom-profiles.js?v=p12-11c"></script>
-<script src="js/device-profile.js?v=p12-11c"></script>
-<script src="js/compatibility.js?v=p12-11c"></script>
-<script src="js/release.js?v=p12-11c"></script><script src="js/export.js?v=p12-11c"></script>
-<script src="js/project-engine.js?v=p12-11c"></script>
-<script src="js/project-restore.js?v=p12-11c"></script>
-<script src="js/history.js?v=p12-11c"></script>
-<script src="js/autosave.js?v=p12-11c"></script>
-<script src="js/project-file.js?v=p12-11c"></script>
-<script src="js/pwa.js?v=p12-11c"></script>
+<script src="js/state.js?v=p12-11d"></script>
+<script src="js/project.js?v=p12-11d"></script>
+<script src="js/i18n.js?v=p12-11d"></script>
+<script src="js/loading-tips.js?v=p12-11d"></script>
+<script src="js/ux.js?v=p12-11d"></script>
+<script src="js/workspace.js?v=p12-11d"></script><script src="js/api.js?v=p12-11d"></script>
+<script src="js/media.js?v=p12-11d"></script>
+<script src="js/source-library.js?v=p12-11d"></script>
+<script src="js/master-sequence.js?v=p12-11d"></script>
+<script src="js/timeline.js?v=p12-11d"></script>
+<script src="js/contextual.js?v=p12-11d"></script>
+<script src="js/audio.js?v=p12-11d"></script>
+<script src="js/parts.js?v=p12-11d"></script>
+<script src="js/timeline-2.js?v=p12-11d"></script>
+<script src="js/timeline-3.js?v=p12-11d"></script>
+<script src="js/composition.js?v=p12-11d"></script>
+<script src="js/performance.js?v=p12-11d"></script>
+<script src="js/output-presets.js?v=p12-11d"></script>
+<script src="js/custom-profiles.js?v=p12-11d"></script>
+<script src="js/device-profile.js?v=p12-11d"></script>
+<script src="js/compatibility.js?v=p12-11d"></script>
+<script src="js/release.js?v=p12-11d"></script><script src="js/export.js?v=p12-11d"></script>
+<script src="js/project-engine.js?v=p12-11d"></script>
+<script src="js/project-restore.js?v=p12-11d"></script>
+<script src="js/history.js?v=p12-11d"></script>
+<script src="js/autosave.js?v=p12-11d"></script>
+<script src="js/project-file.js?v=p12-11d"></script>
+<script src="js/pwa.js?v=p12-11d"></script>
 </body>
 </html>
