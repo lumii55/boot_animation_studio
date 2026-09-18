@@ -13434,3 +13434,68 @@ summary:focus-visible {
         font-size: 0.74rem;
     }
 }
+
+.project-file-button {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 12px;
+    border: 1px solid rgba(3, 218, 198, 0.18);
+    border-radius: 12px;
+    background: rgba(3, 218, 198, 0.055);
+    color: #bcefe9;
+    font-family: inherit;
+    font-size: 8px;
+    font-weight: 720;
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease;
+}
+
+.project-file-button:not(:disabled):hover {
+    border-color: rgba(3, 218, 198, 0.3);
+    background: rgba(3, 218, 198, 0.1);
+    color: #e4fffb;
+}
+
+.project-file-button:not(:disabled):active {
+    transform: translateY(1px);
+}
+
+.project-file-button:disabled {
+    opacity: 0.34;
+    cursor: default;
+}
+
+.project-file-button[data-busy="true"] {
+    opacity: 0.7;
+}
+
+.project-file-glyph {
+    font-size: 15px;
+    line-height: 1;
+}
+
+.project-file-button:focus-visible {
+    outline: 2px solid rgba(3, 218, 198, 0.68);
+    outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+    .project-file-button {
+        min-height: 34px;
+        padding: 0 9px;
+    }
+}
+
+@media (max-width: 430px) {
+    .project-file-button {
+        min-height: 30px;
+        padding: 0 8px;
+    }
+
+    .project-file-button #p12-save-project-label {
+        display: none;
+    }
+}
