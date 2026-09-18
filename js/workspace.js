@@ -38,7 +38,8 @@ function setWorkspaceView(view, options = {}) {
     });
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('workspace-view', { emit: true });
     if (view === 'edit' && window.BASComposition) requestAnimationFrame(() => BASComposition.open());
-    if (options.scroll !== false && window.matchMedia('(max-width: 859px)').matches) {
+    if (options.scroll !== false) {
+        const compact = window.matchMedia('(max-width: 859px)').matches;
         const sourceDock = document.getElementById('source-dock');
         const target = view === 'edit'
             ? document.querySelector('.workspace-stage')
@@ -47,7 +48,7 @@ function setWorkspaceView(view, options = {}) {
                 : document.querySelector('.export-stage');
         const top = target || sourceDock || workspaceUi.editor;
         requestAnimationFrame(() => {
-            const headerOffset = 72;
+            const headerOffset = compact ? 72 : 132;
             const y = Math.max(0, top.getBoundingClientRect().top + window.scrollY - headerOffset);
             window.scrollTo({ top: y, behavior: options.instant ? 'auto' : 'smooth' });
             if (view === 'edit' && typeof ajustarPaddings === 'function') ajustarPaddings();
