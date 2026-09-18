@@ -388,6 +388,7 @@ function completeConnectedState(data) {
     atualizarBotoesELinhas();
     if (hasModuleFeature('history')) loadHistory();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
+    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
 }
 
 function apiFetch(path, options = {}) {
@@ -662,6 +663,7 @@ function startManualMode() {
     if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('download', { skipButtons: true });
     atualizarBotoesELinhas();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
+    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
 }
 
 async function disconnectPhone() {
@@ -685,6 +687,7 @@ async function disconnectPhone() {
     atualizarBotoesELinhas();
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
+    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
 }
 
 async function removeAnimation() {

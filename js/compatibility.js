@@ -613,7 +613,7 @@ function renderCompatibilityCenter(result = compatibilityRuntime.result) {
     const badge = document.getElementById('compatibility-overall');
     if (kicker) kicker.textContent = compatibilityText('compatKicker', 'COMPATIBILITY CENTER');
     if (title) title.textContent = compatibilityText('compatTitle', 'Know what is ready before you build');
-    if (desc) desc.textContent = compatibilityText('compatDesc', 'Checks the project, selected delivery and connected device without pretending to know what the ROM cannot report.');
+    if (desc) desc.textContent = compatibilityText('compatDesc', 'Checks the project, selected destination, and connected device.');
     if (badge) {
         badge.dataset.state = result.overall;
         badge.textContent = compatibilityStateLabel(result.overall);
