@@ -87,6 +87,8 @@ function setEditTool(tool, options = {}) {
     const allowed = ['composition', 'audio', 'parts'];
     if (!allowed.includes(tool)) tool = 'composition';
     contextualUi.editTool = tool;
+    const editorSection = document.getElementById('editor-section');
+    if (editorSection) editorSection.dataset.editTool = tool;
     document.querySelectorAll('.edit-tool-button[data-edit-tool]').forEach(button => {
         const active = button.dataset.editTool === tool;
         button.classList.toggle('is-active', active);

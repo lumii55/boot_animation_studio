@@ -1,4 +1,4 @@
-const BAS_PWA_VERSION = '12.11F';
+const BAS_PWA_VERSION = '12.11F.1';
 const basPwaState = {
     version: BAS_PWA_VERSION,
     supported: 'serviceWorker' in navigator,
