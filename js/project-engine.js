@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.10B';
+const BAS_PROJECT_ENGINE_VERSION = '12.10B.1';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -648,6 +648,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
         }
     }
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
+    if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
     syncProjectEngineUi();

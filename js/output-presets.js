@@ -1,12 +1,15 @@
-const BAS_OUTPUT_PRESET_VERSION = 1;
+const BAS_OUTPUT_PRESET_VERSION = 2;
 const BAS_OUTPUT_PRESET_BALANCED_PIXELS = 1080 * 2400;
 const BAS_OUTPUT_PRESET_LIGHT_PIXELS = 720 * 1600;
 
 const outputPresetRuntime = {
     selectedId: '',
     applying: false,
-    initialized: false
+    initialized: false,
+    expanded: false
 };
+
+const BAS_OUTPUT_PRESET_EXPANDED_KEY = 'bas-output-presets-expanded';
 
 function outputPresetText(key, fallback) {
     try {
@@ -15,6 +18,39 @@ function outputPresetText(key, fallback) {
     } catch (error) {
         return fallback;
     }
+}
+
+function outputPresetStoredExpanded() {
+    try {
+        return localStorage.getItem(BAS_OUTPUT_PRESET_EXPANDED_KEY) === '1';
+    } catch (error) {
+        return false;
+    }
+}
+
+function outputPresetSetExpanded(expanded, options = {}) {
+    outputPresetRuntime.expanded = !!expanded;
+    const root = document.getElementById('output-presets');
+    const body = document.getElementById('output-presets-body');
+    const toggle = document.getElementById('output-presets-toggle');
+    if (root) root.classList.toggle('is-collapsed', !outputPresetRuntime.expanded);
+    if (body) body.hidden = !outputPresetRuntime.expanded;
+    if (toggle) toggle.setAttribute('aria-expanded', outputPresetRuntime.expanded ? 'true' : 'false');
+    if (options.persist !== false) {
+        try { localStorage.setItem(BAS_OUTPUT_PRESET_EXPANDED_KEY, outputPresetRuntime.expanded ? '1' : '0'); } catch (error) {}
+    }
+    syncOutputPresetsToggleText();
+}
+
+function syncOutputPresetsToggleText() {
+    const label = document.getElementById('output-presets-toggle-label');
+    if (!label) return;
+    const text = outputPresetRuntime.expanded
+        ? outputPresetText('presetHide', 'Hide presets')
+        : outputPresetText('presetShow', 'Show presets');
+    label.textContent = text;
+    const toggle = document.getElementById('output-presets-toggle');
+    if (toggle) toggle.setAttribute('aria-label', text);
 }
 
 function outputPresetClampFps(value, fallback = 30) {
@@ -325,6 +361,7 @@ function outputPresetApply() {
         if (typeof aoMudarTamanhoManual === 'function') aoMudarTamanhoManual();
         if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
         if (typeof invalidateOptimizerResult === 'function') invalidateOptimizerResult();
+        if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
         if (typeof updateOptimizerQualityBadge === 'function') updateOptimizerQualityBadge();
         if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
         if (typeof updateOutputIntent === 'function') updateOutputIntent();
@@ -349,6 +386,7 @@ function syncOutputPresetsText() {
     if (kicker) kicker.textContent = outputPresetText('presetKicker', 'OUTPUT PRESETS');
     if (title) title.textContent = outputPresetText('presetTitle', 'Start from a predictable output profile');
     if (desc) desc.textContent = outputPresetText('presetDesc', 'Presets change only output settings. Smart Optimize remains a project-specific recommendation.');
+    syncOutputPresetsToggleText();
     if (previewKicker) previewKicker.textContent = outputPresetText('presetPreviewKicker', 'BEFORE → AFTER');
     const labels = {
         resolution: ['presetCompareResolution', 'Resolution'],
@@ -401,6 +439,7 @@ function bindOutputPresets() {
         const button = card.querySelector('[data-preset-preview-button]');
         if (button) button.addEventListener('click', () => outputPresetSelect(card.dataset.outputPreset));
     });
+    document.getElementById('output-presets-toggle')?.addEventListener('click', () => outputPresetSetExpanded(!outputPresetRuntime.expanded));
     document.getElementById('output-preset-apply')?.addEventListener('click', outputPresetApply);
     const config = document.getElementById('configuracoes');
     if (config) {
@@ -412,6 +451,7 @@ function bindOutputPresets() {
         });
     }
     window.addEventListener('bas:projectchange', () => syncOutputPresetsUi());
+    outputPresetSetExpanded(outputPresetStoredExpanded(), { persist: false });
     syncOutputPresetsUi();
 }
 
@@ -420,7 +460,8 @@ window.BASOutputPresets = Object.freeze({
     select: outputPresetSelect,
     apply: outputPresetApply,
     sync: syncOutputPresetsUi,
-    getDefinitions: outputPresetDefinitions
+    getDefinitions: outputPresetDefinitions,
+    setExpanded: outputPresetSetExpanded
 });
 window.syncOutputPresetsUi = syncOutputPresetsUi;
 window.syncOutputPresetsText = syncOutputPresetsText;

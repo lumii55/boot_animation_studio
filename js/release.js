@@ -138,7 +138,7 @@ function bindReleaseUi() {
         const panel = document.getElementById('connected-state');
         if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    const watched = ['input-largura', 'input-altura', 'input-fps', 'input-usar-som', 'input-gerar-modulo', 'input-formato', 'input-qualidade'];
+    const watched = ['input-largura', 'input-altura', 'input-fps', 'input-usar-som', 'input-gerar-modulo', 'input-formato', 'input-qualidade', 'input-jpeg-quality'];
     watched.forEach(id => {
         const element = document.getElementById(id);
         if (!element) return;

@@ -523,6 +523,7 @@ async function abrirZipNoEditor(zipBlob) {
         document.getElementById('input-qualidade').value = 'custom';
         const importedFormat = getImportedProjectFormat();
         if (importedFormat) document.getElementById('input-formato').value = importedFormat;
+        if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
         setProjectEditorBaseline({
             width: zipW,
             height: zipH,

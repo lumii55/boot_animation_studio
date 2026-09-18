@@ -90,6 +90,8 @@ const traducoes = {
         presetKicker: "OUTPUT PRESETS",
         presetTitle: "Start from a predictable output profile",
         presetDesc: "Presets change only output settings. Smart Optimize remains a project-specific recommendation.",
+        presetShow: "Show presets",
+        presetHide: "Hide presets",
         presetPreviewKicker: "BEFORE → AFTER",
         presetPreviewReady: "Review the exact output changes before applying this preset.",
         presetPreview: "Preview",
@@ -746,6 +748,8 @@ const traducoes = {
         advSoundDirectiveWarning: "This imported ZIP contains advanced sound directives. Structural edits will rebuild desc.txt and those unsupported directives may be simplified.",
         lblNome: "File Name (Without extension)",
         lblFormato: "Frames Format",
+        lblJpegQuality: "JPEG Quality",
+        jpegQualityHint: "Higher quality increases file size.",
         lblQualidade: "Resolution",
         lblEnquadramento: "Framing",
         optCover: "Fill (Crop)",
@@ -1000,6 +1004,8 @@ const traducoes = {
         presetKicker: "PREDEFINIÇÕES DE SAÍDA",
         presetTitle: "Comece com um perfil de saída previsível",
         presetDesc: "As predefinições alteram apenas a saída. O Smart Optimize continua sendo uma recomendação calculada para o projeto atual.",
+        presetShow: "Mostrar predefinições",
+        presetHide: "Ocultar predefinições",
         presetPreviewKicker: "ANTES → DEPOIS",
         presetPreviewReady: "Revise as mudanças exatas de saída antes de aplicar esta predefinição.",
         presetPreview: "Visualizar",
@@ -1656,6 +1662,8 @@ const traducoes = {
         advSoundDirectiveWarning: "Este ZIP importado contém diretivas avançadas de som. Alterações estruturais recriarão o desc.txt e essas diretivas não suportadas podem ser simplificadas.",
         lblNome: "Nome do Arquivo (Sem extensão)",
         lblFormato: "Formato dos Frames",
+        lblJpegQuality: "Qualidade JPEG",
+        jpegQualityHint: "Qualidade maior aumenta o tamanho do arquivo.",
         lblQualidade: "Resolução",
         lblEnquadramento: "Enquadramento",
         optCover: "Preencher (Cortar)",
@@ -1910,6 +1918,8 @@ const traducoes = {
         presetKicker: "PREAJUSTES DE SALIDA",
         presetTitle: "Empieza con un perfil de salida predecible",
         presetDesc: "Los preajustes solo cambian la salida. Smart Optimize sigue siendo una recomendación calculada para el proyecto actual.",
+        presetShow: "Mostrar preajustes",
+        presetHide: "Ocultar preajustes",
         presetPreviewKicker: "ANTES → DESPUÉS",
         presetPreviewReady: "Revisa los cambios exactos de salida antes de aplicar este preajuste.",
         presetPreview: "Vista previa",
@@ -2566,6 +2576,8 @@ const traducoes = {
         advSoundDirectiveWarning: "Este ZIP contiene directivas de sonido avanzadas. Las ediciones estructurales reconstruirán desc.txt y esas directivas no compatibles pueden simplificarse.",
         lblNome: "Nombre del Archivo (Sin extensión)",
         lblFormato: "Formato de Fotogramas",
+        lblJpegQuality: "Calidad JPEG",
+        jpegQualityHint: "Una calidad mayor aumenta el tamaño del archivo.",
         lblQualidade: "Resolución",
         lblEnquadramento: "Encuadre",
         optCover: "Rellenar (Recortar)",
@@ -2820,6 +2832,8 @@ const traducoes = {
         presetKicker: "PRÉRÉGLAGES DE SORTIE",
         presetTitle: "Commencez avec un profil de sortie prévisible",
         presetDesc: "Les préréglages modifient uniquement la sortie. Smart Optimize reste une recommandation calculée pour le projet actuel.",
+        presetShow: "Afficher les préréglages",
+        presetHide: "Masquer les préréglages",
         presetPreviewKicker: "AVANT → APRÈS",
         presetPreviewReady: "Vérifiez les changements exacts de sortie avant d’appliquer ce préréglage.",
         presetPreview: "Aperçu",
@@ -3476,6 +3490,8 @@ const traducoes = {
         advSoundDirectiveWarning: "Ce ZIP contient des directives sonores avancées. Les modifications structurelles reconstruiront desc.txt et ces directives non prises en charge pourront être simplifiées.",
         lblNome: "Nom du Fichier (Sans extension)",
         lblFormato: "Format des Images",
+        lblJpegQuality: "Qualité JPEG",
+        jpegQualityHint: "Une qualité supérieure augmente la taille du fichier.",
         lblQualidade: "Résolution",
         lblEnquadramento: "Cadrage",
         optCover: "Remplir (Recadrer)",
@@ -3788,6 +3804,10 @@ function mudarIdioma(lang) {
     document.getElementById('lbl-gerarmodulo').textContent = t.lblGerarModulo;
     document.getElementById('lbl-nome').textContent = t.lblNome;
     document.getElementById('lbl-formato').textContent = t.lblFormato;
+    const jpegQualityLabel = document.getElementById('lbl-jpeg-quality');
+    const jpegQualityHint = document.getElementById('jpeg-quality-hint');
+    if (jpegQualityLabel) jpegQualityLabel.textContent = t.lblJpegQuality;
+    if (jpegQualityHint) jpegQualityHint.textContent = t.jpegQualityHint;
     document.getElementById('lbl-qualidade').textContent = t.lblQualidade;
     document.getElementById('lbl-enquadramento').textContent = t.lblEnquadramento;
     document.getElementById('opt-cover').textContent = t.optCover;
@@ -3885,6 +3905,7 @@ function mudarIdioma(lang) {
     atualizarBotoesELinhas();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof syncOptimizerText === 'function') syncOptimizerText();
+    if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
     if (typeof syncContextualToolsText === 'function') syncContextualToolsText();

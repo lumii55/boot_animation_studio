@@ -885,6 +885,33 @@ function setOptimizerStatus(text) {
     if (status) status.textContent = text || '';
 }
 
+function syncJpegQualityControl() {
+    const wrapper = document.getElementById('wrap-jpeg-quality');
+    const input = document.getElementById('input-jpeg-quality');
+    const value = document.getElementById('jpeg-quality-value');
+    const format = document.getElementById('input-formato')?.value || 'jpeg';
+    const percent = Math.round(normalizeJpegExportQuality(jpegExportQuality) * 100);
+    if (wrapper) wrapper.hidden = format !== 'jpeg';
+    if (input) {
+        input.value = String(percent);
+        input.setAttribute('aria-valuetext', `${percent}%`);
+    }
+    if (value) value.textContent = `${percent}%`;
+}
+
+function setJpegQualityFromControl() {
+    const input = document.getElementById('input-jpeg-quality');
+    if (!input) return;
+    jpegExportQuality = normalizeJpegExportQuality(Number(input.value) / 100);
+    syncJpegQualityControl();
+    updateOptimizerQualityBadge();
+    invalidateOptimizerResult();
+    schedulePerformanceEstimate();
+    if (typeof updateOutputIntent === 'function') updateOutputIntent();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+}
+
 function updateOptimizerQualityBadge() {
     const badge = document.getElementById('optimizer-quality-badge');
     if (!badge) return;
@@ -1006,6 +1033,7 @@ function applyOptimizerRecommendation() {
     if (typeof aoMudarTamanhoManual === 'function') aoMudarTamanhoManual();
     if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
     optimizerApplying = false;
+    syncJpegQualityControl();
     updateOptimizerQualityBadge();
     schedulePerformanceEstimate();
     const button = document.getElementById('btn-optimizer-apply');
@@ -1054,17 +1082,21 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         config.addEventListener('change', event => {
             schedulePerformanceEstimate();
-            if (event.target && event.target.id === 'input-formato' && !optimizerApplying) jpegExportQuality = 0.90;
+            if (event.target && event.target.id === 'input-formato') syncJpegQualityControl();
             invalidateOptimizerResult();
         });
     }
+    document.getElementById('input-jpeg-quality')?.addEventListener('input', setJpegQualityFromControl);
+    document.getElementById('input-jpeg-quality')?.addEventListener('change', setJpegQualityFromControl);
     document.getElementById('btn-optimize')?.addEventListener('click', runSmartOptimizer);
     document.getElementById('btn-optimizer-apply')?.addEventListener('click', applyOptimizerRecommendation);
     document.getElementById('optimizer-quality-badge')?.addEventListener('click', () => {
         jpegExportQuality = 0.90;
+        syncJpegQualityControl();
         invalidateOptimizerResult();
         schedulePerformanceEstimate();
     });
+    syncJpegQualityControl();
     syncOptimizerText();
     schedulePerformanceEstimate();
 });
