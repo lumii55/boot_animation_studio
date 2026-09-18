@@ -11975,30 +11975,6 @@ summary:focus-visible {
     background: var(--danger);
 }
 
-.audio-export-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 7px;
-}
-
-.audio-export-actions button {
-    min-height: 36px;
-    padding: 7px 10px;
-    border: 1px solid rgba(111, 227, 244, 0.13);
-    border-radius: 9px;
-    background: rgba(111, 227, 244, 0.045);
-    color: var(--text-soft);
-    font-size: 8px;
-    font-weight: 740;
-    cursor: pointer;
-    touch-action: manipulation;
-}
-
-.audio-export-actions button:disabled {
-    cursor: default;
-    opacity: 0.42;
-}
-
 .audio-export-hint {
     margin: 0;
     color: var(--muted);
@@ -12007,12 +11983,7 @@ summary:focus-visible {
 }
 
 @media (max-width: 560px) {
-    .audio-export-grid,
-    .audio-export-actions {
+    .audio-export-grid {
         grid-template-columns: 1fr;
-    }
-
-    .audio-export-actions button {
-        min-height: 40px;
     }
 }
