@@ -772,25 +772,47 @@ function runCompatibilityFix(fix) {
     if (fix.type === 'even-dimensions') {
         const output = compatibilityGetOutputValues();
         const even = value => value % 2 === 0 ? value : Math.max(2, value - 1);
-        document.getElementById('input-largura').value = even(output.width);
-        document.getElementById('input-altura').value = even(output.height);
-        compatibilityCommitOutputFix('compatibility-even-dimensions');
+        if (typeof outputPresetApplyResolvedOptions === 'function') {
+            outputPresetApplyResolvedOptions({ width: even(output.width), height: even(output.height) }, {
+                reason: 'compatibility-even-dimensions',
+                changeKey: 'compatibility-even-dimensions'
+            });
+        } else {
+            document.getElementById('input-largura').value = even(output.width);
+            document.getElementById('input-altura').value = even(output.height);
+            compatibilityCommitOutputFix('compatibility-even-dimensions');
+        }
         return;
     }
     if (fix.type === 'clamp-fps') {
         const input = document.getElementById('input-fps');
-        if (input) input.value = Math.min(60, Math.max(1, Math.round(Number(input.value) || 30)));
-        if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('compatibility-fps', { changeKey: 'compatibility-fps', immediate: true });
-        if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-        scheduleCompatibilityCheck(0);
+        const fps = Math.min(60, Math.max(1, Math.round(Number(input?.value) || 30)));
+        if (typeof outputPresetApplyResolvedOptions === 'function') {
+            outputPresetApplyResolvedOptions({ fps }, {
+                reason: 'compatibility-fps',
+                changeKey: 'compatibility-fps'
+            });
+        } else {
+            if (input) input.value = fps;
+            if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('compatibility-fps', { changeKey: 'compatibility-fps', immediate: true });
+            if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+            scheduleCompatibilityCheck(0);
+        }
         return;
     }
     if (fix.type === 'match-device') {
         const resolution = compatibilityGetDeviceResolution();
         if (!resolution) return;
-        document.getElementById('input-largura').value = resolution.width;
-        document.getElementById('input-altura').value = resolution.height;
-        compatibilityCommitOutputFix('compatibility-match-device');
+        if (typeof outputPresetApplyResolvedOptions === 'function') {
+            outputPresetApplyResolvedOptions({ width: resolution.width, height: resolution.height }, {
+                reason: 'compatibility-match-device',
+                changeKey: 'compatibility-match-device'
+            });
+        } else {
+            document.getElementById('input-largura').value = resolution.width;
+            document.getElementById('input-altura').value = resolution.height;
+            compatibilityCommitOutputFix('compatibility-match-device');
+        }
         return;
     }
     if (fix.type === 'download-target') {

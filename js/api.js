@@ -474,7 +474,8 @@ function applyConnectedCapabilities(data) {
     document.getElementById('btn-pull').style.display = hasModuleFeature('pull') ? 'flex' : 'none';
     document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') ? 'flex' : 'none';
     document.getElementById('btn-reset').style.display = hasModuleFeature('reset') ? 'flex' : 'none';
-    if (!hasModuleFeature('history')) document.getElementById('history-wrapper').style.display = 'none';
+    const historyWrapper = document.getElementById('history-wrapper');
+    if (historyWrapper) historyWrapper.style.display = hasModuleFeature('history') ? '' : 'none';
 }
 
 function syncConnectedDeviceSurfaces() {
