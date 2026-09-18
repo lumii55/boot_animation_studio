@@ -471,7 +471,6 @@ function updatePerformanceEstimate() {
     lastPerformanceEstimate = estimate;
     if (!estimate) {
         panel.style.display = 'none';
-        if (typeof scheduleBuildCompatibility === 'function') scheduleBuildCompatibility(30);
         return;
     }
 
@@ -504,7 +503,6 @@ function updatePerformanceEstimate() {
         generationNote = t.perfLightNote;
     }
     document.getElementById('perf-note').textContent = `${generationNote} ${getBootSizeNote(estimate.bootLevel, t)}`;
-    if (typeof scheduleBuildCompatibility === 'function') scheduleBuildCompatibility(30);
 }
 
 function schedulePerformanceEstimate() {
