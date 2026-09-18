@@ -1,6 +1,7 @@
 let idiomaAtual = 'en'; 
 let isConnectedMode = false;
 window.hasCustomAnimApplied = false;
+window.connectedPhoneResolution = '';
 let IP_LOCAL = "http://127.0.0.1:4040";
 let sessionToken = '';
 let currentProject = null;

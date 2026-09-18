@@ -503,6 +503,7 @@ function updatePerformanceEstimate() {
         generationNote = t.perfLightNote;
     }
     document.getElementById('perf-note').textContent = `${generationNote} ${getBootSizeNote(estimate.bootLevel, t)}`;
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
 function schedulePerformanceEstimate() {

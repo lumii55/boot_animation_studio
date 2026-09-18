@@ -118,6 +118,7 @@ function syncReleaseUi() {
     syncReleaseReadiness();
     syncReleaseDestination();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
 function bindReleaseUi() {

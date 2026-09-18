@@ -371,6 +371,7 @@ function completeConnectedState(data) {
     document.getElementById('wrap-gerar-modulo').style.display = 'flex';
     document.getElementById('wrap-nome').style.display = 'flex';
     window.connectedPhoneModel = data.model || '';
+    window.connectedPhoneResolution = data.resolution || '';
     document.getElementById('status-connected').textContent = window.connectedPhoneModel || t.statusConnected;
     if (hasModuleFeature('device_resolution') && data.resolution && data.resolution !== 'Unknown') {
         const optAuto = document.getElementById('opt-auto');
@@ -646,6 +647,7 @@ function startManualMode() {
     resetModuleCompatibility();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
+    window.connectedPhoneResolution = '';
     document.getElementById('initial-state').style.display = 'none';
     document.getElementById('editor-section').style.display = 'flex';
     document.getElementById('wrap-gerar-modulo').style.display = 'flex';
@@ -668,6 +670,7 @@ async function disconnectPhone() {
     resetModuleCompatibility();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
+    window.connectedPhoneResolution = '';
     document.getElementById('initial-state').style.display = 'none';
     document.getElementById('connected-state').style.display = 'none';
     document.getElementById('editor-section').style.display = 'flex';

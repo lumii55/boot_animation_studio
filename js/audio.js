@@ -1276,7 +1276,8 @@ function resetAudioProcessing(role) {
 
 
 const audioExportCompatibilityRuntime = {
-    generations: { intro: 0, loop: 0, final: 0 }
+    generations: { intro: 0, loop: 0, final: 0 },
+    results: { intro: null, loop: null, final: null }
 };
 
 function formatAudioExportBytes(value) {
@@ -1377,6 +1378,7 @@ function resetAudioExportCompatibility(role) {
     const els = getAudioExportCardFields(role);
     if (!els.card) return;
     audioExportCompatibilityRuntime.generations[role] = (audioExportCompatibilityRuntime.generations[role] || 0) + 1;
+    audioExportCompatibilityRuntime.results[role] = null;
     els.card.hidden = true;
     els.card.dataset.state = 'empty';
     if (els.status) els.status.textContent = t.audioExportStatusEmpty || 'No audio';
@@ -1385,6 +1387,7 @@ function resetAudioExportCompatibility(role) {
     if (els.outputMeta) els.outputMeta.textContent = '—';
     if (els.conversion) els.conversion.textContent = '';
     if (els.warnings) els.warnings.replaceChildren();
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
 function audioExportSourceDescriptor(role, roleState) {
@@ -1436,7 +1439,9 @@ function markAudioExportCompatibilityPending(role) {
     }
     els.card.hidden = false;
     els.card.dataset.state = 'checking';
+    audioExportCompatibilityRuntime.results[role] = { role, severity: 'checking', messages: [] };
     if (els.status) els.status.textContent = t.audioExportStatusChecking || 'Checking';
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
 function markAudioExportCompatibilityUnavailable(role) {
@@ -1452,12 +1457,15 @@ function markAudioExportCompatibilityUnavailable(role) {
     audioExportCompatibilityRuntime.generations[role] = (audioExportCompatibilityRuntime.generations[role] || 0) + 1;
     els.card.hidden = false;
     els.card.dataset.state = 'warning';
+    const unavailableMessage = t.audioExportUnavailable || 'Final WAV could not be rendered.';
+    audioExportCompatibilityRuntime.results[role] = { role, severity: 'warning', messages: [{ kind: 'warning', text: unavailableMessage }], unavailable: true };
     if (els.status) els.status.textContent = t.audioExportStatusWarning || 'Check';
-    if (els.outputMeta) els.outputMeta.textContent = t.audioExportUnavailable || 'Final WAV could not be rendered.';
+    if (els.outputMeta) els.outputMeta.textContent = unavailableMessage;
     if (els.warnings) {
         els.warnings.replaceChildren();
-        appendAudioExportMessage(els.warnings, 'warning', t.audioExportUnavailable || 'Final WAV could not be rendered.');
+        appendAudioExportMessage(els.warnings, 'warning', unavailableMessage);
     }
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
 function getAudioCompatibilitySilenceCauses(roleState, plan, waveformData) {
@@ -1494,15 +1502,20 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
     audioExportCompatibilityRuntime.generations[role] = generation;
     els.card.hidden = false;
     els.card.dataset.state = 'checking';
+    audioExportCompatibilityRuntime.results[role] = { role, severity: 'checking', messages: [] };
     if (els.status) els.status.textContent = t.audioExportStatusChecking || 'Checking';
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 
     const signature = audioStudioStateSignature(role, state);
     const data = waveformData || await getAudioWaveformData(role, false);
     if (generation !== audioExportCompatibilityRuntime.generations[role] || signature !== audioStudioStateSignature(role)) return null;
     if (!data || !(data.blob instanceof Blob)) {
+        const unavailableMessage = t.audioExportUnavailable || 'Final WAV could not be rendered.';
         els.card.dataset.state = 'warning';
+        audioExportCompatibilityRuntime.results[role] = { role, severity: 'warning', messages: [{ kind: 'warning', text: unavailableMessage }], unavailable: true };
         if (els.status) els.status.textContent = t.audioExportStatusWarning || 'Check';
-        if (els.outputMeta) els.outputMeta.textContent = t.audioExportUnavailable || 'Final WAV could not be rendered.';
+        if (els.outputMeta) els.outputMeta.textContent = unavailableMessage;
+        if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
         return null;
     }
 
@@ -1541,8 +1554,10 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
 
     let severity = 'ready';
     let warningCount = 0;
+    const compatibilityMessages = [];
     const warn = (kind, text) => {
         appendAudioExportMessage(els.warnings, kind, text);
+        compatibilityMessages.push({ kind, text });
         warningCount++;
         if (kind === 'danger') severity = 'danger';
         else if (severity !== 'danger') severity = 'warning';
@@ -1604,8 +1619,27 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
         danger: t.audioExportStatusDanger || 'Clipping'
     };
     if (els.status) els.status.textContent = statusLabels[severity] || statusLabels.ready;
-    return { role, severity, source, outputBlob: data.blob, outputBuffer, sourceBuffer, metadata, plan };
+    const result = { role, severity, source, outputBlob: data.blob, outputBuffer, sourceBuffer, metadata, plan, messages: compatibilityMessages };
+    audioExportCompatibilityRuntime.results[role] = result;
+    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    return result;
 }
+
+function getAudioExportCompatibilitySummary() {
+    const result = {};
+    ['intro', 'loop', 'final'].forEach(role => {
+        const item = audioExportCompatibilityRuntime.results[role];
+        result[role] = item ? {
+            role: item.role,
+            severity: item.severity,
+            unavailable: !!item.unavailable,
+            messages: Array.isArray(item.messages) ? item.messages.map(message => ({ kind: message.kind, text: message.text })) : []
+        } : null;
+    });
+    return result;
+}
+
+window.getAudioExportCompatibilitySummary = getAudioExportCompatibilitySummary;
 
 async function refreshAudioExportCompatibility(role) {
     const key = audioWaveformCacheKey(role, false);

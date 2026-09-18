@@ -980,6 +980,7 @@ function atualizarBotoesELinhas() {
         renderSimpleSegmentTrack();
         if (typeof updateOutputIntent === 'function') updateOutputIntent();
         if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+        if (typeof applyCompatibilityBuildGate === 'function') applyCompatibilityBuildGate();
         return;
     }
     let tudoMarcado = true;
@@ -1039,6 +1040,7 @@ function atualizarBotoesELinhas() {
     if (typeof syncAudioAdvancedLabels === 'function') ['intro', 'loop', 'final'].forEach(syncAudioAdvancedLabels);
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    if (typeof applyCompatibilityBuildGate === 'function') applyCompatibilityBuildGate();
 }
 
 function atualizarTamanho() {
