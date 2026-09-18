@@ -1,4 +1,4 @@
-const BAS_COMPATIBILITY_VERSION = 1;
+const BAS_COMPATIBILITY_VERSION = 2;
 const BAS_DIRECT_UPLOAD_LIMIT_BYTES = 25 * 1024 * 1024;
 
 const compatibilityRuntime = {
@@ -230,6 +230,21 @@ function compatibilityOutputDiagnostics(diagnostics) {
             }
         ));
     }
+}
+
+function compatibilityJpegQualityDiagnostics(diagnostics) {
+    const status = typeof getJpegQualityStatus === 'function' ? getJpegQualityStatus() : null;
+    if (!status || !status.customized) return;
+    diagnostics.push(compatibilityDiagnostic(
+        'JPEG_QUALITY_CUSTOM', 'info', 'project',
+        compatibilityText('compatJpegQualityCustomTitle', 'Custom JPEG quality is active'),
+        compatibilityTemplate(
+            'compatJpegQualityCustomDesc',
+            'JPEG quality is set to {value}% instead of the default 90%. Size estimates and Smart Optimize use this exact value.',
+            { value: status.percent }
+        ),
+        { action: { type: 'output', labelKey: 'compatActionReviewOutput' } }
+    ));
 }
 
 function compatibilityPerformanceDiagnostics(diagnostics) {
@@ -482,6 +497,7 @@ function analyzeCompatibility() {
         else compatibilitySimpleMarkerDiagnostics(diagnostics);
         compatibilityCompositionDiagnostics(diagnostics);
         compatibilityOutputDiagnostics(diagnostics);
+        compatibilityJpegQualityDiagnostics(diagnostics);
         compatibilityPerformanceDiagnostics(diagnostics);
         compatibilitySimpleAudioDiagnostics(diagnostics);
         compatibilityAdvancedAudioDiagnostics(diagnostics);
@@ -562,7 +578,7 @@ function compatibilityRenderDiagnostic(diagnostic) {
     const icon = document.createElement('span');
     icon.className = 'compatibility-diagnostic-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = diagnostic.severity === 'blocked' ? '!' : diagnostic.severity === 'warning' ? '!' : '?';
+    icon.textContent = diagnostic.severity === 'blocked' ? '!' : diagnostic.severity === 'warning' ? '!' : diagnostic.severity === 'info' ? 'i' : '?';
 
     const body = document.createElement('div');
     body.className = 'compatibility-diagnostic-body';

@@ -4,6 +4,29 @@ let performanceFrameSampleVersion = 0;
 let lastPerformanceEstimate = null;
 const performanceFrameSamples = new WeakMap();
 
+const jpegQualityIntentRuntime = {
+    source: 'default',
+    changedAt: 0
+};
+
+function setJpegQualityChangeSource(source = 'system') {
+    jpegQualityIntentRuntime.source = String(source || 'system');
+    jpegQualityIntentRuntime.changedAt = Date.now();
+}
+
+function getJpegQualityStatus() {
+    const value = normalizeJpegExportQuality(jpegExportQuality);
+    const format = document.getElementById('input-formato')?.value || 'jpeg';
+    return {
+        format,
+        value,
+        percent: Math.round(value * 100),
+        customized: format === 'jpeg' && Math.abs(value - 0.90) >= 0.005,
+        source: jpegQualityIntentRuntime.source
+    };
+}
+
+
 function formatByteEstimate(bytes) {
     if (!Number.isFinite(bytes) || bytes < 0) return '—';
     const units = ['B', 'KB', 'MB', 'GB'];
@@ -903,6 +926,7 @@ function setJpegQualityFromControl() {
     const input = document.getElementById('input-jpeg-quality');
     if (!input) return;
     jpegExportQuality = normalizeJpegExportQuality(Number(input.value) / 100);
+    setJpegQualityChangeSource('manual');
     syncJpegQualityControl();
     updateOptimizerQualityBadge();
     invalidateOptimizerResult();
@@ -916,10 +940,16 @@ function updateOptimizerQualityBadge() {
     const badge = document.getElementById('optimizer-quality-badge');
     if (!badge) return;
     const t = traducoes[idiomaAtual];
-    if (document.getElementById('input-formato')?.value === 'jpeg' && Math.abs(jpegExportQuality - 0.90) >= 0.005) {
-        badge.textContent = t.optimizeQualityActive.replace('{value}', Math.round(jpegExportQuality * 100));
+    const status = getJpegQualityStatus();
+    if (status.customized) {
+        badge.textContent = t.optimizeQualityActive.replace('{value}', status.percent);
+        const resetText = (t.optimizeQualityReset || 'Custom JPEG quality is active. Click to reset to 90%.').replace('{value}', status.percent);
+        badge.title = resetText;
+        badge.setAttribute('aria-label', resetText);
         badge.style.display = 'inline-flex';
     } else {
+        badge.removeAttribute('title');
+        badge.removeAttribute('aria-label');
         badge.style.display = 'none';
     }
 }
@@ -1030,6 +1060,7 @@ function applyOptimizerRecommendation() {
     document.getElementById('input-largura').value = options.width;
     document.getElementById('input-altura').value = options.height;
     jpegExportQuality = normalizeJpegExportQuality(options.jpegQuality);
+    setJpegQualityChangeSource('optimizer');
     if (typeof aoMudarTamanhoManual === 'function') aoMudarTamanhoManual();
     if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
     optimizerApplying = false;
@@ -1073,6 +1104,9 @@ function syncOptimizerText() {
     }
 }
 
+window.setJpegQualityChangeSource = setJpegQualityChangeSource;
+window.getJpegQualityStatus = getJpegQualityStatus;
+
 window.addEventListener('DOMContentLoaded', () => {
     const config = document.getElementById('configuracoes');
     if (config) {
@@ -1092,9 +1126,13 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-optimizer-apply')?.addEventListener('click', applyOptimizerRecommendation);
     document.getElementById('optimizer-quality-badge')?.addEventListener('click', () => {
         jpegExportQuality = 0.90;
+        setJpegQualityChangeSource('reset');
         syncJpegQualityControl();
         invalidateOptimizerResult();
         schedulePerformanceEstimate();
+        if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck(0);
+        if (typeof syncReleaseUi === 'function') syncReleaseUi();
+        if (typeof projectEngineTouch === 'function') projectEngineTouch('jpeg-quality-reset', { changeKey: 'input-jpeg-quality', immediate: true });
     });
     syncJpegQualityControl();
     syncOptimizerText();

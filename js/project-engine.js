@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.10B.1';
+const BAS_PROJECT_ENGINE_VERSION = '12.10C';
 
 const projectEngineRuntime = {
     projectRef: null,
@@ -592,7 +592,10 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     if (output.fps !== undefined) projectEngineSetValue('input-fps', output.fps);
     if (output.width !== undefined) projectEngineSetValue('input-largura', output.width);
     if (output.height !== undefined) projectEngineSetValue('input-altura', output.height);
-    if (Number.isFinite(Number(output.jpegQuality))) jpegExportQuality = normalizeJpegExportQuality(output.jpegQuality);
+    if (Number.isFinite(Number(output.jpegQuality))) {
+        jpegExportQuality = normalizeJpegExportQuality(output.jpegQuality);
+        if (typeof setJpegQualityChangeSource === 'function') setJpegQualityChangeSource('restore');
+    }
     if (framing.mode !== undefined) projectEngineSetValue('input-enquadramento', framing.mode);
     if (framing.focus && typeof framing.focus === 'object') {
         currentProject.framingFocus = {
@@ -687,7 +690,7 @@ function projectEngineChangeKeyForTarget(target) {
 
 function projectEngineTargetIsContent(target) {
     if (!(target instanceof Element)) return false;
-    if (target.closest('#timeline-view-switch, .sequence-zoom-controls')) return false;
+    if (target.closest('#timeline-view-switch, .sequence-zoom-controls, #custom-profiles')) return false;
     if (target.closest('#editor-section') && target.matches('input, select, textarea')) return true;
     if (target.closest('[data-advanced-field], [data-advanced-audio-file]')) return true;
     return false;
