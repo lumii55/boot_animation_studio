@@ -14169,3 +14169,19 @@ summary:focus-visible {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+@media (min-width: 1180px) {
+    .editor-section.has-media[data-mobile-view="edit"][data-edit-tool="composition"] .workspace-stage {
+        grid-template-columns: minmax(0, 1fr) minmax(520px, 1fr);
+    }
+
+    .editor-section.has-media[data-edit-tool="composition"] .edit-inspector-deck {
+        padding-right: 18px;
+        padding-left: 18px;
+    }
+
+    .editor-section.has-media[data-edit-tool="composition"] .edit-inspector-pane[data-edit-tool-panel="composition"] .composition-sidebar {
+        padding: 16px;
+    }
+}
+
