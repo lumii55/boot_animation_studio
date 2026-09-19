@@ -1,3 +1,25 @@
+let generationProgressLastPaintAt = 0;
+
+function generationProgressNow() {
+    return globalThis.performance && typeof globalThis.performance.now === 'function' ? globalThis.performance.now() : Date.now();
+}
+
+async function flushGenerationProgressPaint(force = false) {
+    const now = generationProgressNow();
+    if (!force && now - generationProgressLastPaintAt < 80) return;
+    generationProgressLastPaintAt = now;
+    if (typeof cooperativePaintYield === 'function') await cooperativePaintYield();
+    else await new Promise(resolve => setTimeout(resolve, 16));
+}
+
+async function updateGenerationProgress(text, percent = null, options = {}) {
+    const label = document.getElementById('texto-progresso');
+    const bar = document.getElementById('barra-preenchimento');
+    if (label && typeof text === 'string') label.textContent = text;
+    if (bar && Number.isFinite(percent)) bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    await flushGenerationProgressPaint(options.forcePaint === true);
+}
+
 function getExportOptions() {
     let fps = parseInt(document.getElementById('input-fps').value) || 30;
     fps = Math.min(60, Math.max(1, fps));
@@ -259,10 +281,10 @@ async function regenerateImportedPartFrames(zip, options, t) {
             completed++;
             if (completed % 4 === 0 || completed === totalFrames) {
                 const percent = totalFrames > 0 ? Math.min(100, Math.floor((completed / totalFrames) * 100)) : 100;
-                document.getElementById('barra-preenchimento').style.width = percent + '%';
-                document.getElementById('texto-progresso').textContent = `${t.extraindo} ${completed}/${totalFrames} (${percent}%)`;
+                await updateGenerationProgress(`${t.extraindo} ${completed}/${totalFrames} (${percent}%)`, percent, { forcePaint: completed === totalFrames });
+            } else if (completed % 8 === 0) {
+                await cooperativeYield();
             }
-            if (completed % 8 === 0) await cooperativeYield();
         }
     }
 
@@ -291,13 +313,13 @@ async function buildImportedRoundTrip(options, t) {
     }
 
     if (audioChanged) {
-        document.getElementById('texto-progresso').textContent = t.processandoAudio;
+        await updateGenerationProgress(t.processandoAudio, null, { forcePaint: true });
         await applyImportedAudioEdits(zip, options.audio);
     } else {
         syncPreviewAudioFromCurrentState(options.audio);
     }
 
-    document.getElementById('texto-progresso').textContent = t.compactandoZip;
+    await updateGenerationProgress(t.compactandoZip, null, { forcePaint: true });
     btnGerar.textContent = t.fechandoZiper;
     return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
 }
@@ -306,7 +328,7 @@ async function applySimpleAudio(zip, audioState, t) {
     ['m0', 'm1', 'm2'].forEach(clearPreviewAudio);
     if (!audioState.enabled) return;
 
-    document.getElementById('texto-progresso').textContent = t.processandoAudio;
+    await updateGenerationProgress(t.processandoAudio, null, { forcePaint: true });
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let videoAudioBuffer = null;
 
@@ -404,10 +426,10 @@ async function generateAdvancedPartFrames(zip, options, t) {
             completed++;
             if (completed % 4 === 0 || completed === totalFrames) {
                 const percent = totalFrames > 0 ? Math.min(100, Math.floor((completed / totalFrames) * 100)) : 100;
-                document.getElementById('barra-preenchimento').style.width = `${percent}%`;
-                document.getElementById('texto-progresso').textContent = `${t.extraindo} ${completed}/${totalFrames} (${percent}%)`;
+                await updateGenerationProgress(`${t.extraindo} ${completed}/${totalFrames} (${percent}%)`, percent, { forcePaint: completed === totalFrames });
+            } else if (completed % 8 === 0) {
+                await cooperativeYield();
             }
-            if (completed % 8 === 0) await cooperativeYield();
         }
     }
 }
@@ -416,7 +438,7 @@ async function applyAdvancedPartAudio(zip, t) {
     const parts = getAdvancedParts();
     const hasAudio = parts.some(part => part.audio && part.audio.mode !== 'none');
     if (!hasAudio) return;
-    document.getElementById('texto-progresso').textContent = t.processandoAudio;
+    await updateGenerationProgress(t.processandoAudio, null, { forcePaint: true });
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
     const audioCtx = new AudioContextClass();
@@ -451,7 +473,7 @@ async function buildAdvancedBootanimation(options, t) {
     await generateAdvancedPartFrames(zip, options, t);
     zip.file('desc.txt', buildAdvancedDesc(options));
     await applyAdvancedPartAudio(zip, t);
-    document.getElementById('texto-progresso').textContent = t.compactandoZip;
+    await updateGenerationProgress(t.compactandoZip, null, { forcePaint: true });
     btnGerar.textContent = t.fechandoZiper;
     return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
 }
@@ -461,7 +483,7 @@ async function buildSimpleBootanimation(options, t) {
     await paparazzoOtimizado(zip, options.width, options.height, options.fps, options.format, options.framing, options.framingFocus, options.jpegQuality, t);
     zip.file('desc.txt', `${options.width} ${options.height} ${options.fps}\nc 1 0 part0\np 0 0 part1\nc 1 0 part2\n`);
     await applySimpleAudio(zip, options.audio, t);
-    document.getElementById('texto-progresso').textContent = t.compactandoZip;
+    await updateGenerationProgress(t.compactandoZip, null, { forcePaint: true });
     btnGerar.textContent = t.fechandoZiper;
     return await zip.generateAsync({ type: 'blob', compression: 'STORE' });
 }
@@ -479,7 +501,7 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
     const deliveryTarget = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
     if (isConnectedMode && deliveryTarget === 'phone') {
         if (!ensureModuleFeature('direct_upload')) throw new Error(t.msgFeatureUnavailable);
-        document.getElementById('texto-progresso').textContent = t.msgInjecting;
+        await updateGenerationProgress(t.msgInjecting, null, { forcePaint: true });
         const previewWebmBlob = await createMiniPreviewWebm(options);
         const formData = new FormData();
         formData.append('bootanimation', rawBootAnimBlob, 'bootanimation.zip');
@@ -511,6 +533,7 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
             for (const part of path.split('/')) folder = folder.folder(part);
             folder.file('bootanimation.zip', rawBootAnimBlob);
         }
+        await updateGenerationProgress(t.compactandoZip, null, { forcePaint: true });
         const finalBlob = await magiskZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 1 } });
         const filename = `${options.name}.zip`;
         downloadGeneratedBlob(finalBlob, filename);
@@ -547,6 +570,8 @@ btnGerar.addEventListener('click', async () => {
     document.getElementById('container-progresso').style.display = 'flex';
     document.getElementById('texto-progresso').style.color = '#03dac6';
     document.getElementById('barra-preenchimento').style.width = '0%';
+    generationProgressLastPaintAt = 0;
+    await updateGenerationProgress(t.gerandoFrames, 0, { forcePaint: true });
 
     try {
         canvasInvisivel.width = options.width;
@@ -649,10 +674,10 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, f
 
         if (fotosTiradas % 4 === 0 || fotosTiradas === totalFotos) {
             const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
-            document.getElementById('barra-preenchimento').style.width = porcentagem + '%';
-            document.getElementById('texto-progresso').textContent = `${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`;
+            await updateGenerationProgress(`${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`, porcentagem, { forcePaint: fotosTiradas === totalFotos });
+        } else if (fotosTiradas % 8 === 0) {
+            await cooperativeYield();
         }
-        if (fotosTiradas % 8 === 0) await cooperativeYield();
     }
 }
 

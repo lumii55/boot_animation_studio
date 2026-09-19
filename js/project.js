@@ -312,6 +312,24 @@ async function cooperativeYield() {
     await new Promise(resolve => setTimeout(resolve, 0));
 }
 
+async function cooperativePaintYield() {
+    if (typeof requestAnimationFrame !== 'function' || (typeof document !== 'undefined' && document.hidden)) {
+        await new Promise(resolve => setTimeout(resolve, 16));
+        return;
+    }
+    await new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(fallback);
+            resolve();
+        };
+        const fallback = setTimeout(finish, 120);
+        requestAnimationFrame(() => setTimeout(finish, 0));
+    });
+}
+
 function releaseExportCanvas() {
     canvasInvisivel.width = 1;
     canvasInvisivel.height = 1;
