@@ -36,7 +36,7 @@ function setWorkspaceView(view, options = {}) {
         button.classList.toggle('is-active', active);
         button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('workspace-view', { emit: true });
+    if (options.persist !== false && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('workspace-view', { emit: true });
     if (view === 'edit' && window.BASComposition) requestAnimationFrame(() => BASComposition.open());
     if (options.scroll !== false) {
         const compact = window.matchMedia('(max-width: 859px)').matches;

@@ -214,76 +214,24 @@ function estimateEncodedFrameBytes(options) {
     return Math.max(2048, pixels * (options.format === 'jpeg' ? 0.035 : 0.32));
 }
 
-function waitForSampleVideoEvent(video, eventName) {
-    return new Promise((resolve, reject) => {
-        let timeoutId = null;
-        const done = () => {
-            cleanup();
-            resolve();
-        };
-        const fail = () => {
-            cleanup();
-            reject(new Error('Unable to sample video'));
-        };
-        const cleanup = () => {
-            if (timeoutId) clearTimeout(timeoutId);
-            video.removeEventListener(eventName, done);
-            video.removeEventListener('error', fail);
-        };
-        video.addEventListener(eventName, done, { once: true });
-        video.addEventListener('error', fail, { once: true });
-        timeoutId = setTimeout(fail, 10000);
-    });
-}
 
-async function seekSampleVideo(video, time) {
-    const duration = Number.isFinite(video.duration) ? video.duration : 0;
-    const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.001))) : Math.max(0, time);
-    if (video.readyState >= 2 && Math.abs(video.currentTime - target) < 0.001) return;
-    const ready = waitForSampleVideoEvent(video, 'seeked');
-    video.currentTime = target;
-    await ready;
-}
+
+
 
 async function sampleTemporalFrameBytes(options, project, version) {
     if (!project || project !== currentProject || project.sourceMode !== 'temporal' || isGenerating) return;
-    const sourceBlob = project.sourceType === 'gif' ? project.previewBlob : (project.sourceBlob || project.previewBlob);
-    if (!sourceBlob) return;
     const source = getValidSourceMarkerRange();
     if (!source || source.m3 <= source.m0) return;
-
-    const video = document.createElement('video');
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-    const url = URL.createObjectURL(sourceBlob);
-    const canvas = document.createElement('canvas');
-    canvas.width = options.width;
-    canvas.height = options.height;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
-
     try {
-        const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
-        video.src = url;
-        video.load();
-        await metadataReady;
-        if (video.readyState < 2) await waitForSampleVideoEvent(video, 'loadeddata');
-
         const span = source.m3 - source.m0;
         const times = [0.2, 0.5, 0.8].map(fraction => source.m0 + span * fraction);
         const sizes = [];
-
         for (const time of times) {
             if (version !== performanceFrameSampleVersion || project !== currentProject || isGenerating) return;
-            await seekSampleVideo(video, projectTimeToTimelineTime(time));
-            drawFramedDrawable(ctx, video, options.width, options.height, options.framing, options.framingFocus);
-            const blob = await canvasToBlobAsync(canvas, mimeType, quality);
-            sizes.push(blob.size);
+            const encoded = await getProjectFrameOutputBlob(time, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality);
+            sizes.push(encoded.size);
             await cooperativeYield();
         }
-
         if (sizes.length > 0 && version === performanceFrameSampleVersion && project === currentProject) {
             const average = sizes.reduce((sum, value) => sum + value, 0) / sizes.length;
             const estimated = Math.max(2048, average * 1.08);
@@ -295,14 +243,7 @@ async function sampleTemporalFrameBytes(options, project, version) {
             samples.set(getPerformanceSampleKey(options), estimated);
             updatePerformanceEstimate();
         }
-    } catch (error) {
-    } finally {
-        video.removeAttribute('src');
-        video.load();
-        URL.revokeObjectURL(url);
-        canvas.width = 1;
-        canvas.height = 1;
-    }
+    } catch (error) {}
 }
 
 
@@ -763,7 +704,6 @@ async function measureOptimizationFrameBytesBatch(optionsList, version) {
     const values = new Map();
     const pending = [];
     const sizes = new Map();
-
     optionsList.forEach(options => {
         const cached = getCalibratedFrameBytes(options);
         if (cached > 0) values.set(options, cached);
@@ -772,90 +712,32 @@ async function measureOptimizationFrameBytesBatch(optionsList, version) {
             sizes.set(options, []);
         }
     });
-
     if (!pending.length) return { values, approximate: false };
-
     const source = getOptimizationSourceRange();
     if (!source) throw new Error('range');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw new Error('canvas');
     const span = source.m3 - source.m0;
     const largestPixels = pending.reduce((max, options) => Math.max(max, options.width * options.height), 0);
     const fractions = largestPixels > 2400000 ? [0.32, 0.68] : [0.22, 0.50, 0.78];
     const times = fractions.map(fraction => source.m0 + span * fraction);
-    let video = null;
-    let url = null;
     let sourceAvailable = true;
-
     try {
-        if (project.sourceMode === 'temporal') {
-            const sourceBlob = project.sourceType === 'gif' ? project.previewBlob : (project.sourceBlob || project.previewBlob);
-            if (!sourceBlob) sourceAvailable = false;
-            else {
-                video = document.createElement('video');
-                video.muted = true;
-                video.playsInline = true;
-                video.preload = 'auto';
-                url = URL.createObjectURL(sourceBlob);
-                const metadataReady = waitForSampleVideoEvent(video, 'loadedmetadata');
-                video.src = url;
-                video.load();
-                await metadataReady;
-                if (video.readyState < 2) await waitForSampleVideoEvent(video, 'loadeddata');
-            }
-        }
-
-        if (sourceAvailable) {
-            for (const time of times) {
+        for (const time of times) {
+            if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
+            for (const options of pending) {
                 if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
-                let drawable = null;
                 try {
-                    if (project.sourceMode === 'frames') {
-                        const frame = getProjectFrameAtTime(time);
-                        if (!frame) continue;
-                        const blob = await getProjectFrameBlob(frame);
-                        drawable = await blobToDrawable(blob);
-                    } else {
-                        await seekSampleVideo(video, projectTimeToTimelineTime(time));
-                        drawable = video;
-                    }
-
-                    for (const options of pending) {
-                        if (version !== optimizerAnalysisVersion || project !== currentProject) throw new Error('cancelled');
-                        try {
-                            if (canvas.width !== options.width) canvas.width = options.width;
-                            if (canvas.height !== options.height) canvas.height = options.height;
-                            drawFramedDrawable(ctx, drawable, options.width, options.height, options.framing, options.framingFocus);
-                            const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
-                            const quality = options.format === 'jpeg' ? options.jpegQuality : undefined;
-                            const encoded = await canvasToBlobAsync(canvas, mimeType, quality);
-                            sizes.get(options).push(encoded.size);
-                        } catch (error) {
-                            if (error && error.message === 'cancelled') throw error;
-                        }
-                        await cooperativeYield();
-                    }
+                    const encoded = await getProjectFrameOutputBlob(time, options.width, options.height, options.format, options.framing, options.framingFocus, options.jpegQuality);
+                    if (encoded) sizes.get(options).push(encoded.size);
                 } catch (error) {
                     if (error && error.message === 'cancelled') throw error;
-                } finally {
-                    if (project.sourceMode === 'frames' && drawable) releaseDrawable(drawable);
                 }
+                await cooperativeYield();
             }
         }
     } catch (error) {
         if (error && error.message === 'cancelled') throw error;
         sourceAvailable = false;
-    } finally {
-        if (video) {
-            video.removeAttribute('src');
-            video.load();
-        }
-        if (url) URL.revokeObjectURL(url);
-        canvas.width = 1;
-        canvas.height = 1;
     }
-
     let approximate = !sourceAvailable;
     pending.forEach(options => {
         const optionSizes = sizes.get(options) || [];
@@ -864,7 +746,6 @@ async function measureOptimizationFrameBytesBatch(optionsList, version) {
             if (optionSizes.length < times.length) approximate = true;
         } else approximate = true;
     });
-
     const base = optionsList[0];
     let baseFrameBytes = values.get(base) || 0;
     if (!(baseFrameBytes > 0)) {
@@ -872,13 +753,11 @@ async function measureOptimizationFrameBytesBatch(optionsList, version) {
         values.set(base, baseFrameBytes);
         approximate = true;
     }
-
     optionsList.slice(1).forEach(options => {
         if (values.has(options)) return;
         values.set(options, getOptimizationFallbackFrameBytes(base, options, baseFrameBytes));
         approximate = true;
     });
-
     return { values, approximate };
 }
 

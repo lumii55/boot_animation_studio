@@ -861,10 +861,11 @@ async function createMiniPreviewWebm(options = null) {
     const rec = new MediaRecorder(stream, { mimeType: 'video/webm' });
     const chunks = [];
     let recorderStopped = false;
-    let recorderError = null;
-    const stopped = new Promise(resolve => {
-        rec.ondataavailable = event => chunks.push(event.data);
-        rec.onerror = event => { recorderError = event.error || new Error('Preview recording failed'); };
+    const stopped = new Promise((resolve, reject) => {
+        rec.ondataavailable = event => {
+            if (event.data && event.data.size > 0) chunks.push(event.data);
+        };
+        rec.onerror = event => reject(event.error || new Error('Preview recording failed'));
         rec.onstop = () => {
             recorderStopped = true;
             resolve();
@@ -907,16 +908,19 @@ async function createMiniPreviewWebm(options = null) {
             let time = Number.isFinite(sampleStart) ? sampleStart : 0;
             const step = Math.max(0.0001, ((Number.isFinite(sampleEnd) ? sampleEnd : time) - time) / 30);
             for (let i = 0; i < 30; i++) {
-                if (window.BASMediaSeek) await BASMediaSeek.seek(playerVideo, time, { timeout: 1200, retries: 1, tolerance: 0.01 });
-                else playerVideo.currentTime = time;
-                drawFramedDrawable(ctx, playerVideo, c.width, c.height, framing, framingFocus);
+                const frameBlob = await getProjectFrameOutputBlob(time, c.width, c.height, 'jpeg', framing, framingFocus, 0.76);
+                const drawable = await blobToDrawable(frameBlob);
+                ctx.drawImage(drawable, 0, 0, c.width, c.height);
+                releaseDrawable(drawable);
                 time += step;
                 await new Promise(resolve => setTimeout(resolve, 20));
             }
         }
         rec.stop();
-        await stopped;
-        if (recorderError) throw recorderError;
+        await Promise.race([
+            stopped,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Preview recorder stop timed out')), 5000))
+        ]);
         return new Blob(chunks, { type: 'video/webm' });
     } finally {
         if (!recorderStopped && rec.state !== 'inactive') {

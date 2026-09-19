@@ -4,6 +4,7 @@ const sourceLibraryRuntime = {
     previewId: '',
     previewUrls: new Map(),
     videoElements: new Map(),
+    videoWork: new Map(),
     decoding: new Map(),
     adding: false,
     projectRef: null
@@ -31,6 +32,7 @@ function sourceLibraryResetRuntimeForProject(project) {
         }
     });
     sourceLibraryRuntime.videoElements.clear();
+    sourceLibraryRuntime.videoWork.clear();
     sourceLibraryRuntime.decoding.clear();
     sourceLibraryRuntime.previewId = '';
     sourceLibraryRuntime.selectedId = '';
@@ -506,12 +508,8 @@ function sourceLibraryCleanupSource(source) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     sourceLibraryRuntime.previewUrls.delete(source.id);
     const cachedVideo = sourceLibraryRuntime.videoElements.get(source.id);
-    if (cachedVideo) {
-        if (cachedVideo.url) URL.revokeObjectURL(cachedVideo.url);
-        cachedVideo.video.removeAttribute('src');
-        cachedVideo.video.load();
-    }
-    sourceLibraryRuntime.videoElements.delete(source.id);
+    if (cachedVideo) sourceLibraryDisposeVideoRecord(source.id, cachedVideo);
+    sourceLibraryRuntime.videoWork.delete(source.id);
 }
 
 async function removeSourceFromLibrary(id) {
@@ -618,25 +616,40 @@ async function sourceLibrarySetVideoElementSource(element, sourceId) {
     const previewBlob = await ensureSourcePreviewBlob(source);
     if (!(previewBlob instanceof Blob)) return null;
     const src = sourceLibraryGetPreviewUrl(source, previewBlob);
-    if (element.src !== src) {
+    const sameSource = element.src === src && !element.error;
+    if (!sameSource || (Number(element.readyState) || 0) < 1) {
         element.pause();
-        element.src = src;
-        await new Promise(resolve => {
-            if (element.readyState >= 1) {
+        if (!sameSource) element.src = src;
+        await new Promise((resolve, reject) => {
+            if ((Number(element.readyState) || 0) >= 1 && !element.error) {
                 resolve();
                 return;
             }
             let done = false;
-            const finish = () => {
-                if (done) return;
+            let timer = 0;
+            const cleanup = () => {
+                clearTimeout(timer);
+                element.removeEventListener('loadedmetadata', ready);
+                element.removeEventListener('loadeddata', ready);
+                element.removeEventListener('error', fail);
+            };
+            const ready = () => {
+                if (done || (Number(element.readyState) || 0) < 1 || element.error) return;
                 done = true;
-                element.removeEventListener('loadedmetadata', finish);
-                element.removeEventListener('error', finish);
+                cleanup();
                 resolve();
             };
-            element.addEventListener('loadedmetadata', finish, { once: true });
-            element.addEventListener('error', finish, { once: true });
-            setTimeout(finish, 1200);
+            const fail = () => {
+                if (done) return;
+                done = true;
+                cleanup();
+                reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
+            };
+            element.addEventListener('loadedmetadata', ready);
+            element.addEventListener('loadeddata', ready);
+            element.addEventListener('error', fail);
+            timer = setTimeout(fail, 6000);
+            element.load();
         });
     }
     return source;
@@ -660,15 +673,27 @@ function previewTimeToSourceTime(sourceId, previewTime, element) {
     return Math.max(0, Math.min(duration, Number(previewTime) * (duration / previewDuration)));
 }
 
-async function sourceLibraryEnsureVideoElement(source) {
-    const existing = sourceLibraryRuntime.videoElements.get(source.id);
-    if (existing) return existing.video;
+function sourceLibraryDisposeVideoRecord(sourceId, record = null) {
+    const current = sourceLibraryRuntime.videoElements.get(sourceId);
+    const target = record || current;
+    if (!target) return;
+    if (current === target) sourceLibraryRuntime.videoElements.delete(sourceId);
+    if (target.video) {
+        try { target.video.pause(); } catch (error) {}
+        target.video.removeAttribute('src');
+        try { target.video.load(); } catch (error) {}
+    }
+    if (target.url) URL.revokeObjectURL(target.url);
+}
+
+async function sourceLibraryCreateVideoRecord(source) {
+    if (!source || !(source.blob instanceof Blob)) throw new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.'));
     const video = document.createElement('video');
     video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;
     const url = URL.createObjectURL(source.blob);
-    const record = { video, url };
+    const record = { video, url, blob: source.blob };
     sourceLibraryRuntime.videoElements.set(source.id, record);
     try {
         await new Promise((resolve, reject) => {
@@ -677,10 +702,12 @@ async function sourceLibraryEnsureVideoElement(source) {
             const cleanup = () => {
                 clearTimeout(timer);
                 video.removeEventListener('loadedmetadata', done);
+                video.removeEventListener('loadeddata', done);
                 video.removeEventListener('error', fail);
             };
             const done = () => {
                 if (settled) return;
+                if ((Number(video.readyState) || 0) < 1) return;
                 settled = true;
                 cleanup();
                 resolve();
@@ -692,33 +719,71 @@ async function sourceLibraryEnsureVideoElement(source) {
                 reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
             };
             video.addEventListener('loadedmetadata', done);
+            video.addEventListener('loadeddata', done);
             video.addEventListener('error', fail);
             timer = setTimeout(fail, 6000);
             video.src = url;
+            video.load();
+            if ((Number(video.readyState) || 0) >= 1) done();
         });
     } catch (error) {
-        sourceLibraryRuntime.videoElements.delete(source.id);
-        video.removeAttribute('src');
-        video.load();
-        URL.revokeObjectURL(url);
+        sourceLibraryDisposeVideoRecord(source.id, record);
         throw error;
     }
-    return video;
+    return record;
+}
+
+async function sourceLibraryEnsureVideoRecord(source, forceRecreate = false) {
+    const existing = sourceLibraryRuntime.videoElements.get(source.id);
+    if (existing && !forceRecreate && existing.blob === source.blob && existing.video && existing.video.getAttribute('src') && !existing.video.error) return existing;
+    if (existing) sourceLibraryDisposeVideoRecord(source.id, existing);
+    return await sourceLibraryCreateVideoRecord(source);
+}
+
+async function sourceLibraryEnsureVideoElement(source) {
+    const record = await sourceLibraryEnsureVideoRecord(source);
+    return record.video;
 }
 
 async function sourceLibrarySeekVideo(video, time) {
     try {
-        if (window.BASMediaSeek) {
-            await BASMediaSeek.seek(video, time, { timeout: 1400, retries: 1, tolerance: 0.003 });
-            return;
-        }
-        const duration = Number.isFinite(video.duration) ? video.duration : 0;
-        const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.0001))) : Math.max(0, time);
-        if (Math.abs(video.currentTime - target) < 0.0005) return;
-        video.currentTime = target;
+        if (!window.BASMediaSeek) throw new Error('Media seek helper unavailable');
+        await BASMediaSeek.seek(video, time, { timeout: 1400, retries: 1, tolerance: 0.003, requireData: true });
+        if (typeof BASMediaSeek.isFrameReady === 'function' && !BASMediaSeek.isFrameReady(video)) throw new Error('Media frame unavailable');
     } catch (error) {
         throw new Error(sourceLibraryText('sourceLibrarySeekError', 'Could not seek this source.'));
     }
+}
+
+async function sourceLibraryWithVideoWork(source, callback) {
+    const previous = sourceLibraryRuntime.videoWork.get(source.id) || Promise.resolve();
+    const task = previous.catch(() => {}).then(callback);
+    sourceLibraryRuntime.videoWork.set(source.id, task);
+    try {
+        return await task;
+    } finally {
+        if (sourceLibraryRuntime.videoWork.get(source.id) === task) sourceLibraryRuntime.videoWork.delete(source.id);
+    }
+}
+
+async function sourceLibraryVideoFrameBlob(source, sourceTime, width, height, mimeType, quality, framing, framingFocus) {
+    return await sourceLibraryWithVideoWork(source, async () => {
+        let lastError = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            let record = null;
+            try {
+                record = await sourceLibraryEnsureVideoRecord(source, attempt > 0);
+                await sourceLibrarySeekVideo(record.video, sourceTime);
+                if (!(record.video.videoWidth > 0) || !(record.video.videoHeight > 0) || (Number(record.video.readyState) || 0) < 2) throw new Error('Media frame unavailable');
+                drawFramedDrawable(contexto, record.video, width, height, framing, framingFocus);
+                return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
+            } catch (error) {
+                lastError = error;
+                if (record) sourceLibraryDisposeVideoRecord(source.id, record);
+            }
+        }
+        throw lastError || new Error(sourceLibraryText('sourceLibrarySeekError', 'Could not seek this source.'));
+    });
 }
 
 function sourceLibraryFrameAtTime(frames, time) {
@@ -748,20 +813,14 @@ async function getSourceFrameOutputBlob(sourceId, sourceTime, width, height, for
     if (source.role !== 'visual') throw new Error(sourceLibraryText('sourceLibraryVisualRequired', 'This Part needs a visual source.'));
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = format === 'jpeg' ? normalizeJpegExportQuality(jpegQuality) : undefined;
-    let drawable = null;
-    if (source.kind === 'video') {
-        const video = await sourceLibraryEnsureVideoElement(source);
-        await sourceLibrarySeekVideo(video, sourceTime);
-        drawable = video;
-    } else {
-        const frames = await ensureSourceFrames(source);
-        const frame = sourceLibraryFrameAtTime(frames, sourceTime);
-        if (!frame) throw new Error(sourceLibraryText('sourceLibraryVisualRequired', 'This Part needs a visual source.'));
-        const blob = frame.blob || await getProjectFrameBlob(frame);
-        drawable = await blobToDrawable(blob);
-    }
+    if (source.kind === 'video') return await sourceLibraryVideoFrameBlob(source, sourceTime, width, height, mimeType, quality, framing, framingFocus);
+    const frames = await ensureSourceFrames(source);
+    const frame = sourceLibraryFrameAtTime(frames, sourceTime);
+    if (!frame) throw new Error(sourceLibraryText('sourceLibraryVisualRequired', 'This Part needs a visual source.'));
+    const blob = frame.blob || await getProjectFrameBlob(frame);
+    const drawable = await blobToDrawable(blob);
     drawFramedDrawable(contexto, drawable, width, height, framing, framingFocus);
-    if (source.kind !== 'video') releaseDrawable(drawable);
+    releaseDrawable(drawable);
     return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
 }
 

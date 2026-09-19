@@ -477,17 +477,6 @@ function canvasToBlobAsync(canvas, mimeType, quality) {
     });
 }
 
-async function seekPlayer(time) {
-    if (window.BASMediaSeek) {
-        await BASMediaSeek.seek(playerVideo, time, { timeout: 1400, retries: 1, tolerance: 0.003 });
-        return;
-    }
-    const duration = Number.isFinite(playerVideo.duration) ? playerVideo.duration : 0;
-    const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.0001))) : Math.max(0, time);
-    if (Math.abs(playerVideo.currentTime - target) < 0.0005) return;
-    playerVideo.currentTime = target;
-}
-
 async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover', framingFocus = null, jpegQuality = 0.90) {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = format === 'jpeg' ? normalizeJpegExportQuality(jpegQuality) : undefined;
@@ -508,8 +497,8 @@ async function getProjectFrameOutputBlob(sourceTime, width, height, format, fram
         return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
     }
 
-    const timelineTime = projectTimeToTimelineTime(sourceTime);
-    await seekPlayer(timelineTime);
-    drawFramedDrawable(contexto, playerVideo, width, height, framing, framingFocus);
-    return await canvasToBlobAsync(canvasInvisivel, mimeType, quality);
+    if (!window.BASSourceLibrary || typeof BASSourceLibrary.frameBlob !== 'function' || typeof BASSourceLibrary.getPrimaryId !== 'function') throw new Error('Background media decoder unavailable');
+    const primarySourceId = BASSourceLibrary.getPrimaryId();
+    if (!primarySourceId) throw new Error('Primary source unavailable');
+    return await BASSourceLibrary.frameBlob(primarySourceId, sourceTime, width, height, format, framing, framingFocus, jpegQuality);
 }

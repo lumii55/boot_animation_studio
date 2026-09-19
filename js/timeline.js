@@ -910,6 +910,8 @@ if (timelinePlayButton) timelinePlayButton.addEventListener('click', () => {
 if (timelineEndButton) timelineEndButton.addEventListener('click', () => seekTimelineTo(getTimelineDurationExact()));
 
 async function desenharFilmstrip() {
+    const preservedTime = getTimelineCurrentTimeExact();
+    cancelTimelinePlayerSeek();
     isBuildingTimeline = true;
     filmstrip.innerHTML = '';
     if (timelineUsesMasterSequence()) {
@@ -937,42 +939,26 @@ async function desenharFilmstrip() {
     const larguraFrame = 70; 
     filmstrip.style.width = (numFrames * larguraFrame) + 'px';
     
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 100;
+    const thumbWidth = 100;
     const aspectHeight = originalW > 0 && originalH > 0 ? Math.floor((originalH / originalW) * 100) : 100;
-    tempCanvas.height = Math.max(1, aspectHeight);
-    const tempCtx = tempCanvas.getContext('2d', { alpha: false });
+    const thumbHeight = Math.max(1, aspectHeight);
+    const primarySourceId = window.BASSourceLibrary && typeof BASSourceLibrary.getPrimaryId === 'function' ? BASSourceLibrary.getPrimaryId() : '';
 
-    const seekForThumbnail = target => new Promise(resolve => {
-        let done = false;
-        let timer = 0;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            clearTimeout(timer);
-            playerVideo.removeEventListener('seeked', onSeeked);
-            requestAnimationFrame(resolve);
-        };
-        const onSeeked = () => finish();
-        playerVideo.addEventListener('seeked', onSeeked);
-        timer = setTimeout(finish, 900);
-        try {
-            playerVideo.currentTime = target;
-            if (playerVideo.readyState >= 2 && Math.abs(playerVideo.currentTime - target) <= 0.015) requestAnimationFrame(finish);
-        } catch (error) {
-            finish();
-        }
-    });
+    if (!primarySourceId || !window.BASSourceLibrary || typeof BASSourceLibrary.frameBlob !== 'function') {
+        isBuildingTimeline = false;
+        throw new Error('Timeline background decoder unavailable');
+    }
 
     for (let i = 0; i < numFrames; i++) {
         const tempoAlvo = Math.min(dur - 0.05, Math.max(0.01, ((i + 0.5) / numFrames) * dur));
-        await seekForThumbnail(tempoAlvo);
-
-        if (!tempCtx) continue;
         try {
-            tempCtx.drawImage(playerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+            const blob = await BASSourceLibrary.frameBlob(primarySourceId, tempoAlvo, thumbWidth, thumbHeight, 'jpeg', 'stretch', null, 0.58);
             const img = document.createElement('img');
-            img.src = tempCanvas.toDataURL('image/jpeg', 0.58);
+            const url = URL.createObjectURL(blob);
+            const release = () => URL.revokeObjectURL(url);
+            img.addEventListener('load', release, { once: true });
+            img.addEventListener('error', release, { once: true });
+            img.src = url;
             img.style.width = `${larguraFrame}px`;
             img.style.flexBasis = `${larguraFrame}px`;
             filmstrip.appendChild(img);
@@ -982,12 +968,10 @@ async function desenharFilmstrip() {
     }
 
     renderTimelineRuler();
-    cancelTimelinePlayerSeek();
-    targetTime = 0;
-    playerVideo.currentTime = 0;
-    updatePlayerTimeReadout(0);
+    targetTime = Math.max(0, Math.min(dur, preservedTime));
+    updatePlayerTimeReadout(targetTime);
     isProgrammaticScroll = true;
-    scrollTimeline.scrollLeft = 0;
+    scrollTimeline.scrollLeft = dur > 0 ? (targetTime / dur) * filmstrip.offsetWidth : 0;
     
     setTimeout(() => { 
         isProgrammaticScroll = false; 

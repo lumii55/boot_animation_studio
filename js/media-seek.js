@@ -17,10 +17,31 @@
         return Number.isFinite(current) && Math.abs(current - target) <= tolerance;
     }
 
+    function isFrameReady(element) {
+        if (!element || element.error) return false;
+        if ((Number(element.readyState) || 0) < 2) return false;
+        const tag = String(element.tagName || '').toUpperCase();
+        if (tag === 'VIDEO' || typeof element.videoWidth === 'number') {
+            if (!(Number(element.videoWidth) > 0) || !(Number(element.videoHeight) > 0)) return false;
+        }
+        return true;
+    }
+
+    function canFinish(element, target, tolerance, requireData) {
+        if (!isNear(element, target, tolerance) || element.seeking) return false;
+        return !requireData || isFrameReady(element);
+    }
+
+    function scheduleFinish(callback) {
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(callback);
+        else setTimeout(callback, 0);
+    }
+
     function seekOnce(element, target, options) {
         const timeout = Math.max(100, Number(options.timeout) || 1200);
         const tolerance = Math.max(0.0001, Number(options.tolerance) || 0.01);
         const signal = options.signal || null;
+        const requireData = options.requireData !== false;
         return new Promise((resolve, reject) => {
             if (signal && signal.aborted) {
                 reject(abortError());
@@ -34,6 +55,7 @@
                 element.removeEventListener('timeupdate', onProgress);
                 element.removeEventListener('loadeddata', onProgress);
                 element.removeEventListener('canplay', onProgress);
+                element.removeEventListener('durationchange', onProgress);
                 element.removeEventListener('error', onError);
                 if (signal) signal.removeEventListener('abort', onAbort);
             };
@@ -50,7 +72,7 @@
                 reject(error);
             };
             const onProgress = () => {
-                if (isNear(element, target, tolerance) && !element.seeking) finish();
+                if (canFinish(element, target, tolerance, requireData)) finish();
             };
             const onError = () => fail(new Error('Unable to seek media'));
             const onAbort = () => fail(abortError());
@@ -58,15 +80,18 @@
             element.addEventListener('timeupdate', onProgress);
             element.addEventListener('loadeddata', onProgress);
             element.addEventListener('canplay', onProgress);
+            element.addEventListener('durationchange', onProgress);
             element.addEventListener('error', onError);
             if (signal) signal.addEventListener('abort', onAbort, { once: true });
             timer = setTimeout(() => {
-                if (isNear(element, target, tolerance)) finish();
-                else fail(new Error('Media seek timed out'));
+                if (canFinish(element, target, tolerance, requireData)) finish();
+                else fail(new Error(requireData && !isFrameReady(element) ? 'Media frame was not decoded in time' : 'Media seek timed out'));
             }, timeout);
             try {
                 element.currentTime = target;
-                if (isNear(element, target, tolerance) && !element.seeking) requestAnimationFrame(finish);
+                if (canFinish(element, target, tolerance, requireData)) scheduleFinish(() => {
+                    if (canFinish(element, target, tolerance, requireData)) finish();
+                });
             } catch (error) {
                 fail(error);
             }
@@ -77,8 +102,9 @@
         if (!element) throw new Error('Media element unavailable');
         const target = clampTarget(element, time, options.epsilon);
         const tolerance = Math.max(0.0001, Number(options.tolerance) || 0.01);
+        const requireData = options.requireData !== false;
         if (options.signal && options.signal.aborted) throw abortError();
-        if (isNear(element, target, tolerance) && !element.seeking) return target;
+        if (canFinish(element, target, tolerance, requireData)) return target;
         const retries = Math.max(0, Math.min(3, Math.floor(Number(options.retries) || 0)));
         let lastError = null;
         for (let attempt = 0; attempt <= retries; attempt++) {
@@ -95,6 +121,7 @@
 
     window.BASMediaSeek = Object.freeze({
         seek,
-        clampTarget
+        clampTarget,
+        isFrameReady
     });
 })();

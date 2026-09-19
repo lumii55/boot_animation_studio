@@ -1163,14 +1163,19 @@ async function playAdvancedPreviewPart(index, played = 0) {
     videoPreview.pause();
     clearAdvancedPreviewAudio();
     const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
-    if (window.BASSourceLibrary) await BASSourceLibrary.setVideoElementSource(videoPreview, sourceId);
-    const target = window.BASSourceLibrary ? BASSourceLibrary.sourceTimeToPreview(sourceId, part.start, videoPreview) : projectTimeToTimelineTime(part.start);
-    if (Math.abs(videoPreview.currentTime - target) > 0.02) {
-        if (window.BASMediaSeek) {
-            await BASMediaSeek.seek(videoPreview, target, { timeout: 700, retries: 1, tolerance: 0.02 }).catch(() => {});
-        } else {
-            videoPreview.currentTime = Math.max(0, Math.min(videoPreview.duration || target, target));
+    try {
+        if (window.BASSourceLibrary) await BASSourceLibrary.setVideoElementSource(videoPreview, sourceId);
+        const target = window.BASSourceLibrary ? BASSourceLibrary.sourceTimeToPreview(sourceId, part.start, videoPreview) : projectTimeToTimelineTime(part.start);
+        if (Math.abs(videoPreview.currentTime - target) > 0.02) {
+            if (!window.BASMediaSeek) throw new Error('Media seek helper unavailable');
+            await BASMediaSeek.seek(videoPreview, target, { timeout: 700, retries: 1, tolerance: 0.02, requireData: true });
         }
+    } catch (error) {
+        state.transitioning = false;
+        videoPreview.pause();
+        clearAdvancedPreviewAudio();
+        if (typeof showToast === 'function') showToast((traducoes[idiomaAtual] || traducoes.en).sourceLibrarySeekError || 'Could not seek this source.', 'error');
+        return;
     }
     if (!advancedPreviewState || state.generation !== advancedPreviewGeneration) return;
     state.transitioning = false;
