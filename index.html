@@ -5,13 +5,13 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="manifest.webmanifest?v=p12-12b" rel="manifest"/>
+<link href="manifest.webmanifest?v=p12-12c" rel="manifest"/>
 <link href="icons/icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
 <link href="icons/apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=p12-12b" rel="stylesheet"/>
-<script src="vendor/jszip.min.js?v=p12-12b"></script>
-<script src="vendor/qrcode.min.js?v=p12-12b"></script>
-<script src="vendor/gifuct.min.js?v=p12-12b"></script>
+<link href="styles.css?v=p12-12c" rel="stylesheet"/>
+<script src="vendor/jszip.min.js?v=p12-12c"></script>
+<script src="vendor/qrcode.min.js?v=p12-12c"></script>
+<script src="vendor/gifuct.min.js?v=p12-12c"></script>
 <meta content="#070b12" name="theme-color"/>
 <meta content="Boot Animation Studio" name="application-name"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -30,7 +30,7 @@
 </div>
 <button class="advanced-time-cancel" id="advanced-time-cancel" type="button">Cancel</button>
 </div>
-<div class="container"><header class="studio-header"><div class="brand-lockup"><div aria-hidden="true" class="brand-mark"><span></span></div><div class="brand-copy"><h1 id="txt-titulo">Boot Animation Studio</h1><p id="txt-subtitulo">Create, edit or apply a boot animation file!</p></div></div><div class="topo-idioma">
+<div class="container"><header class="studio-header"><div class="brand-lockup"><div aria-hidden="true" class="brand-mark"><span></span></div><div class="brand-copy"><h1 id="txt-titulo">Boot Animation Studio</h1><p id="txt-subtitulo">Create, edit or apply a boot animation file!</p></div></div><div class="header-tools"><button aria-haspopup="dialog" class="studio-help-button" id="studio-help-button" type="button"><span aria-hidden="true" class="studio-help-glyph">?</span><span id="studio-help-button-label">Help</span></button><div class="topo-idioma">
 <span></span>
 <select id="select-idioma" onchange="mudarIdioma(this.value)">
 <option value="en">English (US)</option>
@@ -38,7 +38,7 @@
 <option value="es">Español</option>
 <option value="fr">Français</option>
 </select>
-</div></header>
+</div></div></header>
 <main class="studio-main"><div class="launch-panel" id="initial-state"><div class="launch-hero"><div class="launch-kicker" id="p11-launch-kicker">BOOT ANIMATION WORKSPACE</div><h2 id="p11-launch-title">Build a boot animation your way.</h2><p id="p11-launch-desc">Start from media or an existing bootanimation.zip. Work entirely in the browser or connect the companion module for direct phone integration.</p></div>
 <div class="launch-actions"><div class="launch-choice launch-choice-local"><button class="btn-upload launch-primary" id="btn-manual" onclick="startManualMode()">Create locally</button><p id="p11-launch-local-desc">Create, edit and download entirely in the browser.</p></div><div class="launch-choice launch-choice-device"><button class="btn-upload launch-secondary" id="btn-connect" onclick="connectToPhone()"> Connect to Phone</button><p id="p11-launch-device-desc">Pair the companion module for direct install, history and phone testing.</p></div></div><div class="launch-project-file"><button class="btn-upload" id="p12-open-project-launch" type="button"><span aria-hidden="true" class="launch-project-file-icon"></span><span id="p12-open-project-launch-label">Open project file</span></button><p id="p12-open-project-launch-desc">Continue from an editable .basproject file.</p></div><section class="pwa-install-card" hidden id="pwa-install-card"><div class="pwa-install-copy"><span class="section-kicker" id="pwa-install-kicker">APP</span><strong id="pwa-install-title">Install Boot Animation Studio</strong><p id="pwa-install-desc">Open the Studio in its own window and keep the app shell available offline.</p></div><button class="pwa-install-button" id="pwa-install-button" type="button"><span aria-hidden="true" class="pwa-install-glyph"></span><span id="pwa-install-button-label">Install app</span></button></section><section class="recent-projects" hidden="" id="recent-projects"><div class="recent-projects-head"><div><span class="section-kicker" id="p12-recent-kicker">RECOVERY</span><h3 id="p12-recent-title">Recent projects</h3><p id="p12-recent-desc">Saved automatically in this browser.</p></div><span class="recent-projects-badge" id="p12-recent-badge">LOCAL</span></div><div class="recent-projects-list" id="recent-projects-list"></div></section><p class="launch-privacy" id="p11-launch-privacy">Use the Studio locally or connect the companion module at any time.</p><details class="dicas-container" id="dicas-iniciais" open="">
 <summary class="tips-summary" id="txt-dicas-titulo">Tips</summary>
@@ -291,6 +291,23 @@
 <button class="btn-fechar-modal" id="btn-pair-back" type="button">Back to Studio</button>
 </div>
 </div>
+<div aria-hidden="true" class="modal-overlay help-modal-overlay" id="modal-help">
+<div aria-labelledby="help-title" aria-modal="true" class="modal-box help-box" role="dialog">
+<div class="help-heading"><div><span class="section-kicker" id="help-kicker">HELP</span><h2 id="help-title">Boot Animation Studio, step by step</h2><p id="help-desc">A short map of the workflow. Each editor already explains its own detailed controls.</p></div><button aria-label="Close help" class="help-close-icon" id="help-close-icon" type="button">×</button></div>
+<div class="help-flow" id="help-flow">
+<article class="help-flow-card"><span>01</span><div><strong id="help-start-title">Start</strong><p id="help-start-desc">Add media, open a bootanimation.zip or continue from a .basproject. Phone connection is optional.</p></div></article>
+<article class="help-flow-card"><span>02</span><div><strong id="help-edit-title">Edit</strong><p id="help-edit-desc">Use the timeline for sections and timing. Composition, Audio and Parts add optional control without replacing the main editor.</p></div></article>
+<article class="help-flow-card"><span>03</span><div><strong id="help-output-title">Output</strong><p id="help-output-desc">Choose resolution, FPS, frame format and framing. Presets are predictable; Smart Optimize adapts to the current project.</p></div></article>
+<article class="help-flow-card"><span>04</span><div><strong id="help-build-title">Build</strong><p id="help-build-desc">Compatibility Center reviews known issues. Choose Download or phone delivery, then generate the final result.</p></div></article>
+</div>
+<div class="help-secondary-grid">
+<div class="help-secondary-card"><span class="help-secondary-icon help-project-icon" aria-hidden="true"></span><div><strong id="help-project-title">Projects</strong><p id="help-project-desc">Autosave protects work in this browser. Save a .basproject when you want a portable editable copy.</p></div></div>
+<div class="help-secondary-card"><span class="help-secondary-icon help-phone-icon" aria-hidden="true"></span><div><strong id="help-phone-title">Phone integration</strong><p id="help-phone-desc">The Companion Module is optional. It adds direct apply, pull, history, preview and device information.</p></div></div>
+</div>
+<div class="help-actions"><button class="btn-upload" id="help-start-tour" type="button"><span id="help-start-tour-label">Show me the interface</span></button><button class="btn-fechar-modal" id="help-close" type="button"><span id="help-close-label">Close</span></button></div>
+</div>
+</div>
+<div aria-hidden="true" class="guided-tour" hidden id="guided-tour"><div aria-live="polite" class="guided-tour-card" role="dialog"><div class="guided-tour-meta"><span id="guided-tour-counter">1 / 1</span><button aria-label="End tour" id="guided-tour-close" type="button">×</button></div><strong id="guided-tour-title"></strong><p id="guided-tour-desc"></p><div class="guided-tour-actions"><button id="guided-tour-back" type="button"><span id="guided-tour-back-label">Back</span></button><button id="guided-tour-next" type="button"><span id="guided-tour-next-label">Next</span></button></div></div></div>
 <div class="modal-overlay" id="modal-confirm">
 <div class="modal-box confirm-box">
 <h2 id="confirm-title">Confirm action</h2>
@@ -340,34 +357,34 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p12-12b"></script>
-<script src="js/media-seek.js?v=p12-12b"></script>
-<script src="js/project.js?v=p12-12b"></script>
-<script src="js/i18n.js?v=p12-12b"></script>
-<script src="js/loading-tips.js?v=p12-12b"></script>
-<script src="js/ux.js?v=p12-12b"></script>
-<script src="js/workspace.js?v=p12-12b"></script><script src="js/api.js?v=p12-12b"></script>
-<script src="js/media.js?v=p12-12b"></script>
-<script src="js/source-library.js?v=p12-12b"></script>
-<script src="js/master-sequence.js?v=p12-12b"></script>
-<script src="js/timeline.js?v=p12-12b"></script>
-<script src="js/contextual.js?v=p12-12b"></script>
-<script src="js/audio.js?v=p12-12b"></script>
-<script src="js/parts.js?v=p12-12b"></script>
-<script src="js/timeline-2.js?v=p12-12b"></script>
-<script src="js/timeline-3.js?v=p12-12b"></script>
-<script src="js/composition.js?v=p12-12b"></script>
-<script src="js/performance.js?v=p12-12b"></script>
-<script src="js/output-presets.js?v=p12-12b"></script>
-<script src="js/custom-profiles.js?v=p12-12b"></script>
-<script src="js/device-profile.js?v=p12-12b"></script>
-<script src="js/compatibility.js?v=p12-12b"></script>
-<script src="js/release.js?v=p12-12b"></script><script src="js/finish.js?v=p12-12b"></script><script src="js/export.js?v=p12-12b"></script>
-<script src="js/project-engine.js?v=p12-12b"></script>
-<script src="js/project-restore.js?v=p12-12b"></script>
-<script src="js/history.js?v=p12-12b"></script>
-<script src="js/autosave.js?v=p12-12b"></script>
-<script src="js/project-file.js?v=p12-12b"></script>
-<script src="js/pwa.js?v=p12-12b"></script>
+<script src="js/state.js?v=p12-12c"></script>
+<script src="js/media-seek.js?v=p12-12c"></script>
+<script src="js/project.js?v=p12-12c"></script>
+<script src="js/i18n.js?v=p12-12c"></script>
+<script src="js/loading-tips.js?v=p12-12c"></script>
+<script src="js/ux.js?v=p12-12c"></script>
+<script src="js/workspace.js?v=p12-12c"></script><script src="js/help.js?v=p12-12c"></script><script src="js/api.js?v=p12-12c"></script>
+<script src="js/media.js?v=p12-12c"></script>
+<script src="js/source-library.js?v=p12-12c"></script>
+<script src="js/master-sequence.js?v=p12-12c"></script>
+<script src="js/timeline.js?v=p12-12c"></script>
+<script src="js/contextual.js?v=p12-12c"></script>
+<script src="js/audio.js?v=p12-12c"></script>
+<script src="js/parts.js?v=p12-12c"></script>
+<script src="js/timeline-2.js?v=p12-12c"></script>
+<script src="js/timeline-3.js?v=p12-12c"></script>
+<script src="js/composition.js?v=p12-12c"></script>
+<script src="js/performance.js?v=p12-12c"></script>
+<script src="js/output-presets.js?v=p12-12c"></script>
+<script src="js/custom-profiles.js?v=p12-12c"></script>
+<script src="js/device-profile.js?v=p12-12c"></script>
+<script src="js/compatibility.js?v=p12-12c"></script>
+<script src="js/release.js?v=p12-12c"></script><script src="js/finish.js?v=p12-12c"></script><script src="js/export.js?v=p12-12c"></script>
+<script src="js/project-engine.js?v=p12-12c"></script>
+<script src="js/project-restore.js?v=p12-12c"></script>
+<script src="js/history.js?v=p12-12c"></script>
+<script src="js/autosave.js?v=p12-12c"></script>
+<script src="js/project-file.js?v=p12-12c"></script>
+<script src="js/pwa.js?v=p12-12c"></script>
 </body>
 </html>
