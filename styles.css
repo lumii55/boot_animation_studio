@@ -67,6 +67,17 @@ select {
     font: inherit;
 }
 
+.bas-work-decoder {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 2px;
+    opacity: 0.001;
+    pointer-events: none;
+    z-index: -1;
+}
+
 button,
 label[for],
 summary,
@@ -84,9 +95,11 @@ summary {
 }
 
 button:focus-visible,
+a:focus-visible,
 label[for]:focus-visible,
 select:focus-visible,
 input:focus-visible,
+textarea:focus-visible,
 summary:focus-visible {
     outline: 2px solid rgba(111, 227, 244, 0.85);
     outline-offset: 3px;
@@ -14813,5 +14826,20 @@ summary:focus-visible {
     .guided-tour-card.is-top {
         top: max(68px, calc(env(safe-area-inset-top) + 58px));
         bottom: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
     }
 }
