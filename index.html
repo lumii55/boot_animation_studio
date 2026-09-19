@@ -5,13 +5,13 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="manifest.webmanifest?v=p12-11f1" rel="manifest"/>
+<link href="manifest.webmanifest?v=p12-12b" rel="manifest"/>
 <link href="icons/icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
 <link href="icons/apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=p12-11f1" rel="stylesheet"/>
-<script src="vendor/jszip.min.js?v=p12-11f1"></script>
-<script src="vendor/qrcode.min.js?v=p12-11f1"></script>
-<script src="vendor/gifuct.min.js?v=p12-11f1"></script>
+<link href="styles.css?v=p12-12b" rel="stylesheet"/>
+<script src="vendor/jszip.min.js?v=p12-12b"></script>
+<script src="vendor/qrcode.min.js?v=p12-12b"></script>
+<script src="vendor/gifuct.min.js?v=p12-12b"></script>
 <meta content="#070b12" name="theme-color"/>
 <meta content="Boot Animation Studio" name="application-name"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -230,7 +230,7 @@
 </div><div class="output-intent" id="output-intent"></div><button class="btn-gerar btn-desativado" id="btn-gerar">Missing Markers...</button><button class="btn-gerar" id="btn-ver-preview" onclick="chamarModalPreview()"> Ver Preview</button><div class="container-progresso" id="container-progresso">
 <div class="texto-progresso" id="texto-progresso">0%</div>
 <div class="barra-fundo"><div class="barra-preenchimento" id="barra-preenchimento"></div></div>
-</div><div class="workflow-step-actions workflow-build-actions"><button class="workflow-back" id="btn-export-back" type="button"><span id="p11-back-tune">Back to output</span></button></div></section></div><nav aria-label="Project workflow" class="mobile-workflow-nav" id="mobile-workflow-nav"><button aria-selected="true" class="workflow-tab is-active" data-workspace-view="edit" id="workspace-tab-edit" type="button"><span class="workflow-tab-index">01</span><span id="p11-nav-edit">Edit</span></button><button aria-selected="false" class="workflow-tab" data-workspace-view="settings" id="workspace-tab-settings" type="button"><span class="workflow-tab-index">02</span><span id="p11-nav-tune">Output</span></button><button aria-selected="false" class="workflow-tab" data-workspace-view="export" id="workspace-tab-export" type="button"><span class="workflow-tab-index">03</span><span id="p11-nav-build">Build</span></button></nav>
+</div><section class="finish-center" data-kind="download" data-state="current" hidden id="finish-center"><div class="finish-center-heading"><div><span class="section-kicker" id="finish-kicker">BUILD COMPLETE</span><h3 id="finish-title">Download ready</h3><p id="finish-desc">This result reflects the project exactly as it was when the build finished.</p></div><span class="finish-badge" id="finish-badge">DOWNLOADED</span></div><div class="finish-metrics"><div class="finish-metric finish-metric-file"><span id="finish-file-label">File</span><strong id="finish-file">—</strong></div><div class="finish-metric"><span id="finish-size-label">Final size</span><strong id="finish-size">—</strong></div><div class="finish-metric"><span id="finish-output-label">Output</span><strong id="finish-output">—</strong></div><div class="finish-metric"><span id="finish-package-label">Package</span><strong id="finish-package">—</strong></div><div class="finish-metric"><span id="finish-delivery-label">Destination</span><strong id="finish-delivery">—</strong></div></div><p class="finish-stale-note" hidden id="finish-stale">Build again to include the current project changes.</p><div class="finish-actions"><button id="finish-save-project" type="button"><span class="finish-action-glyph finish-action-save" aria-hidden="true"></span><span id="finish-save-project-label">Save editable project</span></button><button hidden id="finish-open-history" type="button"><span class="finish-action-glyph finish-action-history" aria-hidden="true"></span><span id="finish-open-history-label">Open phone history</span></button><button id="finish-build-again" type="button"><span class="finish-action-glyph finish-action-build" aria-hidden="true"></span><span id="finish-build-again-label">Build again</span></button></div></section><div class="workflow-step-actions workflow-build-actions"><button class="workflow-back" id="btn-export-back" type="button"><span id="p11-back-tune">Back to output</span></button></div></section></div><nav aria-label="Project workflow" class="mobile-workflow-nav" id="mobile-workflow-nav"><button aria-selected="true" class="workflow-tab is-active" data-workspace-view="edit" id="workspace-tab-edit" type="button"><span class="workflow-tab-index">01</span><span id="p11-nav-edit">Edit</span></button><button aria-selected="false" class="workflow-tab" data-workspace-view="settings" id="workspace-tab-settings" type="button"><span class="workflow-tab-index">02</span><span id="p11-nav-tune">Output</span></button><button aria-selected="false" class="workflow-tab" data-workspace-view="export" id="workspace-tab-export" type="button"><span class="workflow-tab-index">03</span><span id="p11-nav-build">Build</span></button></nav>
 </div></main></div>
 <div class="modal-overlay" id="modal-escolha-preview">
 <div class="modal-box">
@@ -340,33 +340,34 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p12-11f1"></script>
-<script src="js/project.js?v=p12-11f1"></script>
-<script src="js/i18n.js?v=p12-11f1"></script>
-<script src="js/loading-tips.js?v=p12-11f1"></script>
-<script src="js/ux.js?v=p12-11f1"></script>
-<script src="js/workspace.js?v=p12-11f1"></script><script src="js/api.js?v=p12-11f1"></script>
-<script src="js/media.js?v=p12-11f1"></script>
-<script src="js/source-library.js?v=p12-11f1"></script>
-<script src="js/master-sequence.js?v=p12-11f1"></script>
-<script src="js/timeline.js?v=p12-11f1"></script>
-<script src="js/contextual.js?v=p12-11f1"></script>
-<script src="js/audio.js?v=p12-11f1"></script>
-<script src="js/parts.js?v=p12-11f1"></script>
-<script src="js/timeline-2.js?v=p12-11f1"></script>
-<script src="js/timeline-3.js?v=p12-11f1"></script>
-<script src="js/composition.js?v=p12-11f1"></script>
-<script src="js/performance.js?v=p12-11f1"></script>
-<script src="js/output-presets.js?v=p12-11f1"></script>
-<script src="js/custom-profiles.js?v=p12-11f1"></script>
-<script src="js/device-profile.js?v=p12-11f1"></script>
-<script src="js/compatibility.js?v=p12-11f1"></script>
-<script src="js/release.js?v=p12-11f1"></script><script src="js/export.js?v=p12-11f1"></script>
-<script src="js/project-engine.js?v=p12-11f1"></script>
-<script src="js/project-restore.js?v=p12-11f1"></script>
-<script src="js/history.js?v=p12-11f1"></script>
-<script src="js/autosave.js?v=p12-11f1"></script>
-<script src="js/project-file.js?v=p12-11f1"></script>
-<script src="js/pwa.js?v=p12-11f1"></script>
+<script src="js/state.js?v=p12-12b"></script>
+<script src="js/media-seek.js?v=p12-12b"></script>
+<script src="js/project.js?v=p12-12b"></script>
+<script src="js/i18n.js?v=p12-12b"></script>
+<script src="js/loading-tips.js?v=p12-12b"></script>
+<script src="js/ux.js?v=p12-12b"></script>
+<script src="js/workspace.js?v=p12-12b"></script><script src="js/api.js?v=p12-12b"></script>
+<script src="js/media.js?v=p12-12b"></script>
+<script src="js/source-library.js?v=p12-12b"></script>
+<script src="js/master-sequence.js?v=p12-12b"></script>
+<script src="js/timeline.js?v=p12-12b"></script>
+<script src="js/contextual.js?v=p12-12b"></script>
+<script src="js/audio.js?v=p12-12b"></script>
+<script src="js/parts.js?v=p12-12b"></script>
+<script src="js/timeline-2.js?v=p12-12b"></script>
+<script src="js/timeline-3.js?v=p12-12b"></script>
+<script src="js/composition.js?v=p12-12b"></script>
+<script src="js/performance.js?v=p12-12b"></script>
+<script src="js/output-presets.js?v=p12-12b"></script>
+<script src="js/custom-profiles.js?v=p12-12b"></script>
+<script src="js/device-profile.js?v=p12-12b"></script>
+<script src="js/compatibility.js?v=p12-12b"></script>
+<script src="js/release.js?v=p12-12b"></script><script src="js/finish.js?v=p12-12b"></script><script src="js/export.js?v=p12-12b"></script>
+<script src="js/project-engine.js?v=p12-12b"></script>
+<script src="js/project-restore.js?v=p12-12b"></script>
+<script src="js/history.js?v=p12-12b"></script>
+<script src="js/autosave.js?v=p12-12b"></script>
+<script src="js/project-file.js?v=p12-12b"></script>
+<script src="js/pwa.js?v=p12-12b"></script>
 </body>
 </html>
