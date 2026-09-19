@@ -1061,6 +1061,8 @@ const traducoes = {
         msgInjectingPhone: "Injecting into phone...",
         helpButton: "Help",
         helpButtonAria: "Open help",
+        languageSelectAria: "Language",
+        networkIpAria: "Device IP address",
         helpKicker: "HELP",
         helpTitle: "Boot Animation Studio, step by step",
         helpDesc: "A short map of the workflow. Each editor already explains its own detailed controls.",
@@ -2181,6 +2183,8 @@ const traducoes = {
         msgInjectingPhone: "Injetando no celular...",
         helpButton: "Ajuda",
         helpButtonAria: "Abrir ajuda",
+        languageSelectAria: "Idioma",
+        networkIpAria: "Endereço IP do dispositivo",
         helpKicker: "AJUDA",
         helpTitle: "Boot Animation Studio, passo a passo",
         helpDesc: "Um mapa curto do fluxo. Cada editor já explica seus próprios controles em detalhes.",
@@ -3301,6 +3305,8 @@ const traducoes = {
         msgInjectingPhone: "Inyectando en el celular...",
         helpButton: "Ayuda",
         helpButtonAria: "Abrir ayuda",
+        languageSelectAria: "Idioma",
+        networkIpAria: "Dirección IP del dispositivo",
         helpKicker: "AYUDA",
         helpTitle: "Boot Animation Studio, paso a paso",
         helpDesc: "Un mapa breve del flujo. Cada editor ya explica sus propios controles en detalle.",
@@ -4421,6 +4427,8 @@ const traducoes = {
         msgInjectingPhone: "Injection dans le téléphone...",
         helpButton: "Aide",
         helpButtonAria: "Ouvrir l’aide",
+        languageSelectAria: "Langue",
+        networkIpAria: "Adresse IP de l’appareil",
         helpKicker: "AIDE",
         helpTitle: "Boot Animation Studio, étape par étape",
         helpDesc: "Un aperçu court du flux. Chaque éditeur explique déjà ses propres commandes en détail.",
@@ -4512,6 +4520,8 @@ function mudarIdioma(lang) {
 
     document.getElementById('txt-titulo').textContent = t.titulo;
     document.getElementById('txt-subtitulo').textContent = t.subtitulo;
+    document.getElementById('select-idioma')?.setAttribute('aria-label', t.languageSelectAria);
+    document.getElementById('input-ip')?.setAttribute('aria-label', t.networkIpAria);
     const workspaceTextBindings = {
         'p11-launch-kicker': 'workspaceLaunchKicker',
         'p11-launch-title': 'workspaceLaunchTitle',

@@ -240,7 +240,9 @@ function syncSequenceTimelineText() {
     const zoomOut = document.getElementById('sequence-zoom-out');
     const zoomIn = document.getElementById('sequence-zoom-in');
     const fit = document.getElementById('sequence-zoom-fit');
+    const zoom = document.getElementById('sequence-zoom');
     if (viewSwitch) viewSwitch.setAttribute('aria-label', sequenceTimelineText('timeline2ViewAria', 'Timeline view'));
+    if (zoom) zoom.setAttribute('aria-label', sequenceTimelineText('timeline2ZoomAria', 'Timeline zoom'));
     if (zoomGroup) zoomGroup.setAttribute('aria-label', sequenceTimelineText('timeline2ZoomAria', 'Timeline zoom'));
     if (zoomOut) zoomOut.setAttribute('aria-label', sequenceTimelineText('timeline2ZoomOut', 'Zoom out'));
     if (zoomIn) zoomIn.setAttribute('aria-label', sequenceTimelineText('timeline2ZoomIn', 'Zoom in'));

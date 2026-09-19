@@ -1,4 +1,4 @@
-const BAS_PROJECT_RESTORE_VERSION = '12.12D';
+const BAS_PROJECT_RESTORE_VERSION = '12.12E';
 
 function projectRestoreText(key, fallback) {
     try {

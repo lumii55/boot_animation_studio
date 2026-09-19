@@ -44,8 +44,20 @@ async function decodificarAudioFonte(fonte, audioCtx) {
             }
             if (audioCtx.state === 'suspended') await audioCtx.resume();
             return await new Promise((resolve) => {
-                const res = audioCtx.decodeAudioData(arrBuf, resolve, () => resolve(null));
-                if (res && res.then) res.then(resolve).catch(() => resolve(null));
+                let settled = false;
+                const finish = value => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve(value || null);
+                };
+                const timer = setTimeout(() => finish(null), 12000);
+                try {
+                    const res = audioCtx.decodeAudioData(arrBuf, finish, () => finish(null));
+                    if (res && res.then) res.then(finish).catch(() => finish(null));
+                } catch (error) {
+                    finish(null);
+                }
             });
         };
         if (fonte instanceof Blob) {

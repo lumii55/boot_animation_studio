@@ -227,6 +227,7 @@ function startGuidedTour() {
     document.body.classList.add('guided-tour-active');
     markHelpIntroSeen();
     renderGuidedTourStep();
+    requestAnimationFrame(() => document.getElementById('guided-tour-next')?.focus());
 }
 
 function endGuidedTour(restoreFocus = true) {
@@ -245,6 +246,34 @@ function endGuidedTour(restoreFocus = true) {
     basHelpRuntime.steps = [];
     basHelpRuntime.currentStep = 0;
     if (restoreFocus) requestAnimationFrame(() => document.getElementById('studio-help-button')?.focus());
+}
+
+function trapHelpFocus(event, container) {
+    if (event.key !== 'Tab' || !container) return false;
+    const focusable = Array.from(container.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')).filter(element => {
+        if (element.disabled || element.getAttribute('tabindex') === '-1') return false;
+        const style = getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+    if (!focusable.length) return false;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+        return true;
+    }
+    if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+        return true;
+    }
+    if (!container.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return true;
+    }
+    return false;
 }
 
 function moveGuidedTour(delta) {
@@ -274,6 +303,8 @@ function bindHelpUi() {
     });
     document.addEventListener('keydown', event => {
         if (!basHelpRuntime.tour?.hidden) {
+            const tourCard = basHelpRuntime.tour.querySelector('.guided-tour-card');
+            if (trapHelpFocus(event, tourCard)) return;
             if (event.key === 'Escape') {
                 event.preventDefault();
                 endGuidedTour();
@@ -286,9 +317,13 @@ function bindHelpUi() {
             }
             return;
         }
-        if (basHelpRuntime.modal?.getAttribute('aria-hidden') === 'false' && event.key === 'Escape') {
-            event.preventDefault();
-            closeHelp();
+        if (basHelpRuntime.modal?.getAttribute('aria-hidden') === 'false') {
+            const helpBox = basHelpRuntime.modal.querySelector('.help-box');
+            if (trapHelpFocus(event, helpBox)) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeHelp();
+            }
         }
     });
     window.addEventListener('resize', () => {

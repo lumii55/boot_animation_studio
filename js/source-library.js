@@ -29,6 +29,7 @@ function sourceLibraryResetRuntimeForProject(project) {
         if (record && record.video) {
             record.video.removeAttribute('src');
             record.video.load();
+            record.video.remove();
         }
     });
     sourceLibraryRuntime.videoElements.clear();
@@ -312,22 +313,56 @@ async function sourceLibraryLoadVideoMetadata(blob) {
 
 async function sourceLibraryLoadImageMetadata(blob) {
     if (window.createImageBitmap) {
-        const bitmap = await createImageBitmap(blob);
-        const result = { width: bitmap.width || 0, height: bitmap.height || 0 };
-        if (typeof bitmap.close === 'function') bitmap.close();
-        return result;
+        let abandoned = false;
+        try {
+            const bitmapPromise = createImageBitmap(blob).then(bitmap => {
+                if (abandoned) {
+                    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+                    throw new Error('Image decode timed out');
+                }
+                return bitmap;
+            });
+            const bitmap = await Promise.race([
+                bitmapPromise,
+                new Promise((_, reject) => setTimeout(() => {
+                    abandoned = true;
+                    reject(new Error('Image decode timed out'));
+                }, 5000))
+            ]);
+            const result = { width: bitmap.width || 0, height: bitmap.height || 0 };
+            if (typeof bitmap.close === 'function') bitmap.close();
+            return result;
+        } catch (error) {
+            abandoned = true;
+        }
     }
     return await new Promise((resolve, reject) => {
         const image = new Image();
         const url = URL.createObjectURL(blob);
-        image.onload = () => {
-            resolve({ width: image.naturalWidth || 0, height: image.naturalHeight || 0 });
+        let settled = false;
+        let timer = 0;
+        const cleanup = () => {
+            clearTimeout(timer);
+            image.onload = null;
+            image.onerror = null;
             URL.revokeObjectURL(url);
         };
-        image.onerror = () => {
-            URL.revokeObjectURL(url);
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            const result = { width: image.naturalWidth || 0, height: image.naturalHeight || 0 };
+            cleanup();
+            resolve(result);
+        };
+        const fail = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
             reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
         };
+        image.onload = finish;
+        image.onerror = fail;
+        timer = setTimeout(fail, 5000);
         image.src = url;
     });
 }
@@ -682,6 +717,7 @@ function sourceLibraryDisposeVideoRecord(sourceId, record = null) {
         try { target.video.pause(); } catch (error) {}
         target.video.removeAttribute('src');
         try { target.video.load(); } catch (error) {}
+        target.video.remove();
     }
     if (target.url) URL.revokeObjectURL(target.url);
 }
@@ -692,6 +728,10 @@ async function sourceLibraryCreateVideoRecord(source) {
     video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;
+    video.tabIndex = -1;
+    video.setAttribute('aria-hidden', 'true');
+    video.className = 'bas-work-decoder';
+    (document.body || document.documentElement).appendChild(video);
     const url = URL.createObjectURL(source.blob);
     const record = { video, url, blob: source.blob };
     sourceLibraryRuntime.videoElements.set(source.id, record);

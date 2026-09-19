@@ -305,11 +305,30 @@ async function getProjectFrameBlob(frame) {
 }
 
 async function cooperativeYield() {
-    if (globalThis.scheduler && typeof globalThis.scheduler.yield === 'function') {
-        await globalThis.scheduler.yield();
-        return;
-    }
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(resolve => {
+        let settled = false;
+        let fallback = 0;
+        let channel = null;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(fallback);
+            if (channel) {
+                channel.port1.onmessage = null;
+                channel.port1.close();
+                channel.port2.close();
+            }
+            resolve();
+        };
+        fallback = setTimeout(finish, 48);
+        if (typeof MessageChannel === 'function') {
+            channel = new MessageChannel();
+            channel.port1.onmessage = finish;
+            channel.port2.postMessage(0);
+        } else {
+            setTimeout(finish, 0);
+        }
+    });
 }
 
 async function cooperativePaintYield() {
@@ -337,22 +356,53 @@ function releaseExportCanvas() {
 
 async function blobToDrawable(blob) {
     if (window.createImageBitmap) {
+        let abandoned = false;
         try {
-            return await createImageBitmap(blob);
-        } catch (e) {}
+            const bitmapPromise = createImageBitmap(blob).then(bitmap => {
+                if (abandoned) {
+                    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+                    throw new Error('Frame decode timed out');
+                }
+                return bitmap;
+            });
+            return await Promise.race([
+                bitmapPromise,
+                new Promise((_, reject) => setTimeout(() => {
+                    abandoned = true;
+                    reject(new Error('Frame decode timed out'));
+                }, 3000))
+            ]);
+        } catch (e) {
+            abandoned = true;
+        }
     }
 
     return await new Promise((resolve, reject) => {
         const image = new Image();
         const url = URL.createObjectURL(blob);
-        image.onload = () => {
+        let settled = false;
+        let timer = 0;
+        const cleanup = () => {
+            clearTimeout(timer);
+            image.onload = null;
+            image.onerror = null;
             URL.revokeObjectURL(url);
+        };
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
             resolve(image);
         };
-        image.onerror = () => {
-            URL.revokeObjectURL(url);
+        const fail = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
             reject(new Error('Unable to decode frame'));
         };
+        image.onload = finish;
+        image.onerror = fail;
+        timer = setTimeout(fail, 5000);
         image.src = url;
     });
 }
@@ -468,12 +518,50 @@ function drawFramedDrawable(ctx, drawable, targetWidth, targetHeight, mode, focu
     ctx.drawImage(drawable, rect.sx, rect.sy, rect.sw, rect.sh, rect.dx, rect.dy, rect.dw, rect.dh);
 }
 
+function canvasDataUrlToBlob(dataUrl, fallbackType) {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) throw new Error('Unable to encode frame');
+    const header = dataUrl.slice(0, comma);
+    const typeMatch = header.match(/^data:([^;,]+)/i);
+    const type = typeMatch ? typeMatch[1] : fallbackType;
+    const payload = dataUrl.slice(comma + 1);
+    const binary = header.includes(';base64') ? atob(payload) : decodeURIComponent(payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type });
+}
+
 function canvasToBlobAsync(canvas, mimeType, quality) {
     return new Promise((resolve, reject) => {
-        canvas.toBlob(blob => {
+        let settled = false;
+        let fallbackTimer = 0;
+        const finish = blob => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(fallbackTimer);
             if (blob) resolve(blob);
             else reject(new Error('Unable to encode frame'));
-        }, mimeType, quality);
+        };
+        const fallback = () => {
+            if (settled) return;
+            try {
+                finish(canvasDataUrlToBlob(canvas.toDataURL(mimeType, quality), mimeType));
+            } catch (error) {
+                if (settled) return;
+                settled = true;
+                clearTimeout(fallbackTimer);
+                reject(error);
+            }
+        };
+        fallbackTimer = setTimeout(fallback, 1800);
+        try {
+            canvas.toBlob(blob => {
+                if (blob) finish(blob);
+                else fallback();
+            }, mimeType, quality);
+        } catch (error) {
+            fallback();
+        }
     });
 }
 

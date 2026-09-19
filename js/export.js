@@ -16,7 +16,11 @@ async function updateGenerationProgress(text, percent = null, options = {}) {
     const label = document.getElementById('texto-progresso');
     const bar = document.getElementById('barra-preenchimento');
     if (label && typeof text === 'string') label.textContent = text;
-    if (bar && Number.isFinite(percent)) bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    if (bar && Number.isFinite(percent)) {
+        const value = Math.max(0, Math.min(100, percent));
+        bar.style.width = `${value}%`;
+        bar.setAttribute('aria-valuenow', String(Math.round(value)));
+    }
     await flushGenerationProgressPaint(options.forcePaint === true);
 }
 
@@ -282,9 +286,8 @@ async function regenerateImportedPartFrames(zip, options, t) {
             if (completed % 4 === 0 || completed === totalFrames) {
                 const percent = totalFrames > 0 ? Math.min(100, Math.floor((completed / totalFrames) * 100)) : 100;
                 await updateGenerationProgress(`${t.extraindo} ${completed}/${totalFrames} (${percent}%)`, percent, { forcePaint: completed === totalFrames });
-            } else if (completed % 8 === 0) {
-                await cooperativeYield();
             }
+            if (completed % 8 === 0 && completed !== totalFrames) await cooperativeYield();
         }
     }
 
@@ -427,9 +430,8 @@ async function generateAdvancedPartFrames(zip, options, t) {
             if (completed % 4 === 0 || completed === totalFrames) {
                 const percent = totalFrames > 0 ? Math.min(100, Math.floor((completed / totalFrames) * 100)) : 100;
                 await updateGenerationProgress(`${t.extraindo} ${completed}/${totalFrames} (${percent}%)`, percent, { forcePaint: completed === totalFrames });
-            } else if (completed % 8 === 0) {
-                await cooperativeYield();
             }
+            if (completed % 8 === 0 && completed !== totalFrames) await cooperativeYield();
         }
     }
 }
@@ -675,9 +677,8 @@ async function paparazzoOtimizado(zip, largura, altura, fps, formato, framing, f
         if (fotosTiradas % 4 === 0 || fotosTiradas === totalFotos) {
             const porcentagem = Math.min(100, Math.floor((fotosTiradas / totalFotos) * 100));
             await updateGenerationProgress(`${t.extraindo} ${fotosTiradas}/${totalFotos} (${porcentagem}%)`, porcentagem, { forcePaint: fotosTiradas === totalFotos });
-        } else if (fotosTiradas % 8 === 0) {
-            await cooperativeYield();
         }
+        if (fotosTiradas % 8 === 0 && fotosTiradas !== totalFotos) await cooperativeYield();
     }
 }
 
