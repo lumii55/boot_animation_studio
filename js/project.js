@@ -460,24 +460,14 @@ function canvasToBlobAsync(canvas, mimeType, quality) {
 }
 
 async function seekPlayer(time) {
+    if (window.BASMediaSeek) {
+        await BASMediaSeek.seek(playerVideo, time, { timeout: 1400, retries: 1, tolerance: 0.003 });
+        return;
+    }
     const duration = Number.isFinite(playerVideo.duration) ? playerVideo.duration : 0;
     const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.0001))) : Math.max(0, time);
     if (Math.abs(playerVideo.currentTime - target) < 0.0005) return;
-    await new Promise((resolve, reject) => {
-        const done = () => {
-            playerVideo.removeEventListener('seeked', done);
-            playerVideo.removeEventListener('error', fail);
-            resolve();
-        };
-        const fail = () => {
-            playerVideo.removeEventListener('seeked', done);
-            playerVideo.removeEventListener('error', fail);
-            reject(new Error('Unable to seek media'));
-        };
-        playerVideo.addEventListener('seeked', done, { once: true });
-        playerVideo.addEventListener('error', fail, { once: true });
-        playerVideo.currentTime = target;
-    });
+    playerVideo.currentTime = target;
 }
 
 async function getProjectFrameOutputBlob(sourceTime, width, height, format, framing = 'cover', framingFocus = null, jpegQuality = 0.90) {

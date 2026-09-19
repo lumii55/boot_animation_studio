@@ -564,6 +564,7 @@ btnGerar.addEventListener('click', async () => {
 
         releaseExportCanvas();
         const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
+        if (typeof recordFinishResult === 'function') recordFinishResult(deliveryResult, options);
         const successText = typeof generationSuccessText === 'function' ? generationSuccessText(deliveryResult, t) : 'OK!';
         document.getElementById('texto-progresso').textContent = successText;
         if (typeof showToast === 'function') showToast(successText, 'success', 4200);

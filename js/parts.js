@@ -1166,18 +1166,11 @@ async function playAdvancedPreviewPart(index, played = 0) {
     if (window.BASSourceLibrary) await BASSourceLibrary.setVideoElementSource(videoPreview, sourceId);
     const target = window.BASSourceLibrary ? BASSourceLibrary.sourceTimeToPreview(sourceId, part.start, videoPreview) : projectTimeToTimelineTime(part.start);
     if (Math.abs(videoPreview.currentTime - target) > 0.02) {
-        await new Promise(resolve => {
-            let finished = false;
-            const done = () => {
-                if (finished) return;
-                finished = true;
-                videoPreview.removeEventListener('seeked', done);
-                resolve();
-            };
-            videoPreview.addEventListener('seeked', done, { once: true });
+        if (window.BASMediaSeek) {
+            await BASMediaSeek.seek(videoPreview, target, { timeout: 700, retries: 1, tolerance: 0.02 }).catch(() => {});
+        } else {
             videoPreview.currentTime = Math.max(0, Math.min(videoPreview.duration || target, target));
-            setTimeout(done, 500);
-        });
+        }
     }
     if (!advancedPreviewState || state.generation !== advancedPreviewGeneration) return;
     state.transitioning = false;

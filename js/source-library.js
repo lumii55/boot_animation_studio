@@ -271,10 +271,28 @@ async function sourceLibraryLoadVideoMetadata(blob) {
     video.playsInline = true;
     try {
         await new Promise((resolve, reject) => {
-            const done = () => resolve();
-            const fail = () => reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
-            video.addEventListener('loadedmetadata', done, { once: true });
-            video.addEventListener('error', fail, { once: true });
+            let settled = false;
+            let timer = 0;
+            const cleanup = () => {
+                clearTimeout(timer);
+                video.removeEventListener('loadedmetadata', done);
+                video.removeEventListener('error', fail);
+            };
+            const done = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve();
+            };
+            const fail = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
+            };
+            video.addEventListener('loadedmetadata', done);
+            video.addEventListener('error', fail);
+            timer = setTimeout(fail, 6000);
             video.src = url;
         });
         return {
@@ -652,35 +670,55 @@ async function sourceLibraryEnsureVideoElement(source) {
     const url = URL.createObjectURL(source.blob);
     const record = { video, url };
     sourceLibraryRuntime.videoElements.set(source.id, record);
-    await new Promise((resolve, reject) => {
-        const done = () => resolve();
-        const fail = () => reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
-        video.addEventListener('loadedmetadata', done, { once: true });
-        video.addEventListener('error', fail, { once: true });
-        video.src = url;
-    });
+    try {
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            let timer = 0;
+            const cleanup = () => {
+                clearTimeout(timer);
+                video.removeEventListener('loadedmetadata', done);
+                video.removeEventListener('error', fail);
+            };
+            const done = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve();
+            };
+            const fail = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.')));
+            };
+            video.addEventListener('loadedmetadata', done);
+            video.addEventListener('error', fail);
+            timer = setTimeout(fail, 6000);
+            video.src = url;
+        });
+    } catch (error) {
+        sourceLibraryRuntime.videoElements.delete(source.id);
+        video.removeAttribute('src');
+        video.load();
+        URL.revokeObjectURL(url);
+        throw error;
+    }
     return video;
 }
 
 async function sourceLibrarySeekVideo(video, time) {
-    const duration = Number.isFinite(video.duration) ? video.duration : 0;
-    const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.0001))) : Math.max(0, time);
-    if (Math.abs(video.currentTime - target) < 0.0005) return;
-    await new Promise((resolve, reject) => {
-        const done = () => {
-            video.removeEventListener('seeked', done);
-            video.removeEventListener('error', fail);
-            resolve();
-        };
-        const fail = () => {
-            video.removeEventListener('seeked', done);
-            video.removeEventListener('error', fail);
-            reject(new Error(sourceLibraryText('sourceLibrarySeekError', 'Could not seek this source.')));
-        };
-        video.addEventListener('seeked', done, { once: true });
-        video.addEventListener('error', fail, { once: true });
+    try {
+        if (window.BASMediaSeek) {
+            await BASMediaSeek.seek(video, time, { timeout: 1400, retries: 1, tolerance: 0.003 });
+            return;
+        }
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        const target = duration > 0 ? Math.max(0, Math.min(time, Math.max(0, duration - 0.0001))) : Math.max(0, time);
+        if (Math.abs(video.currentTime - target) < 0.0005) return;
         video.currentTime = target;
-    });
+    } catch (error) {
+        throw new Error(sourceLibraryText('sourceLibrarySeekError', 'Could not seek this source.'));
+    }
 }
 
 function sourceLibraryFrameAtTime(frames, time) {

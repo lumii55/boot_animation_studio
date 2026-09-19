@@ -1,4 +1,9 @@
 
+let isSeeking = false;
+let targetTime = 0;
+let timelineSeekController = null;
+let timelineSeekFrame = 0;
+
 function timelineUsesMasterSequence() {
     return !!(window.BASMasterSequence && BASMasterSequence.isTimelineActive());
 }
@@ -10,7 +15,9 @@ function getTimelineDurationExact() {
 
 function getTimelineCurrentTimeExact() {
     if (timelineUsesMasterSequence()) return BASMasterSequence.getCurrentTime();
-    return Math.max(0, Number(playerVideo.currentTime) || 0);
+    const duration = getTimelineDurationExact();
+    const logical = Number.isFinite(targetTime) ? targetTime : (Number(playerVideo.currentTime) || 0);
+    return Math.max(0, duration > 0 ? Math.min(duration, logical) : logical);
 }
 
 function pauseTimelinePlayback() {
@@ -74,13 +81,14 @@ function seekTimelineTo(timelineTime) {
     const duration = getTimelineDurationExact();
     if (!(duration > 0) || isGenerating || isBuildingTimeline) return;
     const safe = Math.max(0, Math.min(duration, Number(timelineTime) || 0));
+    targetTime = safe;
     if (timelineUsesMasterSequence()) {
         BASMasterSequence.seek(safe, { scroll: true }).catch(() => {});
         return;
     }
     playerVideo.pause();
-    playerVideo.currentTime = safe;
     updatePlayerTimeReadout(safe);
+    scheduleTimelinePlayerSeek();
     isProgrammaticScroll = true;
     scrollTimeline.scrollLeft = (safe / duration) * filmstrip.offsetWidth;
     setTimeout(() => { isProgrammaticScroll = false; }, 20);
@@ -720,6 +728,7 @@ inputVideo.addEventListener('change', function(evento) {
 window.openVideoSourceInEditor = openVideoSourceInEditor;
 
 playerVideo.addEventListener('loadedmetadata', async function() {
+    if (!timelineUsesMasterSequence()) targetTime = Math.max(0, Number(playerVideo.currentTime) || 0);
     if (window.BASMasterSequence && BASMasterSequence.isPlayerSwitching()) {
         atualizarPreviewEnquadramento();
         applyFramingFocusVisuals();
@@ -789,9 +798,6 @@ scrollTimeline.addEventListener('mousemove', (e) => {
     scrollTimeline.scrollLeft = scrollLeftPos - walk;
 });
 
-let isSeeking = false;
-let targetTime = 0;
-
 function seekMasterScrollTarget() {
     if (!timelineUsesMasterSequence() || isSeeking || isGenerating || isBuildingTimeline) return;
     if (Math.abs(BASMasterSequence.getCurrentTime() - targetTime) <= 0.015) return;
@@ -799,6 +805,49 @@ function seekMasterScrollTarget() {
     BASMasterSequence.seek(targetTime, { scroll: false }).finally(() => {
         isSeeking = false;
         if (timelineUsesMasterSequence() && Math.abs(BASMasterSequence.getCurrentTime() - targetTime) > 0.015) requestAnimationFrame(seekMasterScrollTarget);
+    });
+}
+
+function cancelTimelinePlayerSeek() {
+    if (timelineSeekFrame) cancelAnimationFrame(timelineSeekFrame);
+    timelineSeekFrame = 0;
+    if (timelineSeekController) timelineSeekController.abort();
+    timelineSeekController = null;
+    isSeeking = false;
+}
+
+function scheduleTimelinePlayerSeek() {
+    if (timelineUsesMasterSequence() || isGenerating || isBuildingTimeline || !playerVideo.paused) return;
+    if (timelineSeekFrame) return;
+    timelineSeekFrame = requestAnimationFrame(async () => {
+        timelineSeekFrame = 0;
+        if (timelineUsesMasterSequence() || isGenerating || isBuildingTimeline || !playerVideo.paused) return;
+        const requestedTarget = targetTime;
+        if (Math.abs((Number(playerVideo.currentTime) || 0) - requestedTarget) <= 0.01 && !playerVideo.seeking) {
+            isSeeking = false;
+            return;
+        }
+        if (timelineSeekController) timelineSeekController.abort();
+        const controller = new AbortController();
+        timelineSeekController = controller;
+        isSeeking = true;
+        try {
+            if (window.BASMediaSeek) {
+                await BASMediaSeek.seek(playerVideo, requestedTarget, { timeout: 850, retries: 1, tolerance: 0.015, signal: controller.signal });
+            } else {
+                playerVideo.currentTime = requestedTarget;
+            }
+        } catch (error) {
+            if (!error || error.name !== 'AbortError') console.warn('Timeline seek recovery failed', error);
+        } finally {
+            if (timelineSeekController === controller) {
+                timelineSeekController = null;
+                isSeeking = false;
+            }
+            if (!controller.signal.aborted && playerVideo.paused && !isGenerating && !isBuildingTimeline && Math.abs((Number(playerVideo.currentTime) || 0) - targetTime) > 0.02 && Math.abs(requestedTarget - targetTime) > 0.001) {
+                scheduleTimelinePlayerSeek();
+            }
+        }
     });
 }
 
@@ -814,10 +863,7 @@ scrollTimeline.addEventListener('scroll', () => {
         seekMasterScrollTarget();
         return;
     }
-    if (!isSeeking && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
-        isSeeking = true;
-        playerVideo.currentTime = targetTime;
-    }
+    scheduleTimelinePlayerSeek();
 });
 
 playerVideo.addEventListener('seeked', () => {
@@ -826,24 +872,25 @@ playerVideo.addEventListener('seeked', () => {
         updatePlayerTimeReadout();
         return;
     }
+    if (!isBuildingTimeline && !isGenerating && !isSeeking) targetTime = Math.max(0, Number(playerVideo.currentTime) || 0);
     updatePlayerTimeReadout();
-    isSeeking = false;
-    if (playerVideo.paused && !isGenerating && !isBuildingTimeline && Math.abs(playerVideo.currentTime - targetTime) > 0.01) {
-        isSeeking = true;
-        playerVideo.currentTime = targetTime;
-    }
 });
 
 playerVideo.addEventListener('timeupdate', () => {
     if (timelineUsesMasterSequence() && window.BASMasterSequence) BASMasterSequence.handlePlayerTimeUpdate();
+    else if (!isBuildingTimeline && !isGenerating && !isSeeking) targetTime = Math.max(0, Number(playerVideo.currentTime) || 0);
     updatePlayerTimeReadout();
 });
 playerVideo.addEventListener('durationchange', () => {
+    const duration = getTimelineDurationExact();
+    if (duration > 0) targetTime = Math.max(0, Math.min(duration, targetTime));
     updatePlayerTimeReadout();
     syncTimelineTransportUi();
     renderSimpleSegmentTrack();
 });
 playerVideo.addEventListener('emptied', () => {
+    cancelTimelinePlayerSeek();
+    targetTime = 0;
     const readout = document.getElementById('video-time-readout');
     if (readout) readout.style.display = 'none';
     syncTimelineTransportUi();
@@ -935,6 +982,8 @@ async function desenharFilmstrip() {
     }
 
     renderTimelineRuler();
+    cancelTimelinePlayerSeek();
+    targetTime = 0;
     playerVideo.currentTime = 0;
     updatePlayerTimeReadout(0);
     isProgrammaticScroll = true;

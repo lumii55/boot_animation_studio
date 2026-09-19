@@ -851,18 +851,27 @@ async function applyHistory(id) {
 }
 
 async function createMiniPreviewWebm(options = null) {
-    return new Promise(async (resolve) => {
-        const c = document.createElement('canvas');
-        const targetWidth = options && options.width ? options.width : originalW;
-        const targetHeight = options && options.height ? options.height : originalH;
-        c.width = 150; c.height = Math.max(2, Math.floor(150 * (targetHeight / targetWidth)));
-        const ctx = c.getContext('2d');
-        const stream = c.captureStream(10);
-        const rec = new MediaRecorder(stream, {mimeType: 'video/webm'});
-        const chunks = [];
-        rec.ondataavailable = e => chunks.push(e.data);
-        rec.start();
-        
+    const c = document.createElement('canvas');
+    const targetWidth = options && options.width ? options.width : originalW;
+    const targetHeight = options && options.height ? options.height : originalH;
+    c.width = 150;
+    c.height = Math.max(2, Math.floor(150 * (targetHeight / targetWidth)));
+    const ctx = c.getContext('2d');
+    const stream = c.captureStream(10);
+    const rec = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks = [];
+    let recorderStopped = false;
+    let recorderError = null;
+    const stopped = new Promise(resolve => {
+        rec.ondataavailable = event => chunks.push(event.data);
+        rec.onerror = event => { recorderError = event.error || new Error('Preview recording failed'); };
+        rec.onstop = () => {
+            recorderStopped = true;
+            resolve();
+        };
+    });
+    rec.start();
+    try {
         const advancedPart = typeof getAdvancedPreviewSamplePart === 'function' ? getAdvancedPreviewSamplePart() : null;
         const framing = options && options.framing ? options.framing : 'cover';
         const framingFocus = options && options.framingFocus ? options.framingFocus : getCurrentFramingFocus();
@@ -877,44 +886,46 @@ async function createMiniPreviewWebm(options = null) {
                 ctx.drawImage(drawable, 0, 0, c.width, c.height);
                 releaseDrawable(drawable);
                 sourceTime += step;
-                await new Promise(r => setTimeout(r, 20));
+                await new Promise(resolve => setTimeout(resolve, 20));
             }
         } else if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) {
             const sampleStart = Number.isFinite(marcadores.m1) ? marcadores.m1 : 0;
             const sampleEnd = Number.isFinite(marcadores.m2) && marcadores.m2 > sampleStart ? marcadores.m2 : BASMasterSequence.getDuration();
-            let t = sampleStart;
+            let time = sampleStart;
             const step = Math.max(0.0001, (sampleEnd - sampleStart) / 30);
             for (let i = 0; i < 30; i++) {
-                const frameBlob = await BASMasterSequence.frameBlob(t, c.width, c.height, 'jpeg', framing, framingFocus, 0.76);
+                const frameBlob = await BASMasterSequence.frameBlob(time, c.width, c.height, 'jpeg', framing, framingFocus, 0.76);
                 const drawable = await blobToDrawable(frameBlob);
                 ctx.drawImage(drawable, 0, 0, c.width, c.height);
                 releaseDrawable(drawable);
-                t = Math.min(sampleEnd, t + step);
-                await new Promise(r => setTimeout(r, 20));
+                time = Math.min(sampleEnd, time + step);
+                await new Promise(resolve => setTimeout(resolve, 20));
             }
         } else {
             const sampleStart = marcadores.m1;
             const sampleEnd = marcadores.m2;
-            let t = Number.isFinite(sampleStart) ? sampleStart : 0;
-            const step = Math.max(0.0001, ((Number.isFinite(sampleEnd) ? sampleEnd : t) - t) / 30);
+            let time = Number.isFinite(sampleStart) ? sampleStart : 0;
+            const step = Math.max(0.0001, ((Number.isFinite(sampleEnd) ? sampleEnd : time) - time) / 30);
             for (let i = 0; i < 30; i++) {
-                playerVideo.currentTime = t;
-                await new Promise(r => { playerVideo.addEventListener('seeked', r, {once:true}); });
+                if (window.BASMediaSeek) await BASMediaSeek.seek(playerVideo, time, { timeout: 1200, retries: 1, tolerance: 0.01 });
+                else playerVideo.currentTime = time;
                 drawFramedDrawable(ctx, playerVideo, c.width, c.height, framing, framingFocus);
-                t += step;
-                await new Promise(r => setTimeout(r, 20));
+                time += step;
+                await new Promise(resolve => setTimeout(resolve, 20));
             }
         }
-        
         rec.stop();
-        rec.onstop = () => {
-            const blob = new Blob(chunks, {type: 'video/webm'});
-            stream.getTracks().forEach(track => track.stop());
-            c.width = 1;
-            c.height = 1;
-            resolve(blob);
-        };
-    });
+        await stopped;
+        if (recorderError) throw recorderError;
+        return new Blob(chunks, { type: 'video/webm' });
+    } finally {
+        if (!recorderStopped && rec.state !== 'inactive') {
+            try { rec.stop(); } catch (error) {}
+        }
+        stream.getTracks().forEach(track => track.stop());
+        c.width = 1;
+        c.height = 1;
+    }
 }
 
 function abrirModalPull() {

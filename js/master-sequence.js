@@ -343,20 +343,15 @@ async function masterSequenceSetElementSource(element, located, generation, isPr
         const previewTime = BASSourceLibrary.sourceTimeToPreview(located.clip.sourceId, located.sourceTime, element);
         const safe = Number.isFinite(element.duration) && element.duration > 0 ? Math.max(0, Math.min(previewTime, Math.max(0, element.duration - 0.001))) : Math.max(0, previewTime);
         if (Math.abs((element.currentTime || 0) - safe) > 0.004) {
-            await new Promise(resolve => {
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    element.removeEventListener('seeked', finish);
-                    element.removeEventListener('error', finish);
-                    resolve();
-                };
-                element.addEventListener('seeked', finish, { once: true });
-                element.addEventListener('error', finish, { once: true });
-                setTimeout(finish, 900);
+            if (window.BASMediaSeek) {
+                try {
+                    await BASMediaSeek.seek(element, safe, { timeout: 900, retries: 1, tolerance: 0.015 });
+                } catch (error) {
+                    return false;
+                }
+            } else {
                 element.currentTime = safe;
-            });
+            }
         }
         if (isPreview) previewState.activeClipId = located.clip.id;
         else masterSequenceRuntime.activeClipId = located.clip.id;

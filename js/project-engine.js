@@ -1,5 +1,5 @@
 const BAS_PROJECT_SCHEMA_VERSION = 1;
-const BAS_PROJECT_ENGINE_VERSION = '12.11F.1';
+const BAS_PROJECT_ENGINE_VERSION = '12.12B';
 
 const projectEngineRuntime = {
     projectRef: null,
