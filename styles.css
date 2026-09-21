@@ -15091,6 +15091,10 @@ summary:focus-visible {
     backdrop-filter: blur(18px);
 }
 
+.module-workspace-tab[hidden] {
+    display: none !important;
+}
+
 .module-workspace-tab {
     display: flex;
     align-items: center;
