@@ -389,6 +389,10 @@ function completeConnectedState(data) {
     if (hasModuleFeature('history')) loadHistory();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
+    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
+        if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
+    }
 }
 
 function apiFetch(path, options = {}) {
@@ -586,10 +590,11 @@ async function conectarPorIp() {
     tentaConexao();
 }
 
-function fecharModalRede() {
+function fecharModalRede(cancelConnectionIntent = false) {
     pairingScanGeneration++;
     pairingToken = '';
     document.getElementById('modal-network').style.display = 'none';
+    if (cancelConnectionIntent && typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
 }
 
 async function checkIP(ip) {
@@ -652,6 +657,8 @@ async function iniciarVarredura() {
 }
 
 function startManualMode() {
+    if (typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
+    if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
     sessionToken = '';
     resetModuleCompatibility();
     isConnectedMode = false;
@@ -693,9 +700,15 @@ async function disconnectPhone() {
     document.getElementById('btn-connect').textContent = traducoes[idiomaAtual].btnConnect;
     if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('download', { skipButtons: true });
     atualizarBotoesELinhas();
+    const returnedToLaunch = typeof handleModuleWorkspaceDisconnect === 'function' ? handleModuleWorkspaceDisconnect() : false;
+    if (!returnedToLaunch) {
+        document.getElementById('initial-state').style.display = 'none';
+        document.getElementById('editor-section').style.display = 'flex';
+    }
     if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
+    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
 }
 
 async function removeAnimation() {
@@ -968,6 +981,7 @@ async function openHistoryInStudio(id) {
         const blob = await fetchHistoryBlob(id);
         if (!blob) return;
         await abrirZipNoEditor(blob);
+        if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
         showToast(t.historyOpened || 'History animation opened in Studio.', 'success');
     } catch (error) {
         showToast(t.historyOpenError || 'Could not open this History animation.', 'error');
@@ -1132,6 +1146,7 @@ async function puxarAnimacao(source) {
         
         let blob = await res.blob();
         await abrirZipNoEditor(blob);
+        if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
         
         document.getElementById('container-progresso').style.display = 'none';
         
