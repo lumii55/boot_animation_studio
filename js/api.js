@@ -753,69 +753,243 @@ function historyIdToDate(id) {
     return new Date(String(id).length >= 13 ? numericId : numericId * 1000);
 }
 
+function historyFormatBytes(bytes) {
+    const value = Math.max(0, Number(bytes) || 0);
+    if (value < 1024) return `${Math.round(value)} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(value < 100 * 1024 * 1024 ? 1 : 0)} MB`;
+    return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function historyItemFromLegacyId(id) {
+    return {
+        id: String(id),
+        created_at: historyIdToDate(id).getTime(),
+        size_bytes: 0,
+        width: 0,
+        height: 0,
+        fps: 0,
+        frame_count: 0,
+        parts: 0,
+        frame_format: '',
+        has_audio: false,
+        has_preview: false,
+        preview_type: ''
+    };
+}
+
+async function fetchHistoryItems() {
+    if (hasModuleFeature('history_details')) {
+        const response = await apiFetch('/history/items');
+        if (!response.ok) throw new Error('history_details_failed');
+        const items = await response.json();
+        return Array.isArray(items) ? items : [];
+    }
+    const response = await apiFetch('/history/list');
+    if (!response.ok) throw new Error('history_list_failed');
+    const ids = await response.json();
+    return Array.isArray(ids) ? ids.map(historyItemFromLegacyId) : [];
+}
+
+async function historyPreviewElement(id) {
+    const t = traducoes[idiomaAtual];
+    const placeholder = document.createElement('div');
+    placeholder.className = 'hist-card-preview-placeholder';
+    placeholder.textContent = t.historyPreviewLoading || 'Preparing preview…';
+    try {
+        const response = await apiFetch('/history/preview?id=' + encodeURIComponent(id));
+        if (!response.ok) throw new Error('preview_unavailable');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const contentType = String(response.headers.get('Content-Type') || blob.type || '').toLowerCase();
+        let gifSignature = '';
+        try {
+            const header = new Uint8Array(await blob.slice(0, 6).arrayBuffer());
+            gifSignature = String.fromCharCode(...header);
+        } catch (error) {
+        }
+        const isGif = contentType.includes('gif') || gifSignature === 'GIF87a' || gifSignature === 'GIF89a';
+        let media;
+        if (isGif || contentType.startsWith('image/')) {
+            media = document.createElement('img');
+            media.alt = t.historyPreviewAlt || 'Boot animation preview';
+        } else {
+            media = document.createElement('video');
+            media.autoplay = true;
+            media.loop = true;
+            media.muted = true;
+            media.playsInline = true;
+            media.setAttribute('aria-label', t.historyPreviewAlt || 'Boot animation preview');
+        }
+        media.className = 'hist-card-media';
+        media.src = url;
+        media.dataset.objectUrl = url;
+        return media;
+    } catch (error) {
+        placeholder.textContent = t.historyPreviewUnavailable || 'Preview unavailable';
+        return placeholder;
+    }
+}
+
+function historyDetailsText(item) {
+    const details = [];
+    if (Number(item.width) > 0 && Number(item.height) > 0) details.push(`${item.width}×${item.height}`);
+    if (Number(item.fps) > 0) details.push(`${item.fps} FPS`);
+    if (item.frame_format) details.push(String(item.frame_format));
+    if (Number(item.size_bytes) > 0) details.push(historyFormatBytes(item.size_bytes));
+    return details.join(' · ');
+}
+
 async function loadHistory() {
     if (!hasModuleFeature('history')) {
         document.getElementById('history-wrapper').style.display = 'none';
         return;
     }
     try {
-        let res = await apiFetch('/history/list');
-        if(!res.ok) return;
-        let ids = await res.json();
-        
+        const items = await fetchHistoryItems();
         const scroll = document.getElementById('history-scroll');
-        scroll.querySelectorAll('video[data-object-url]').forEach(video => URL.revokeObjectURL(video.dataset.objectUrl));
+        scroll.querySelectorAll('[data-object-url]').forEach(media => URL.revokeObjectURL(media.dataset.objectUrl));
         scroll.innerHTML = '';
-        
+
+        const historyLimit = Math.max(1, Number(moduleInfo && moduleInfo.history_limit) || 5);
         const historyCount = document.getElementById('p11-history-count');
-        if (historyCount) historyCount.textContent = `${Array.isArray(ids) ? ids.length : 0} / 5`;
-        if(ids && ids.length > 0) {
-            document.getElementById('history-wrapper').style.display = "flex";
-            const t = traducoes[idiomaAtual];
-            
-            for (const id of ids) {
-                const date = historyIdToDate(id).toLocaleString();
-                const card = document.createElement('div');
-                card.className = "hist-card";
-                
-                const vid = document.createElement('video');
-                const previewRes = await apiFetch('/history/preview?id=' + encodeURIComponent(id));
-                if (previewRes.ok) {
-                    const previewBlob = await previewRes.blob();
-                    const previewUrl = URL.createObjectURL(previewBlob);
-                    vid.src = previewUrl;
-                    vid.dataset.objectUrl = previewUrl;
-                }
-                vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
-                
-                const btnClose = document.createElement('button');
-                btnClose.className = "btn-close";
-                btnClose.textContent = "×";
-                btnClose.onclick = () => deleteHistory(id);
+        if (historyCount) historyCount.textContent = `${items.length} / ${historyLimit}`;
+        document.getElementById('history-wrapper').style.display = 'flex';
 
-                const btnApply = document.createElement('button');
-                btnApply.className = "btn-apply";
-                btnApply.innerHTML = t.btnApplyHist;
-                btnApply.onclick = () => applyHistory(id);
-
-                const label = document.createElement('div');
-                label.className = "hist-card-date";
-                label.innerText = date;
-
-                card.appendChild(btnClose);
-                card.appendChild(vid);
-                card.appendChild(label);
-                card.appendChild(btnApply);
-                scroll.appendChild(card);
-            }
-        } else {
-            document.getElementById('history-wrapper').style.display = "flex";
+        if (!items.length) {
             const empty = document.createElement('div');
-            empty.className = "history-empty";
+            empty.className = 'history-empty';
             empty.textContent = traducoes[idiomaAtual].historyEmpty || 'No saved animations yet.';
             scroll.appendChild(empty);
+            return;
         }
-    } catch(e) {}
+
+        const t = traducoes[idiomaAtual];
+        for (const rawItem of items) {
+            const item = { ...historyItemFromLegacyId(rawItem.id), ...rawItem, id: String(rawItem.id) };
+            const card = document.createElement('article');
+            card.className = 'hist-card';
+            card.dataset.historyId = item.id;
+
+            const mediaWrap = document.createElement('div');
+            mediaWrap.className = 'hist-card-media-wrap';
+            mediaWrap.appendChild(await historyPreviewElement(item.id));
+
+            const body = document.createElement('div');
+            body.className = 'hist-card-body';
+
+            const date = document.createElement('time');
+            date.className = 'hist-card-date';
+            const dateValue = Number(item.created_at) > 0 ? new Date(Number(item.created_at)) : historyIdToDate(item.id);
+            date.dateTime = dateValue.toISOString();
+            date.textContent = dateValue.toLocaleString();
+
+            const details = document.createElement('div');
+            details.className = 'hist-card-details';
+            details.textContent = historyDetailsText(item) || (t.historyLegacyDetails || 'Legacy history item');
+
+            const facts = document.createElement('div');
+            facts.className = 'hist-card-facts';
+            if (Number(item.frame_count) > 0) {
+                const frameFact = document.createElement('span');
+                frameFact.textContent = (t.historyFrames || '{count} frames').replace('{count}', item.frame_count);
+                facts.appendChild(frameFact);
+            }
+            if (Number(item.parts) > 0) {
+                const partFact = document.createElement('span');
+                partFact.textContent = (t.historyParts || '{count} parts').replace('{count}', item.parts);
+                facts.appendChild(partFact);
+            }
+            if (item.has_audio) {
+                const audioFact = document.createElement('span');
+                audioFact.textContent = t.historyAudio || 'Audio';
+                facts.appendChild(audioFact);
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'hist-card-actions';
+
+            const btnApply = document.createElement('button');
+            btnApply.className = 'btn-apply';
+            btnApply.type = 'button';
+            btnApply.textContent = t.btnApplyHist;
+            btnApply.onclick = () => applyHistory(item.id);
+
+            actions.appendChild(btnApply);
+
+            if (hasModuleFeature('history_download')) {
+                const btnOpen = document.createElement('button');
+                btnOpen.className = 'btn-history-secondary';
+                btnOpen.type = 'button';
+                btnOpen.textContent = t.historyOpenInStudio || 'Open in Studio';
+                btnOpen.onclick = () => openHistoryInStudio(item.id);
+                actions.appendChild(btnOpen);
+
+                const btnDownload = document.createElement('button');
+                btnDownload.className = 'btn-history-secondary';
+                btnDownload.type = 'button';
+                btnDownload.textContent = t.historyDownload || 'Download';
+                btnDownload.onclick = () => downloadHistoryItem(item.id);
+                actions.appendChild(btnDownload);
+            }
+
+            const btnDelete = document.createElement('button');
+            btnDelete.className = 'btn-history-delete';
+            btnDelete.type = 'button';
+            btnDelete.setAttribute('aria-label', t.historyDelete || 'Delete from History');
+            btnDelete.textContent = '×';
+            btnDelete.onclick = () => deleteHistory(item.id);
+            mediaWrap.appendChild(btnDelete);
+
+            body.append(date, details);
+            if (facts.childNodes.length) body.appendChild(facts);
+            body.appendChild(actions);
+            card.append(mediaWrap, body);
+            scroll.appendChild(card);
+        }
+    } catch (error) {
+        console.warn('Could not load module history', error);
+    }
+}
+
+async function fetchHistoryBlob(id) {
+    if (!ensureModuleFeature('history_download')) return null;
+    const response = await apiFetch('/history/download?id=' + encodeURIComponent(id));
+    if (!response.ok) throw new Error('history_download_failed');
+    return await response.blob();
+}
+
+async function openHistoryInStudio(id) {
+    const t = traducoes[idiomaAtual];
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('device');
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('txt-loading-timeline').textContent = t.historyOpening || 'Opening history item…';
+    try {
+        const blob = await fetchHistoryBlob(id);
+        if (!blob) return;
+        await abrirZipNoEditor(blob);
+        showToast(t.historyOpened || 'History animation opened in Studio.', 'success');
+    } catch (error) {
+        showToast(t.historyOpenError || 'Could not open this History animation.', 'error');
+    } finally {
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
+}
+
+async function downloadHistoryItem(id) {
+    const t = traducoes[idiomaAtual];
+    try {
+        const blob = await fetchHistoryBlob(id);
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `bootanimation-${id}.zip`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (error) {
+        showToast(t.historyDownloadError || 'Could not download this History animation.', 'error');
+    }
 }
 
 async function deleteHistory(id) {
@@ -841,7 +1015,7 @@ async function applyHistory(id) {
         let res = await apiFetch('/history/apply?id=' + encodeURIComponent(id), { method: 'POST' });
         if(res.ok) {
             showToast(t.msgApplyHistorySuccess, 'success');
-            document.getElementById('btn-remove').style.display = "flex";
+            document.getElementById('btn-remove').style.display = 'flex';
             window.hasCustomAnimApplied = true;
             syncConnectedDeviceSurfaces();
         } else {
@@ -982,41 +1156,44 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
         return;
     }
 
+    const legacyDirectUploadLimit = 25 * 1024 * 1024;
+    const warningBytes = Math.max(1, Number(moduleInfo && moduleInfo.direct_upload_warning_bytes) || legacyDirectUploadLimit);
+    const advertisedMaxBytes = Number(moduleInfo && moduleInfo.max_direct_upload_bytes);
+    const maxBytes = hasModuleFeature('large_upload') && Number.isFinite(advertisedMaxBytes) && advertisedMaxBytes > 0
+        ? advertisedMaxBytes
+        : legacyDirectUploadLimit;
+    if (maxBytes > 0 && arquivo.size > maxBytes) {
+        alert((t.msgDirectUploadHardLimit || 'This ZIP exceeds the module transport safety limit ({limit}).').replace('{limit}', historyFormatBytes(maxBytes)));
+        evento.target.value = '';
+        return;
+    }
+    if (arquivo.size > warningBytes) {
+        const warning = (t.msgLargeDirectUploadConfirm || 'This boot animation is large ({size}). Large animations may stutter during boot or fail on some devices. Continue anyway?').replace('{size}', historyFormatBytes(arquivo.size));
+        if (!await askConfirmation(warning, false)) {
+            evento.target.value = '';
+            return;
+        }
+    }
+
     if (typeof setLoadingTipContext === 'function') setLoadingTipContext('device');
     document.getElementById('loading-overlay').style.display = 'flex';
     document.getElementById('txt-loading-timeline').textContent = t.msgCheckingZip;
 
     try {
-        const zip = await JSZip.loadAsync(arquivo);
-        const descFile = zip.file("desc.txt");
-        
-        if (!descFile) throw new Error(t.msgZipNoDesc);
-        
-        let temImagemValida = false;
-        zip.forEach(function (relativePath, file){
-            if (!file.dir && relativePath.includes('/') && /\.(png|jpg|jpeg)$/i.test(relativePath)) {
-                temImagemValida = true;
-            }
-        });
-
-        if (!temImagemValida) throw new Error(t.msgZipNoParts);
-
         document.getElementById('txt-loading-timeline').textContent = t.msgInjectingPhone;
-        
+
         const formData = new FormData();
         formData.append('bootanimation', arquivo, 'bootanimation.zip');
-        
-        let res = await apiFetch("/upload", { method: "POST", body: formData });
-        
-        if (res.ok) {
-            showToast(t.msgZipInjectSuccess, 'success');
-            document.getElementById('btn-remove').style.display = "flex";
-            window.hasCustomAnimApplied = true;
-            syncConnectedDeviceSurfaces();
-            loadHistory(); 
-        } else {
-            throw new Error(t.msgZipInjectRefused);
-        }
+
+        const res = await apiFetch('/upload', { method: 'POST', body: formData });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(result.message || t.msgZipInjectRefused);
+
+        showToast(t.msgZipInjectSuccess, 'success');
+        document.getElementById('btn-remove').style.display = 'flex';
+        window.hasCustomAnimApplied = true;
+        syncConnectedDeviceSurfaces();
+        await loadHistory();
     } catch (e) {
         alert(t.erro + " - " + e.message);
     } finally {

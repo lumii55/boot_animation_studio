@@ -509,7 +509,8 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
         formData.append('bootanimation', rawBootAnimBlob, 'bootanimation.zip');
         formData.append('preview', previewWebmBlob, 'preview.webm');
         const uploadRes = await apiFetch('/upload', { method: 'POST', body: formData });
-        if (!uploadRes.ok) throw new Error('Upload failed');
+        const uploadResult = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) throw new Error(uploadResult.message || 'Upload failed');
         window.hasCustomAnimApplied = true;
         const removeButton = document.getElementById('btn-remove');
         if (removeButton && typeof hasModuleFeature === 'function' && hasModuleFeature('remove')) removeButton.style.display = 'flex';

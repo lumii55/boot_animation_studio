@@ -1,5 +1,6 @@
 const BAS_COMPATIBILITY_VERSION = 2;
-const BAS_DIRECT_UPLOAD_LIMIT_BYTES = 25 * 1024 * 1024;
+const BAS_LEGACY_DIRECT_UPLOAD_LIMIT_BYTES = 25 * 1024 * 1024;
+const BAS_LARGE_BOOT_WARNING_BYTES = 25 * 1024 * 1024;
 
 const compatibilityRuntime = {
     timer: 0,
@@ -388,26 +389,52 @@ function compatibilityDeliveryDiagnostics(diagnostics) {
     }
     if (typeof estimateExportPerformance !== 'function') return;
     const estimate = estimateExportPerformance();
-    if (!estimate || estimate.bootBytes <= BAS_DIRECT_UPLOAD_LIMIT_BYTES) return;
-    const exactKnown = !!estimate.exactBootSize && Number(moduleApiVersion) === 1 && Number(moduleInfo && moduleInfo.module_version_code) === 4 && Number(moduleInfo && moduleInfo.companion_version_code) === 6;
-    diagnostics.push(compatibilityDiagnostic(
-        'DIRECT_UPLOAD_LIMIT', exactKnown ? 'blocked' : 'warning', 'delivery',
-        exactKnown
-            ? compatibilityText('compatDirectLimitBlockedTitle', 'This ZIP is too large for direct apply')
-            : compatibilityText('compatDirectLimitWarningTitle', 'Direct apply may exceed the current upload limit'),
-        compatibilityTemplate(
-            exactKnown ? 'compatDirectLimitBlockedDesc' : 'compatDirectLimitWarningDesc',
+    if (!estimate) return;
+
+    const advertisedLimit = Number(moduleInfo && moduleInfo.max_direct_upload_bytes);
+    const hardLimit = hasModuleFeature('large_upload') && Number.isFinite(advertisedLimit) && advertisedLimit > 0
+        ? advertisedLimit
+        : BAS_LEGACY_DIRECT_UPLOAD_LIMIT_BYTES;
+    const advertisedWarning = Number(moduleInfo && moduleInfo.direct_upload_warning_bytes);
+    const warningThreshold = Number.isFinite(advertisedWarning) && advertisedWarning > 0
+        ? advertisedWarning
+        : BAS_LARGE_BOOT_WARNING_BYTES;
+
+    if (estimate.bootBytes > hardLimit) {
+        const exactKnown = !!estimate.exactBootSize;
+        diagnostics.push(compatibilityDiagnostic(
+            'DIRECT_UPLOAD_LIMIT', exactKnown ? 'blocked' : 'warning', 'delivery',
             exactKnown
-                ? 'This archive is {size}. Companion v6 accepts bootanimation.zip files up to 25 MB. Download or reduce the project first.'
-                : 'Estimated bootanimation.zip size is {size}. The current companion bridge uses a 25 MB direct-upload limit, but this size is only an estimate.',
-            { size: compatibilityFormatBytes(estimate.bootBytes) }
-        ),
-        {
-            action: { type: 'optimize', labelKey: 'compatActionOptimize' },
-            fix: { type: 'download-target', labelKey: 'compatActionDownloadInstead' },
-            extraBlocker: exactKnown
-        }
-    ));
+                ? compatibilityText('compatDirectLimitBlockedTitle', 'This ZIP exceeds the direct-transfer safety limit')
+                : compatibilityText('compatDirectLimitWarningTitle', 'Direct apply may exceed the transfer safety limit'),
+            compatibilityTemplate(
+                exactKnown ? 'compatDirectLimitBlockedDesc' : 'compatDirectLimitWarningDesc',
+                exactKnown
+                    ? 'This archive is {size}, above the connected module transport limit of {limit}. Download or reduce the project first.'
+                    : 'Estimated bootanimation.zip size is {size}, above the connected module transport limit of {limit}. The final size is still an estimate.',
+                { size: compatibilityFormatBytes(estimate.bootBytes), limit: compatibilityFormatBytes(hardLimit) }
+            ),
+            {
+                action: { type: 'optimize', labelKey: 'compatActionOptimize' },
+                fix: { type: 'download-target', labelKey: 'compatActionDownloadInstead' },
+                extraBlocker: exactKnown
+            }
+        ));
+        return;
+    }
+
+    if (estimate.bootBytes > warningThreshold) {
+        diagnostics.push(compatibilityDiagnostic(
+            'LARGE_BOOT_ANIMATION', 'warning', 'project',
+            compatibilityText('compatLargeBootTitle', 'Large boot animation'),
+            compatibilityTemplate(
+                'compatLargeBootDesc',
+                'This boot animation is {size}. Large animations can stutter during startup or fail on devices with limited boot-time resources. Testing on the phone before applying is recommended.',
+                { size: compatibilityFormatBytes(estimate.bootBytes) }
+            ),
+            { action: { type: 'optimize', labelKey: 'compatActionOptimize' } }
+        ));
+    }
 }
 
 function compatibilityDeviceDiagnostics(diagnostics) {
