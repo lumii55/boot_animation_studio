@@ -46,8 +46,19 @@ function syncModuleWorkspaceTabAvailability() {
     const testTab = document.getElementById('module-workspace-tab-test');
     const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
     const testAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
-    if (historyTab) historyTab.hidden = !historyAvailable;
-    if (testTab) testTab.hidden = !testAvailable;
+    if (historyTab) {
+        historyTab.hidden = !historyAvailable;
+        historyTab.style.display = historyAvailable ? '' : 'none';
+    }
+    if (testTab) {
+        testTab.hidden = !testAvailable;
+        testTab.style.display = testAvailable ? '' : 'none';
+    }
+    const tabs = document.querySelector('.module-workspace-tabs');
+    if (tabs) {
+        const visibleCount = Array.from(tabs.querySelectorAll('[data-module-workspace-tab]')).filter(button => !button.hidden && button.style.display !== 'none').length;
+        tabs.style.gridTemplateColumns = `repeat(${Math.max(1, visibleCount)}, minmax(0, 1fr))`;
+    }
     if ((!historyAvailable && moduleWorkspaceUi.currentTab === 'history') || (!testAvailable && moduleWorkspaceUi.currentTab === 'test')) {
         setModuleWorkspaceTab('overview', { focus: false });
     }

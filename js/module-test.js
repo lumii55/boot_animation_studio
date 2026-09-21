@@ -74,7 +74,10 @@ function syncModuleTestText() {
 function syncModuleTestUi() {
     const supported = moduleTestSupported();
     const tab = document.getElementById('module-workspace-tab-test');
-    if (tab) tab.hidden = !supported;
+    if (tab) {
+        tab.hidden = !supported;
+        tab.style.display = supported ? '' : 'none';
+    }
     const lab = document.getElementById('module-test-lab');
     if (lab && !supported) lab.hidden = true;
 
