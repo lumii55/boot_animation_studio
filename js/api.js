@@ -473,7 +473,7 @@ function applyConnectedCapabilities(data) {
     window.hasCustomAnimApplied = Boolean(data.has_custom);
     document.getElementById('btn-pull').style.display = hasModuleFeature('pull') ? 'flex' : 'none';
     document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') ? 'flex' : 'none';
-    document.getElementById('btn-reset').style.display = hasModuleFeature('reset') ? 'flex' : 'none';
+    document.getElementById('btn-reset').style.display = hasModuleFeature('rescan_paths') ? 'flex' : 'none';
     const historyWrapper = document.getElementById('history-wrapper');
     if (historyWrapper) historyWrapper.style.display = hasModuleFeature('history') ? '' : 'none';
 }
@@ -726,17 +726,18 @@ async function removeAnimation() {
 
 async function resetarModulo() {
     const t = traducoes[idiomaAtual];
-    if (!ensureModuleFeature('reset')) return;
+    if (!ensureModuleFeature('rescan_paths')) return;
     if(await askConfirmation(t.msgResetConfirm, true)) {
         try {
-            let res = await apiFetch('/reset', { method: 'POST' });
+            let res = await apiFetch('/rescan', { method: 'POST' });
             if (res.ok) {
                 let data = await res.json();
-                showToast(data.message, 'success');
-                document.getElementById('btn-remove').style.display = "none";
-                window.hasCustomAnimApplied = false;
+                showToast(t.msgRescanSuccess, 'success');
+                if (Object.prototype.hasOwnProperty.call(data, 'has_custom')) {
+                    window.hasCustomAnimApplied = Boolean(data.has_custom);
+                }
+                document.getElementById('btn-remove').style.display = hasModuleFeature('remove') && window.hasCustomAnimApplied ? 'flex' : 'none';
                 syncConnectedDeviceSurfaces();
-                await loadHistory();
             } else {
                 alert(t.msgResetError);
             }
