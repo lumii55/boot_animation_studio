@@ -127,9 +127,12 @@ function bindFinishCenter() {
         button?.focus({ preventScroll: true });
     });
     document.getElementById('finish-open-history')?.addEventListener('click', () => {
+        if (typeof openModuleWorkspace === 'function') {
+            openModuleWorkspace({ origin: 'editor', tab: 'history' });
+            return;
+        }
         const panel = document.getElementById('connected-state');
-        const history = document.getElementById('history-wrapper');
-        (history || panel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     window.addEventListener('bas:projectchange', event => {
         if (!finishRuntime.result) return;

@@ -548,9 +548,22 @@ async function deliverBootanimation(rawBootAnimBlob, options, t) {
     return { kind: 'download', outputBytes: rawBootAnimBlob.size, bootBytes: rawBootAnimBlob.size, filename };
 }
 
+let pendingBuildAction = 'deliver';
+
+function requestDeviceBuildTest() {
+    if (isGenerating || !window.BASModuleTest?.supported?.()) return;
+    pendingBuildAction = 'test';
+    btnGerar.click();
+}
+
+window.requestDeviceBuildTest = requestDeviceBuildTest;
+
 btnGerar.addEventListener('click', async () => {
     if (btnGerar.classList.contains('btn-desativado') || isGenerating) return;
+    const buildAction = pendingBuildAction;
+    pendingBuildAction = 'deliver';
     const t = traducoes[idiomaAtual];
+    if (buildAction === 'test' && !window.BASModuleTest?.supported?.()) return;
     const options = getExportOptions();
     if (window.BASComposition && BASComposition.hasLayers()) {
         const compositionValidation = BASComposition.validate();
@@ -591,9 +604,16 @@ btnGerar.addEventListener('click', async () => {
                     : await buildSimpleBootanimation(options, t);
 
         releaseExportCanvas();
-        const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
-        if (typeof recordFinishResult === 'function') recordFinishResult(deliveryResult, options);
-        const successText = typeof generationSuccessText === 'function' ? generationSuccessText(deliveryResult, t) : 'OK!';
+        let successText = '';
+        if (buildAction === 'test') {
+            await updateGenerationProgress(t.moduleTestStarted || 'Sending test build…', null, { forcePaint: true });
+            await window.BASModuleTest.stageBlob(rawBootAnimBlob, `${options.name}.zip`, { source: 'build' });
+            successText = t.moduleTestStarted || 'Device test started.';
+        } else {
+            const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
+            if (typeof recordFinishResult === 'function') recordFinishResult(deliveryResult, options);
+            successText = typeof generationSuccessText === 'function' ? generationSuccessText(deliveryResult, t) : 'OK!';
+        }
         document.getElementById('texto-progresso').textContent = successText;
         if (typeof showToast === 'function') showToast(successText, 'success', 4200);
         btnGerar.textContent = successText;

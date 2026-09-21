@@ -119,6 +119,7 @@ function syncReleaseUi() {
     syncReleaseDestination();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
 }
 
 function bindReleaseUi() {

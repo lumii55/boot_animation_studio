@@ -390,6 +390,7 @@ function completeConnectedState(data) {
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
         if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
     }
@@ -480,6 +481,7 @@ function applyConnectedCapabilities(data) {
     document.getElementById('btn-reset').style.display = hasModuleFeature('rescan_paths') ? 'flex' : 'none';
     const historyWrapper = document.getElementById('history-wrapper');
     if (historyWrapper) historyWrapper.style.display = hasModuleFeature('history') ? '' : 'none';
+    if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
 }
 
 function syncConnectedDeviceSurfaces() {
@@ -709,6 +711,7 @@ async function disconnectPhone() {
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
 }
 
 async function removeAnimation() {

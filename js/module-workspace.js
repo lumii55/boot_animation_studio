@@ -26,6 +26,7 @@ function moduleWorkspaceSections() {
             document.getElementById('device-actions'),
             document.querySelector('#connected-state .device-secondary-actions')
         ].filter(Boolean),
+        test: [document.getElementById('module-test-lab')].filter(Boolean),
         history: [document.getElementById('history-wrapper')].filter(Boolean),
         device: [document.getElementById('device-profile')].filter(Boolean)
     };
@@ -33,26 +34,33 @@ function moduleWorkspaceSections() {
 
 function moduleWorkspaceRestoreSections() {
     const sections = moduleWorkspaceSections();
-    Object.values(sections).flat().forEach(element => {
-        element.hidden = false;
+    Object.entries(sections).forEach(([name, elements]) => {
+        elements.forEach(element => {
+            element.hidden = name === 'history' || name === 'test';
+        });
     });
 }
 
 function syncModuleWorkspaceTabAvailability() {
     const historyTab = document.getElementById('module-workspace-tab-history');
+    const testTab = document.getElementById('module-workspace-tab-test');
     const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
+    const testAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
     if (historyTab) historyTab.hidden = !historyAvailable;
-    if (!historyAvailable && moduleWorkspaceUi.currentTab === 'history') {
+    if (testTab) testTab.hidden = !testAvailable;
+    if ((!historyAvailable && moduleWorkspaceUi.currentTab === 'history') || (!testAvailable && moduleWorkspaceUi.currentTab === 'test')) {
         setModuleWorkspaceTab('overview', { focus: false });
     }
 }
 
 function setModuleWorkspaceTab(tab, options = {}) {
-    if (!['overview', 'history', 'device'].includes(tab)) return;
+    if (!['overview', 'test', 'history', 'device'].includes(tab)) return;
     if (tab === 'history' && typeof hasModuleFeature === 'function' && !hasModuleFeature('history')) tab = 'overview';
+    if (tab === 'test' && typeof hasModuleFeature === 'function' && !hasModuleFeature('test_staging')) tab = 'overview';
     moduleWorkspaceUi.currentTab = tab;
     if (tab === 'device' && window.BASDeviceProfile?.setExpanded) window.BASDeviceProfile.setExpanded(true);
     if (tab === 'history' && typeof loadHistory === 'function' && typeof hasModuleFeature === 'function' && hasModuleFeature('history')) loadHistory();
+    if (tab === 'test' && window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     const sections = moduleWorkspaceSections();
     Object.entries(sections).forEach(([name, elements]) => {
         elements.forEach(element => {
@@ -78,6 +86,7 @@ function syncModuleWorkspaceText() {
     set('module-workspace-desc', 'moduleWorkspaceDesc', 'Manage the connected companion bridge in one focused workspace.');
     set('module-workspace-online', 'moduleWorkspaceOnline', 'MODULE ONLINE');
     set('module-workspace-tab-overview', 'moduleWorkspaceOverview', 'Overview');
+    set('module-workspace-tab-test-label', 'moduleWorkspaceTest', 'Test');
     set('module-workspace-tab-history-label', 'moduleWorkspaceHistory', 'History');
     set('module-workspace-tab-device', 'moduleWorkspaceDevice', 'Device');
     set('module-workspace-open-label', 'moduleWorkspaceOpen', 'Open Module Workspace');
