@@ -14843,3 +14843,116 @@ summary:focus-visible {
         transition-delay: 0ms !important;
     }
 }
+
+.hist-card {
+    overflow: hidden;
+}
+
+.hist-card-media-wrap {
+    position: relative;
+    aspect-ratio: 10 / 13;
+    overflow: hidden;
+    background: #0b1118;
+}
+
+.hist-card-media,
+.hist-card-media-wrap video,
+.hist-card-media-wrap img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.hist-card-preview-placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    padding: 16px;
+    color: #66758a;
+    font-size: 8px;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.hist-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px;
+}
+
+.hist-card-date {
+    margin: 0;
+}
+
+.hist-card-details {
+    overflow: hidden;
+    color: #c2ccd9;
+    font-size: 9px;
+    font-weight: 650;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+}
+
+.hist-card-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.hist-card-facts span {
+    padding: 3px 6px;
+    border: 1px solid rgba(164, 184, 211, 0.09);
+    border-radius: 999px;
+    color: #738298;
+    font-size: 7px;
+    font-weight: 650;
+}
+
+.hist-card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.hist-card .btn-apply,
+.hist-card .btn-history-secondary {
+    min-height: 34px;
+    padding: 7px 9px;
+    border-radius: 10px;
+    font-size: 8px;
+    font-weight: 700;
+}
+
+.hist-card .btn-history-secondary {
+    border: 1px solid rgba(164, 184, 211, 0.1);
+    background: rgba(255, 255, 255, 0.025);
+    color: #aab7c9;
+}
+
+.hist-card .btn-history-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    background: rgba(4, 7, 11, 0.84);
+    color: #c8d0da;
+    font-size: 17px;
+    line-height: 1;
+}
+
+.hist-card .btn-history-secondary:hover,
+.hist-card .btn-history-delete:hover {
+    border-color: rgba(111, 227, 244, 0.18);
+    color: #dbe7f4;
+}
