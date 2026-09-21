@@ -15251,3 +15251,206 @@ summary:focus-visible {
 .module-workspace-panel [data-module-workspace-section][hidden] {
     display: none !important;
 }
+
+#connected-state:not(.module-workspace-panel) #history-wrapper,
+#connected-state:not(.module-workspace-panel) #module-test-lab {
+    display: none !important;
+}
+
+.module-test-lab,
+.build-test-result {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(17, 26, 39, 0.96), rgba(10, 16, 25, 0.96));
+    padding: 20px;
+}
+
+.module-test-heading,
+.build-test-result-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.module-test-heading h3,
+.build-test-result-head h3 {
+    margin: 4px 0 6px;
+    font-size: 18px;
+}
+
+.module-test-heading p,
+.build-test-result-head p {
+    margin: 0;
+    color: var(--muted);
+    max-width: 720px;
+}
+
+.module-test-badge,
+.build-test-result-badge {
+    flex: 0 0 auto;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.module-test-file {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+}
+
+.module-test-file span {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.module-test-file small {
+    color: var(--muted);
+}
+
+.module-test-status {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 12px;
+    padding: 13px 15px;
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+}
+
+.module-test-status span {
+    color: var(--muted);
+}
+
+.module-test-meta,
+.build-test-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 12px;
+    color: var(--text-soft);
+}
+
+.module-test-meta[hidden],
+.build-test-result[hidden] {
+    display: none !important;
+}
+
+.module-test-actions,
+.build-test-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.module-test-actions button,
+.build-test-result-actions button,
+.delivery-test-button {
+    min-height: var(--tap);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.module-test-actions button,
+.build-test-result-actions button {
+    padding: 10px 14px;
+}
+
+.module-test-clear,
+#build-test-result-discard {
+    color: var(--muted);
+}
+
+.delivery-test-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 13px 15px;
+    text-align: left;
+}
+
+.delivery-test-button[hidden] {
+    display: none !important;
+}
+
+.delivery-test-button > span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.delivery-test-button small {
+    color: var(--muted);
+}
+
+.delivery-test-glyph {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.build-test-result {
+    margin-top: 16px;
+}
+
+.build-test-result-stale {
+    margin: 12px 0 0;
+    color: var(--warning);
+}
+
+@media (hover: hover) {
+    .module-test-actions button:hover,
+    .build-test-result-actions button:hover,
+    .delivery-test-button:hover {
+        border-color: var(--accent);
+        background: var(--surface-hover);
+    }
+}
+
+@media (max-width: 620px) {
+    .module-test-heading,
+    .build-test-result-head {
+        flex-direction: column;
+    }
+
+    .module-test-actions,
+    .build-test-result-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .module-test-actions button,
+    .build-test-result-actions button {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .module-test-actions button,
+    .build-test-result-actions button,
+    .delivery-test-button {
+        transition: none;
+    }
+}
