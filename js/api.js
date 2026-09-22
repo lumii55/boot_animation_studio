@@ -391,6 +391,7 @@ function completeConnectedState(data) {
     syncConnectedDeviceSurfaces();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
+    if (window.BASPlaylist?.supported?.()) window.BASPlaylist.refresh();
     if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
         if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
     }
@@ -482,6 +483,7 @@ function applyConnectedCapabilities(data) {
     const historyWrapper = document.getElementById('history-wrapper');
     if (historyWrapper) historyWrapper.style.display = hasModuleFeature('history') ? '' : 'none';
     if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
+    if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
 }
 
 function syncConnectedDeviceSurfaces() {
@@ -712,6 +714,7 @@ async function disconnectPhone() {
     syncConnectedDeviceSurfaces();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
+    if (window.BASPlaylist?.resetConnection) window.BASPlaylist.resetConnection();
 }
 
 async function removeAnimation() {
@@ -947,6 +950,15 @@ async function loadHistory() {
                 btnDownload.textContent = t.historyDownload || 'Download';
                 btnDownload.onclick = () => downloadHistoryItem(item.id);
                 actions.appendChild(btnDownload);
+            }
+
+            if (hasModuleFeature('playlists') && window.BASPlaylist?.addHistory) {
+                const btnPlaylist = document.createElement('button');
+                btnPlaylist.className = 'btn-history-secondary';
+                btnPlaylist.type = 'button';
+                btnPlaylist.textContent = t.historyAddPlaylist || 'Add to playlist';
+                btnPlaylist.onclick = () => window.BASPlaylist.addHistory(item.id, `${t.historyPlaylistName || 'History'} ${dateValue.toLocaleString()}`);
+                actions.appendChild(btnPlaylist);
             }
 
             const btnDelete = document.createElement('button');

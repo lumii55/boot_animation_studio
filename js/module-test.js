@@ -57,6 +57,7 @@ function syncModuleTestText() {
     set('module-test-replay-label', 'moduleTestReplay', 'Test again');
     set('module-test-stop-label', 'moduleTestStop', 'Stop test');
     set('module-test-apply-label', 'moduleTestApply', 'Apply staged animation');
+    set('module-test-add-playlist-label', 'playlistAddStaged', 'Add to playlist');
     set('module-test-clear-label', 'moduleTestClear', 'Discard staged animation');
     set('build-test-button-title', 'buildTestButtonTitle', 'Test on phone');
     set('build-test-button-desc', 'buildTestButtonDesc', 'Generate once, preview on the connected phone, then apply or download the same build.');
@@ -67,6 +68,7 @@ function syncModuleTestText() {
     set('build-test-result-stop-label', 'moduleTestStop', 'Stop test');
     set('build-test-result-apply-label', 'buildTestApply', 'Apply tested build');
     set('build-test-result-download-label', 'buildTestDownload', 'Download tested build');
+    set('build-test-result-playlist-label', 'playlistAddStaged', 'Add to playlist');
     set('build-test-result-discard-label', 'moduleTestClear', 'Discard');
     set('build-test-result-stale', 'buildTestStale', 'The project changed after this test. These actions still use the exact build that was tested.');
 }
@@ -99,6 +101,7 @@ function syncModuleTestUi() {
     const stop = document.getElementById('module-test-stop');
     const apply = document.getElementById('module-test-apply');
     const clear = document.getElementById('module-test-clear');
+    const addPlaylist = document.getElementById('module-test-add-playlist');
     const stage = document.getElementById('module-test-stage');
 
     if (badge) badge.textContent = moduleTestRuntime.previewActive
@@ -126,6 +129,7 @@ function syncModuleTestUi() {
     if (stop) stop.hidden = !moduleTestRuntime.previewActive;
     if (apply) apply.hidden = !moduleTestRuntime.staged;
     if (clear) clear.hidden = !moduleTestRuntime.staged;
+    if (addPlaylist) addPlaylist.hidden = !moduleTestRuntime.staged || !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
     if (stage) stage.disabled = moduleTestRuntime.busy;
 
     const result = document.getElementById('build-test-result');
@@ -142,11 +146,16 @@ function syncModuleTestUi() {
     const resultStop = document.getElementById('build-test-result-stop');
     const resultApply = document.getElementById('build-test-result-apply');
     const resultDownload = document.getElementById('build-test-result-download');
+    const resultPlaylist = document.getElementById('build-test-result-playlist');
     const resultDiscard = document.getElementById('build-test-result-discard');
     if (resultReplay) resultReplay.hidden = moduleTestRuntime.previewActive;
     if (resultStop) resultStop.hidden = !moduleTestRuntime.previewActive;
     if (resultApply) resultApply.disabled = moduleTestRuntime.busy;
     if (resultDownload) resultDownload.disabled = !moduleTestRuntime.browserBlob || moduleTestRuntime.busy;
+    if (resultPlaylist) {
+        resultPlaylist.hidden = !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
+        resultPlaylist.disabled = moduleTestRuntime.busy;
+    }
     if (resultDiscard) resultDiscard.disabled = moduleTestRuntime.busy;
     const stale = document.getElementById('build-test-result-stale');
     if (stale) stale.hidden = !moduleTestRuntime.buildStale;

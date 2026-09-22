@@ -27,6 +27,7 @@ function moduleWorkspaceSections() {
             document.querySelector('#connected-state .device-secondary-actions')
         ].filter(Boolean),
         test: [document.getElementById('module-test-lab')].filter(Boolean),
+        playlists: [document.getElementById('module-playlists')].filter(Boolean),
         history: [document.getElementById('history-wrapper')].filter(Boolean),
         device: [document.getElementById('device-profile')].filter(Boolean)
     };
@@ -36,7 +37,7 @@ function moduleWorkspaceRestoreSections() {
     const sections = moduleWorkspaceSections();
     Object.entries(sections).forEach(([name, elements]) => {
         elements.forEach(element => {
-            element.hidden = name === 'history' || name === 'test';
+            element.hidden = name === 'history' || name === 'test' || name === 'playlists';
         });
     });
 }
@@ -44,8 +45,10 @@ function moduleWorkspaceRestoreSections() {
 function syncModuleWorkspaceTabAvailability() {
     const historyTab = document.getElementById('module-workspace-tab-history');
     const testTab = document.getElementById('module-workspace-tab-test');
+    const playlistTab = document.getElementById('module-workspace-tab-playlists');
     const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
     const testAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
+    const playlistAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('playlists');
     if (historyTab) {
         historyTab.hidden = !historyAvailable;
         historyTab.style.display = historyAvailable ? '' : 'none';
@@ -54,24 +57,30 @@ function syncModuleWorkspaceTabAvailability() {
         testTab.hidden = !testAvailable;
         testTab.style.display = testAvailable ? '' : 'none';
     }
+    if (playlistTab) {
+        playlistTab.hidden = !playlistAvailable;
+        playlistTab.style.display = playlistAvailable ? '' : 'none';
+    }
     const tabs = document.querySelector('.module-workspace-tabs');
     if (tabs) {
         const visibleCount = Array.from(tabs.querySelectorAll('[data-module-workspace-tab]')).filter(button => !button.hidden && button.style.display !== 'none').length;
         tabs.style.gridTemplateColumns = `repeat(${Math.max(1, visibleCount)}, minmax(0, 1fr))`;
     }
-    if ((!historyAvailable && moduleWorkspaceUi.currentTab === 'history') || (!testAvailable && moduleWorkspaceUi.currentTab === 'test')) {
+    if ((!historyAvailable && moduleWorkspaceUi.currentTab === 'history') || (!testAvailable && moduleWorkspaceUi.currentTab === 'test') || (!playlistAvailable && moduleWorkspaceUi.currentTab === 'playlists')) {
         setModuleWorkspaceTab('overview', { focus: false });
     }
 }
 
 function setModuleWorkspaceTab(tab, options = {}) {
-    if (!['overview', 'test', 'history', 'device'].includes(tab)) return;
+    if (!['overview', 'test', 'playlists', 'history', 'device'].includes(tab)) return;
     if (tab === 'history' && typeof hasModuleFeature === 'function' && !hasModuleFeature('history')) tab = 'overview';
     if (tab === 'test' && typeof hasModuleFeature === 'function' && !hasModuleFeature('test_staging')) tab = 'overview';
+    if (tab === 'playlists' && typeof hasModuleFeature === 'function' && !hasModuleFeature('playlists')) tab = 'overview';
     moduleWorkspaceUi.currentTab = tab;
     if (tab === 'device' && window.BASDeviceProfile?.setExpanded) window.BASDeviceProfile.setExpanded(true);
     if (tab === 'history' && typeof loadHistory === 'function' && typeof hasModuleFeature === 'function' && hasModuleFeature('history')) loadHistory();
     if (tab === 'test' && window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
+    if (tab === 'playlists' && window.BASPlaylist?.refresh) window.BASPlaylist.refresh();
     const sections = moduleWorkspaceSections();
     Object.entries(sections).forEach(([name, elements]) => {
         elements.forEach(element => {
@@ -98,6 +107,7 @@ function syncModuleWorkspaceText() {
     set('module-workspace-online', 'moduleWorkspaceOnline', 'MODULE ONLINE');
     set('module-workspace-tab-overview', 'moduleWorkspaceOverview', 'Overview');
     set('module-workspace-tab-test-label', 'moduleWorkspaceTest', 'Test');
+    set('module-workspace-tab-playlists-label', 'moduleWorkspacePlaylists', 'Playlists');
     set('module-workspace-tab-history-label', 'moduleWorkspaceHistory', 'History');
     set('module-workspace-tab-device', 'moduleWorkspaceDevice', 'Device');
     set('module-workspace-open-label', 'moduleWorkspaceOpen', 'Open Module Workspace');
