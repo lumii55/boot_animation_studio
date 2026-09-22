@@ -215,6 +215,8 @@ async function renderPlaylistItems() {
     header.hidden = !playlist;
     if (addBar) addBar.hidden = !playlist;
     if (!playlist) {
+        if (title) title.textContent = playlistText('playlistSelectedFallback', 'Playlist');
+        if (count) count.textContent = playlistText('playlistItemCount', '{count} items').replace('{count}', 0);
         const empty = document.createElement('div');
         empty.className = 'playlist-empty playlist-main-empty';
         const strong = document.createElement('strong');
@@ -305,6 +307,7 @@ function renderPlaylists() {
     renderPlaylistItems();
     syncPlaylistCount();
     syncPlaylistText();
+    if (window.BASRotation?.syncPlaylists) window.BASRotation.syncPlaylists();
 }
 
 async function refreshPlaylists() {
@@ -381,6 +384,7 @@ async function deletePlaylist() {
     await playlistJson('/playlist/delete', { id: playlist.id });
     playlistRuntime.selectedId = '';
     await refreshPlaylists();
+    if (window.BASRotation?.refresh) await window.BASRotation.refresh();
 }
 
 async function movePlaylist(index, delta) {

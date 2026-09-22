@@ -391,7 +391,8 @@ function completeConnectedState(data) {
     syncConnectedDeviceSurfaces();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
-    if (window.BASPlaylist?.supported?.()) window.BASPlaylist.refresh();
+    if (window.BASPlaylist?.supported?.()) window.BASPlaylist.refresh().then(() => window.BASRotation?.refresh?.());
+    else if (window.BASRotation?.refresh) window.BASRotation.refresh();
     if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
         if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
     }
@@ -484,6 +485,7 @@ function applyConnectedCapabilities(data) {
     if (historyWrapper) historyWrapper.style.display = hasModuleFeature('history') ? '' : 'none';
     if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
     if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
+    if (window.BASRotation?.sync) window.BASRotation.sync();
 }
 
 function syncConnectedDeviceSurfaces() {
@@ -715,6 +717,7 @@ async function disconnectPhone() {
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (window.BASPlaylist?.resetConnection) window.BASPlaylist.resetConnection();
+    if (window.BASRotation?.resetConnection) window.BASRotation.resetConnection();
 }
 
 async function removeAnimation() {
