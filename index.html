@@ -5,13 +5,13 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="manifest.webmanifest?v=p13-6a" rel="manifest"/>
+<link href="manifest.webmanifest?v=p13-6b" rel="manifest"/>
 <link href="icons/icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
 <link href="icons/apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=p13-6a" rel="stylesheet"/>
-<script src="vendor/jszip.min.js?v=p13-6a"></script>
-<script src="vendor/qrcode.min.js?v=p13-6a"></script>
-<script src="vendor/gifuct.min.js?v=p13-6a"></script>
+<link href="styles.css?v=p13-6b" rel="stylesheet"/>
+<script src="vendor/jszip.min.js?v=p13-6b"></script>
+<script src="vendor/qrcode.min.js?v=p13-6b"></script>
+<script src="vendor/gifuct.min.js?v=p13-6b"></script>
 <meta content="#070b12" name="theme-color"/>
 <meta content="Boot Animation Studio" name="application-name"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -58,7 +58,7 @@
 <div aria-live="polite" class="module-test-status" id="module-test-status" role="status"><strong id="module-test-status-title">No staged animation</strong><span id="module-test-status-detail">Choose a ZIP to begin.</span></div>
 <div class="module-test-meta" hidden="" id="module-test-meta"><span id="module-test-meta-output">—</span><span id="module-test-meta-size">—</span></div>
 <div class="module-test-actions"><button class="btn-upload" id="module-test-stage" type="button"><span id="module-test-stage-label">Stage &amp; test ZIP</span></button><button class="btn-upload" hidden="" id="module-test-replay" type="button"><span id="module-test-replay-label">Test again</span></button><button class="btn-upload" hidden="" id="module-test-stop" type="button"><span id="module-test-stop-label">Stop test</span></button><button class="btn-upload" hidden="" id="module-test-apply" type="button"><span id="module-test-apply-label">Apply staged animation</span></button><button class="btn-upload" hidden="" id="module-test-add-playlist" type="button"><span id="module-test-add-playlist-label">Add to playlist</span></button><button class="btn-upload module-test-clear" hidden="" id="module-test-clear" type="button"><span id="module-test-clear-label">Discard staged animation</span></button></div>
-</section><section class="module-playlists" data-module-workspace-section="playlists" hidden="" id="module-playlists"><div class="playlist-heading"><div><span class="device-section-label" id="playlist-kicker">PLAYLISTS</span><h3 id="playlist-title">Your boot animation library</h3><p id="playlist-desc">Keep animations you want to reuse. Playlists are independent from History retention.</p></div><button class="btn-upload playlist-create" id="playlist-create" type="button"><span id="playlist-create-label">New playlist</span></button></div><div class="playlist-layout"><aside class="playlist-sidebar"><div class="playlist-list" id="playlist-list"></div></aside><div class="playlist-main"><div class="playlist-selected-header" hidden="" id="playlist-selected-header"><div><strong id="playlist-selected-name">Playlist</strong><span id="playlist-selected-count">0 items</span></div><div class="playlist-selected-actions"><button id="playlist-rename" type="button"><span id="playlist-rename-label">Rename</span></button><button id="playlist-duplicate" type="button"><span id="playlist-duplicate-label">Duplicate</span></button><button class="is-danger" id="playlist-delete" type="button"><span id="playlist-delete-label">Delete</span></button></div></div><div class="playlist-add-bar" hidden="" id="playlist-add-bar"><label class="btn-upload" for="playlist-upload" id="playlist-upload-label">Add bootanimation.zip</label><input accept=".zip" hidden="" id="playlist-upload" type="file"/></div><div class="playlist-items" id="playlist-items"><div class="playlist-empty playlist-main-empty"><strong id="playlist-empty-title">No playlists yet</strong><span id="playlist-empty-desc">Create a playlist to keep animations without depending on History.</span></div></div><span hidden="" id="playlist-items-empty-title">This playlist is empty</span><span hidden="" id="playlist-items-empty-desc">Add a ZIP, a History item or a staged test animation.</span></div></div></section><div class="hist-wrapper" data-module-workspace-section="history" hidden="" id="history-wrapper"><div class="history-heading"><div><span class="device-section-label" id="p11-history-kicker">HISTORY</span><div class="hist-title" id="lbl-history">Saved animations (Up to 5)</div></div><span class="history-count" id="p11-history-count">0 / 5</span></div><div class="hist-scroll" id="history-scroll"></div><div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div></div></div><section aria-labelledby="module-workspace-title" class="module-workspace" hidden="" id="module-workspace">
+</section><section class="module-playlists" data-module-workspace-section="playlists" hidden="" id="module-playlists"><div class="playlist-heading"><div><span class="device-section-label" id="playlist-kicker">PLAYLISTS</span><h3 id="playlist-title">Your boot animation library</h3><p id="playlist-desc">Keep animations you want to reuse. Playlists are independent from History retention.</p></div><button class="btn-upload playlist-create" id="playlist-create" type="button"><span id="playlist-create-label">New playlist</span></button></div><section class="playlist-rotation" hidden="" id="playlist-rotation"><div class="playlist-rotation-head"><div><span class="device-section-label" id="rotation-kicker">BOOT ROTATION</span><h4 id="rotation-title">Boot rotation</h4><p id="rotation-desc">Prepare a playlist animation for the next boot after each completed boot.</p></div><span class="playlist-rotation-status" data-state="off" id="rotation-status">Rotation off</span></div><div class="playlist-rotation-controls"><label class="playlist-rotation-toggle"><input id="rotation-enabled" type="checkbox"/><span id="rotation-enabled-label">Enable rotation</span></label><label><span id="rotation-playlist-label">Playlist</span><select id="rotation-playlist"></select></label><label><span id="rotation-mode-label">Mode</span><select id="rotation-mode"><option id="rotation-mode-sequential" value="sequential">Sequential</option><option id="rotation-mode-random" value="random">Random</option><option id="rotation-mode-shuffle" value="shuffle">Shuffle</option></select></label></div><div class="playlist-rotation-readout"><div><span id="rotation-next-label">Next boot</span><strong id="rotation-next">Nothing prepared</strong></div><div><span id="rotation-last-label">Previous boot</span><strong id="rotation-last">Not tracked yet</strong></div></div><p class="playlist-rotation-note" id="rotation-note">Disabling rotation stops future changes; the animation already installed on the module is left unchanged.</p><div class="playlist-rotation-actions"><button class="btn-upload" id="rotation-save" type="button"><span id="rotation-save-label">Save rotation</span></button><button class="btn-upload" disabled="" id="rotation-prepare-next" type="button"><span id="rotation-prepare-next-label">Choose another next animation</span></button></div></section><div class="playlist-layout"><aside class="playlist-sidebar"><div class="playlist-list" id="playlist-list"></div></aside><div class="playlist-main"><div class="playlist-selected-header" hidden="" id="playlist-selected-header"><div><strong id="playlist-selected-name">Playlist</strong><span id="playlist-selected-count">0 items</span></div><div class="playlist-selected-actions"><button id="playlist-rename" type="button"><span id="playlist-rename-label">Rename</span></button><button id="playlist-duplicate" type="button"><span id="playlist-duplicate-label">Duplicate</span></button><button class="is-danger" id="playlist-delete" type="button"><span id="playlist-delete-label">Delete</span></button></div></div><div class="playlist-add-bar" hidden="" id="playlist-add-bar"><label class="btn-upload" for="playlist-upload" id="playlist-upload-label">Add bootanimation.zip</label><input accept=".zip" hidden="" id="playlist-upload" type="file"/></div><div class="playlist-items" id="playlist-items"><div class="playlist-empty playlist-main-empty"><strong id="playlist-empty-title">No playlists yet</strong><span id="playlist-empty-desc">Create a playlist to keep animations without depending on History.</span></div></div><span hidden="" id="playlist-items-empty-title">This playlist is empty</span><span hidden="" id="playlist-items-empty-desc">Add a ZIP, a History item or a staged test animation.</span></div></div></section><div class="hist-wrapper" data-module-workspace-section="history" hidden="" id="history-wrapper"><div class="history-heading"><div><span class="device-section-label" id="p11-history-kicker">HISTORY</span><div class="hist-title" id="lbl-history">Saved animations (Up to 5)</div></div><span class="history-count" id="p11-history-count">0 / 5</span></div><div class="hist-scroll" id="history-scroll"></div><div class="hist-footer" id="lbl-hist-footer">History keeps the 5 most recent animations! The oldest will be deleted automatically.</div></div></div><section aria-labelledby="module-workspace-title" class="module-workspace" hidden="" id="module-workspace">
 <div class="module-workspace-hero"><div class="module-workspace-copy"><span class="section-kicker" id="module-workspace-kicker">MODULE WORKSPACE</span><h2 id="module-workspace-title">Module workspace</h2><p id="module-workspace-desc">Manage the connected companion bridge in one focused workspace.</p><div class="module-workspace-device-line"><strong id="module-workspace-device-name">Connected phone</strong><span id="module-workspace-device-resolution">Resolution unavailable</span></div></div><div class="module-workspace-hero-actions"><span class="device-online-badge" id="module-workspace-online">MODULE ONLINE</span><button class="module-workspace-studio-button" id="module-workspace-open-studio" type="button"><span aria-hidden="true">←</span><span id="module-workspace-open-studio-label">Open Studio</span></button></div></div>
 <div aria-label="Module workspace" class="module-workspace-tabs" role="tablist"><button aria-selected="true" class="module-workspace-tab is-active" data-module-workspace-tab="overview" id="module-workspace-tab-overview" role="tab" type="button">Overview</button><button aria-selected="false" class="module-workspace-tab" data-module-workspace-tab="test" hidden="" id="module-workspace-tab-test" role="tab" type="button"><span id="module-workspace-tab-test-label">Test</span></button><button aria-selected="false" class="module-workspace-tab" data-module-workspace-tab="playlists" hidden="" id="module-workspace-tab-playlists" role="tab" type="button"><span id="module-workspace-tab-playlists-label">Playlists</span><span class="module-workspace-tab-count" id="module-workspace-playlist-count">0</span></button><button aria-selected="false" class="module-workspace-tab" data-module-workspace-tab="history" id="module-workspace-tab-history" role="tab" type="button"><span id="module-workspace-tab-history-label">History</span><span class="module-workspace-tab-count" id="module-workspace-history-count">0 / 5</span></button><button aria-selected="false" class="module-workspace-tab" data-module-workspace-tab="device" id="module-workspace-tab-device" role="tab" type="button">Device</button></div>
 <div class="module-workspace-panel-host" id="module-workspace-panel-host"></div>
@@ -370,34 +370,34 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p13-6a"></script>
-<script src="js/media-seek.js?v=p13-6a"></script>
-<script src="js/project.js?v=p13-6a"></script>
-<script src="js/i18n.js?v=p13-6a"></script>
-<script src="js/loading-tips.js?v=p13-6a"></script>
-<script src="js/ux.js?v=p13-6a"></script>
-<script src="js/workspace.js?v=p13-6a"></script><script src="js/help.js?v=p13-6a"></script><script src="js/api.js?v=p13-6a"></script><script src="js/module-workspace.js?v=p13-6a"></script><script src="js/module-test.js?v=p13-6a"></script><script src="js/playlist.js?v=p13-6a"></script>
-<script src="js/media.js?v=p13-6a"></script>
-<script src="js/source-library.js?v=p13-6a"></script>
-<script src="js/master-sequence.js?v=p13-6a"></script>
-<script src="js/timeline.js?v=p13-6a"></script>
-<script src="js/contextual.js?v=p13-6a"></script>
-<script src="js/audio.js?v=p13-6a"></script>
-<script src="js/parts.js?v=p13-6a"></script>
-<script src="js/timeline-2.js?v=p13-6a"></script>
-<script src="js/timeline-3.js?v=p13-6a"></script>
-<script src="js/composition.js?v=p13-6a"></script>
-<script src="js/performance.js?v=p13-6a"></script>
-<script src="js/output-presets.js?v=p13-6a"></script>
-<script src="js/custom-profiles.js?v=p13-6a"></script>
-<script src="js/device-profile.js?v=p13-6a"></script>
-<script src="js/compatibility.js?v=p13-6a"></script>
-<script src="js/release.js?v=p13-6a"></script><script src="js/finish.js?v=p13-6a"></script><script src="js/export.js?v=p13-6a"></script>
-<script src="js/project-engine.js?v=p13-6a"></script>
-<script src="js/project-restore.js?v=p13-6a"></script>
-<script src="js/history.js?v=p13-6a"></script>
-<script src="js/autosave.js?v=p13-6a"></script>
-<script src="js/project-file.js?v=p13-6a"></script>
-<script src="js/pwa.js?v=p13-6a"></script>
+<script src="js/state.js?v=p13-6b"></script>
+<script src="js/media-seek.js?v=p13-6b"></script>
+<script src="js/project.js?v=p13-6b"></script>
+<script src="js/i18n.js?v=p13-6b"></script>
+<script src="js/loading-tips.js?v=p13-6b"></script>
+<script src="js/ux.js?v=p13-6b"></script>
+<script src="js/workspace.js?v=p13-6b"></script><script src="js/help.js?v=p13-6b"></script><script src="js/api.js?v=p13-6b"></script><script src="js/module-workspace.js?v=p13-6b"></script><script src="js/module-test.js?v=p13-6b"></script><script src="js/playlist.js?v=p13-6b"></script><script src="js/rotation.js?v=p13-6b"></script>
+<script src="js/media.js?v=p13-6b"></script>
+<script src="js/source-library.js?v=p13-6b"></script>
+<script src="js/master-sequence.js?v=p13-6b"></script>
+<script src="js/timeline.js?v=p13-6b"></script>
+<script src="js/contextual.js?v=p13-6b"></script>
+<script src="js/audio.js?v=p13-6b"></script>
+<script src="js/parts.js?v=p13-6b"></script>
+<script src="js/timeline-2.js?v=p13-6b"></script>
+<script src="js/timeline-3.js?v=p13-6b"></script>
+<script src="js/composition.js?v=p13-6b"></script>
+<script src="js/performance.js?v=p13-6b"></script>
+<script src="js/output-presets.js?v=p13-6b"></script>
+<script src="js/custom-profiles.js?v=p13-6b"></script>
+<script src="js/device-profile.js?v=p13-6b"></script>
+<script src="js/compatibility.js?v=p13-6b"></script>
+<script src="js/release.js?v=p13-6b"></script><script src="js/finish.js?v=p13-6b"></script><script src="js/export.js?v=p13-6b"></script>
+<script src="js/project-engine.js?v=p13-6b"></script>
+<script src="js/project-restore.js?v=p13-6b"></script>
+<script src="js/history.js?v=p13-6b"></script>
+<script src="js/autosave.js?v=p13-6b"></script>
+<script src="js/project-file.js?v=p13-6b"></script>
+<script src="js/pwa.js?v=p13-6b"></script>
 </body>
 </html>
