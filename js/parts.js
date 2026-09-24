@@ -5,6 +5,16 @@ let advancedPreviewAudio = new Audio();
 let advancedPreviewAudioUrl = null;
 let advancedPreviewAudioBlobs = new Map();
 
+let advancedEditorTransport = {
+    currentTime: 0,
+    activePartId: '',
+    playing: false,
+    switching: false,
+    transitioning: false,
+    switchGeneration: 0,
+    projectRef: null
+};
+
 function getAdvancedParts() {
     return currentProject && Array.isArray(currentProject.advancedParts) ? currentProject.advancedParts : [];
 }
@@ -15,6 +25,249 @@ function isAdvancedPartsActive() {
 
 function isAdvancedPartsDirty() {
     return !!currentProject && !!currentProject.advancedPartsDirty;
+}
+
+function advancedEditorEnsureProject() {
+    if (advancedEditorTransport.projectRef !== currentProject) {
+        advancedEditorTransport.projectRef = currentProject;
+        advancedEditorTransport.currentTime = 0;
+        advancedEditorTransport.activePartId = '';
+        advancedEditorTransport.playing = false;
+        advancedEditorTransport.switching = false;
+        advancedEditorTransport.transitioning = false;
+        advancedEditorTransport.switchGeneration += 1;
+    }
+}
+
+function getAdvancedTimelineLayout() {
+    advancedEditorEnsureProject();
+    let cursor = 0;
+    return getAdvancedParts().map((part, index) => {
+        normalizeAdvancedPartRange(part);
+        const sourceIn = Math.max(0, Number(part.start) || 0);
+        const sourceOut = Math.max(sourceIn, Number(part.end) || sourceIn);
+        const duration = Math.max(0, sourceOut - sourceIn);
+        const start = cursor;
+        cursor += duration;
+        return { part, index, start, end: cursor, duration, sourceIn, sourceOut };
+    });
+}
+
+function getAdvancedTimelineDuration() {
+    const layout = getAdvancedTimelineLayout();
+    return layout.length ? layout[layout.length - 1].end : 0;
+}
+
+function locateAdvancedTimelineTime(globalTime, preferPreviousAtBoundary = false) {
+    const layout = getAdvancedTimelineLayout();
+    if (!layout.length) return null;
+    const total = layout[layout.length - 1].end;
+    const safe = Math.max(0, Math.min(total, Number(globalTime) || 0));
+    for (let index = 0; index < layout.length; index++) {
+        const item = layout[index];
+        const atEnd = Math.abs(safe - item.end) < 0.00001;
+        if (safe < item.end || (preferPreviousAtBoundary && atEnd) || index === layout.length - 1) {
+            const local = Math.max(0, Math.min(item.duration, safe - item.start));
+            return { ...item, globalTime: safe, sourceTime: item.sourceIn + local };
+        }
+    }
+    return null;
+}
+
+function advancedEditorScrollToTime(time) {
+    if (!isAdvancedPartsActive() || !filmstrip.offsetWidth) return;
+    const total = getAdvancedTimelineDuration();
+    if (!(total > 0)) return;
+    isProgrammaticScroll = true;
+    scrollTimeline.scrollLeft = (Math.max(0, Math.min(total, Number(time) || 0)) / total) * filmstrip.offsetWidth;
+    setTimeout(() => { isProgrammaticScroll = false; }, 20);
+}
+
+async function advancedEditorSetPlayerSource(located, generation) {
+    if (!located || !window.BASSourceLibrary) return false;
+    advancedEditorTransport.switching = true;
+    try {
+        const sourceId = BASSourceLibrary.getPartSourceId(located.part);
+        const source = await BASSourceLibrary.setVideoElementSource(playerVideo, sourceId);
+        if (generation !== advancedEditorTransport.switchGeneration || !source) return false;
+        normalizeAdvancedPartRange(located.part);
+        const previewTime = BASSourceLibrary.sourceTimeToPreview(sourceId, located.sourceTime, playerVideo);
+        const safe = Number.isFinite(playerVideo.duration) && playerVideo.duration > 0
+            ? Math.max(0, Math.min(previewTime, Math.max(0, playerVideo.duration - 0.001)))
+            : Math.max(0, previewTime);
+        if (Math.abs((Number(playerVideo.currentTime) || 0) - safe) > 0.004) {
+            if (window.BASMediaSeek) {
+                try {
+                    await BASMediaSeek.seek(playerVideo, safe, { timeout: 900, retries: 1, tolerance: 0.015 });
+                } catch (_) {
+                    return false;
+                }
+            } else {
+                playerVideo.currentTime = safe;
+            }
+        }
+        advancedEditorTransport.activePartId = located.part.id;
+        return true;
+    } finally {
+        if (generation === advancedEditorTransport.switchGeneration) advancedEditorTransport.switching = false;
+    }
+}
+
+async function seekAdvancedEditorTimeline(time, options = {}) {
+    if (!isAdvancedPartsActive()) return false;
+    advancedEditorEnsureProject();
+    const total = getAdvancedTimelineDuration();
+    const safe = Math.max(0, Math.min(total, Number(time) || 0));
+    const located = locateAdvancedTimelineTime(safe, safe >= total);
+    if (!located) return false;
+    const keepPlaying = !!options.keepPlaying;
+    if (!keepPlaying) advancedEditorTransport.playing = false;
+    playerVideo.pause();
+    advancedEditorTransport.currentTime = safe;
+    const generation = ++advancedEditorTransport.switchGeneration;
+    const ready = await advancedEditorSetPlayerSource(located, generation);
+    if (!ready || generation !== advancedEditorTransport.switchGeneration) return false;
+    advancedEditorTransport.currentTime = safe;
+    if (typeof updatePlayerTimeReadout === 'function') updatePlayerTimeReadout(safe);
+    if (options.scroll !== false) advancedEditorScrollToTime(safe);
+    if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
+    if (keepPlaying && advancedEditorTransport.playing) await playerVideo.play().catch(() => {});
+    return true;
+}
+
+function pauseAdvancedEditorTimeline() {
+    advancedEditorEnsureProject();
+    advancedEditorTransport.playing = false;
+    playerVideo.pause();
+    if (typeof syncTimelineTransportUi === 'function') syncTimelineTransportUi();
+}
+
+async function playAdvancedEditorTimeline() {
+    if (!isAdvancedPartsActive() || isGenerating || isBuildingTimeline) return false;
+    advancedEditorEnsureProject();
+    const total = getAdvancedTimelineDuration();
+    if (!(total > 0)) return false;
+    if (advancedEditorTransport.currentTime >= total - 0.001) advancedEditorTransport.currentTime = 0;
+    advancedEditorTransport.playing = true;
+    const ok = await seekAdvancedEditorTimeline(advancedEditorTransport.currentTime, { keepPlaying: true, scroll: true });
+    if (!ok) advancedEditorTransport.playing = false;
+    if (typeof syncTimelineTransportUi === 'function') syncTimelineTransportUi();
+    return ok;
+}
+
+function toggleAdvancedEditorTimeline() {
+    if (advancedEditorTransport.playing) pauseAdvancedEditorTimeline();
+    else playAdvancedEditorTimeline().catch(() => {});
+}
+
+function advancedEditorCurrentTimeFromPlayer() {
+    if (!isAdvancedPartsActive()) return Number(playerVideo.currentTime) || 0;
+    advancedEditorEnsureProject();
+    const layout = getAdvancedTimelineLayout();
+    const item = layout.find(entry => entry.part.id === advancedEditorTransport.activePartId);
+    if (!item || advancedEditorTransport.switching) return advancedEditorTransport.currentTime;
+    const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(item.part) : '';
+    const sourceTime = window.BASSourceLibrary
+        ? BASSourceLibrary.previewTimeToSource(sourceId, Number(playerVideo.currentTime) || 0, playerVideo)
+        : Number(playerVideo.currentTime) || 0;
+    return Math.max(item.start, Math.min(item.end, item.start + Math.max(0, sourceTime - item.sourceIn)));
+}
+
+function getAdvancedEditorTimelineTime() {
+    const live = advancedEditorCurrentTimeFromPlayer();
+    if (isAdvancedPartsActive() && Number.isFinite(live)) advancedEditorTransport.currentTime = live;
+    return isAdvancedPartsActive() ? advancedEditorTransport.currentTime : Number(playerVideo.currentTime) || 0;
+}
+
+async function advanceAdvancedEditorTimeline() {
+    if (!advancedEditorTransport.playing || advancedEditorTransport.transitioning || !isAdvancedPartsActive()) return;
+    const layout = getAdvancedTimelineLayout();
+    const index = layout.findIndex(item => item.part.id === advancedEditorTransport.activePartId);
+    if (index < 0) return;
+    if (index >= layout.length - 1) {
+        advancedEditorTransport.currentTime = getAdvancedTimelineDuration();
+        pauseAdvancedEditorTimeline();
+        if (typeof updatePlayerTimeReadout === 'function') updatePlayerTimeReadout(advancedEditorTransport.currentTime);
+        advancedEditorScrollToTime(advancedEditorTransport.currentTime);
+        return;
+    }
+    advancedEditorTransport.transitioning = true;
+    const next = layout[index + 1];
+    advancedEditorTransport.currentTime = next.start;
+    try {
+        await seekAdvancedEditorTimeline(next.start, { keepPlaying: true, scroll: true });
+    } finally {
+        advancedEditorTransport.transitioning = false;
+    }
+}
+
+function handleAdvancedEditorPlayerTimeUpdate() {
+    if (!isAdvancedPartsActive() || advancedEditorTransport.switching) return false;
+    advancedEditorEnsureProject();
+    const layout = getAdvancedTimelineLayout();
+    const item = layout.find(entry => entry.part.id === advancedEditorTransport.activePartId);
+    if (!item) return true;
+    const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(item.part) : '';
+    const sourceTime = window.BASSourceLibrary
+        ? BASSourceLibrary.previewTimeToSource(sourceId, Number(playerVideo.currentTime) || 0, playerVideo)
+        : Number(playerVideo.currentTime) || 0;
+    advancedEditorTransport.currentTime = Math.max(item.start, Math.min(item.end, item.start + Math.max(0, sourceTime - item.sourceIn)));
+    if (advancedEditorTransport.playing && sourceTime >= Math.max(item.sourceIn, item.sourceOut - 0.025)) advanceAdvancedEditorTimeline().catch(() => {});
+    return true;
+}
+
+function handleAdvancedEditorPlayerEnded() {
+    if (!isAdvancedPartsActive()) return false;
+    if (advancedEditorTransport.playing) advanceAdvancedEditorTimeline().catch(() => {});
+    return true;
+}
+
+function isAdvancedEditorTimelinePlaying() {
+    return isAdvancedPartsActive() ? !!advancedEditorTransport.playing : !playerVideo.paused;
+}
+
+function isAdvancedEditorPlayerSwitching() {
+    return !!advancedEditorTransport.switching;
+}
+
+async function renderAdvancedEditorFilmstrip() {
+    if (!isAdvancedPartsActive() || !window.BASSourceLibrary) return false;
+    const total = getAdvancedTimelineDuration();
+    if (!(total > 0)) return false;
+    const preservedTime = Math.max(0, Math.min(total, getAdvancedEditorTimelineTime()));
+    const framesPerSecond = total < 5 ? 5 : total < 10 ? 3 : total < 20 ? 2 : 1;
+    const numFrames = Math.max(10, Math.min(Math.ceil(total * framesPerSecond), 50));
+    const frameWidth = 70;
+    const thumbWidth = 100;
+    const aspectHeight = originalW > 0 && originalH > 0 ? Math.floor((originalH / originalW) * 100) : 100;
+    const thumbHeight = Math.max(1, aspectHeight);
+    filmstrip.innerHTML = '';
+    filmstrip.style.width = `${numFrames * frameWidth}px`;
+    for (let i = 0; i < numFrames; i++) {
+        const globalTime = Math.min(Math.max(0, total - 0.0001), ((i + 0.5) / numFrames) * total);
+        const located = locateAdvancedTimelineTime(globalTime, globalTime >= total - 0.0001);
+        if (!located) continue;
+        const sourceId = BASSourceLibrary.getPartSourceId(located.part);
+        try {
+            const blob = await BASSourceLibrary.frameBlob(sourceId, located.sourceTime, thumbWidth, thumbHeight, 'jpeg', 'stretch', null, 0.58);
+            const img = document.createElement('img');
+            const url = URL.createObjectURL(blob);
+            const release = () => URL.revokeObjectURL(url);
+            img.addEventListener('load', release, { once: true });
+            img.addEventListener('error', release, { once: true });
+            img.src = url;
+            img.style.width = `${frameWidth}px`;
+            img.style.flexBasis = `${frameWidth}px`;
+            filmstrip.appendChild(img);
+        } catch (error) {
+            console.warn('Advanced timeline thumbnail skipped', error);
+        }
+    }
+    if (typeof renderTimelineRuler === 'function') renderTimelineRuler();
+    advancedEditorTransport.currentTime = preservedTime;
+    if (typeof updatePlayerTimeReadout === 'function') updatePlayerTimeReadout(preservedTime);
+    advancedEditorScrollToTime(preservedTime);
+    return true;
 }
 
 function getAdvancedSourceDuration(part = null) {
@@ -690,14 +943,11 @@ function getAdvancedPartById(id) {
 }
 
 function seekToAdvancedPart(part) {
-    if (!part || !playerVideo.duration) return;
-    if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) return;
-    playerVideo.pause();
-    const timelineTime = projectTimeToTimelineTime(part.start);
-    playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, timelineTime));
-    isProgrammaticScroll = true;
-    scrollTimeline.scrollLeft = (playerVideo.currentTime / playerVideo.duration) * filmstrip.offsetWidth;
-    setTimeout(() => { isProgrammaticScroll = false; }, 20);
+    if (!part) return;
+    const layout = getAdvancedTimelineLayout();
+    const item = layout.find(entry => entry.part.id === part.id);
+    if (!item) return;
+    seekAdvancedEditorTimeline(item.start, { scroll: true }).catch(() => {});
 }
 
 async function previewAdvancedPartSource(part) {
@@ -1035,22 +1285,22 @@ function updateAdvancedPartField(part, field, value, element) {
 
 function renderAdvancedPartLines() {
     document.querySelectorAll('.linha-parte-avancada').forEach(el => el.remove());
-    if (!isAdvancedPartsActive() || !playerVideo.duration || !filmstrip.offsetWidth) return;
+    if (!isAdvancedPartsActive() || !filmstrip.offsetWidth) return;
+    const layout = getAdvancedTimelineLayout();
+    const duration = getAdvancedTimelineDuration();
+    if (!(duration > 0)) return;
     const seen = new Set();
-    getAdvancedParts().forEach((part, index) => {
-        if (window.BASSourceLibrary && BASSourceLibrary.getPartSourceId(part) !== BASSourceLibrary.getPrimaryId()) return;
-        [part.start, part.end].forEach(sourceTime => {
-            const timelineTime = projectTimeToTimelineTime(sourceTime);
-            const key = timelineTime.toFixed(4);
+    layout.forEach((item, index) => {
+        [item.start, item.end].forEach(globalTime => {
+            const key = globalTime.toFixed(4);
             if (seen.has(key)) return;
             seen.add(key);
             const line = document.createElement('div');
             line.className = `linha-parte-avancada tone-${index % 4}`;
-            line.style.left = `${Math.max(0, Math.min(100, (timelineTime / playerVideo.duration) * 100))}%`;
+            line.style.left = `${Math.max(0, Math.min(100, (globalTime / duration) * 100))}%`;
             line.addEventListener('click', event => {
                 event.stopPropagation();
-                playerVideo.pause();
-                playerVideo.currentTime = timelineTime;
+                seekAdvancedEditorTimeline(globalTime, { scroll: true }).catch(() => {});
             });
             filmstrip.appendChild(line);
         });
@@ -1062,6 +1312,10 @@ async function enterAdvancedPartsMode() {
     if (typeof setEditTool === 'function') setEditTool('parts');
     if (!ensureAdvancedPartsInitialized()) return;
     currentProject.advancedPartsEnabled = true;
+    advancedEditorEnsureProject();
+    advancedEditorTransport.currentTime = 0;
+    advancedEditorTransport.activePartId = '';
+    advancedEditorTransport.playing = false;
     syncAdvancedPartsUi();
     atualizarBotoesELinhas();
 }
@@ -1079,6 +1333,10 @@ async function exitAdvancedPartsMode() {
     currentProject.advancedPartsEnabled = false;
     currentProject.advancedExpandedId = null;
     currentProject.advancedPartCounter = 0;
+    advancedEditorTransport.playing = false;
+    advancedEditorTransport.currentTime = 0;
+    advancedEditorTransport.activePartId = '';
+    advancedEditorTransport.switchGeneration += 1;
     stopAdvancedPartsPreview();
     syncAdvancedPartsUi();
     atualizarBotoesELinhas();

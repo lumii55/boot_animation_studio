@@ -472,18 +472,9 @@ async function applyCompositionToFrameBlob(blob, time, width, height, format, jp
 function compositionMainPreviewTime() {
     if (!currentProject) return 0;
     if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
+        if (typeof getAdvancedEditorTimelineTime === 'function') return Math.max(0, Number(getAdvancedEditorTimelineTime()) || 0);
         const part = typeof getAdvancedPartById === 'function' ? getAdvancedPartById(currentProject.advancedExpandedId) : null;
-        if (part) {
-            const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
-            const primaryId = window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : sourceId;
-            if (!sourceId || sourceId === primaryId) {
-                const sourceTime = typeof timelineTimeToProjectTime === 'function'
-                    ? timelineTimeToProjectTime(Number(playerVideo.currentTime) || 0)
-                    : Number(playerVideo.currentTime) || 0;
-                return compositionAdvancedTime(part, Math.max(Number(part.start) || 0, Math.min(Number(part.end) || 0, sourceTime)));
-            }
-            return compositionAdvancedTime(part, Number(part.start) || 0);
-        }
+        if (part) return compositionAdvancedTime(part, Number(part.start) || 0);
     }
     if (window.BASMasterSequence && BASMasterSequence.isTimelineActive()) return Math.max(0, Number(BASMasterSequence.getCurrentTime()) || 0);
     const timelineTime = Number(playerVideo && playerVideo.currentTime) || 0;

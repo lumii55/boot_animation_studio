@@ -8,12 +8,18 @@ function timelineUsesMasterSequence() {
     return !!(window.BASMasterSequence && BASMasterSequence.isTimelineActive());
 }
 
+function timelineUsesAdvancedParts() {
+    return typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedTimelineDuration === 'function';
+}
+
 function getTimelineDurationExact() {
+    if (timelineUsesAdvancedParts()) return Math.max(0, Number(getAdvancedTimelineDuration()) || 0);
     if (timelineUsesMasterSequence()) return BASMasterSequence.getDuration();
     return Math.max(0, Number(playerVideo.duration) || 0);
 }
 
 function getTimelineCurrentTimeExact() {
+    if (timelineUsesAdvancedParts() && typeof getAdvancedEditorTimelineTime === 'function') return getAdvancedEditorTimelineTime();
     if (timelineUsesMasterSequence()) return BASMasterSequence.getCurrentTime();
     const duration = getTimelineDurationExact();
     const logical = Number.isFinite(targetTime) ? targetTime : (Number(playerVideo.currentTime) || 0);
@@ -21,7 +27,8 @@ function getTimelineCurrentTimeExact() {
 }
 
 function pauseTimelinePlayback() {
-    if (timelineUsesMasterSequence()) BASMasterSequence.pause();
+    if (timelineUsesAdvancedParts() && typeof pauseAdvancedEditorTimeline === 'function') pauseAdvancedEditorTimeline();
+    else if (timelineUsesMasterSequence()) BASMasterSequence.pause();
     else playerVideo.pause();
 }
 
@@ -33,6 +40,7 @@ function formatTimelineSecondsExact(value) {
 }
 
 function getPlayerSourceDurationExact() {
+    if (timelineUsesAdvancedParts()) return getAdvancedTimelineDuration();
     if (timelineUsesMasterSequence()) return BASMasterSequence.getDuration();
     const projectDuration = currentProject ? Number(currentProject.sourceDuration) : 0;
     if (Number.isFinite(projectDuration) && projectDuration > 0) return projectDuration;
@@ -50,7 +58,7 @@ function updatePlayerTimeReadout(timelineTime) {
         return;
     }
     const rawCurrent = timelineTime === undefined ? getTimelineCurrentTimeExact() : Number(timelineTime) || 0;
-    const current = Math.max(0, Math.min(total, timelineUsesMasterSequence() ? rawCurrent : timelineTimeToProjectTime(rawCurrent)));
+    const current = Math.max(0, Math.min(total, (timelineUsesMasterSequence() || timelineUsesAdvancedParts()) ? rawCurrent : timelineTimeToProjectTime(rawCurrent)));
     const currentText = `${formatTimelineSecondsExact(current)}s`;
     const totalText = `${formatTimelineSecondsExact(total)}s`;
     currentEl.textContent = currentText;
@@ -69,7 +77,7 @@ function syncTimelineTransportUi() {
     const playIcon = document.getElementById('timeline-play-icon');
     const t = traducoes[idiomaAtual];
     const ready = getTimelineDurationExact() > 0 && !isGenerating && !isBuildingTimeline;
-    const playing = timelineUsesMasterSequence() ? BASMasterSequence.isPlaying() : !playerVideo.paused;
+    const playing = timelineUsesAdvancedParts() && typeof isAdvancedEditorTimelinePlaying === 'function' ? isAdvancedEditorTimelinePlaying() : timelineUsesMasterSequence() ? BASMasterSequence.isPlaying() : !playerVideo.paused;
     if (startButton) startButton.disabled = !ready;
     if (playButton) playButton.disabled = !ready;
     if (endButton) endButton.disabled = !ready;
@@ -82,6 +90,10 @@ function seekTimelineTo(timelineTime) {
     if (!(duration > 0) || isGenerating || isBuildingTimeline) return;
     const safe = Math.max(0, Math.min(duration, Number(timelineTime) || 0));
     targetTime = safe;
+    if (timelineUsesAdvancedParts() && typeof seekAdvancedEditorTimeline === 'function') {
+        seekAdvancedEditorTimeline(safe, { scroll: true }).catch(() => {});
+        return;
+    }
     if (timelineUsesMasterSequence()) {
         BASMasterSequence.seek(safe, { scroll: true }).catch(() => {});
         return;
@@ -108,7 +120,7 @@ function renderTimelineRuler() {
         const tick = document.createElement('span');
         tick.className = 'timeline-ruler-tick';
         tick.style.left = `${(index / divisions) * 100}%`;
-        tick.innerHTML = `<i></i><b>${formatTimelineSecondsExact(timelineUsesMasterSequence() ? timelineTime : timelineTimeToProjectTime(timelineTime))}s</b>`;
+        tick.innerHTML = `<i></i><b>${formatTimelineSecondsExact((timelineUsesMasterSequence() || timelineUsesAdvancedParts()) ? timelineTime : timelineTimeToProjectTime(timelineTime))}s</b>`;
         ruler.appendChild(tick);
     }
     filmstrip.appendChild(ruler);
@@ -595,6 +607,10 @@ playerVideo.addEventListener('click', () => {
         return;
     }
     if (isGenerating || isBuildingTimeline) return;
+    if (timelineUsesAdvancedParts() && typeof toggleAdvancedEditorTimeline === 'function') {
+        toggleAdvancedEditorTimeline();
+        return;
+    }
     if (timelineUsesMasterSequence()) {
         BASMasterSequence.togglePlay();
         return;
@@ -615,11 +631,14 @@ playerVideo.addEventListener('play', () => {
     animationFrameId = requestAnimationFrame(animarTimelineSmooth);
 });
 
-playerVideo.addEventListener('ended', () => syncTimelineTransportUi());
+playerVideo.addEventListener('ended', () => {
+    if (timelineUsesAdvancedParts() && typeof handleAdvancedEditorPlayerEnded === 'function') handleAdvancedEditorPlayerEnded();
+    syncTimelineTransportUi();
+});
 
 function animarTimelineSmooth() {
     const duration = getTimelineDurationExact();
-    const playing = timelineUsesMasterSequence() ? BASMasterSequence.isPlaying() : !playerVideo.paused;
+    const playing = timelineUsesAdvancedParts() && typeof isAdvancedEditorTimelinePlaying === 'function' ? isAdvancedEditorTimelinePlaying() : timelineUsesMasterSequence() ? BASMasterSequence.isPlaying() : !playerVideo.paused;
     if (playing && !isGenerating && !isBuildingTimeline && duration > 0) {
         const current = getTimelineCurrentTimeExact();
         const percent = current / duration;
@@ -728,8 +747,8 @@ inputVideo.addEventListener('change', function(evento) {
 window.openVideoSourceInEditor = openVideoSourceInEditor;
 
 playerVideo.addEventListener('loadedmetadata', async function() {
-    if (!timelineUsesMasterSequence()) targetTime = Math.max(0, Number(playerVideo.currentTime) || 0);
-    if (window.BASMasterSequence && BASMasterSequence.isPlayerSwitching()) {
+    if (!timelineUsesMasterSequence() && !timelineUsesAdvancedParts()) targetTime = Math.max(0, Number(playerVideo.currentTime) || 0);
+    if ((window.BASMasterSequence && BASMasterSequence.isPlayerSwitching()) || (timelineUsesAdvancedParts() && typeof isAdvancedEditorPlayerSwitching === 'function' && isAdvancedEditorPlayerSwitching())) {
         atualizarPreviewEnquadramento();
         applyFramingFocusVisuals();
         return;
@@ -817,6 +836,15 @@ function cancelTimelinePlayerSeek() {
 }
 
 function scheduleTimelinePlayerSeek() {
+    if (timelineUsesAdvancedParts()) {
+        if (isGenerating || isBuildingTimeline || !playerVideo.paused || isSeeking) return;
+        isSeeking = true;
+        seekAdvancedEditorTimeline(targetTime, { scroll: false }).finally(() => {
+            isSeeking = false;
+            if (timelineUsesAdvancedParts() && Math.abs(getAdvancedEditorTimelineTime() - targetTime) > 0.015) requestAnimationFrame(scheduleTimelinePlayerSeek);
+        });
+        return;
+    }
     if (timelineUsesMasterSequence() || isGenerating || isBuildingTimeline || !playerVideo.paused) return;
     if (timelineSeekFrame) return;
     timelineSeekFrame = requestAnimationFrame(async () => {
@@ -853,12 +881,16 @@ function scheduleTimelinePlayerSeek() {
 
 scrollTimeline.addEventListener('scroll', () => {
     const duration = getTimelineDurationExact();
-    const paused = timelineUsesMasterSequence() ? !BASMasterSequence.isPlaying() : playerVideo.paused;
+    const paused = timelineUsesAdvancedParts() && typeof isAdvancedEditorTimelinePlaying === 'function' ? !isAdvancedEditorTimelinePlaying() : timelineUsesMasterSequence() ? !BASMasterSequence.isPlaying() : playerVideo.paused;
     if (isProgrammaticScroll || isBuildingTimeline || !paused || !(duration > 0) || isGenerating || !filmstrip.offsetWidth) return;
     let percent = scrollTimeline.scrollLeft / filmstrip.offsetWidth;
     percent = Math.max(0, Math.min(1, percent));
     targetTime = percent * duration;
     updatePlayerTimeReadout(targetTime);
+    if (timelineUsesAdvancedParts()) {
+        scheduleTimelinePlayerSeek();
+        return;
+    }
     if (timelineUsesMasterSequence()) {
         seekMasterScrollTarget();
         return;
@@ -867,6 +899,11 @@ scrollTimeline.addEventListener('scroll', () => {
 });
 
 playerVideo.addEventListener('seeked', () => {
+    if (timelineUsesAdvancedParts()) {
+        if (typeof handleAdvancedEditorPlayerTimeUpdate === 'function') handleAdvancedEditorPlayerTimeUpdate();
+        updatePlayerTimeReadout();
+        return;
+    }
     if (timelineUsesMasterSequence()) {
         if (window.BASMasterSequence) BASMasterSequence.handlePlayerTimeUpdate();
         updatePlayerTimeReadout();
@@ -877,7 +914,10 @@ playerVideo.addEventListener('seeked', () => {
 });
 
 playerVideo.addEventListener('timeupdate', () => {
-    if (timelineUsesMasterSequence() && window.BASMasterSequence) BASMasterSequence.handlePlayerTimeUpdate();
+    if (timelineUsesAdvancedParts() && typeof handleAdvancedEditorPlayerTimeUpdate === 'function') {
+        handleAdvancedEditorPlayerTimeUpdate();
+        targetTime = getAdvancedEditorTimelineTime();
+    } else if (timelineUsesMasterSequence() && window.BASMasterSequence) BASMasterSequence.handlePlayerTimeUpdate();
     else if (!isBuildingTimeline && !isGenerating && !isSeeking) targetTime = Math.max(0, Number(playerVideo.currentTime) || 0);
     updatePlayerTimeReadout();
 });
@@ -890,6 +930,11 @@ playerVideo.addEventListener('durationchange', () => {
 });
 playerVideo.addEventListener('emptied', () => {
     cancelTimelinePlayerSeek();
+    if (timelineUsesAdvancedParts() && typeof isAdvancedEditorPlayerSwitching === 'function' && isAdvancedEditorPlayerSwitching()) {
+        targetTime = getAdvancedEditorTimelineTime();
+        updatePlayerTimeReadout(targetTime);
+        return;
+    }
     targetTime = 0;
     const readout = document.getElementById('video-time-readout');
     if (readout) readout.style.display = 'none';
@@ -903,7 +948,8 @@ const timelineEndButton = document.getElementById('btn-timeline-end');
 if (timelineStartButton) timelineStartButton.addEventListener('click', () => seekTimelineTo(0));
 if (timelinePlayButton) timelinePlayButton.addEventListener('click', () => {
     if (!(getTimelineDurationExact() > 0) || isGenerating || isBuildingTimeline) return;
-    if (timelineUsesMasterSequence()) BASMasterSequence.togglePlay();
+    if (timelineUsesAdvancedParts() && typeof toggleAdvancedEditorTimeline === 'function') toggleAdvancedEditorTimeline();
+    else if (timelineUsesMasterSequence()) BASMasterSequence.togglePlay();
     else if (playerVideo.paused) playerVideo.play().catch(() => {});
     else playerVideo.pause();
 });
@@ -914,6 +960,19 @@ async function desenharFilmstrip() {
     cancelTimelinePlayerSeek();
     isBuildingTimeline = true;
     filmstrip.innerHTML = '';
+    if (timelineUsesAdvancedParts() && typeof renderAdvancedEditorFilmstrip === 'function') {
+        await renderAdvancedEditorFilmstrip();
+        targetTime = Math.max(0, Math.min(getTimelineDurationExact(), preservedTime));
+        updatePlayerTimeReadout(targetTime);
+        setTimeout(() => {
+            isBuildingTimeline = false;
+            syncTimelineTransportUi();
+            renderSimpleSegmentTrack();
+            atualizarBotoesELinhas();
+            if (window.BASTimeline3) BASTimeline3.render();
+        }, 60);
+        return;
+    }
     if (timelineUsesMasterSequence()) {
         if (window.BASMasterSequence) BASMasterSequence.renderFilmstrip();
         updatePlayerTimeReadout(BASMasterSequence.getCurrentTime());

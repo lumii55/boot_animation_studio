@@ -44,6 +44,7 @@ function timeline3SimpleLayout() {
 }
 
 function timeline3AdvancedLayout() {
+    if (typeof getAdvancedTimelineLayout === 'function') return getAdvancedTimelineLayout();
     let cursor = 0;
     return (typeof getAdvancedParts === 'function' ? getAdvancedParts() : []).map((part, index) => {
         const span = Math.max(0.001, Number(part.end) - Number(part.start));
@@ -55,6 +56,7 @@ function timeline3AdvancedLayout() {
 
 function timeline3Duration() {
     if (timeline3IsAdvanced()) {
+        if (typeof getAdvancedTimelineDuration === 'function') return getAdvancedTimelineDuration();
         const layout = timeline3AdvancedLayout();
         return layout.length ? layout[layout.length - 1].end : 0;
     }
