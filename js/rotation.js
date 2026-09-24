@@ -112,10 +112,10 @@ function renderRotationState() {
     if (playlist) playlist.disabled = rotationRuntime.busy || !hasUsablePlaylist;
     if (mode) mode.disabled = rotationRuntime.busy || !hasUsablePlaylist;
     if (save) save.disabled = rotationRuntime.busy || !hasUsablePlaylist;
-    if (prepare) prepare.disabled = rotationRuntime.busy || !data.enabled || !data.playlist_id;
+    if (prepare) prepare.disabled = rotationRuntime.busy || !data.enabled || data.paused || !data.playlist_id || (!!data.next_source && data.next_source !== 'rotation');
     if (statusBadge) {
         statusBadge.dataset.state = data.enabled ? 'on' : 'off';
-        statusBadge.textContent = data.enabled ? rotationText('rotationStatusOn', 'Rotation active') : rotationText('rotationStatusOff', 'Rotation off');
+        statusBadge.textContent = data.enabled ? (data.paused ? rotationText('bootQueuePaused', 'Rotation paused') : rotationText('rotationStatusOn', 'Rotation active')) : rotationText('rotationStatusOff', 'Rotation off');
     }
     if (next) next.textContent = data.enabled && data.next_name ? data.next_name : rotationText('rotationNothingPrepared', 'Nothing prepared');
     if (last) last.textContent = data.last_boot_name || rotationText('rotationUnknown', 'Not tracked yet');
@@ -123,6 +123,7 @@ function renderRotationState() {
         note.textContent = data.enabled && data.last_error ? data.last_error : rotationText('rotationDisableNote', 'Disabling rotation stops future changes; the animation already installed on the module is left unchanged.');
         note.dataset.state = data.enabled && data.last_error ? 'error' : 'normal';
     }
+    if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
 }
 
 function applyRotationStatusToControls() {

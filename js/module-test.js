@@ -58,6 +58,8 @@ function syncModuleTestText() {
     set('module-test-stop-label', 'moduleTestStop', 'Stop test');
     set('module-test-apply-label', 'moduleTestApply', 'Apply staged animation');
     set('module-test-add-playlist-label', 'playlistAddStaged', 'Add to playlist');
+    set('module-test-use-next-label', 'bootQueueUseNext', 'Use next boot');
+    set('module-test-add-queue-label', 'bootQueueAdd', 'Add to queue');
     set('module-test-clear-label', 'moduleTestClear', 'Discard staged animation');
     set('build-test-button-title', 'buildTestButtonTitle', 'Test on phone');
     set('build-test-button-desc', 'buildTestButtonDesc', 'Generate once, preview on the connected phone, then apply or download the same build.');
@@ -69,6 +71,8 @@ function syncModuleTestText() {
     set('build-test-result-apply-label', 'buildTestApply', 'Apply tested build');
     set('build-test-result-download-label', 'buildTestDownload', 'Download tested build');
     set('build-test-result-playlist-label', 'playlistAddStaged', 'Add to playlist');
+    set('build-test-result-use-next-label', 'bootQueueUseNext', 'Use next boot');
+    set('build-test-result-queue-label', 'bootQueueAdd', 'Add to queue');
     set('build-test-result-discard-label', 'moduleTestClear', 'Discard');
     set('build-test-result-stale', 'buildTestStale', 'The project changed after this test. These actions still use the exact build that was tested.');
 }
@@ -130,6 +134,11 @@ function syncModuleTestUi() {
     if (apply) apply.hidden = !moduleTestRuntime.staged;
     if (clear) clear.hidden = !moduleTestRuntime.staged;
     if (addPlaylist) addPlaylist.hidden = !moduleTestRuntime.staged || !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
+    const queueSupported = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_queue');
+    const useNext = document.getElementById('module-test-use-next');
+    const addQueue = document.getElementById('module-test-add-queue');
+    if (useNext) useNext.hidden = !moduleTestRuntime.staged || !queueSupported;
+    if (addQueue) addQueue.hidden = !moduleTestRuntime.staged || !queueSupported;
     if (stage) stage.disabled = moduleTestRuntime.busy;
 
     const result = document.getElementById('build-test-result');
@@ -147,6 +156,8 @@ function syncModuleTestUi() {
     const resultApply = document.getElementById('build-test-result-apply');
     const resultDownload = document.getElementById('build-test-result-download');
     const resultPlaylist = document.getElementById('build-test-result-playlist');
+    const resultUseNext = document.getElementById('build-test-result-use-next');
+    const resultQueue = document.getElementById('build-test-result-queue');
     const resultDiscard = document.getElementById('build-test-result-discard');
     if (resultReplay) resultReplay.hidden = moduleTestRuntime.previewActive;
     if (resultStop) resultStop.hidden = !moduleTestRuntime.previewActive;
@@ -156,6 +167,9 @@ function syncModuleTestUi() {
         resultPlaylist.hidden = !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
         resultPlaylist.disabled = moduleTestRuntime.busy;
     }
+    if (resultUseNext) { resultUseNext.hidden = !queueSupported; resultUseNext.disabled = moduleTestRuntime.busy; }
+    if (resultQueue) { resultQueue.hidden = !queueSupported; resultQueue.disabled = moduleTestRuntime.busy; }
+    if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
     if (resultDiscard) resultDiscard.disabled = moduleTestRuntime.busy;
     const stale = document.getElementById('build-test-result-stale');
     if (stale) stale.hidden = !moduleTestRuntime.buildStale;

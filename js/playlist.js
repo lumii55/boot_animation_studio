@@ -279,6 +279,16 @@ async function renderPlaylistItems() {
             test.onclick = () => testPlaylistItem(item);
             actions.appendChild(test);
         }
+        if (typeof hasModuleFeature === 'function' && hasModuleFeature('boot_queue') && window.BASBootQueue) {
+            const useNext = document.createElement('button');
+            useNext.type = 'button'; useNext.textContent = playlistText('bootQueueUseNext', 'Use next boot');
+            useNext.onclick = () => window.BASBootQueue.useNextPlaylist(item);
+            actions.appendChild(useNext);
+            const addQueue = document.createElement('button');
+            addQueue.type = 'button'; addQueue.textContent = playlistText('bootQueueAdd', 'Add to queue');
+            addQueue.onclick = () => window.BASBootQueue.addPlaylist(item);
+            actions.appendChild(addQueue);
+        }
         const apply = document.createElement('button');
         apply.type = 'button'; apply.className = 'is-primary'; apply.textContent = playlistText('playlistApply', 'Apply');
         apply.onclick = () => applyPlaylistItem(item);
@@ -308,6 +318,7 @@ function renderPlaylists() {
     syncPlaylistCount();
     syncPlaylistText();
     if (window.BASRotation?.syncPlaylists) window.BASRotation.syncPlaylists();
+    if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
 }
 
 async function refreshPlaylists() {

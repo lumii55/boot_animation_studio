@@ -963,6 +963,21 @@ async function loadHistory() {
                 btnPlaylist.onclick = () => window.BASPlaylist.addHistory(item.id, `${t.historyPlaylistName || 'History'} ${dateValue.toLocaleString()}`);
                 actions.appendChild(btnPlaylist);
             }
+            if (hasModuleFeature('boot_queue') && window.BASBootQueue) {
+                const queueName = `${t.historyPlaylistName || 'History'} ${dateValue.toLocaleString()}`;
+                const btnNext = document.createElement('button');
+                btnNext.className = 'btn-history-secondary';
+                btnNext.type = 'button';
+                btnNext.textContent = t.bootQueueUseNext || 'Use next boot';
+                btnNext.onclick = () => window.BASBootQueue.useNextHistory(item.id, queueName);
+                actions.appendChild(btnNext);
+                const btnQueue = document.createElement('button');
+                btnQueue.className = 'btn-history-secondary';
+                btnQueue.type = 'button';
+                btnQueue.textContent = t.bootQueueAdd || 'Add to queue';
+                btnQueue.onclick = () => window.BASBootQueue.addHistory(item.id, queueName);
+                actions.appendChild(btnQueue);
+            }
 
             const btnDelete = document.createElement('button');
             btnDelete.className = 'btn-history-delete';
