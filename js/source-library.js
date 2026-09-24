@@ -50,34 +50,42 @@ function sourceLibraryCreateId() {
 
 function sourceLibraryKindForPrimary(project = currentProject) {
     if (!project) return 'video';
+    if (project.runtimePrimaryKind) return String(project.runtimePrimaryKind);
     if (project.sourceType === 'gif') return 'gif';
     if (project.sourceType === 'bootanimation') return 'bootanimation';
     if (project.sourceType === 'image') return 'image';
     return 'video';
 }
 
+function sourceLibraryPrimaryBlob(project = currentProject) {
+    if (!project) return null;
+    if (project.runtimePrimaryBlob instanceof Blob) return project.runtimePrimaryBlob;
+    return project.sourceBlob instanceof Blob ? project.sourceBlob : null;
+}
+
 function sourceLibraryCreatePrimary(project = currentProject) {
-    if (!project || !(project.sourceBlob instanceof Blob)) return null;
+    if (!project || !(sourceLibraryPrimaryBlob(project) instanceof Blob)) return null;
     if (!Number.isInteger(project.sourceLibraryCounter)) project.sourceLibraryCounter = 0;
     const id = project.primarySourceId || sourceLibraryCreateId();
     project.primarySourceId = id;
     const kind = sourceLibraryKindForPrimary(project);
+    const primaryBlob = sourceLibraryPrimaryBlob(project);
     return {
         id,
         kind,
         role: 'visual',
-        name: project.sourceName || project.sourceBlob.name || sourceLibraryText('sourceLibraryPrimaryFallback', 'Primary source'),
-        blob: project.sourceBlob,
-        mimeType: project.sourceBlob.type || '',
-        size: project.sourceBlob.size || 0,
-        lastModified: Number(project.sourceBlob.lastModified) || 0,
-        width: Math.max(0, Number(project.width) || 0),
-        height: Math.max(0, Number(project.height) || 0),
-        duration: Math.max(0, Number(project.sourceDuration) || 0),
-        fps: Math.max(0, Number(project.fps) || 0),
+        name: project.runtimePrimaryName || (primaryBlob && primaryBlob.name) || project.sourceName || sourceLibraryText('sourceLibraryPrimaryFallback', 'Primary source'),
+        blob: primaryBlob,
+        mimeType: primaryBlob.type || '',
+        size: primaryBlob.size || 0,
+        lastModified: Number(primaryBlob.lastModified) || 0,
+        width: Math.max(0, Number(project.runtimePrimaryWidth) || Number(project.width) || 0),
+        height: Math.max(0, Number(project.runtimePrimaryHeight) || Number(project.height) || 0),
+        duration: Math.max(0, Number(project.runtimePrimaryDuration) || Number(project.sourceDuration) || 0),
+        fps: Math.max(0, Number(project.runtimePrimaryFps) || Number(project.fps) || 0),
         isPrimary: true,
         runtimeFrames: project.sourceMode === 'frames' ? project.frames : null,
-        previewBlob: project.previewBlob || (kind === 'video' ? project.sourceBlob : null)
+        previewBlob: project.previewBlob || (kind === 'video' ? primaryBlob : null)
     };
 }
 
@@ -91,20 +99,21 @@ function ensureProjectSourceLibrary(project = currentProject) {
             primary = sourceLibraryCreatePrimary(project);
             if (primary) project.sourceLibrary.unshift(primary);
         } else {
+            const primaryBlob = sourceLibraryPrimaryBlob(project);
             project.primarySourceId = primary.id;
-            primary.blob = project.sourceBlob;
+            primary.blob = primaryBlob;
             primary.kind = sourceLibraryKindForPrimary(project);
             primary.role = 'visual';
-            primary.name = project.sourceName || project.sourceBlob.name || primary.name;
-            primary.mimeType = project.sourceBlob.type || primary.mimeType || '';
-            primary.size = project.sourceBlob.size || 0;
-            primary.lastModified = Number(project.sourceBlob.lastModified) || primary.lastModified || 0;
-            primary.width = Math.max(0, Number(project.width) || primary.width || 0);
-            primary.height = Math.max(0, Number(project.height) || primary.height || 0);
-            primary.duration = Math.max(0, Number(project.sourceDuration) || primary.duration || 0);
-            primary.fps = Math.max(0, Number(project.fps) || primary.fps || 0);
+            primary.name = project.runtimePrimaryName || (primaryBlob && primaryBlob.name) || project.sourceName || primary.name;
+            primary.mimeType = primaryBlob ? primaryBlob.type || primary.mimeType || '' : primary.mimeType || '';
+            primary.size = primaryBlob ? primaryBlob.size || 0 : 0;
+            primary.lastModified = primaryBlob ? Number(primaryBlob.lastModified) || primary.lastModified || 0 : primary.lastModified || 0;
+            primary.width = Math.max(0, Number(project.runtimePrimaryWidth) || Number(project.width) || primary.width || 0);
+            primary.height = Math.max(0, Number(project.runtimePrimaryHeight) || Number(project.height) || primary.height || 0);
+            primary.duration = Math.max(0, Number(project.runtimePrimaryDuration) || Number(project.sourceDuration) || primary.duration || 0);
+            primary.fps = Math.max(0, Number(project.runtimePrimaryFps) || Number(project.fps) || primary.fps || 0);
             primary.runtimeFrames = project.sourceMode === 'frames' ? project.frames : primary.runtimeFrames || null;
-            primary.previewBlob = project.previewBlob || primary.previewBlob || (primary.kind === 'video' ? project.sourceBlob : null);
+            primary.previewBlob = project.previewBlob || primary.previewBlob || (primary.kind === 'video' ? primaryBlob : null);
         }
     }
     return project.sourceLibrary;
@@ -187,7 +196,7 @@ function sourceLibrarySerialize() {
     return {
         primarySourceId: currentProject.primarySourceId || '',
         counter: Math.max(0, Number(currentProject.sourceLibraryCounter) || 0),
-        sources: library.map(source => ({
+        sources: library.filter(source => source.isPrimary || !source.archiveDerived).map(source => ({
             id: String(source.id || ''),
             kind: String(source.kind || 'video'),
             role: source.role === 'audio' ? 'audio' : 'visual',
@@ -206,7 +215,7 @@ function sourceLibrarySerialize() {
 
 function sourceLibraryAssetInventory() {
     if (!currentProject) return [];
-    return ensureProjectSourceLibrary().filter(source => !source.isPrimary && source.blob instanceof Blob).map(source => ({
+    return ensureProjectSourceLibrary().filter(source => !source.isPrimary && !source.archiveDerived && source.blob instanceof Blob).map(source => ({
         key: `source-library:${source.id}`,
         kind: source.role === 'audio' ? 'library-audio' : 'library-source',
         name: source.name || '',
@@ -220,8 +229,11 @@ function sourceLibraryAssetInventory() {
 
 function sourceLibraryRestoreState(state, assetMap = new Map()) {
     if (!currentProject) return false;
+    const archiveDerived = new Map((Array.isArray(currentProject.sourceLibrary) ? currentProject.sourceLibrary : [])
+        .filter(source => source && !source.isPrimary && source.archiveDerived && source.blob instanceof Blob)
+        .map(source => [String(source.id || ''), source]));
     if (Array.isArray(currentProject.sourceLibrary)) currentProject.sourceLibrary.forEach(source => {
-        if (source && !source.isPrimary) sourceLibraryCleanupSource(source);
+        if (source && !source.isPrimary && !source.archiveDerived) sourceLibraryCleanupSource(source);
     });
     const saved = state && Array.isArray(state.sources) ? state.sources : [];
     const primaryDescriptor = saved.find(source => source.isPrimary) || null;
@@ -237,24 +249,31 @@ function sourceLibraryRestoreState(state, assetMap = new Map()) {
     const restored = primary ? [primary] : [];
     saved.filter(source => !source.isPrimary).forEach(descriptor => {
         const asset = assetMap instanceof Map ? assetMap.get(`source-library:${descriptor.id}`) : null;
-        if (!asset || !(asset.blob instanceof Blob)) return;
+        const derived = archiveDerived.get(String(descriptor.id || ''));
+        const blob = asset && asset.blob instanceof Blob ? asset.blob : derived && derived.blob instanceof Blob ? derived.blob : null;
+        if (!(blob instanceof Blob)) return;
         restored.push({
             id: String(descriptor.id || ''),
             kind: String(descriptor.kind || (descriptor.role === 'audio' ? 'audio' : 'video')),
             role: descriptor.role === 'audio' ? 'audio' : 'visual',
-            name: String(descriptor.name || asset.name || ''),
-            blob: asset.blob,
-            mimeType: String(descriptor.mimeType || asset.type || asset.blob.type || ''),
-            size: Math.max(0, Number(descriptor.size) || asset.blob.size || 0),
-            lastModified: Math.max(0, Number(descriptor.lastModified) || Number(asset.lastModified) || 0),
-            width: Math.max(0, Number(descriptor.width) || 0),
-            height: Math.max(0, Number(descriptor.height) || 0),
-            duration: Math.max(0, Number(descriptor.duration) || 0),
-            fps: Math.max(0, Number(descriptor.fps) || 0),
+            name: String(descriptor.name || (asset && asset.name) || (derived && derived.name) || ''),
+            blob,
+            mimeType: String(descriptor.mimeType || (asset && asset.type) || blob.type || ''),
+            size: Math.max(0, Number(descriptor.size) || blob.size || 0),
+            lastModified: Math.max(0, Number(descriptor.lastModified) || Number(asset && asset.lastModified) || Number(derived && derived.lastModified) || 0),
+            width: Math.max(0, Number(descriptor.width) || Number(derived && derived.width) || 0),
+            height: Math.max(0, Number(descriptor.height) || Number(derived && derived.height) || 0),
+            duration: Math.max(0, Number(descriptor.duration) || Number(derived && derived.duration) || 0),
+            fps: Math.max(0, Number(descriptor.fps) || Number(derived && derived.fps) || 0),
             isPrimary: false,
+            archiveDerived: !!derived,
+            archiveEntryName: derived && derived.archiveEntryName ? String(derived.archiveEntryName) : '',
             runtimeFrames: null,
-            previewBlob: descriptor.kind === 'video' ? asset.blob : null
+            previewBlob: descriptor.kind === 'video' ? blob : null
         });
+    });
+    archiveDerived.forEach(source => {
+        if (!restored.some(item => item.id === source.id)) restored.push(source);
     });
     currentProject.sourceLibrary = restored;
     currentProject.primarySourceId = primary ? primary.id : String(state && state.primarySourceId || '');
@@ -1109,18 +1128,19 @@ function syncPrimarySourceLibraryMetadata() {
     if (!currentProject) return;
     const primary = ensureProjectSourceLibrary().find(source => source.isPrimary);
     if (!primary) return;
-    primary.blob = currentProject.sourceBlob;
-    primary.name = currentProject.sourceName || currentProject.sourceBlob.name || primary.name;
+    const primaryBlob = sourceLibraryPrimaryBlob(currentProject);
+    primary.blob = primaryBlob;
+    primary.name = currentProject.runtimePrimaryName || (primaryBlob && primaryBlob.name) || currentProject.sourceName || primary.name;
     primary.kind = sourceLibraryKindForPrimary(currentProject);
-    primary.mimeType = currentProject.sourceBlob.type || primary.mimeType || '';
-    primary.size = currentProject.sourceBlob.size || 0;
-    primary.lastModified = Number(currentProject.sourceBlob.lastModified) || primary.lastModified || 0;
-    primary.width = Math.max(0, Number(currentProject.width) || 0);
-    primary.height = Math.max(0, Number(currentProject.height) || 0);
-    primary.duration = Math.max(0, Number(currentProject.sourceDuration) || 0);
-    primary.fps = Math.max(0, Number(currentProject.fps) || 0);
+    primary.mimeType = primaryBlob ? primaryBlob.type || primary.mimeType || '' : primary.mimeType || '';
+    primary.size = primaryBlob ? primaryBlob.size || 0 : 0;
+    primary.lastModified = primaryBlob ? Number(primaryBlob.lastModified) || primary.lastModified || 0 : primary.lastModified || 0;
+    primary.width = Math.max(0, Number(currentProject.runtimePrimaryWidth) || Number(currentProject.width) || 0);
+    primary.height = Math.max(0, Number(currentProject.runtimePrimaryHeight) || Number(currentProject.height) || 0);
+    primary.duration = Math.max(0, Number(currentProject.runtimePrimaryDuration) || Number(currentProject.sourceDuration) || 0);
+    primary.fps = Math.max(0, Number(currentProject.runtimePrimaryFps) || Number(currentProject.fps) || 0);
     primary.runtimeFrames = currentProject.sourceMode === 'frames' ? currentProject.frames : null;
-    primary.previewBlob = currentProject.previewBlob || (primary.kind === 'video' ? currentProject.sourceBlob : primary.previewBlob || null);
+    primary.previewBlob = currentProject.previewBlob || (primary.kind === 'video' ? primaryBlob : primary.previewBlob || null);
     if (window.BASMasterSequence) BASMasterSequence.ensure();
     renderSourceLibrary();
     if (window.BASMasterSequence) BASMasterSequence.render();

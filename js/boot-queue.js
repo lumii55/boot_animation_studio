@@ -1,5 +1,6 @@
 const bootQueueRuntime = {
-    busy: false
+    busy: false,
+    collapsed: true
 };
 
 function bootQueueText(key, fallback) {
@@ -31,6 +32,18 @@ async function bootQueueRequest(path, payload = null) {
     if (window.BASRotation?.refresh) await window.BASRotation.refresh();
     syncBootQueueUi();
     return data;
+}
+
+function setBootQueueCollapsed(collapsed) {
+    bootQueueRuntime.collapsed = collapsed !== false;
+    const panel = document.getElementById('boot-queue');
+    const body = document.getElementById('boot-queue-body');
+    const toggle = document.getElementById('boot-queue-collapse-toggle');
+    const label = document.getElementById('boot-queue-collapse-label');
+    if (panel) panel.classList.toggle('is-collapsed', bootQueueRuntime.collapsed);
+    if (body) body.hidden = bootQueueRuntime.collapsed;
+    if (toggle) toggle.setAttribute('aria-expanded', bootQueueRuntime.collapsed ? 'false' : 'true');
+    if (label) label.textContent = bootQueueText(bootQueueRuntime.collapsed ? 'automationExpand' : 'automationCollapse', bootQueueRuntime.collapsed ? 'Expand' : 'Collapse');
 }
 
 function bootQueueSourceLabel(source) {
@@ -132,6 +145,13 @@ function syncBootQueueUi() {
     if (next) next.textContent = state.next_name || bootQueueText('rotationNothingPrepared', 'Nothing prepared');
     if (source) source.textContent = bootQueueSourceLabel(state.next_source);
     if (badge) badge.textContent = bootQueueText('bootQueueQueueCount', '{count} queued').replace('{count}', queue.length);
+    const compactSummary = document.getElementById('boot-queue-collapse-summary');
+    if (compactSummary) {
+        const countLabel = bootQueueText('bootQueueQueueCount', '{count} queued').replace('{count}', queue.length);
+        const nextLabel = state.next_name || bootQueueText('rotationNothingPrepared', 'Nothing prepared');
+        compactSummary.textContent = `${countLabel} · ${nextLabel}`;
+    }
+    setBootQueueCollapsed(bootQueueRuntime.collapsed);
     if (clear) clear.disabled = bootQueueRuntime.busy || queue.length === 0;
     if (skip) skip.disabled = bootQueueRuntime.busy || !state.next_source;
     if (pause) {
@@ -240,6 +260,7 @@ async function toggleRotationPause() {
 }
 
 function bindBootQueueUi() {
+    document.getElementById('boot-queue-collapse-toggle')?.addEventListener('click', () => setBootQueueCollapsed(!bootQueueRuntime.collapsed));
     document.getElementById('boot-queue-skip')?.addEventListener('click', () => skipBootQueueNext().catch(error => showToast(error.message, 'error', 4600)));
     document.getElementById('boot-queue-clear')?.addEventListener('click', () => clearBootQueue().catch(error => showToast(error.message, 'error', 4600)));
     document.getElementById('boot-queue-pause')?.addEventListener('click', () => toggleRotationPause().catch(error => showToast(error.message, 'error', 4600)));
@@ -248,6 +269,7 @@ function bindBootQueueUi() {
     document.getElementById('build-test-result-use-next')?.addEventListener('click', () => addStagedToQueue(true).catch(error => showToast(error.message, 'error', 4600)));
     document.getElementById('build-test-result-queue')?.addEventListener('click', () => addStagedToQueue(false).catch(error => showToast(error.message, 'error', 4600)));
     window.addEventListener('bas:languagechange', syncBootQueueText);
+    setBootQueueCollapsed(true);
     syncBootQueueText();
 }
 

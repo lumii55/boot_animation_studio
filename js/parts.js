@@ -131,25 +131,28 @@ function advancedAudioFromSimpleRole(role) {
 function buildAdvancedPartsFromImportedProject() {
     const fps = Math.max(1, Number(currentProject.fps) || 30);
     const t = traducoes[idiomaAtual];
-    return currentProject.parts.map((part, index) => ({
-        id: nextAdvancedPartId(),
-        label: part.name || `${t.advDefaultPart} ${index + 1}`,
-        folder: part.name || `part${index}`,
-        type: part.type === 'p' ? 'p' : 'c',
-        repeat: Math.max(0, Number(part.repeat) || 0),
-        pause: Math.max(0, Number(part.pause) || 0),
-        sourceId: getAdvancedPrimarySourceId(),
-        start: Math.max(0, Number(part.frameStart) || 0) / fps,
-        end: Math.max(0, (Number(part.frameStart) || 0) + (Number(part.frameCount) || 0)) / fps,
-        extraTokens: Array.isArray(part.tokens) ? part.tokens.slice(4) : [],
-        audio: cloneAdvancedAudioState({
-            mode: part.audioBlob ? 'file' : 'none',
-            volume: 100,
-            source: part.audioBlob || null,
-            sourceName: part.audioName || 'audio.wav',
-            sourceKind: part.audioBlob ? 'imported' : 'none'
-        })
-    }));
+    return currentProject.parts.map((part, index) => {
+        const videoPart = currentProject.sourceMode === 'video-sequence';
+        return {
+            id: nextAdvancedPartId(),
+            label: part.name || `${t.advDefaultPart} ${index + 1}`,
+            folder: part.folder || (videoPart ? `part${index}` : part.name || `part${index}`),
+            type: part.type === 'p' ? 'p' : 'c',
+            repeat: Math.max(0, Number(part.repeat) || 0),
+            pause: Math.max(0, Number(part.pause) || 0),
+            sourceId: videoPart && part.sourceId ? part.sourceId : getAdvancedPrimarySourceId(),
+            start: videoPart ? 0 : Math.max(0, Number(part.frameStart) || 0) / fps,
+            end: videoPart ? Math.max(0.001, Number(part.duration) || 0.001) : Math.max(0, (Number(part.frameStart) || 0) + (Number(part.frameCount) || 0)) / fps,
+            extraTokens: videoPart ? [] : Array.isArray(part.tokens) ? part.tokens.slice(4) : [],
+            audio: cloneAdvancedAudioState({
+                mode: part.audioBlob ? 'file' : 'none',
+                volume: 100,
+                source: part.audioBlob || null,
+                sourceName: part.audioName || 'audio.wav',
+                sourceKind: part.audioBlob ? 'imported' : 'none'
+            })
+        };
+    });
 }
 
 function buildAdvancedPartsFromSimpleEditor() {
@@ -204,11 +207,13 @@ function ensureAdvancedPartsInitialized() {
     if (!currentProject) return false;
     if (getAdvancedParts().length === 0) {
         currentProject.advancedPartCounter = 0;
-        currentProject.advancedParts = window.BASMasterSequence && BASMasterSequence.isTimelineActive()
-            ? buildAdvancedPartsFromSimpleEditor()
-            : isImportedBootanimationProject() && currentProject.parts.length > 0 && simpleEditorStillMatchesImportedBaseline()
-                ? buildAdvancedPartsFromImportedProject()
-                : buildAdvancedPartsFromSimpleEditor();
+        currentProject.advancedParts = isImportedVideoBootanimationProject() && currentProject.parts.length > 0
+            ? buildAdvancedPartsFromImportedProject()
+            : window.BASMasterSequence && BASMasterSequence.isTimelineActive()
+                ? buildAdvancedPartsFromSimpleEditor()
+                : isImportedBootanimationProject() && currentProject.parts.length > 0 && simpleEditorStillMatchesImportedBaseline()
+                    ? buildAdvancedPartsFromImportedProject()
+                    : buildAdvancedPartsFromSimpleEditor();
         currentProject.advancedParts.forEach(normalizeAdvancedPartRange);
         currentProject.advancedPartsBaseline = cloneAdvancedParts(currentProject.advancedParts);
         currentProject.advancedPartsDirty = false;

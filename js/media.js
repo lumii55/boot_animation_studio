@@ -362,7 +362,277 @@ async function createFrameProjectPreview(project, preparedBlobs, options = {}) {
     }
 }
 
+
+const BAS_BOOTANIMATION_IMPORT_MAX_ENTRIES = 10000;
+const BAS_BOOTANIMATION_IMPORT_MAX_UNCOMPRESSED = 4 * 1024 * 1024 * 1024;
+const BAS_BOOTANIMATION_IMPORT_MAX_RATIO = 400;
+
+function bootAnimationSafeEntryName(name) {
+    const raw = String(name || '');
+    if (!raw || raw.includes('\\') || raw.startsWith('/') || /^[A-Za-z]:/.test(raw)) return false;
+    return !raw.split('/').some(segment => segment === '..');
+}
+
+function validateBootAnimationArchiveSafety(zip) {
+    const entries = Object.values(zip.files || {});
+    if (entries.length > BAS_BOOTANIMATION_IMPORT_MAX_ENTRIES) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipUnsafe || 'This archive is too large or unsafe to import.');
+    let total = 0;
+    for (const entry of entries) {
+        const original = String(entry.unsafeOriginalName || entry.name || '');
+        if (!bootAnimationSafeEntryName(original) || !bootAnimationSafeEntryName(entry.name)) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipUnsafe || 'This archive contains an unsafe path.');
+        const size = Number(entry && entry._data && entry._data.uncompressedSize);
+        const compressed = Number(entry && entry._data && entry._data.compressedSize);
+        if (Number.isFinite(size) && size >= 0) {
+            total += size;
+            if (total > BAS_BOOTANIMATION_IMPORT_MAX_UNCOMPRESSED) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipUnsafe || 'This archive is too large or unsafe to import.');
+            if (size > 1024 * 1024 && Number.isFinite(compressed) && compressed > 0 && size / compressed > BAS_BOOTANIMATION_IMPORT_MAX_RATIO) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipUnsafe || 'This archive is too large or unsafe to import.');
+        }
+    }
+}
+
+function findBootAnimationRootFile(zip, fileName) {
+    const target = String(fileName || '').toLowerCase();
+    return Object.values(zip.files || {}).find(entry => !entry.dir && String(entry.name || '').toLowerCase() === target) || null;
+}
+
+function detectBootAnimationArchiveFormat(zip) {
+    if (findBootAnimationRootFile(zip, 'desc.txt')) return 'aosp-frames';
+    const videoDesc = findBootAnimationRootFile(zip, 'videodesc.txt');
+    const videos = Object.values(zip.files || {}).filter(entry => !entry.dir && !String(entry.name || '').includes('/') && /\.mp4$/i.test(entry.name || ''));
+    if (videoDesc && videos.length) return 'video-sequence';
+    return 'unknown-safe';
+}
+
+function bootAnimationNamedBlob(blob, name, type = '') {
+    const mime = type || blob.type || 'application/octet-stream';
+    if (typeof File !== 'undefined') {
+        try { return new File([blob], name, { type: mime, lastModified: Date.now() }); } catch (_) {}
+    }
+    const result = blob.type === mime ? blob : blob.slice(0, blob.size, mime);
+    try { Object.defineProperty(result, 'name', { value: name, configurable: true }); } catch (_) {}
+    return result;
+}
+
+async function readBootAnimationVideoMetadata(blob) {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(blob);
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    try {
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            let timer = 0;
+            const cleanup = () => {
+                clearTimeout(timer);
+                video.removeEventListener('loadedmetadata', ready);
+                video.removeEventListener('error', fail);
+            };
+            const ready = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve();
+            };
+            const fail = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new Error((traducoes[idiomaAtual] || traducoes.en).msgZipVideoUnreadable || 'A video inside this boot animation could not be read.'));
+            };
+            video.addEventListener('loadedmetadata', ready);
+            video.addEventListener('error', fail);
+            timer = setTimeout(fail, 8000);
+            video.src = url;
+            video.load();
+        });
+        return {
+            width: Math.max(0, Number(video.videoWidth) || 0),
+            height: Math.max(0, Number(video.videoHeight) || 0),
+            duration: Math.max(0, Number.isFinite(video.duration) ? Number(video.duration) : 0)
+        };
+    } finally {
+        try { video.pause(); } catch (_) {}
+        video.removeAttribute('src');
+        try { video.load(); } catch (_) {}
+        URL.revokeObjectURL(url);
+    }
+}
+
+function parseVideoBootAnimationDescriptor(text, videoCount) {
+    const lines = String(text || '').split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+    if (!lines.length || lines.length !== videoCount) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipVideoDescMismatch || 'videodesc.txt does not match the video sequence in this archive.');
+    return lines.map((line, index) => {
+        const tokens = line.split(/\s+/);
+        if (tokens.length < 2 || !/^\d+$/.test(tokens[0]) || !/^\d+$/.test(tokens[1])) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipVideoDescInvalid || 'videodesc.txt contains an unsupported line.');
+        const repeat = Number(tokens[0]);
+        const pause = Number(tokens[1]);
+        if (!Number.isSafeInteger(repeat) || !Number.isSafeInteger(pause) || repeat < 0 || pause < 0 || repeat > 999 || pause > 9999) throw new Error((traducoes[idiomaAtual] || traducoes.en).msgZipVideoDescInvalid || 'videodesc.txt contains an unsupported line.');
+        return { index, repeat, pause, rawLine: line, tokens };
+    });
+}
+
+function videoBootAnimationMarkers(parts) {
+    const ends = [];
+    let total = 0;
+    parts.forEach(part => {
+        total += Math.max(0, Number(part.duration) || 0);
+        ends.push(total);
+    });
+    if (!ends.length) return { m0: 0, m1: 0, m2: 0, m3: 0 };
+    if (ends.length === 1) return { m0: 0, m1: 0, m2: ends[0], m3: ends[0] };
+    if (ends.length === 2) return { m0: 0, m1: ends[0], m2: ends[1], m3: ends[1] };
+    return { m0: 0, m1: ends[0], m2: ends[ends.length - 2], m3: ends[ends.length - 1] };
+}
+
+async function abrirZipVideoNoEditor(zipBlob, zip) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('zip');
+    const overlay = document.getElementById('loading-overlay');
+    const loading = document.getElementById('txt-loading-timeline');
+    if (overlay) overlay.style.display = 'flex';
+    if (loading) loading.textContent = t.msgZipVideoAnalyzing || 'Analyzing video boot animation...';
+
+    const descEntry = findBootAnimationRootFile(zip, 'videodesc.txt');
+    const videoEntries = Object.values(zip.files || {}).filter(entry => !entry.dir && !String(entry.name || '').includes('/') && /\.mp4$/i.test(entry.name || ''));
+    videoEntries.sort((a, b) => String(a.name) < String(b.name) ? -1 : String(a.name) > String(b.name) ? 1 : 0);
+    if (!descEntry || !videoEntries.length) throw new Error(t.msgZipUnsupportedFormat || 'This boot animation format is not supported yet.');
+
+    const descriptorText = await descEntry.async('string');
+    const descriptor = parseVideoBootAnimationDescriptor(descriptorText, videoEntries.length);
+    const sources = [];
+    for (let index = 0; index < videoEntries.length; index++) {
+        if (loading) loading.textContent = (t.msgZipVideoReading || 'Reading video {current}/{total}...').replace('{current}', String(index + 1)).replace('{total}', String(videoEntries.length));
+        const entry = videoEntries[index];
+        const raw = await entry.async('blob');
+        const name = String(entry.name || `video-${index + 1}.mp4`).split('/').pop() || `video-${index + 1}.mp4`;
+        const blob = bootAnimationNamedBlob(raw, name, 'video/mp4');
+        const meta = await readBootAnimationVideoMetadata(blob);
+        if (!(meta.width > 0) || !(meta.height > 0) || !(meta.duration > 0)) throw new Error(t.msgZipVideoUnreadable || 'A video inside this boot animation could not be read.');
+        sources.push({ entry, name, blob, meta, descriptor: descriptor[index] });
+    }
+
+    const first = sources[0];
+    const project = createTemporalProject('bootanimation', zipBlob, {
+        sourceName: zipBlob && zipBlob.name ? zipBlob.name : 'bootanimation.zip',
+        previewBlob: first.blob,
+        width: first.meta.width,
+        height: first.meta.height,
+        fps: 30,
+        sourceDuration: first.meta.duration
+    });
+    project.sourceMode = 'video-sequence';
+    project.runtimePrimaryBlob = first.blob;
+    project.runtimePrimaryKind = 'video';
+    project.runtimePrimaryName = first.name;
+    project.runtimePrimaryWidth = first.meta.width;
+    project.runtimePrimaryHeight = first.meta.height;
+    project.runtimePrimaryDuration = first.meta.duration;
+    project.runtimePrimaryFps = 0;
+    project.sourceLibraryCounter = sources.length;
+    project.primarySourceId = 'src-1';
+    project.sourceLibrary = sources.map((source, index) => ({
+        id: `src-${index + 1}`,
+        kind: 'video',
+        role: 'visual',
+        name: source.name,
+        blob: source.blob,
+        mimeType: 'video/mp4',
+        size: source.blob.size || 0,
+        lastModified: Number(source.blob.lastModified) || 0,
+        width: source.meta.width,
+        height: source.meta.height,
+        duration: source.meta.duration,
+        fps: 0,
+        isPrimary: index === 0,
+        archiveDerived: true,
+        archiveEntryName: source.entry.name,
+        runtimeFrames: null,
+        previewBlob: source.blob
+    }));
+    project.parts = sources.map((source, index) => ({
+        name: source.name,
+        folder: `part${index}`,
+        type: 'p',
+        repeat: source.descriptor.repeat,
+        pause: source.descriptor.pause,
+        rawLine: source.descriptor.rawLine,
+        tokens: [...source.descriptor.tokens],
+        sourceId: `src-${index + 1}`,
+        duration: source.meta.duration,
+        videoEntryName: source.entry.name,
+        audioBlob: null,
+        audioName: null,
+        audioEntryName: null
+    }));
+    project.videoDescriptorText = descriptorText;
+    project.videoDescriptorName = descEntry.name;
+    project.videoAuxiliaryEntries = Object.values(zip.files || {}).filter(entry => !entry.dir && !videoEntries.includes(entry) && entry !== descEntry).map(entry => entry.name);
+    project.markers = videoBootAnimationMarkers(project.parts);
+    project.initialMarkersSource = { ...project.markers };
+    project.initialMarkersApplied = true;
+    setCurrentProject(project);
+    if (typeof buildAdvancedPartsFromImportedProject === 'function') {
+        project.advancedPartCounter = 0;
+        project.advancedParts = buildAdvancedPartsFromImportedProject();
+        project.advancedPartsBaseline = typeof cloneAdvancedParts === 'function' ? cloneAdvancedParts(project.advancedParts) : null;
+        project.advancedPartsDirty = false;
+        project.advancedPartsEnabled = project.advancedParts.length > 0;
+        project.advancedExpandedId = project.advancedParts[0] ? project.advancedParts[0].id : null;
+    }
+
+    resetAudioState();
+    dicasIniciais.style.display = 'none';
+    document.getElementById('botoes-exportacao').style.display = 'grid';
+    videoContainer.style.display = 'block';
+    timelineWrapper.style.display = 'block';
+    gridMarcadores.style.display = 'grid';
+    configuracoes.style.display = 'grid';
+    btnGerar.style.display = 'block';
+    btnVerPreview.style.display = 'none';
+    document.getElementById('txt-hint-tooltip').style.display = 'block';
+    document.getElementById('input-fps').value = 30;
+    document.getElementById('input-largura').value = first.meta.width;
+    document.getElementById('input-altura').value = first.meta.height;
+    document.getElementById('input-qualidade').value = 'custom';
+    if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
+    setProjectEditorBaseline({
+        width: first.meta.width,
+        height: first.meta.height,
+        fps: 30,
+        format: document.getElementById('input-formato').value
+    }, captureAudioEditorState());
+    setPlayerBlob(first.blob);
+    if (window.BASMasterSequence) {
+        BASMasterSequence.ensure();
+        if (typeof BASMasterSequence.refreshTimeline === 'function') BASMasterSequence.refreshTimeline({ seekToStart: true });
+    }
+    if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+    if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
+    if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
+    if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
+    if (typeof showToast === 'function') showToast(t.msgZipVideoImported || 'Video-based boot animation imported. BAS will export edits as a standard AOSP bootanimation.', 'success', 5200);
+}
+
 async function abrirZipNoEditor(zipBlob) {
+    const t = traducoes[idiomaAtual] || traducoes.en;
+    try {
+        const zip = await JSZip.loadAsync(zipBlob);
+        validateBootAnimationArchiveSafety(zip);
+        const format = detectBootAnimationArchiveFormat(zip);
+        if (format === 'aosp-frames') return await abrirZipAospNoEditor(zipBlob);
+        if (format === 'video-sequence') return await abrirZipVideoNoEditor(zipBlob, zip);
+        throw new Error(t.msgZipUnsupportedFormat || 'This boot animation format is not supported yet.');
+    } catch (error) {
+        console.error(error);
+        alert((t.msgZipReadError || 'Could not read ZIP: ') + error.message);
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = 'none';
+        return null;
+    }
+}
+
+async function abrirZipAospNoEditor(zipBlob) {
     const t = traducoes[idiomaAtual];
     if (typeof setLoadingTipContext === 'function') setLoadingTipContext('zip');
     document.getElementById('loading-overlay').style.display = 'flex';

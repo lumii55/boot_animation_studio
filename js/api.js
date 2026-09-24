@@ -486,6 +486,7 @@ function applyConnectedCapabilities(data) {
     if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
     if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
     if (window.BASRotation?.sync) window.BASRotation.sync();
+    if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
 }
 
 function syncConnectedDeviceSurfaces() {
@@ -718,6 +719,7 @@ async function disconnectPhone() {
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (window.BASPlaylist?.resetConnection) window.BASPlaylist.resetConnection();
     if (window.BASRotation?.resetConnection) window.BASRotation.resetConnection();
+    if (window.BASBootActivity?.resetConnection) window.BASBootActivity.resetConnection();
 }
 
 async function removeAnimation() {

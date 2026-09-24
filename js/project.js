@@ -203,6 +203,10 @@ function isImportedBootanimationProject() {
     return !!currentProject && currentProject.sourceType === 'bootanimation' && currentProject.sourceMode === 'frames' && !!currentProject.sourceBlob;
 }
 
+function isImportedVideoBootanimationProject() {
+    return !!currentProject && currentProject.sourceType === 'bootanimation' && currentProject.sourceMode === 'video-sequence' && !!currentProject.sourceBlob;
+}
+
 function projectMarkersMatchInitial() {
     if (!isImportedBootanimationProject() || !currentProject.initialMarkersSource) return false;
     const current = getProjectSourceMarkers();

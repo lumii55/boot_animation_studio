@@ -37,6 +37,18 @@ function rotationPlaylists() {
     return Array.isArray(state?.playlists) ? state.playlists : [];
 }
 
+function setRotationCollapsed(collapsed) {
+    rotationRuntime.collapsed = collapsed !== false;
+    const wrapper = document.getElementById('playlist-rotation');
+    const body = document.getElementById('rotation-body');
+    const toggle = document.getElementById('rotation-collapse-toggle');
+    const label = document.getElementById('rotation-collapse-label');
+    if (wrapper) wrapper.classList.toggle('is-collapsed', rotationRuntime.collapsed);
+    if (body) body.hidden = rotationRuntime.collapsed;
+    if (toggle) toggle.setAttribute('aria-expanded', rotationRuntime.collapsed ? 'false' : 'true');
+    if (label) label.textContent = rotationText(rotationRuntime.collapsed ? 'automationExpand' : 'automationCollapse', rotationRuntime.collapsed ? 'Expand' : 'Collapse');
+}
+
 function syncRotationText() {
     const bindings = {
         'rotation-kicker': ['rotationKicker', 'BOOT ROTATION'],
@@ -119,6 +131,13 @@ function renderRotationState() {
     }
     if (next) next.textContent = data.enabled && data.next_name ? data.next_name : rotationText('rotationNothingPrepared', 'Nothing prepared');
     if (last) last.textContent = data.last_boot_name || rotationText('rotationUnknown', 'Not tracked yet');
+    const compactSummary = document.getElementById('rotation-collapse-summary');
+    if (compactSummary) {
+        const stateLabel = data.enabled ? (data.paused ? rotationText('bootQueuePaused', 'Rotation paused') : rotationText('rotationStatusOn', 'Rotation active')) : rotationText('rotationStatusOff', 'Rotation off');
+        const nextLabel = data.next_name || rotationText('rotationNothingPrepared', 'Nothing prepared');
+        compactSummary.textContent = `${stateLabel} · ${nextLabel}`;
+    }
+    setRotationCollapsed(rotationRuntime.collapsed);
     if (note) {
         note.textContent = data.enabled && data.last_error ? data.last_error : rotationText('rotationDisableNote', 'Disabling rotation stops future changes; the animation already installed on the module is left unchanged.');
         note.dataset.state = data.enabled && data.last_error ? 'error' : 'normal';
@@ -218,12 +237,14 @@ function resetRotationConnection() {
 }
 
 function bindRotationUi() {
+    document.getElementById('rotation-collapse-toggle')?.addEventListener('click', () => setRotationCollapsed(!rotationRuntime.collapsed));
     document.getElementById('rotation-save')?.addEventListener('click', saveRotation);
     document.getElementById('rotation-prepare-next')?.addEventListener('click', prepareRotationNext);
     document.getElementById('rotation-enabled')?.addEventListener('change', renderRotationState);
     document.getElementById('rotation-playlist')?.addEventListener('change', renderRotationState);
     document.getElementById('rotation-mode')?.addEventListener('change', renderRotationState);
     window.addEventListener('bas:languagechange', syncRotationText);
+    setRotationCollapsed(true);
     syncRotationText();
     syncRotationVisibility();
 }
