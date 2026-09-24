@@ -16032,3 +16032,20 @@ summary:focus-visible {
 .playlist-rotation-note[data-state="error"] {
     color: #ff9aa9;
 }
+
+/* P13.6C — Boot Queue & Next Boot Controls */
+.boot-queue{margin:18px 0 20px;padding:18px;border:1px solid var(--border-color,#2a2f3a);border-radius:18px;background:rgba(255,255,255,.025)}
+.boot-queue[hidden]{display:none!important}
+.boot-queue-head,.boot-queue-next-card,.boot-queue-footer{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.boot-queue-head h4{margin:4px 0 4px;font-size:1.06rem}.boot-queue-head p{margin:0;max-width:720px;color:var(--text-secondary,#aeb6c5)}
+.boot-queue-status{white-space:nowrap;font-size:.78rem;font-weight:700;padding:6px 10px;border-radius:999px;background:rgba(127,127,255,.12);border:1px solid rgba(127,127,255,.24)}
+.boot-queue-next-card{margin-top:14px;padding:14px;border-radius:14px;background:rgba(0,0,0,.16)}
+.boot-queue-next-card>div:first-child{display:grid;gap:3px}.boot-queue-next-card span,.boot-queue-next-card small{color:var(--text-secondary,#aeb6c5)}.boot-queue-next-card strong{font-size:1rem}
+.boot-queue-next-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.boot-queue-list{display:grid;gap:8px;margin-top:12px}.boot-queue-empty{display:grid;gap:4px;padding:14px;border:1px dashed rgba(255,255,255,.14);border-radius:12px;color:var(--text-secondary,#aeb6c5)}.boot-queue-empty strong{color:var(--text-primary,#fff)}
+.boot-queue-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid transparent}.boot-queue-row.is-next{border-color:rgba(130,160,255,.36);background:rgba(110,140,255,.08)}
+.boot-queue-position{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.76rem;background:rgba(255,255,255,.07)}
+.boot-queue-copy{display:grid;gap:2px;min-width:0}.boot-queue-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.boot-queue-copy span{font-size:.76rem;color:var(--text-secondary,#aeb6c5)}
+.boot-queue-row-actions{display:flex;gap:5px}.boot-queue-row-actions button{min-width:34px;height:34px;border-radius:9px}.boot-queue-row-actions .is-danger,.boot-queue-footer .is-danger{border-color:rgba(255,105,105,.28)}
+.boot-queue-footer{margin-top:12px;align-items:center}.boot-queue-footer>div{display:grid;gap:3px}.boot-queue-footer span{font-size:.76rem;color:var(--text-secondary,#aeb6c5)}
+@media(max-width:700px){.boot-queue-head,.boot-queue-next-card,.boot-queue-footer{flex-direction:column}.boot-queue-next-actions{justify-content:flex-start}.boot-queue-row{grid-template-columns:auto minmax(0,1fr)}.boot-queue-row-actions{grid-column:2;justify-content:flex-start}}
