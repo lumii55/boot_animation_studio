@@ -293,6 +293,7 @@ function syncMasterSequenceText() {
 async function masterSequenceRenderFilmstrip() {
     if (!masterSequenceTimelineActive() || !window.BASSourceLibrary) return false;
     const layout = masterSequenceLayout();
+    const preservedTime = Math.max(0, Math.min(masterSequenceGetDuration(), masterSequenceGetCurrentTime()));
     filmstrip.innerHTML = '';
     const total = masterSequenceGetDuration();
     if (!(total > 0)) return false;
@@ -301,38 +302,45 @@ async function masterSequenceRenderFilmstrip() {
     const frameWidth = 70;
     const totalWidth = totalFrames * frameWidth;
     filmstrip.style.width = `${totalWidth}px`;
-    for (const item of layout) {
-        const clipWidth = Math.max(1, totalWidth * (item.duration / total));
-        const count = Math.max(1, Math.round(totalFrames * (item.duration / total)));
-        const block = document.createElement('div');
-        block.className = 'master-filmstrip-clip';
-        block.dataset.masterClipId = item.clip.id;
-        block.style.width = `${clipWidth}px`;
-        block.style.flexBasis = `${clipWidth}px`;
-        for (let index = 0; index < count; index++) {
-            const sourceTime = Math.min(Math.max(item.sourceIn, item.sourceOut - 0.0001), item.sourceIn + ((index + 0.5) / count) * item.duration);
-            try {
-                const blob = await BASSourceLibrary.frameBlob(item.clip.sourceId, sourceTime, 100, 100, 'jpeg', 'stretch', null, 0.58);
-                const img = document.createElement('img');
-                const url = URL.createObjectURL(blob);
-                const release = () => URL.revokeObjectURL(url);
-                img.addEventListener('load', release, { once: true });
-                img.addEventListener('error', release, { once: true });
-                img.src = url;
-                img.style.width = `${100 / count}%`;
-                img.style.flexBasis = `${100 / count}%`;
-                block.appendChild(img);
-            } catch (error) {
-                console.warn('Master Sequence timeline thumbnail skipped', error);
+    if (typeof BASSourceLibrary.releaseIdleVideoDecoders === 'function') BASSourceLibrary.releaseIdleVideoDecoders();
+    try {
+        for (const item of layout) {
+            const clipWidth = Math.max(1, totalWidth * (item.duration / total));
+            const count = Math.max(1, Math.round(totalFrames * (item.duration / total)));
+            const block = document.createElement('div');
+            block.className = 'master-filmstrip-clip';
+            block.dataset.masterClipId = item.clip.id;
+            block.style.width = `${clipWidth}px`;
+            block.style.flexBasis = `${clipWidth}px`;
+            for (let index = 0; index < count; index++) {
+                const sourceTime = Math.min(Math.max(item.sourceIn, item.sourceOut - 0.0001), item.sourceIn + ((index + 0.5) / count) * item.duration);
+                try {
+                    const blob = await BASSourceLibrary.frameBlob(item.clip.sourceId, sourceTime, 100, 100, 'jpeg', 'stretch', null, 0.58);
+                    const img = document.createElement('img');
+                    const url = URL.createObjectURL(blob);
+                    const release = () => URL.revokeObjectURL(url);
+                    img.addEventListener('load', release, { once: true });
+                    img.addEventListener('error', release, { once: true });
+                    img.src = url;
+                    img.style.width = `${100 / count}%`;
+                    img.style.flexBasis = `${100 / count}%`;
+                    block.appendChild(img);
+                } catch (error) {
+                    console.warn('Master Sequence timeline thumbnail skipped', error);
+                }
             }
+            if (typeof BASSourceLibrary.releaseVideoDecoder === 'function') BASSourceLibrary.releaseVideoDecoder(item.clip.sourceId);
+            const label = document.createElement('span');
+            label.className = 'master-filmstrip-label';
+            label.innerHTML = `<span class="master-filmstrip-order">${String(item.index + 1).padStart(2, '0')}</span><strong>${masterSequenceEscape(item.source ? item.source.name : '')}</strong>`;
+            block.appendChild(label);
+            filmstrip.appendChild(block);
         }
-        const label = document.createElement('span');
-        label.className = 'master-filmstrip-label';
-        label.innerHTML = `<span class="master-filmstrip-order">${String(item.index + 1).padStart(2, '0')}</span><strong>${masterSequenceEscape(item.source ? item.source.name : '')}</strong>`;
-        block.appendChild(label);
-        filmstrip.appendChild(block);
+    } finally {
+        if (typeof BASSourceLibrary.releaseIdleVideoDecoders === 'function') BASSourceLibrary.releaseIdleVideoDecoders();
     }
     if (typeof renderTimelineRuler === 'function') renderTimelineRuler();
+    await masterSequenceSeek(preservedTime, { keepPlaying: masterSequenceRuntime.playing, scroll: false }).catch(() => false);
     return true;
 }
 
@@ -347,6 +355,7 @@ function masterSequenceScrollToTime(time) {
 
 async function masterSequenceSetElementSource(element, located, generation, isPreview = false) {
     if (!located || !window.BASSourceLibrary) return false;
+    if (!isPreview && typeof BASSourceLibrary.releaseIdleVideoDecoders === 'function') BASSourceLibrary.releaseIdleVideoDecoders();
     const previewState = masterSequenceRuntime.preview;
     if (isPreview) previewState.switching = true;
     else masterSequenceRuntime.switchingPlayer = true;

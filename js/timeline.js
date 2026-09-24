@@ -799,7 +799,6 @@ playerVideo.addEventListener('loadedmetadata', async function() {
     if (typeof setLoadingTipContext === 'function') setLoadingTipContext('timeline');
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) loadingOverlay.style.display = 'flex';
-    playerVideo.style.opacity = '0';
 
     try {
         await desenharFilmstrip();
