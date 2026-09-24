@@ -125,14 +125,21 @@ async function seekAdvancedEditorTimeline(time, options = {}) {
     playerVideo.pause();
     advancedEditorTransport.currentTime = safe;
     const generation = ++advancedEditorTransport.switchGeneration;
-    const ready = await advancedEditorSetPlayerSource(located, generation);
-    if (!ready || generation !== advancedEditorTransport.switchGeneration) return false;
-    advancedEditorTransport.currentTime = safe;
-    if (typeof updatePlayerTimeReadout === 'function') updatePlayerTimeReadout(safe);
-    if (options.scroll !== false) advancedEditorScrollToTime(safe);
-    if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
-    if (keepPlaying && advancedEditorTransport.playing) await playerVideo.play().catch(() => {});
-    return true;
+    const changingPart = advancedEditorTransport.activePartId && advancedEditorTransport.activePartId !== located.part.id;
+    if (changingPart && typeof beginPlayerSourceTransition === 'function') beginPlayerSourceTransition();
+    try {
+        const ready = await advancedEditorSetPlayerSource(located, generation);
+        if (!ready || generation !== advancedEditorTransport.switchGeneration) return false;
+        advancedEditorTransport.currentTime = safe;
+        if (typeof updatePlayerTimeReadout === 'function') updatePlayerTimeReadout(safe);
+        if (options.scroll !== false) advancedEditorScrollToTime(safe);
+        if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
+        if (keepPlaying && advancedEditorTransport.playing) await playerVideo.play().catch(() => {});
+        if (changingPart && typeof finishPlayerSourceTransition === 'function') await finishPlayerSourceTransition();
+        return true;
+    } finally {
+        if (changingPart && typeof cancelPlayerSourceTransition === 'function') cancelPlayerSourceTransition();
+    }
 }
 
 function pauseAdvancedEditorTimeline() {
@@ -1317,6 +1324,8 @@ async function enterAdvancedPartsMode() {
     advancedEditorTransport.activePartId = '';
     advancedEditorTransport.playing = false;
     syncAdvancedPartsUi();
+    await seekAdvancedEditorTimeline(0, { scroll: true }).catch(() => false);
+    if (typeof desenharFilmstrip === 'function') await desenharFilmstrip().catch(() => false);
     atualizarBotoesELinhas();
 }
 

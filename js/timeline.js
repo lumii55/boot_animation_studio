@@ -268,6 +268,44 @@ function applyCoverPreviewLayout(video, wrapper, sourceWidth, sourceHeight, focu
     video.style.willChange = 'transform';
 }
 
+function beginPlayerSourceTransition() {
+    const canvas = document.getElementById('player-source-transition');
+    const wrapper = document.getElementById('framing-preview');
+    if (!canvas || !wrapper || playerVideo.readyState < 2 || !(playerVideo.videoWidth > 0) || !(playerVideo.videoHeight > 0)) return false;
+    const width = Math.max(1, Math.round(wrapper.clientWidth * Math.min(2, window.devicePixelRatio || 1)));
+    const height = Math.max(1, Math.round(wrapper.clientHeight * Math.min(2, window.devicePixelRatio || 1)));
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return false;
+    try {
+        const settings = getCurrentFramingSettings();
+        drawFramedDrawable(ctx, playerVideo, width, height, settings.mode, settings.focus);
+        canvas.classList.add('is-holding');
+        return true;
+    } catch (_) {
+        canvas.classList.remove('is-holding');
+        return false;
+    }
+}
+
+async function finishPlayerSourceTransition() {
+    const canvas = document.getElementById('player-source-transition');
+    if (!canvas || !canvas.classList.contains('is-holding')) return;
+    if (typeof playerVideo.requestVideoFrameCallback === 'function' && playerVideo.readyState >= 2) {
+        await Promise.race([
+            new Promise(resolve => playerVideo.requestVideoFrameCallback(() => resolve())),
+            new Promise(resolve => setTimeout(resolve, 180))
+        ]);
+    }
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    canvas.classList.remove('is-holding');
+}
+
+function cancelPlayerSourceTransition() {
+    document.getElementById('player-source-transition')?.classList.remove('is-holding');
+}
+
 function applyFramingFocusVisuals(settings = getCurrentFramingSettings()) {
     const focus = settings.focus || getCurrentFramingFocus();
     const sourceWidth = playerVideo.videoWidth || originalW || 1;
@@ -935,6 +973,11 @@ playerVideo.addEventListener('emptied', () => {
         updatePlayerTimeReadout(targetTime);
         return;
     }
+    if (timelineUsesMasterSequence() && window.BASMasterSequence && BASMasterSequence.isPlayerSwitching()) {
+        targetTime = BASMasterSequence.getCurrentTime();
+        updatePlayerTimeReadout(targetTime);
+        return;
+    }
     targetTime = 0;
     const readout = document.getElementById('video-time-readout');
     if (readout) readout.style.display = 'none';
@@ -974,7 +1017,7 @@ async function desenharFilmstrip() {
         return;
     }
     if (timelineUsesMasterSequence()) {
-        if (window.BASMasterSequence) BASMasterSequence.renderFilmstrip();
+        if (window.BASMasterSequence) await BASMasterSequence.renderFilmstrip();
         updatePlayerTimeReadout(BASMasterSequence.getCurrentTime());
         isProgrammaticScroll = true;
         const duration = BASMasterSequence.getDuration();
