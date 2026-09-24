@@ -133,6 +133,7 @@ function serializeProjectAdvancedParts() {
         sourceId: String(part.sourceId || (window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '')),
         start: Math.max(0, Number(part.start) || 0),
         end: Math.max(0, Number(part.end) || 0),
+        followSourceEnd: !!part.followSourceEnd,
         extraTokens: Array.isArray(part.extraTokens) ? [...part.extraTokens] : [],
         audio: serializeProjectAdvancedAudio(part.audio)
     }));
@@ -562,6 +563,7 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
             sourceId: String(savedPart.sourceId || (window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '')),
             start: Math.max(0, Number(savedPart.start) || 0),
             end: Math.max(0, Number(savedPart.end) || 0),
+            followSourceEnd: !!savedPart.followSourceEnd,
             extraTokens: Array.isArray(savedPart.extraTokens) ? [...savedPart.extraTokens] : [],
             audio: {
                 mode: audioState.mode || 'none',
@@ -582,7 +584,8 @@ function projectEngineRestoreAdvancedState(advancedState, assetMap) {
             }
         };
     });
-    currentProject.advancedPartsEnabled = !!advancedState.enabled && currentProject.advancedParts.length > 0;
+    if (typeof normalizeAdvancedPartRange === 'function') currentProject.advancedParts.forEach(normalizeAdvancedPartRange);
+        currentProject.advancedPartsEnabled = !!advancedState.enabled && currentProject.advancedParts.length > 0;
     currentProject.advancedPartsDirty = !!advancedState.dirty;
     const previousExpandedId = currentProject.advancedExpandedId || advancedState.expandedId || '';
     currentProject.advancedExpandedId = currentProject.advancedParts.some(part => part.id === previousExpandedId) ? String(previousExpandedId) : currentProject.advancedParts[0]?.id || null;

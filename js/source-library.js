@@ -702,7 +702,7 @@ function sourceLibraryReconcileVideoDuration(source, element) {
         if (!part || String(part.sourceId || '') !== String(source.id || '')) return;
         const start = Math.max(0, Number(part.start) || 0);
         const end = Math.max(0, Number(part.end) || 0);
-        if (start <= tolerance && Math.abs(end - previous) <= tolerance) part.end = observed;
+        if (part.followSourceEnd || (start <= tolerance && Math.abs(end - previous) <= tolerance)) part.end = observed;
     };
     if (Array.isArray(currentProject.advancedParts)) currentProject.advancedParts.forEach(updatePartRange);
     if (!currentProject.advancedPartsDirty && Array.isArray(currentProject.advancedPartsBaseline)) currentProject.advancedPartsBaseline.forEach(updatePartRange);
@@ -1005,6 +1005,7 @@ function sourceLibraryAssignVisualToPart(part, sourceId, resetRange = true) {
     if (resetRange && oldId !== source.id) {
         part.start = 0;
         part.end = duration;
+        part.followSourceEnd = true;
     } else if (typeof normalizeAdvancedPartRange === 'function') {
         normalizeAdvancedPartRange(part);
     }
@@ -1200,6 +1201,7 @@ function sourceLibrarySetPreviewBoundary(boundary) {
     const time = source.kind === 'image' ? (boundary === 'end' ? duration : 0) : sourceLibraryPreviewTime();
     const fps = Math.max(1, Number(source.fps) || Number(document.getElementById('input-fps')?.value) || 30);
     const minSpan = Math.min(0.05, 1 / fps);
+    part.followSourceEnd = false;
     if (boundary === 'start') {
         part.start = Math.max(0, Math.min(time, Math.max(0, part.end - minSpan)));
     } else {

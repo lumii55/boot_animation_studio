@@ -57,6 +57,7 @@ function cloneAdvancedPart(part) {
         sourceId: String(part.sourceId || (window.BASSourceLibrary ? BASSourceLibrary.getPrimaryId() : '')),
         start: Math.max(0, Number(part.start) || 0),
         end: Math.max(0, Number(part.end) || 0),
+        followSourceEnd: !!part.followSourceEnd,
         extraTokens: Array.isArray(part.extraTokens) ? [...part.extraTokens] : [],
         audio: cloneAdvancedAudioState(part.audio)
     };
@@ -98,7 +99,8 @@ function normalizeAdvancedPartRange(part) {
     const fps = Math.max(1, Number(source && source.fps) || Number(currentProject && currentProject.fps) || 30);
     const minSpan = Math.min(0.05, 1 / fps);
     part.start = Math.max(0, Math.min(duration, Number(part.start) || 0));
-    part.end = Math.max(0, Math.min(duration, Number(part.end) || 0));
+    if (part.followSourceEnd && duration > 0) part.end = duration;
+    else part.end = Math.max(0, Math.min(duration, Number(part.end) || 0));
     if (part.end <= part.start) part.end = Math.min(duration, part.start + minSpan);
     if (part.end <= part.start && duration > 0) {
         part.start = Math.max(0, duration - minSpan);
@@ -143,6 +145,7 @@ function buildAdvancedPartsFromImportedProject() {
             sourceId: videoPart && part.sourceId ? part.sourceId : getAdvancedPrimarySourceId(),
             start: videoPart ? 0 : Math.max(0, Number(part.frameStart) || 0) / fps,
             end: videoPart ? Math.max(0.001, Number(part.duration) || 0.001) : Math.max(0, (Number(part.frameStart) || 0) + (Number(part.frameCount) || 0)) / fps,
+            followSourceEnd: videoPart,
             extraTokens: videoPart ? [] : Array.isArray(part.tokens) ? part.tokens.slice(4) : [],
             audio: cloneAdvancedAudioState({
                 mode: part.audioBlob ? 'file' : 'none',
@@ -257,6 +260,7 @@ function formatAdvancedValidationIssue(issue) {
 }
 
 function validateAdvancedParts() {
+    getAdvancedParts().forEach(normalizeAdvancedPartRange);
     const issues = getAdvancedValidationIssues();
     const first = issues[0] || null;
     return {
@@ -733,6 +737,7 @@ function setAdvancedPartBoundaryToTime(part, boundary, sourceTime) {
     const epsilon = Math.max(0.02, 0.5 / fps);
     const oldStart = part.start;
     const oldEnd = part.end;
+    part.followSourceEnd = false;
     const oldSpan = Math.max(minSpan, oldEnd - oldStart);
     const target = Math.max(0, Math.min(duration, Number(sourceTime) || 0));
 
@@ -933,6 +938,7 @@ function updateAdvancedPartField(part, field, value, element) {
     if (field === 'folder') {
         part.folder = String(value || '').trim();
     } else if (field === 'start' || field === 'end') {
+        part.followSourceEnd = false;
         part[field] = Number(value);
         normalizeAdvancedPartRange(part);
     } else if (field === 'type') {
@@ -1170,6 +1176,7 @@ async function playAdvancedPreviewPart(index, played = 0) {
     const sourceId = window.BASSourceLibrary ? BASSourceLibrary.getPartSourceId(part) : '';
     try {
         if (window.BASSourceLibrary) await BASSourceLibrary.setVideoElementSource(videoPreview, sourceId);
+        normalizeAdvancedPartRange(part);
         const target = window.BASSourceLibrary ? BASSourceLibrary.sourceTimeToPreview(sourceId, part.start, videoPreview) : projectTimeToTimelineTime(part.start);
         if (Math.abs(videoPreview.currentTime - target) > 0.02) {
             if (!window.BASMediaSeek) throw new Error('Media seek helper unavailable');
