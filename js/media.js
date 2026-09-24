@@ -413,12 +413,32 @@ function bootAnimationNamedBlob(blob, name, type = '') {
     return result;
 }
 
+function bootAnimationVideoDurationCandidate(video) {
+    const values = [];
+    const duration = Number(video && video.duration);
+    if (Number.isFinite(duration) && duration > 0) values.push(duration);
+    ['seekable', 'buffered'].forEach(key => {
+        const ranges = video && video[key];
+        if (!ranges || !Number.isFinite(Number(ranges.length)) || ranges.length <= 0) return;
+        try {
+            const end = Number(ranges.end(ranges.length - 1));
+            if (Number.isFinite(end) && end > 0) values.push(end);
+        } catch (_) {}
+    });
+    return values.length ? Math.max(...values) : 0;
+}
+
 async function readBootAnimationVideoMetadata(blob) {
     const video = document.createElement('video');
     const url = URL.createObjectURL(blob);
-    video.preload = 'metadata';
+    video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;
+    let bestDuration = 0;
+    const sampleDuration = () => {
+        bestDuration = Math.max(bestDuration, bootAnimationVideoDurationCandidate(video));
+        return bestDuration;
+    };
     try {
         await new Promise((resolve, reject) => {
             let settled = false;
@@ -431,6 +451,7 @@ async function readBootAnimationVideoMetadata(blob) {
             const ready = () => {
                 if (settled) return;
                 settled = true;
+                sampleDuration();
                 cleanup();
                 resolve();
             };
@@ -446,10 +467,56 @@ async function readBootAnimationVideoMetadata(blob) {
             video.src = url;
             video.load();
         });
+        await new Promise(resolve => {
+            let finished = false;
+            let settleTimer = 0;
+            let hardTimer = 0;
+            const events = ['durationchange', 'loadeddata', 'canplay', 'canplaythrough', 'progress'];
+            const cleanup = () => {
+                clearTimeout(settleTimer);
+                clearTimeout(hardTimer);
+                events.forEach(event => video.removeEventListener(event, update));
+            };
+            const done = () => {
+                if (finished) return;
+                finished = true;
+                sampleDuration();
+                cleanup();
+                resolve();
+            };
+            const armSettle = () => {
+                clearTimeout(settleTimer);
+                settleTimer = setTimeout(done, 300);
+            };
+            const update = () => {
+                const before = bestDuration;
+                sampleDuration();
+                if (bestDuration > before + 0.001 || video.readyState >= 2) armSettle();
+            };
+            events.forEach(event => video.addEventListener(event, update));
+            hardTimer = setTimeout(done, 1800);
+            if (video.readyState >= 2) armSettle();
+        });
+        if (!(bestDuration > 0) && Number(video.readyState) >= 1) {
+            try {
+                video.currentTime = 1e10;
+                await new Promise(resolve => {
+                    const done = () => {
+                        video.removeEventListener('durationchange', done);
+                        video.removeEventListener('seeked', done);
+                        resolve();
+                    };
+                    video.addEventListener('durationchange', done, { once: true });
+                    video.addEventListener('seeked', done, { once: true });
+                    setTimeout(done, 500);
+                });
+                sampleDuration();
+            } catch (_) {}
+        }
         return {
             width: Math.max(0, Number(video.videoWidth) || 0),
             height: Math.max(0, Number(video.videoHeight) || 0),
-            duration: Math.max(0, Number.isFinite(video.duration) ? Number(video.duration) : 0)
+            duration: Math.max(0, bestDuration)
         };
     } finally {
         try { video.pause(); } catch (_) {}

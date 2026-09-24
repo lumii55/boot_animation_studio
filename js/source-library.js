@@ -663,6 +663,103 @@ function sourceLibraryGetPreviewUrl(source, blob) {
     return url;
 }
 
+function sourceLibraryVideoDurationCandidate(element) {
+    const values = [];
+    const duration = Number(element && element.duration);
+    if (Number.isFinite(duration) && duration > 0) values.push(duration);
+    ['seekable', 'buffered'].forEach(key => {
+        const ranges = element && element[key];
+        if (!ranges || ranges.length <= 0) return;
+        try {
+            const end = Number(ranges.end(ranges.length - 1));
+            if (Number.isFinite(end) && end > 0) values.push(end);
+        } catch (_) {}
+    });
+    return values.length ? Math.max(...values) : 0;
+}
+
+function sourceLibraryReconcileVideoDuration(source, element) {
+    if (!source || source.kind !== 'video') return false;
+    const observed = sourceLibraryVideoDurationCandidate(element);
+    const previous = Math.max(0, Number(source.duration) || 0);
+    const fps = Math.max(1, Number(source.fps) || Number(currentProject && currentProject.fps) || 30);
+    const tolerance = Math.max(0.02, 2 / fps);
+    if (!(observed > previous + tolerance)) return false;
+    source.duration = observed;
+    if (!currentProject) return true;
+    if (source.isPrimary) {
+        currentProject.runtimePrimaryDuration = observed;
+        if (currentProject.sourceMode === 'video-sequence') currentProject.sourceDuration = observed;
+    }
+    if (Array.isArray(currentProject.parts)) {
+        currentProject.parts.forEach(part => {
+            if (String(part && part.sourceId || '') !== String(source.id || '')) return;
+            const duration = Math.max(0, Number(part.duration) || 0);
+            if (Math.abs(duration - previous) <= tolerance || duration <= previous + tolerance) part.duration = observed;
+        });
+    }
+    const updatePartRange = part => {
+        if (!part || String(part.sourceId || '') !== String(source.id || '')) return;
+        const start = Math.max(0, Number(part.start) || 0);
+        const end = Math.max(0, Number(part.end) || 0);
+        if (start <= tolerance && Math.abs(end - previous) <= tolerance) part.end = observed;
+    };
+    if (Array.isArray(currentProject.advancedParts)) currentProject.advancedParts.forEach(updatePartRange);
+    if (!currentProject.advancedPartsDirty && Array.isArray(currentProject.advancedPartsBaseline)) currentProject.advancedPartsBaseline.forEach(updatePartRange);
+    if (Array.isArray(currentProject.masterSequence)) {
+        currentProject.masterSequence.forEach(clip => {
+            if (!clip || String(clip.sourceId || '') !== String(source.id || '')) return;
+            const clipOut = Math.max(0, Number(clip.out) || 0);
+            if (Math.abs(clipOut - previous) <= tolerance) clip.out = observed;
+        });
+    }
+    if (currentProject.sourceMode === 'video-sequence' && typeof videoBootAnimationMarkers === 'function' && Array.isArray(currentProject.parts)) {
+        currentProject.markers = videoBootAnimationMarkers(currentProject.parts);
+        if (!currentProject.advancedPartsDirty) currentProject.initialMarkersSource = { ...currentProject.markers };
+    }
+    return true;
+}
+
+async function sourceLibraryStabilizeVideoDuration(source, element) {
+    if (!source || !source.archiveDerived || source.kind !== 'video' || !element) return false;
+    let changed = sourceLibraryReconcileVideoDuration(source, element);
+    await new Promise(resolve => {
+        let finished = false;
+        let settleTimer = 0;
+        let hardTimer = 0;
+        const events = ['durationchange', 'loadeddata', 'canplay', 'canplaythrough', 'progress'];
+        const cleanup = () => {
+            clearTimeout(settleTimer);
+            clearTimeout(hardTimer);
+            events.forEach(event => element.removeEventListener(event, update));
+        };
+        const done = () => {
+            if (finished) return;
+            finished = true;
+            changed = sourceLibraryReconcileVideoDuration(source, element) || changed;
+            cleanup();
+            resolve();
+        };
+        const armSettle = () => {
+            clearTimeout(settleTimer);
+            settleTimer = setTimeout(done, 250);
+        };
+        const update = () => {
+            changed = sourceLibraryReconcileVideoDuration(source, element) || changed;
+            if (Number(element.readyState) >= 2) armSettle();
+        };
+        events.forEach(event => element.addEventListener(event, update));
+        hardTimer = setTimeout(done, 1500);
+        if (Number(element.readyState) >= 2) armSettle();
+    });
+    if (changed) {
+        if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+        if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
+        if (window.BASMasterSequence && typeof BASMasterSequence.refreshTimeline === 'function') BASMasterSequence.refreshTimeline({ seekToStart: false });
+    }
+    return changed;
+}
+
 async function sourceLibrarySetVideoElementSource(element, sourceId) {
     const source = getProjectSourceById(sourceId);
     if (!element || !source || source.role !== 'visual') return null;
@@ -706,6 +803,7 @@ async function sourceLibrarySetVideoElementSource(element, sourceId) {
             element.load();
         });
     }
+    if (source.archiveDerived && source.kind === 'video') await sourceLibraryStabilizeVideoDuration(source, element);
     return source;
 }
 
