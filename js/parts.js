@@ -1233,6 +1233,14 @@ function handleAdvancedPreviewTimeUpdate() {
     return true;
 }
 
+function handleAdvancedPreviewEnded() {
+    if (!isAdvancedPartsActive() || !advancedPreviewState) return false;
+    const state = advancedPreviewState;
+    if (state.generation !== advancedPreviewGeneration || state.transitioning) return true;
+    advanceAdvancedPreview().catch(() => {});
+    return true;
+}
+
 async function startAdvancedPartsPreview() {
     stopAdvancedPartsPreview(false);
     if (!isAdvancedPartsActive()) return false;
@@ -1519,6 +1527,7 @@ if (advancedEditor) {
     });
 }
 
+videoPreview.addEventListener('ended', handleAdvancedPreviewEnded);
 document.getElementById('advanced-health-focus')?.addEventListener('click', () => focusAdvancedValidationIssue());
 document.getElementById('btn-gerar')?.addEventListener('click', () => {
     if (!isAdvancedPartsActive()) return;
