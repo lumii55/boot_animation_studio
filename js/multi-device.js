@@ -156,7 +156,8 @@ function multiDeviceUpsert(candidate) {
         device.moduleVersion = String(info.module_version || device.moduleVersion || '');
         if (Array.isArray(info.features)) device.features = info.features.filter(value => typeof value === 'string');
     }
-    if (candidate.model) device.model = String(candidate.model).slice(0, 120);
+    const publicModel = candidate.model || info?.model || '';
+    if (publicModel) device.model = String(publicModel).slice(0, 120);
     if (candidate.resolution) device.resolution = String(candidate.resolution).slice(0, 48);
     multiDevicePersist();
     return device;
@@ -482,7 +483,6 @@ function multiDeviceRender() {
             multiDeviceRuntime.selectedId = device.id;
             const input = document.getElementById('input-ip');
             if (input) input.value = device.ip;
-            if (typeof setPairingStatus === 'function') setPairingStatus(multiDeviceText('multiDeviceQrSelected', 'Device selected. Use Connect for direct approval or New QR for QR pairing.'));
             document.querySelectorAll('.multi-device-row').forEach(node => node.classList.toggle('is-selected', node === row));
         });
         row.append(copy, badge, button);
@@ -535,11 +535,6 @@ async function multiDeviceConnectIP(ip) {
 async function multiDeviceOpenPicker(options = {}) {
     const modal = document.getElementById('modal-network');
     if (modal) modal.style.display = 'flex';
-    const qr = document.getElementById('pairing-qr');
-    const code = document.getElementById('pairing-code');
-    if (qr) qr.innerHTML = '';
-    if (code) code.textContent = '------';
-    if (typeof setPairingStatus === 'function') setPairingStatus(multiDeviceText('multiDeviceQrHint', 'Choose a device below, then use Connect or New QR.'));
     multiDeviceRender();
     if (options.scan !== false) {
         const desc = document.getElementById('lbl-modal-net-desc');

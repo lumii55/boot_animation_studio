@@ -173,213 +173,6 @@ async function scanDiscoverySubnet(subnet, exactIps, checker, generationCheck, c
     return null;
 }
 
-function randomPairingToken() {
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    let binary = '';
-    bytes.forEach(byte => binary += String.fromCharCode(byte));
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function pairingShortCode(token) {
-    return token.slice(0, 3).toUpperCase() + '-' + token.slice(-3).toUpperCase();
-}
-
-function buildPairingLink(token) {
-    const url = new URL(window.location.href);
-    url.search = '';
-    url.hash = 'bootstudio-pair=' + encodeURIComponent(token);
-    return url.toString();
-}
-
-function setPairingStatus(text, type = 'normal') {
-    const el = document.getElementById('pairing-status');
-    if (!el) return;
-    el.textContent = text;
-    el.dataset.type = type;
-    el.style.color = type === 'success' ? '#5ed7a1' : type === 'error' ? '#ff6b81' : '#bbb';
-}
-
-function renderPairingQr(token) {
-    const target = document.getElementById('pairing-qr');
-    if (!target) return false;
-    target.innerHTML = '';
-    if (typeof QRCode !== 'function') return false;
-    new QRCode(target, {
-        text: buildPairingLink(token),
-        width: 164,
-        height: 164,
-        colorDark: '#111111',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-    });
-    return true;
-}
-
-async function checkPairingIP(ip, token, timeout = 1400) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await localNetworkFetch(`http://${ip}:4040/pair_status?token=${encodeURIComponent(token)}`, { signal: controller.signal });
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data.status === 'ready' ? ip : null;
-    } catch (error) {
-        return null;
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
-async function checkQrCapableIP(ip, timeout = 2200) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await localNetworkFetch(`http://${ip}:4040/info`, { signal: controller.signal });
-        if (!response.ok) return null;
-        const data = await response.json();
-        const features = Array.isArray(data.features) ? data.features : [];
-        return Number(data.api_version) === 1 && features.includes('qr_pairing') ? ip : null;
-    } catch (error) {
-        return null;
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
-async function discoverQrCapablePhone(generation) {
-    const plan = await discoveryPlan();
-    const stillActive = () => pairingScanGeneration === generation;
-
-    for (const ip of plan.exactIps) {
-        if (!stillActive()) return null;
-        const found = await checkQrCapableIP(ip);
-        if (found) return found;
-    }
-
-    for (const subnet of plan.subnets) {
-        if (!stillActive()) return null;
-        const found = await scanDiscoverySubnet(
-            subnet,
-            plan.exactIps,
-            checkQrCapableIP,
-            stillActive,
-            24
-        );
-        if (found) return found;
-    }
-    return null;
-}
-
-async function waitForQrApproval(ip, token, generation) {
-    const t = traducoes[idiomaAtual];
-    const deadline = Date.now() + 120000;
-    while (pairingScanGeneration === generation && pairingToken === token && Date.now() < deadline) {
-        const found = await checkPairingIP(ip, token, 2600);
-        if (found) {
-            await finishQrPairing(found, token, generation);
-            return;
-        }
-        await new Promise(resolve => setTimeout(resolve, 700));
-    }
-    if (pairingScanGeneration === generation && pairingToken === token) {
-        setPairingStatus(t.pairTimeout, 'error');
-    }
-}
-
-async function finishQrPairing(ip, token, generation) {
-    if (pairingScanGeneration !== generation || pairingToken !== token) return;
-    const t = traducoes[idiomaAtual];
-    setPairingStatus(t.pairFound, 'success');
-    try {
-        const base = `http://${ip}:4040`;
-        const response = await localNetworkFetch(base + '/pair_exchange?token=' + encodeURIComponent(token), { method: 'POST', signal: AbortSignal.timeout(12000) });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.status !== 'ok' || !data.token) throw new Error(data.message || 'pairing_failed');
-        pairingScanGeneration++;
-        pairingToken = '';
-        if (window.BASMultiDevice?.prepareBase) window.BASMultiDevice.prepareBase(base);
-        else IP_LOCAL = base;
-        sessionToken = data.token;
-        resetModuleCompatibility();
-        await detectModuleCompatibility();
-        if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
-        fecharModalRede();
-        completeConnectedState(data);
-        showToast(t.pairSuccess, 'success');
-    } catch (error) {
-        setPairingStatus(t.pairFailed, 'error');
-    }
-}
-
-async function startQrPairing() {
-    const t = traducoes[idiomaAtual];
-    pairingScanGeneration++;
-    const generation = pairingScanGeneration;
-    pairingToken = '';
-    const qr = document.getElementById('pairing-qr');
-    const code = document.getElementById('pairing-code');
-    if (qr) qr.innerHTML = '';
-    if (code) code.textContent = '------';
-    setPairingStatus(t.scanningMsg);
-
-    let targetIp = '';
-    const selectedDevice = window.BASMultiDevice?.current?.();
-    const inputValue = document.getElementById('input-ip')?.value?.trim() || '';
-    if (isPrivateIPv4(inputValue)) {
-        targetIp = await checkQrCapableIP(inputValue) || '';
-    }
-    if (!targetIp && selectedDevice?.ip && isPrivateIPv4(selectedDevice.ip)) {
-        targetIp = await checkQrCapableIP(selectedDevice.ip) || '';
-    }
-    if (!targetIp) {
-        const discovered = window.BASMultiDevice?.devices?.().filter(device => device.ip && device.lastSeen) || [];
-        if (discovered.length === 1) targetIp = await checkQrCapableIP(discovered[0].ip) || '';
-        else if (discovered.length > 1) {
-            setPairingStatus(t.multiDeviceChooseForQr || 'Choose a device from the network list before generating a QR code.', 'error');
-            return;
-        }
-    }
-    if (!targetIp) targetIp = await discoverQrCapablePhone(generation);
-    if (pairingScanGeneration !== generation) return;
-    if (!targetIp) {
-        setPairingStatus(t.scanNotFound, 'error');
-        return;
-    }
-
-    rememberPhoneIp(targetIp);
-    const input = document.getElementById('input-ip');
-    if (input) input.value = targetIp;
-    pairingToken = randomPairingToken();
-    if (code) code.textContent = pairingShortCode(pairingToken);
-    if (!renderPairingQr(pairingToken)) {
-        pairingToken = '';
-        setPairingStatus(t.pairQrUnavailable, 'error');
-        return;
-    }
-    setPairingStatus(t.pairWaiting);
-    waitForQrApproval(targetIp, pairingToken, generation);
-}
-
-function handlePairingHandoff() {
-    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
-    const params = new URLSearchParams(rawHash);
-    const token = params.get('bootstudio-pair');
-    if (!token || !/^[A-Za-z0-9_-]{40,64}$/.test(token)) return;
-    pairingHandoffUrl = 'bootstudio://pair?token=' + encodeURIComponent(token);
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-    const modal = document.getElementById('modal-pair-handoff');
-    const openBtn = document.getElementById('btn-pair-open');
-    const backBtn = document.getElementById('btn-pair-back');
-    if (!modal || !openBtn || !backBtn) return;
-    openBtn.onclick = () => { window.location.href = pairingHandoffUrl; };
-    backBtn.onclick = () => { modal.style.display = 'none'; };
-    modal.style.display = 'flex';
-    setTimeout(() => {
-        if (document.visibilityState === 'visible') window.location.href = pairingHandoffUrl;
-    }, 120);
-}
-
 function completeConnectedState(data) {
     const t = traducoes[idiomaAtual];
     isConnectedMode = true;
@@ -555,6 +348,12 @@ async function connectToPhone() {
         await window.BASMultiDevice.openPicker({ scan: true });
         return;
     }
+    if (!isConnectedMode && knownDevices.length === 1 && window.BASMultiDevice?.connectRecord) {
+        btn.textContent = t.msgSearching;
+        const ok = await window.BASMultiDevice.connectRecord(knownDevices[0].id);
+        if (!ok) await window.BASMultiDevice.openPicker({ scan: true });
+        return;
+    }
     btn.textContent = t.msgSearching;
 
     try {
@@ -567,54 +366,169 @@ async function connectToPhone() {
     } catch (error) {
         btn.textContent = t.btnConnect;
         if (window.BASMultiDevice?.openPicker) window.BASMultiDevice.openPicker({ scan: true });
-        else {
-            document.getElementById('modal-network').style.display = 'flex';
-            startQrPairing();
+        else document.getElementById('modal-network').style.display = 'flex';
+    }
+}
+
+function connectionSleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function moduleDiscoveryConfirmed() {
+    return Boolean(moduleInfo && Number.isInteger(Number(moduleInfo.api_version)) && moduleCompatibilityMode === 'versioned');
+}
+
+async function requestAsyncAuthorization(btn, t) {
+    let startData = null;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const response = await apiFetch('/auth/start', { method: 'POST', signal: AbortSignal.timeout(5000) });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && (data.status === 'pending' || data.status === 'ok') && data.request_id) {
+                startData = data;
+                break;
+            }
+            if (data.status === 'busy') {
+                alert(t.msgWaitingAuth);
+                btn.textContent = t.btnConnect;
+                return null;
+            }
+            lastError = new Error(data.message || `auth_start_${response.status}`);
+        } catch (error) {
+            const activeSignal = window.BASMultiDevice?.activeSignal?.();
+            if (activeSignal?.aborted) throw error;
+            lastError = error;
+        }
+        if (attempt === 0) await connectionSleep(350);
+    }
+
+    if (!startData) {
+        const error = lastError || new Error('auth_start_failed');
+        error.code = 'auth_start_failed';
+        throw error;
+    }
+
+    const requestId = String(startData.request_id || '');
+    btn.textContent = t.msgWaitingAuth;
+    const deadline = Date.now() + 45000;
+    let consecutivePollErrors = 0;
+
+    while (Date.now() < deadline) {
+        await connectionSleep(450);
+        const activeSignal = window.BASMultiDevice?.activeSignal?.();
+        if (activeSignal?.aborted) {
+            const error = new Error('device_switch_cancelled');
+            error.name = 'AbortError';
+            throw error;
+        }
+        try {
+            const response = await apiFetch('/auth/status?request_id=' + encodeURIComponent(requestId), { signal: AbortSignal.timeout(3500) });
+            const data = await response.json().catch(() => ({}));
+            consecutivePollErrors = 0;
+            if (data.status === 'pending') continue;
+            if (data.status === 'denied') {
+                alert(t.msgAuthDenied);
+                btn.textContent = t.btnConnect;
+                return null;
+            }
+            if (data.status === 'timeout') {
+                alert(t.msgAuthTimeout);
+                btn.textContent = t.btnConnect;
+                return null;
+            }
+            if (data.status === 'ok' && data.token) return data;
+            if (!response.ok) {
+                const error = new Error(data.message || `auth_status_${response.status}`);
+                error.code = 'auth_status_failed';
+                throw error;
+            }
+        } catch (error) {
+            const signal = window.BASMultiDevice?.activeSignal?.();
+            if (signal?.aborted) throw error;
+            consecutivePollErrors++;
+            if (consecutivePollErrors >= 4) {
+                error.code = 'auth_status_failed';
+                throw error;
+            }
         }
     }
+
+    alert(t.msgAuthTimeout);
+    btn.textContent = t.btnConnect;
+    return null;
 }
 
 async function tentaConexao() {
     const btn = document.getElementById('btn-connect');
     const t = traducoes[idiomaAtual];
     btn.textContent = t.msgSearching;
+    let discovered = false;
 
     try {
         if (!await detectModuleCompatibility()) {
             btn.textContent = t.btnConnect;
             return false;
         }
+        discovered = moduleDiscoveryConfirmed();
 
-        let response = await apiFetch('/ping');
-        let data = await response.json();
+        let data = null;
 
-        if (data.status === 'auth_required') {
-            sessionToken = '';
-            btn.textContent = t.msgWaitingAuth;
-            let authRes = await apiFetch('/request_auth', { method: 'POST' });
-            data = await authRes.json();
-            
-            if (data.status === 'denied') {
-                alert(t.msgAuthDenied);
-                btn.textContent = t.btnConnect;
-                return false;
-            } else if (data.status === 'timeout') {
-                alert(t.msgAuthTimeout);
-                btn.textContent = t.btnConnect;
-                return false;
-            } else if (data.status === 'busy') {
-                alert(t.msgWaitingAuth);
-                btn.textContent = t.btnConnect;
-                return false;
-            }
-
-            if (data.status === 'ok' && data.token) {
-                sessionToken = data.token;
-                if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
+        // If this device already has a live in-memory session, verify it first.
+        if (sessionToken) {
+            try {
+                const response = await apiFetch('/ping', { signal: AbortSignal.timeout(3500) });
+                data = await response.json().catch(() => ({}));
+                if (!response.ok || data.status !== 'ok') {
+                    sessionToken = '';
+                    data = null;
+                }
+            } catch (error) {
+                const activeSignal = window.BASMultiDevice?.activeSignal?.();
+                if (activeSignal?.aborted) throw error;
+                sessionToken = '';
+                data = null;
             }
         }
 
-        if (data.status === 'ok' && !sessionToken && moduleCompatibilityMode === 'legacy_pending') {
+        if (!sessionToken) {
+            if (hasModuleFeature('async_auth')) {
+                data = await requestAsyncAuthorization(btn, t);
+                if (!data) return false;
+                sessionToken = data.token || '';
+            } else {
+                // Backward-compatible path for the last public pre-async-auth module.
+                const response = await apiFetch('/ping', { signal: AbortSignal.timeout(3500) });
+                data = await response.json().catch(() => ({}));
+                if (data.status === 'auth_required') {
+                    btn.textContent = t.msgWaitingAuth;
+                    const authRes = await apiFetch('/request_auth', { method: 'POST' });
+                    data = await authRes.json().catch(() => ({}));
+                    if (data.status === 'denied') {
+                        alert(t.msgAuthDenied);
+                        btn.textContent = t.btnConnect;
+                        return false;
+                    }
+                    if (data.status === 'timeout') {
+                        alert(t.msgAuthTimeout);
+                        btn.textContent = t.btnConnect;
+                        return false;
+                    }
+                    if (data.status === 'busy') {
+                        alert(t.msgWaitingAuth);
+                        btn.textContent = t.btnConnect;
+                        return false;
+                    }
+                    if (data.status === 'ok' && data.token) {
+                        sessionToken = data.token;
+                        if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
+                    }
+                }
+            }
+        }
+
+        if (data?.status === 'ok' && !sessionToken && moduleCompatibilityMode === 'legacy_pending') {
             try { await fetch(IP_LOCAL + '/disconnect'); } catch (error) {}
             moduleCompatibilityMode = 'incompatible_old';
             alert(t.msgModuleTooOld);
@@ -622,9 +536,7 @@ async function tentaConexao() {
             return false;
         }
 
-        if (data.status === 'ok' && sessionToken) {
-            // Authentication already succeeded. A bug in a post-connect UI surface must
-            // never be reclassified as a network/auth failure or clear the valid token.
+        if (data?.status === 'ok' && sessionToken) {
             try {
                 completeConnectedState(data);
             } catch (error) {
@@ -632,23 +544,23 @@ async function tentaConexao() {
                 if (!isConnectedMode) throw error;
             }
             return true;
-        } else {
-            sessionToken = '';
-            alert(t.msgNotFound);
-            btn.textContent = t.btnConnect;
-            return false;
         }
-    } catch (error) {
+
         sessionToken = '';
-        alert(t.msgNotFound);
+        alert(discovered ? t.msgAuthStartFailed : t.msgNotFound);
+        btn.textContent = t.btnConnect;
+        return false;
+    } catch (error) {
+        const activeSignal = window.BASMultiDevice?.activeSignal?.();
+        if (activeSignal?.aborted) return false;
+        sessionToken = '';
+        alert(discovered || error?.code === 'auth_start_failed' || error?.code === 'auth_status_failed' ? t.msgAuthStartFailed : t.msgNotFound);
         btn.textContent = t.btnConnect;
         return false;
     }
 }
 
 async function conectarPorIp() {
-    pairingScanGeneration++;
-    pairingToken = '';
     const ip = document.getElementById('input-ip').value.trim();
     if (!ip) return;
     if (window.BASMultiDevice?.connectIP) {
@@ -662,8 +574,6 @@ async function conectarPorIp() {
 }
 
 function fecharModalRede(cancelConnectionIntent = false) {
-    pairingScanGeneration++;
-    pairingToken = '';
     document.getElementById('modal-network').style.display = 'none';
     if (cancelConnectionIntent && typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
 }
@@ -686,8 +596,6 @@ async function checkIP(ip) {
 }
 
 async function iniciarVarredura() {
-    pairingScanGeneration++;
-    pairingToken = '';
     if (window.BASMultiDevice?.openPicker) {
         await window.BASMultiDevice.openPicker({ scan: true });
         return;
@@ -1315,4 +1223,3 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
     }
 });
 
-window.addEventListener('DOMContentLoaded', handlePairingHandoff);
