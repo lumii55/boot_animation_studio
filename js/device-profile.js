@@ -44,10 +44,13 @@ function deviceProfileModelLabel() {
 
 function deviceProfileLiveResolution() {
     if (!isConnectedMode) return null;
+    // Keep Device Profile upstream of Compatibility. Compatibility may consume the
+    // selected device target, so calling it from here creates a recursive dependency.
     const intelligenceResolution = deviceProfileParseResolution(deviceProfileIntelligence()?.system?.resolution);
     if (intelligenceResolution) return intelligenceResolution;
-    if (typeof compatibilityGetDeviceResolution === 'function') return compatibilityGetDeviceResolution();
-    return deviceProfileParseResolution(window.connectedPhoneResolution);
+    const connectedResolution = deviceProfileParseResolution(window.connectedPhoneResolution);
+    if (connectedResolution) return connectedResolution;
+    return deviceProfileParseResolution(document.getElementById('opt-auto')?.value || '');
 }
 
 

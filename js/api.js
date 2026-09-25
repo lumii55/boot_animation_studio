@@ -574,7 +574,14 @@ async function tentaConexao() {
         }
 
         if (data.status === 'ok' && sessionToken) {
-            completeConnectedState(data);
+            // Authentication already succeeded. A bug in a post-connect UI surface must
+            // never be reclassified as a network/auth failure or clear the valid token.
+            try {
+                completeConnectedState(data);
+            } catch (error) {
+                console.error('[BAS] Post-connect synchronization failed.', error);
+                if (!isConnectedMode) throw error;
+            }
         } else {
             sessionToken = '';
             alert(t.msgNotFound);
