@@ -100,8 +100,12 @@ function outputPresetSourceMetadata() {
 }
 
 function outputPresetDeviceResolution() {
+    if (window.BASDeviceProfile && typeof BASDeviceProfile.getResolution === 'function') {
+        const resolution = BASDeviceProfile.getResolution();
+        if (resolution) return resolution;
+    }
     if (typeof compatibilityGetDeviceResolution === 'function') return compatibilityGetDeviceResolution();
-    const value = String(window.connectedPhoneResolution || '').trim();
+    const value = String(window.BASDeviceIntelligence?.get?.()?.system?.resolution || window.connectedPhoneResolution || '').trim();
     const match = value.match(/(\d+)\s*[x×]\s*(\d+)/i);
     if (!match) return null;
     const width = Number(match[1]);

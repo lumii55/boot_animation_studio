@@ -509,33 +509,108 @@ function evenDimension(value) {
     return Math.max(2, Math.floor(Math.max(2, value) / 2) * 2);
 }
 
-function getOptimizationResolution(options) {
-    const largest = Math.max(options.width, options.height);
-    if (largest <= 600) return null;
-    const scale = largest > 1600 ? 0.78 : largest > 1000 ? 0.82 : 0.86;
-    const width = evenDimension(options.width * scale);
-    const height = evenDimension(options.height * scale);
-    if (width >= options.width || height >= options.height) return null;
-    return { width, height };
+const OPTIMIZER_RECOMMENDED_BOOT_BYTES = 20 * 1024 * 1024;
+
+function optimizerClamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
 }
 
-function getOptimizationFps(fps) {
-    if (fps >= 55) return 48;
-    if (fps >= 45) return 40;
-    if (fps > 30) return 30;
-    if (fps === 30) return 25;
-    if (fps >= 26) return 24;
-    if (fps >= 23) return 20;
+function optimizerRoundQuality(value) {
+    return normalizeJpegExportQuality(Math.round(Number(value) * 100) / 100);
+}
+
+function getOptimizerDeviceResolution() {
+    if (!isConnectedMode) return null;
+    if (window.BASDeviceProfile && typeof BASDeviceProfile.getResolution === 'function') {
+        const resolved = BASDeviceProfile.getResolution();
+        if (resolved && resolved.width > 0 && resolved.height > 0) return resolved;
+    }
+    if (typeof compatibilityGetDeviceResolution === 'function') {
+        const resolved = compatibilityGetDeviceResolution();
+        if (resolved && resolved.width > 0 && resolved.height > 0) return resolved;
+    }
     return null;
 }
 
-function getOptimizationQuality(options) {
-    if (options.format !== 'jpeg') return 0.88;
-    const quality = normalizeJpegExportQuality(options.jpegQuality);
-    if (quality > 0.86) return 0.84;
-    if (quality > 0.80) return 0.78;
-    if (quality > 0.74) return 0.72;
-    return null;
+function getOptimizationTargetBytes(baseEstimate) {
+    const baseBytes = Math.max(1, Number(baseEstimate && baseEstimate.bootBytes) || 1);
+    if (baseBytes > OPTIMIZER_RECOMMENDED_BOOT_BYTES) return OPTIMIZER_RECOMMENDED_BOOT_BYTES;
+    // A project already inside the recommended boot-size band does not need a
+    // forced quality drop. Smart Optimize still looks for a small, low-impact
+    // saving so the manual action remains useful.
+    return Math.max(1, baseBytes * 0.90);
+}
+
+function getOptimizationRequiredRatio(baseEstimate) {
+    const baseBytes = Math.max(1, Number(baseEstimate && baseEstimate.bootBytes) || 1);
+    return optimizerClamp(getOptimizationTargetBytes(baseEstimate) / baseBytes, 0.12, 0.98);
+}
+
+function getOptimizationQualityCandidates(base, baseEstimate) {
+    const ratio = getOptimizationRequiredRatio(baseEstimate);
+    const baseQuality = base.format === 'jpeg' ? normalizeJpegExportQuality(base.jpegQuality) : 0.92;
+    // JPEG size is not linear with the quality slider. The encoder estimate in
+    // BAS uses an exponent around 1.7, so invert that relationship to place the
+    // first sample near the amount of reduction actually required.
+    const predicted = optimizerRoundQuality(baseQuality * Math.pow(ratio, 1 / 1.7));
+    const halfway = optimizerRoundQuality((baseQuality + predicted) / 2);
+    const stronger = optimizerRoundQuality(predicted - Math.min(0.05, Math.max(0.02, (1 - ratio) * 0.08)));
+    const values = [halfway, predicted, stronger]
+        .filter(value => value < baseQuality - 0.005)
+        .filter((value, index, list) => list.indexOf(value) === index);
+    if (base.format === 'png') {
+        // PNG -> JPEG is already a major size lever. Start conservatively and
+        // let real frame samples decide whether more compression is necessary.
+        return [0.92, Math.max(0.78, predicted), Math.max(0.68, stronger)]
+            .map(optimizerRoundQuality)
+            .filter((value, index, list) => list.indexOf(value) === index);
+    }
+    return values;
+}
+
+function getOptimizationResolutionCandidates(base, baseEstimate) {
+    const candidates = [];
+    const seen = new Set();
+    const add = (width, height, reason = 'size') => {
+        const resolved = { width: evenDimension(width), height: evenDimension(height), reason };
+        if (resolved.width >= base.width && resolved.height >= base.height) return;
+        const key = `${resolved.width}x${resolved.height}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        candidates.push(resolved);
+    };
+
+    const device = getOptimizerDeviceResolution();
+    if (device && device.width > 0 && device.height > 0) {
+        const basePixels = Math.max(1, base.width * base.height);
+        const devicePixels = device.width * device.height;
+        if (devicePixels < basePixels || base.width !== device.width || base.height !== device.height) {
+            // Never use a larger connected display as an optimization step, but
+            // prefer the exact native screen when it is a genuine reduction.
+            if (devicePixels <= basePixels) add(device.width, device.height, 'device');
+        }
+    }
+
+    const ratio = getOptimizationRequiredRatio(baseEstimate);
+    const neededScale = optimizerClamp(Math.sqrt(ratio), 0.58, 0.94);
+    const gentleScale = optimizerClamp((1 + neededScale) / 2, 0.78, 0.96);
+    add(base.width * gentleScale, base.height * gentleScale);
+    add(base.width * neededScale, base.height * neededScale);
+    return candidates;
+}
+
+function getOptimizationFpsCandidates(base, baseEstimate) {
+    const fps = Math.max(1, Math.round(Number(base.fps) || 30));
+    if (fps <= 15) return [];
+    const ratio = getOptimizationRequiredRatio(baseEstimate);
+    const desired = fps * ratio;
+    const common = [60, 50, 48, 45, 40, 36, 30, 25, 24, 20, 18, 15, 12];
+    const lower = common.filter(value => value < fps);
+    if (!lower.length) return [];
+    const nearestNeeded = lower.reduce((best, value) => Math.abs(value - desired) < Math.abs(best - desired) ? value : best, lower[0]);
+    const gentleTarget = fps - Math.max(1, (fps - nearestNeeded) / 2);
+    const nearestGentle = lower.reduce((best, value) => Math.abs(value - gentleTarget) < Math.abs(best - gentleTarget) ? value : best, lower[0]);
+    return [nearestGentle, nearestNeeded].filter((value, index, list) => value > 0 && list.indexOf(value) === index);
 }
 
 function addOptimizationCandidate(list, seen, base, patch) {
@@ -552,24 +627,37 @@ function addOptimizationCandidate(list, seen, base, patch) {
     list.push(candidate);
 }
 
-function buildOptimizationCandidates(base) {
+function buildOptimizationCandidates(base, baseEstimate) {
     const list = [];
     const seen = new Set();
-    const resolution = getOptimizationResolution(base);
-    const fps = getOptimizationFps(base.fps);
-    const quality = getOptimizationQuality(base);
-    const imagePatch = base.format === 'png'
-        ? { format: 'jpeg', jpegQuality: quality || 0.88 }
-        : quality ? { jpegQuality: quality } : null;
+    const qualities = getOptimizationQualityCandidates(base, baseEstimate);
+    const resolutions = getOptimizationResolutionCandidates(base, baseEstimate);
+    const fpsValues = getOptimizationFpsCandidates(base, baseEstimate);
+    const makeImagePatch = quality => base.format === 'png'
+        ? { format: 'jpeg', jpegQuality: quality }
+        : { jpegQuality: quality };
 
-    if (imagePatch) addOptimizationCandidate(list, seen, base, imagePatch);
-    if (fps) addOptimizationCandidate(list, seen, base, { fps });
-    if (resolution) addOptimizationCandidate(list, seen, base, resolution);
-    if (imagePatch && fps) addOptimizationCandidate(list, seen, base, { ...imagePatch, fps });
-    if (imagePatch && resolution) addOptimizationCandidate(list, seen, base, { ...imagePatch, ...resolution });
-    if (fps && resolution) addOptimizationCandidate(list, seen, base, { fps, ...resolution });
-    if (imagePatch && fps && resolution) addOptimizationCandidate(list, seen, base, { ...imagePatch, fps, ...resolution });
-    return list;
+    // Single-lever samples let BAS avoid changing resolution/FPS when a quality
+    // adjustment alone is enough for the requested reduction.
+    qualities.forEach(quality => addOptimizationCandidate(list, seen, base, makeImagePatch(quality)));
+    fpsValues.forEach(fps => addOptimizationCandidate(list, seen, base, { fps }));
+    resolutions.forEach(resolution => addOptimizationCandidate(list, seen, base, { width: resolution.width, height: resolution.height }));
+
+    const qualityMain = qualities[Math.min(1, Math.max(0, qualities.length - 1))];
+    const qualityStrong = qualities[qualities.length - 1];
+    const fpsMain = fpsValues[fpsValues.length - 1];
+    const resolutionMain = resolutions[resolutions.length - 1];
+    const deviceResolution = resolutions.find(item => item.reason === 'device');
+
+    if (qualityMain && fpsMain) addOptimizationCandidate(list, seen, base, { ...makeImagePatch(qualityMain), fps: fpsMain });
+    if (qualityMain && resolutionMain) addOptimizationCandidate(list, seen, base, { ...makeImagePatch(qualityMain), width: resolutionMain.width, height: resolutionMain.height });
+    if (fpsMain && resolutionMain) addOptimizationCandidate(list, seen, base, { fps: fpsMain, width: resolutionMain.width, height: resolutionMain.height });
+    if (qualityMain && fpsMain && resolutionMain) addOptimizationCandidate(list, seen, base, { ...makeImagePatch(qualityMain), fps: fpsMain, width: resolutionMain.width, height: resolutionMain.height });
+    if (qualityStrong && resolutionMain) addOptimizationCandidate(list, seen, base, { ...makeImagePatch(qualityStrong), width: resolutionMain.width, height: resolutionMain.height });
+    if (deviceResolution && qualityMain) addOptimizationCandidate(list, seen, base, { ...makeImagePatch(qualityMain), width: deviceResolution.width, height: deviceResolution.height });
+    if (deviceResolution && qualityMain && fpsMain) addOptimizationCandidate(list, seen, base, { ...makeImagePatch(qualityMain), fps: fpsMain, width: deviceResolution.width, height: deviceResolution.height });
+
+    return list.slice(0, 16);
 }
 
 function getOptimizationPenalty(base, candidate) {
@@ -762,17 +850,36 @@ async function measureOptimizationFrameBytesBatch(optionsList, version) {
 }
 
 function chooseOptimizationRecommendation(baseEstimate, results) {
-    const useful = results.filter(item => item.savingPercent >= 5 && item.estimate.bootBytes < baseEstimate.bootBytes);
+    const targetBytes = getOptimizationTargetBytes(baseEstimate);
+    const useful = results.filter(item => item.savingPercent >= 4 && item.estimate.bootBytes < baseEstimate.bootBytes);
     if (!useful.length) return null;
-    if (baseEstimate.bootBytes > 20 * 1024 * 1024) {
-        const underTarget = useful.filter(item => item.estimate.bootBytes <= 20 * 1024 * 1024 && item.impact !== 'high');
-        if (underTarget.length) return underTarget.sort((a, b) => a.penalty - b.penalty || b.savingPercent - a.savingPercent)[0];
+
+    const baseAboveRecommended = baseEstimate.bootBytes > OPTIMIZER_RECOMMENDED_BOOT_BYTES;
+    if (baseAboveRecommended) {
+        const underTarget = useful.filter(item => item.estimate.bootBytes <= targetBytes);
+        if (underTarget.length) {
+            // Reach the goal with the smallest visual cost. When two options
+            // cost about the same, prefer the one that lands closest to target
+            // instead of over-compressing for no reason.
+            return underTarget.sort((a, b) =>
+                a.penalty - b.penalty ||
+                Math.abs(a.estimate.bootBytes - targetBytes) - Math.abs(b.estimate.bootBytes - targetBytes) ||
+                b.estimate.bootBytes - a.estimate.bootBytes
+            )[0];
+        }
+        // If no tested combination reaches the recommended band, return the
+        // strongest useful improvement rather than pretending the target was met.
+        return useful.sort((a, b) =>
+            a.estimate.bootBytes - b.estimate.bootBytes ||
+            a.penalty - b.penalty
+        )[0];
     }
-    const low = useful.filter(item => item.impact === 'low').sort((a, b) => b.savingPercent - a.savingPercent);
+
+    const low = useful.filter(item => item.impact === 'low').sort((a, b) => a.penalty - b.penalty || b.savingPercent - a.savingPercent);
     if (low.length) return low[0];
-    const medium = useful.filter(item => item.impact === 'medium').sort((a, b) => b.savingPercent - a.savingPercent);
+    const medium = useful.filter(item => item.impact === 'medium').sort((a, b) => a.penalty - b.penalty || b.savingPercent - a.savingPercent);
     if (medium.length) return medium[0];
-    return useful.sort((a, b) => b.savingPercent - a.savingPercent)[0];
+    return useful.sort((a, b) => a.penalty - b.penalty || b.savingPercent - a.savingPercent)[0];
 }
 
 function setOptimizerBusy(busy) {
@@ -844,6 +951,15 @@ function renderOptimizerRecommendation(recommendation, baseEstimate) {
     }
     optimizerRecommendation = recommendation;
     result.style.display = 'flex';
+    const targetBytes = getOptimizationTargetBytes(baseEstimate);
+    const target = document.getElementById('optimizer-target');
+    if (target) {
+        const targetLabel = baseEstimate.bootBytes > OPTIMIZER_RECOMMENDED_BOOT_BYTES
+            ? (t.optimizeTargetRecommended || 'Recommended target: ≤ {size}')
+            : (t.optimizeTargetLighter || 'Low-impact target: ≈ {size}');
+        target.textContent = targetLabel.replace('{size}', formatByteEstimate(targetBytes));
+        target.dataset.state = recommendation.estimate.bootBytes <= targetBytes ? 'reached' : 'progress';
+    }
     document.getElementById('optimizer-current-size').textContent = `≈ ${formatByteEstimate(baseEstimate.bootBytes)}`;
     document.getElementById('optimizer-new-size').textContent = `≈ ${formatByteEstimate(recommendation.estimate.bootBytes)}`;
     document.getElementById('optimizer-saving').textContent = t.optimizeSaving.replace('{percent}', recommendation.savingPercent.toFixed(0));
@@ -870,16 +986,20 @@ function invalidateOptimizerResult() {
     optimizerBaseEstimate = null;
     const result = document.getElementById('optimizer-result');
     if (result) result.style.display = 'none';
+    const target = document.getElementById('optimizer-target');
+    if (target) {
+        target.textContent = '';
+        delete target.dataset.state;
+    }
     setOptimizerStatus('');
     setOptimizerBusy(false);
     updateOptimizerQualityBadge();
 }
 
-async function runSmartOptimizer() {
+async function runSmartOptimizer(options = {}) {
     if (!currentProject || isGenerating) return;
     const t = traducoes[idiomaAtual];
     const base = getPerformanceOptions();
-    const candidates = buildOptimizationCandidates(base);
     const version = ++optimizerAnalysisVersion;
     optimizerRecommendation = null;
     const panel = document.getElementById('optimizer-panel');
@@ -889,13 +1009,24 @@ async function runSmartOptimizer() {
     setOptimizerBusy(true);
 
     try {
-        setOptimizerStatus(t.optimizeSampling || t.optimizeAnalyzing.replace('{current}', '1').replace('{total}', String(candidates.length + 1)));
-        const measured = await measureOptimizationFrameBytesBatch([base, ...candidates], version);
+        // Pass 1 measures the actual current project. Candidate quality/resolution
+        // is derived only after BAS knows how far the build is from its target.
+        setOptimizerStatus(t.optimizeSamplingBase || t.optimizeSampling || 'Sampling current output…');
+        const baseMeasured = await measureOptimizationFrameBytesBatch([base], version);
         if (version !== optimizerAnalysisVersion) return;
-        const baseFrameBytes = measured.values.get(base) || getOptimizationFallbackFrameBytes(base, base, 0);
+        const baseFrameBytes = baseMeasured.values.get(base) || getOptimizationFallbackFrameBytes(base, base, 0);
         const baseEstimate = estimateExportPerformance(base, baseFrameBytes);
         if (!baseEstimate) throw new Error('estimate');
         optimizerBaseEstimate = baseEstimate;
+
+        const candidates = buildOptimizationCandidates(base, baseEstimate);
+        if (!candidates.length) {
+            renderOptimizerRecommendation(null, baseEstimate);
+            return;
+        }
+        setOptimizerStatus((t.optimizeAdaptiveSampling || 'Testing {total} adaptive combinations…').replace('{total}', String(candidates.length)));
+        const measured = await measureOptimizationFrameBytesBatch([base, ...candidates], version);
+        if (version !== optimizerAnalysisVersion) return;
         const results = [];
 
         for (let i = 0; i < candidates.length; i++) {
@@ -919,7 +1050,7 @@ async function runSmartOptimizer() {
         if (version !== optimizerAnalysisVersion) return;
         const recommendation = chooseOptimizationRecommendation(baseEstimate, results);
         renderOptimizerRecommendation(recommendation, baseEstimate);
-        if (recommendation && measured.approximate) setOptimizerStatus(t.optimizeReadyApproximate || t.optimizeReady);
+        if (recommendation && (baseMeasured.approximate || measured.approximate)) setOptimizerStatus(t.optimizeReadyApproximate || t.optimizeReady);
     } catch (error) {
         if (version !== optimizerAnalysisVersion || error.message === 'cancelled') return;
         setOptimizerStatus(t.optimizeFailed);
@@ -971,6 +1102,17 @@ function syncOptimizerText() {
     if (suggested) suggested.textContent = t.optimizeSuggested;
     if (apply && !apply.disabled) apply.textContent = t.optimizeApply;
     updateOptimizerQualityBadge();
+    if (optimizerRecommendation && optimizerBaseEstimate) {
+        const target = document.getElementById('optimizer-target');
+        if (target) {
+            const targetBytes = getOptimizationTargetBytes(optimizerBaseEstimate);
+            const targetLabel = optimizerBaseEstimate.bootBytes > OPTIMIZER_RECOMMENDED_BOOT_BYTES
+                ? (t.optimizeTargetRecommended || 'Recommended target: ≤ {size}')
+                : (t.optimizeTargetLighter || 'Low-impact target: ≈ {size}');
+            target.textContent = targetLabel.replace('{size}', formatByteEstimate(targetBytes));
+            target.dataset.state = optimizerRecommendation.estimate.bootBytes <= targetBytes ? 'reached' : 'progress';
+        }
+    }
     if (optimizerRecommendation) {
         const saving = document.getElementById('optimizer-saving');
         const impact = document.getElementById('optimizer-impact');
@@ -986,6 +1128,7 @@ function syncOptimizerText() {
 
 window.setJpegQualityChangeSource = setJpegQualityChangeSource;
 window.getJpegQualityStatus = getJpegQualityStatus;
+window.BASSmartOptimizer = Object.freeze({ run: runSmartOptimizer, targetBytes: getOptimizationTargetBytes, recommendedBytes: OPTIMIZER_RECOMMENDED_BOOT_BYTES });
 
 window.addEventListener('DOMContentLoaded', () => {
     const config = document.getElementById('configuracoes');

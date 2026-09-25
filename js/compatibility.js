@@ -63,7 +63,8 @@ function compatibilityGetOutputValues() {
 }
 
 function compatibilityGetDeviceResolution() {
-    const explicit = String(window.connectedPhoneResolution || '').trim();
+    const probed = window.BASDeviceIntelligence?.get?.()?.system?.resolution;
+    const explicit = String(probed || window.connectedPhoneResolution || '').trim();
     const fallback = document.getElementById('opt-auto')?.value || '';
     const value = explicit && explicit !== 'Unknown' ? explicit : fallback;
     const match = String(value).match(/(\d+)\s*[x×]\s*(\d+)/i);
