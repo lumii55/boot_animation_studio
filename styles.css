@@ -290,7 +290,6 @@ summary:focus-visible {
 .optimizer-button,
 .optimizer-quality-badge,
 .optimizer-apply,
-.pairing-refresh,
 .btn-fechar-modal,
 .advanced-time-choice,
 .advanced-time-cancel {
@@ -312,7 +311,6 @@ summary:focus-visible {
 .advanced-card-actions button:active,
 .optimizer-button:active,
 .optimizer-apply:active,
-.pairing-refresh:active,
 .btn-fechar-modal:active,
 .advanced-time-choice:active,
 .advanced-time-cancel:active {
@@ -1746,86 +1744,6 @@ video.pausado {
     margin: 0 0 3px;
 }
 
-.pairing-card {
-    padding: 13px;
-    border: 1px solid rgba(142, 163, 255, 0.16);
-    border-radius: 16px;
-    background: rgba(142, 163, 255, 0.045);
-}
-
-.pairing-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.pairing-head div {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.pairing-head strong {
-    color: var(--text);
-    font-size: 11px;
-}
-
-.pairing-head span:not(.pairing-badge) {
-    color: var(--muted);
-    font-size: 9px;
-    line-height: 1.45;
-}
-
-.pairing-badge {
-    flex: 0 0 auto;
-    padding: 4px 6px;
-    border: 1px solid rgba(103, 222, 163, 0.16);
-    border-radius: 999px;
-    background: var(--success-soft);
-    color: #a8efc9;
-    font-size: 7px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-}
-
-.pairing-qr-wrap {
-    display: grid;
-    place-items: center;
-    margin: 13px auto 9px;
-}
-
-#pairing-qr img,
-#pairing-qr canvas {
-    display: block;
-    padding: 9px;
-    border-radius: 12px;
-    background: #fff;
-}
-
-.pairing-code {
-    color: var(--text);
-    font-size: 18px;
-    font-weight: 780;
-    letter-spacing: 0.12em;
-    text-align: center;
-}
-
-.pairing-status {
-    min-height: 18px;
-    color: var(--muted);
-    font-size: 9px;
-    text-align: center;
-}
-
-.pairing-refresh {
-    width: 100%;
-    min-height: 40px;
-    margin-top: 4px;
-    background: transparent;
-    color: var(--text-soft);
-}
-
 .network-divider {
     display: flex;
     align-items: center;
@@ -1859,31 +1777,6 @@ video.pausado {
 #btn-scan-net {
     background: var(--surface-raised);
     color: var(--text-soft);
-}
-
-.pair-handoff-box {
-    text-align: center;
-}
-
-.pair-handoff-icon {
-    display: grid;
-    place-items: center;
-    width: 54px;
-    height: 54px;
-    margin: 0 auto 12px;
-    border: 1px solid rgba(142, 163, 255, 0.18);
-    border-radius: 17px;
-    background: var(--accent-2-soft);
-    color: #c2cbff;
-    font-size: 0;
-}
-
-.pair-handoff-icon::before {
-    content: "";
-    width: 18px;
-    height: 28px;
-    border: 2px solid #c2cbff;
-    border-radius: 5px;
 }
 
 #btn-pair-open {
@@ -2506,7 +2399,6 @@ video.pausado {
     .advanced-card-actions button:hover,
     .optimizer-button:hover,
     .optimizer-apply:hover,
-    .pairing-refresh:hover,
     .btn-fechar-modal:hover {
         border-color: var(--line-strong);
         background-color: var(--surface-hover);

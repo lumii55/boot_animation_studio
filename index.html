@@ -5,13 +5,12 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="manifest.webmanifest?v=p13-9a-r1" rel="manifest"/>
+<link href="manifest.webmanifest?v=p13-9a-r2" rel="manifest"/>
 <link href="icons/icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
 <link href="icons/apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=p13-9a-r1" rel="stylesheet"/>
-<script src="vendor/jszip.min.js?v=p13-9a-r1"></script>
-<script src="vendor/qrcode.min.js?v=p13-9a-r1"></script>
-<script src="vendor/gifuct.min.js?v=p13-9a-r1"></script>
+<link href="styles.css?v=p13-9a-r2" rel="stylesheet"/>
+<script src="vendor/jszip.min.js?v=p13-9a-r2"></script>
+<script src="vendor/gifuct.min.js?v=p13-9a-r2"></script>
 <meta content="#070b12" name="theme-color"/>
 <meta content="Boot Animation Studio" name="application-name"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -271,42 +270,18 @@
 <div class="modal-overlay" id="modal-network">
 <div aria-labelledby="lbl-modal-net-title" aria-modal="true" class="modal-box network-box" role="dialog">
 <h2 id="lbl-modal-net-title"> Connect via Network</h2>
-<p class="network-desc" id="lbl-modal-net-desc">Server not found on localhost. Pair with QR or use another network method.</p>
-<div class="pairing-card" id="pairing-card">
-<div class="pairing-head">
-<div>
-<strong id="lbl-pair-title"> Pair with QR</strong>
-<span id="lbl-pair-desc">Scan this code with your phone camera, then approve pairing on the phone.</span>
-</div>
-<span class="pairing-badge" id="lbl-pair-secure">SECURE</span>
-</div>
-<div class="pairing-qr-wrap" id="pairing-qr-wrap">
-<div id="pairing-qr"></div>
-</div>
-<div class="pairing-code" id="pairing-code">------</div>
-<div class="pairing-status" id="pairing-status">Preparing secure pairing...</div>
-<button class="pairing-refresh" id="btn-pair-refresh" onclick="startQrPairing()" type="button">↻ New QR</button>
-</div>
+<p class="network-desc" id="lbl-modal-net-desc">Choose a discovered Companion Module or enter an IP address manually.</p>
 <section class="multi-device-panel" id="multi-device-panel">
 <div class="multi-device-head"><div><strong id="multi-device-title">Companion Modules on this network</strong><span id="multi-device-desc">Choose the phone BAS should control. Each device keeps its own session and state.</span></div><button id="multi-device-refresh" type="button"><span aria-hidden="true">↻</span><span id="multi-device-refresh-label">Scan again</span></button></div>
 <div class="multi-device-list" id="multi-device-list"><div class="multi-device-empty">No Companion Modules found yet.</div></div>
 </section>
-<div class="network-divider"><span id="lbl-network-other">Other methods</span></div>
+<div class="network-divider"><span id="lbl-network-other">Manual connection</span></div>
 <input aria-label="Device IP address" class="network-ip-input" id="input-ip" type="text" value="192.168.0."/>
 <div class="network-actions">
 <button class="btn-upload" id="btn-connect-ip" onclick="conectarPorIp()"> Connect by IP</button>
 <button class="btn-upload" id="btn-scan-net" onclick="iniciarVarredura()"> Auto-Scan</button>
 </div>
 <button class="btn-fechar-modal" id="btn-cancel-net" onclick="fecharModalRede(true)">Cancel</button>
-</div>
-</div>
-<div class="modal-overlay" id="modal-pair-handoff">
-<div aria-labelledby="lbl-pair-handoff-title" aria-modal="true" class="modal-box pair-handoff-box" role="dialog">
-<div class="pair-handoff-icon"></div>
-<h2 id="lbl-pair-handoff-title">Open the Module</h2>
-<p class="confirm-message" id="lbl-pair-handoff-desc">Continue in the Boot Animation Studio Module to approve pairing.</p>
-<button class="btn-upload" id="btn-pair-open" type="button">Open Boot Animation Studio Module</button>
-<button class="btn-fechar-modal" id="btn-pair-back" type="button">Back to Studio</button>
 </div>
 </div>
 <div aria-hidden="true" class="modal-overlay help-modal-overlay" id="modal-help">
@@ -375,35 +350,35 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p13-9a-r1"></script>
-<script src="js/media-seek.js?v=p13-9a-r1"></script>
-<script src="js/project.js?v=p13-9a-r1"></script>
-<script src="js/i18n.js?v=p13-9a-r1"></script>
-<script src="js/loading-tips.js?v=p13-9a-r1"></script>
-<script src="js/ux.js?v=p13-9a-r1"></script>
-<script src="js/workspace.js?v=p13-9a-r1"></script><script src="js/help.js?v=p13-9a-r1"></script><script src="js/api.js?v=p13-9a-r1"></script><script src="js/multi-device.js?v=p13-9a-r1"></script><script src="js/module-workspace.js?v=p13-9a-r1"></script><script src="js/module-test.js?v=p13-9a-r1"></script><script src="js/playlist.js?v=p13-9a-r1"></script><script src="js/rotation.js?v=p13-9a-r1"></script><script src="js/boot-queue.js?v=p13-9a-r1"></script><script src="js/boot-activity.js?v=p13-9a-r1"></script>
-<script src="js/media.js?v=p13-9a-r1"></script>
-<script src="js/source-library.js?v=p13-9a-r1"></script>
-<script src="js/master-sequence.js?v=p13-9a-r1"></script>
-<script src="js/timeline.js?v=p13-9a-r1"></script>
-<script src="js/contextual.js?v=p13-9a-r1"></script>
-<script src="js/audio.js?v=p13-9a-r1"></script>
-<script src="js/parts.js?v=p13-9a-r1"></script>
-<script src="js/timeline-2.js?v=p13-9a-r1"></script>
-<script src="js/timeline-3.js?v=p13-9a-r1"></script>
-<script src="js/composition.js?v=p13-9a-r1"></script>
-<script src="js/performance.js?v=p13-9a-r1"></script>
-<script src="js/output-presets.js?v=p13-9a-r1"></script>
-<script src="js/custom-profiles.js?v=p13-9a-r1"></script>
-<script src="js/device-intelligence.js?v=p13-9a-r1"></script>
-<script src="js/device-profile.js?v=p13-9a-r1"></script>
-<script src="js/compatibility.js?v=p13-9a-r1"></script>
-<script src="js/release.js?v=p13-9a-r1"></script><script src="js/finish.js?v=p13-9a-r1"></script><script src="js/export.js?v=p13-9a-r1"></script>
-<script src="js/project-engine.js?v=p13-9a-r1"></script>
-<script src="js/project-restore.js?v=p13-9a-r1"></script>
-<script src="js/history.js?v=p13-9a-r1"></script>
-<script src="js/autosave.js?v=p13-9a-r1"></script>
-<script src="js/project-file.js?v=p13-9a-r1"></script>
-<script src="js/pwa.js?v=p13-9a-r1"></script>
+<script src="js/state.js?v=p13-9a-r2"></script>
+<script src="js/media-seek.js?v=p13-9a-r2"></script>
+<script src="js/project.js?v=p13-9a-r2"></script>
+<script src="js/i18n.js?v=p13-9a-r2"></script>
+<script src="js/loading-tips.js?v=p13-9a-r2"></script>
+<script src="js/ux.js?v=p13-9a-r2"></script>
+<script src="js/workspace.js?v=p13-9a-r2"></script><script src="js/help.js?v=p13-9a-r2"></script><script src="js/api.js?v=p13-9a-r2"></script><script src="js/multi-device.js?v=p13-9a-r2"></script><script src="js/module-workspace.js?v=p13-9a-r2"></script><script src="js/module-test.js?v=p13-9a-r2"></script><script src="js/playlist.js?v=p13-9a-r2"></script><script src="js/rotation.js?v=p13-9a-r2"></script><script src="js/boot-queue.js?v=p13-9a-r2"></script><script src="js/boot-activity.js?v=p13-9a-r2"></script>
+<script src="js/media.js?v=p13-9a-r2"></script>
+<script src="js/source-library.js?v=p13-9a-r2"></script>
+<script src="js/master-sequence.js?v=p13-9a-r2"></script>
+<script src="js/timeline.js?v=p13-9a-r2"></script>
+<script src="js/contextual.js?v=p13-9a-r2"></script>
+<script src="js/audio.js?v=p13-9a-r2"></script>
+<script src="js/parts.js?v=p13-9a-r2"></script>
+<script src="js/timeline-2.js?v=p13-9a-r2"></script>
+<script src="js/timeline-3.js?v=p13-9a-r2"></script>
+<script src="js/composition.js?v=p13-9a-r2"></script>
+<script src="js/performance.js?v=p13-9a-r2"></script>
+<script src="js/output-presets.js?v=p13-9a-r2"></script>
+<script src="js/custom-profiles.js?v=p13-9a-r2"></script>
+<script src="js/device-intelligence.js?v=p13-9a-r2"></script>
+<script src="js/device-profile.js?v=p13-9a-r2"></script>
+<script src="js/compatibility.js?v=p13-9a-r2"></script>
+<script src="js/release.js?v=p13-9a-r2"></script><script src="js/finish.js?v=p13-9a-r2"></script><script src="js/export.js?v=p13-9a-r2"></script>
+<script src="js/project-engine.js?v=p13-9a-r2"></script>
+<script src="js/project-restore.js?v=p13-9a-r2"></script>
+<script src="js/history.js?v=p13-9a-r2"></script>
+<script src="js/autosave.js?v=p13-9a-r2"></script>
+<script src="js/project-file.js?v=p13-9a-r2"></script>
+<script src="js/pwa.js?v=p13-9a-r2"></script>
 </body>
 </html>
