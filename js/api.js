@@ -298,8 +298,9 @@ async function finishQrPairing(ip, token, generation) {
         if (!response.ok || data.status !== 'ok' || !data.token) throw new Error(data.message || 'pairing_failed');
         pairingScanGeneration++;
         pairingToken = '';
+        if (window.BASMultiDevice?.prepareBase) window.BASMultiDevice.prepareBase(base);
+        else IP_LOCAL = base;
         sessionToken = data.token;
-        IP_LOCAL = base;
         resetModuleCompatibility();
         await detectModuleCompatibility();
         if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
@@ -322,7 +323,24 @@ async function startQrPairing() {
     if (code) code.textContent = '------';
     setPairingStatus(t.scanningMsg);
 
-    const targetIp = await discoverQrCapablePhone(generation);
+    let targetIp = '';
+    const selectedDevice = window.BASMultiDevice?.current?.();
+    const inputValue = document.getElementById('input-ip')?.value?.trim() || '';
+    if (isPrivateIPv4(inputValue)) {
+        targetIp = await checkQrCapableIP(inputValue) || '';
+    }
+    if (!targetIp && selectedDevice?.ip && isPrivateIPv4(selectedDevice.ip)) {
+        targetIp = await checkQrCapableIP(selectedDevice.ip) || '';
+    }
+    if (!targetIp) {
+        const discovered = window.BASMultiDevice?.devices?.().filter(device => device.ip && device.lastSeen) || [];
+        if (discovered.length === 1) targetIp = await checkQrCapableIP(discovered[0].ip) || '';
+        else if (discovered.length > 1) {
+            setPairingStatus(t.multiDeviceChooseForQr || 'Choose a device from the network list before generating a QR code.', 'error');
+            return;
+        }
+    }
+    if (!targetIp) targetIp = await discoverQrCapablePhone(generation);
     if (pairingScanGeneration !== generation) return;
     if (!targetIp) {
         setPairingStatus(t.scanNotFound, 'error');
@@ -372,6 +390,7 @@ function completeConnectedState(data) {
     document.getElementById('wrap-nome').style.display = 'flex';
     window.connectedPhoneModel = data.model || '';
     window.connectedPhoneResolution = data.resolution || '';
+    if (window.BASMultiDevice?.captureConnected) window.BASMultiDevice.captureConnected(data);
     document.getElementById('status-connected').textContent = window.connectedPhoneModel || t.statusConnected;
     if (hasModuleFeature('device_resolution') && data.resolution && data.resolution !== 'Unknown') {
         const optAuto = document.getElementById('opt-auto');
@@ -399,10 +418,26 @@ function completeConnectedState(data) {
     }
 }
 
+function mergeAbortSignals(...signals) {
+    const valid = signals.filter(Boolean);
+    if (!valid.length) return undefined;
+    if (valid.length === 1) return valid[0];
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') return AbortSignal.any(valid);
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    valid.forEach(signal => {
+        if (signal.aborted) abort();
+        else signal.addEventListener('abort', abort, { once: true });
+    });
+    return controller.signal;
+}
+
 function apiFetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
-    return localNetworkFetch(IP_LOCAL + path, { ...options, headers });
+    const deviceSignal = window.BASMultiDevice?.activeSignal?.();
+    const signal = mergeAbortSignals(options.signal, deviceSignal);
+    return localNetworkFetch(IP_LOCAL + path, { ...options, headers, ...(signal ? { signal } : {}) });
 }
 
 function resetModuleCompatibility() {
@@ -461,6 +496,7 @@ async function detectModuleCompatibility() {
         }
 
         moduleCompatibilityMode = 'versioned';
+        if (window.BASMultiDevice?.captureCompatibility) window.BASMultiDevice.captureCompatibility(data);
         return true;
     } catch (error) {
         moduleCompatibilityMode = 'legacy_pending';
@@ -473,6 +509,7 @@ function activateLegacySecureCompatibility() {
     moduleApiVersion = 0;
     moduleFeatures = new Set(LEGACY_SECURE_FEATURES);
     moduleCompatibilityMode = 'legacy_secure';
+    if (window.BASMultiDevice?.captureCompatibility) window.BASMultiDevice.captureCompatibility(null);
 }
 
 function applyConnectedCapabilities(data) {
@@ -498,9 +535,11 @@ function syncConnectedDeviceSurfaces() {
 }
 
 function forcarDesconexao() {
-    if (isConnectedMode && sessionToken) {
-        apiFetch('/disconnect', { method: 'POST', keepalive: true }).catch(()=>{});
+    if (window.BASMultiDevice?.disconnectAllOnUnload) {
+        window.BASMultiDevice.disconnectAllOnUnload();
+        return;
     }
+    if (isConnectedMode && sessionToken) apiFetch('/disconnect', { method: 'POST', keepalive: true }).catch(()=>{});
 }
 window.addEventListener('beforeunload', forcarDesconexao);
 window.addEventListener('pagehide', forcarDesconexao);
@@ -509,6 +548,13 @@ window.addEventListener('unload', forcarDesconexao);
 async function connectToPhone() {
     const btn = document.getElementById('btn-connect');
     const t = traducoes[idiomaAtual];
+    const knownDevices = window.BASMultiDevice?.devices?.() || [];
+    const connectedDevices = window.BASMultiDevice?.connectedCount?.() || 0;
+    if (knownDevices.length > 1 || (!isConnectedMode && connectedDevices > 0)) {
+        btn.textContent = t.btnConnect;
+        await window.BASMultiDevice.openPicker({ scan: true });
+        return;
+    }
     btn.textContent = t.msgSearching;
 
     try {
@@ -519,9 +565,12 @@ async function connectToPhone() {
             throw new Error("Failed");
         }
     } catch (error) {
-        btn.textContent = t.btnConnect; 
-        document.getElementById('modal-network').style.display = 'flex';
-        startQrPairing();
+        btn.textContent = t.btnConnect;
+        if (window.BASMultiDevice?.openPicker) window.BASMultiDevice.openPicker({ scan: true });
+        else {
+            document.getElementById('modal-network').style.display = 'flex';
+            startQrPairing();
+        }
     }
 }
 
@@ -533,7 +582,7 @@ async function tentaConexao() {
     try {
         if (!await detectModuleCompatibility()) {
             btn.textContent = t.btnConnect;
-            return;
+            return false;
         }
 
         let response = await apiFetch('/ping');
@@ -548,15 +597,15 @@ async function tentaConexao() {
             if (data.status === 'denied') {
                 alert(t.msgAuthDenied);
                 btn.textContent = t.btnConnect;
-                return;
+                return false;
             } else if (data.status === 'timeout') {
                 alert(t.msgAuthTimeout);
                 btn.textContent = t.btnConnect;
-                return;
+                return false;
             } else if (data.status === 'busy') {
                 alert(t.msgWaitingAuth);
                 btn.textContent = t.btnConnect;
-                return;
+                return false;
             }
 
             if (data.status === 'ok' && data.token) {
@@ -570,7 +619,7 @@ async function tentaConexao() {
             moduleCompatibilityMode = 'incompatible_old';
             alert(t.msgModuleTooOld);
             btn.textContent = t.btnConnect;
-            return;
+            return false;
         }
 
         if (data.status === 'ok' && sessionToken) {
@@ -582,15 +631,18 @@ async function tentaConexao() {
                 console.error('[BAS] Post-connect synchronization failed.', error);
                 if (!isConnectedMode) throw error;
             }
+            return true;
         } else {
             sessionToken = '';
             alert(t.msgNotFound);
             btn.textContent = t.btnConnect;
+            return false;
         }
     } catch (error) {
         sessionToken = '';
         alert(t.msgNotFound);
         btn.textContent = t.btnConnect;
+        return false;
     }
 }
 
@@ -598,11 +650,15 @@ async function conectarPorIp() {
     pairingScanGeneration++;
     pairingToken = '';
     const ip = document.getElementById('input-ip').value.trim();
-    if(!ip) return;
+    if (!ip) return;
+    if (window.BASMultiDevice?.connectIP) {
+        await window.BASMultiDevice.connectIP(ip);
+        return;
+    }
     sessionToken = '';
     IP_LOCAL = `http://${ip}:4040`;
     fecharModalRede();
-    tentaConexao();
+    await tentaConexao();
 }
 
 function fecharModalRede(cancelConnectionIntent = false) {
@@ -632,38 +688,32 @@ async function checkIP(ip) {
 async function iniciarVarredura() {
     pairingScanGeneration++;
     pairingToken = '';
+    if (window.BASMultiDevice?.openPicker) {
+        await window.BASMultiDevice.openPicker({ scan: true });
+        return;
+    }
+
     const btn = document.getElementById('btn-scan-net');
     const desc = document.getElementById('lbl-modal-net-desc');
     const originalText = btn.textContent;
     const t = traducoes[idiomaAtual];
-
     btn.textContent = t.scanningMsg;
     btn.style.pointerEvents = 'none';
     desc.textContent = t.scanningMsg;
-
     const plan = await discoveryPlan();
     let foundIp = null;
-
-    for (const ip of plan.exactIps) {
-        foundIp = await checkIP(ip);
-        if (foundIp) break;
-    }
-
+    for (const ip of plan.exactIps) { foundIp = await checkIP(ip); if (foundIp) break; }
     for (const subnet of plan.subnets) {
         if (foundIp) break;
         foundIp = await scanDiscoverySubnet(subnet, plan.exactIps, checkIP, null, 24);
     }
-
     if (foundIp) {
         desc.textContent = t.scanFound;
         document.getElementById('input-ip').value = foundIp;
         rememberPhoneIp(foundIp);
         sessionToken = '';
         IP_LOCAL = `http://${foundIp}:4040`;
-        setTimeout(() => {
-            fecharModalRede();
-            tentaConexao();
-        }, 1500);
+        setTimeout(() => { fecharModalRede(); tentaConexao(); }, 1500);
     } else {
         desc.textContent = t.scanNotFound;
         btn.textContent = originalText;
@@ -699,6 +749,7 @@ function startManualMode() {
 
 async function disconnectPhone() {
     try { await apiFetch('/disconnect', { method: 'POST' }); } catch(e) {}
+    if (window.BASMultiDevice?.captureDisconnected) window.BASMultiDevice.captureDisconnected();
     sessionToken = '';
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
