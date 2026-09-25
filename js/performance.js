@@ -520,7 +520,6 @@ function optimizerRoundQuality(value) {
 }
 
 function getOptimizerDeviceResolution() {
-    if (!isConnectedMode) return null;
     if (window.BASDeviceProfile && typeof BASDeviceProfile.getResolution === 'function') {
         const resolved = BASDeviceProfile.getResolution();
         if (resolved && resolved.width > 0 && resolved.height > 0) return resolved;

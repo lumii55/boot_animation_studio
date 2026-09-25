@@ -63,6 +63,8 @@ function compatibilityGetOutputValues() {
 }
 
 function compatibilityGetDeviceResolution() {
+    const targetResolution = window.BASDeviceProfile?.getResolution?.();
+    if (targetResolution && targetResolution.width > 0 && targetResolution.height > 0) return targetResolution;
     const probed = window.BASDeviceIntelligence?.get?.()?.system?.resolution;
     const explicit = String(probed || window.connectedPhoneResolution || '').trim();
     const fallback = document.getElementById('opt-auto')?.value || '';
@@ -439,14 +441,23 @@ function compatibilityDeliveryDiagnostics(diagnostics) {
 }
 
 function compatibilityDeviceDiagnostics(diagnostics) {
-    if (!isConnectedMode) {
+    const target = window.BASDeviceProfile?.getTarget?.() || null;
+    if (!target) {
         diagnostics.push(compatibilityDiagnostic(
             'DEVICE_NOT_CONNECTED', 'unknown', 'device',
-            compatibilityText('compatNoDeviceTitle', 'No connected device'),
-            compatibilityText('compatNoDeviceDesc', 'Project and download checks still work. Connect the companion module to compare device-specific information.'),
+            compatibilityText('compatNoDeviceTitle', 'No device target'),
+            compatibilityText('compatNoDeviceDesc', 'Project and download checks still work. Connect a phone or select a saved device profile for device-specific checks.'),
             { action: { type: 'connect', labelKey: 'compatActionConnectPhone' } }
         ));
         return;
+    }
+    if (target.kind === 'saved') {
+        diagnostics.push(compatibilityDiagnostic(
+            'DEVICE_PROFILE_SAVED', 'info', 'device',
+            compatibilityText('compatSavedDeviceTitle', 'Using a saved device profile'),
+            compatibilityTemplate('compatSavedDeviceDesc', 'Compatibility is using the saved snapshot for {device}. Reconnect and refresh probes after a ROM or system update.', { device: target.name }),
+            { certainty: 'observed' }
+        ));
     }
     const resolution = compatibilityGetDeviceResolution();
     const output = compatibilityGetOutputValues();
@@ -471,7 +482,7 @@ function compatibilityDeviceDiagnostics(diagnostics) {
             }
         ));
     }
-    const intelligence = window.BASDeviceIntelligence?.get?.() || null;
+    const intelligence = window.BASDeviceProfile?.getTargetIntelligence?.() || window.BASDeviceIntelligence?.get?.() || null;
     const bootProbe = intelligence && intelligence.boot ? intelligence.boot : null;
     const audioProbe = bootProbe && bootProbe.audio ? bootProbe.audio : null;
     if (compatibilityHasAudio()) {
@@ -502,7 +513,7 @@ function compatibilityDeviceDiagnostics(diagnostics) {
             { certainty: 'unknown' }
         ));
     }
-    const hasDeviceIntelligence = typeof hasModuleFeature === 'function' && hasModuleFeature('device_intelligence');
+    const hasDeviceIntelligence = !!intelligence || (typeof hasModuleFeature === 'function' && hasModuleFeature('device_intelligence'));
     if (!hasDeviceIntelligence) {
         const model = String(window.connectedPhoneModel || '').trim();
         if (/\bsamsung\b/i.test(model) || /^SM[-_]/i.test(model)) {
