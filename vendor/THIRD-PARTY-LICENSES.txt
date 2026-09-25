@@ -4,10 +4,6 @@ JSZip 3.10.1
 Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
 MIT license. Source: https://github.com/Stuk/jszip
 
-QRCode core
-Copyright (c) 2009 Kazuhiko Arase
-MIT license. The browser adapter in vendor/qrcode.min.js is maintained by Boot Animation Studio around the bundled QR matrix core.
-
 GIF decoder compatibility layer
 The browser API in vendor/gifuct.min.js follows the parseGIF/decompressFrames contract used by gifuct-js.
 gifuct-js copyright (c) 2015 Matt Way, MIT license.
