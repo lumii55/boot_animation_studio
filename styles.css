@@ -16092,3 +16092,240 @@ summary:focus-visible {
 .boot-activity-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}.boot-activity-facts>div{display:grid;gap:3px;padding:9px 10px;border-radius:10px;background:rgba(0,0,0,.13)}.boot-activity-facts span{color:var(--muted);font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.boot-activity-facts strong{font-size:.78rem;line-height:1.35}
 .boot-activity-message,.boot-activity-note{margin:10px 0 0;color:var(--muted);font-size:.78rem;line-height:1.5}.boot-activity-card[data-status="error"] .boot-activity-message{color:#ffb2bd}
 @media(max-width:700px){.boot-activity-heading,.boot-activity-card-head{flex-direction:column}.boot-activity-facts{grid-template-columns:1fr}.boot-activity-actions .btn-upload{flex:1 1 140px}.boot-activity-status{align-self:flex-start}}
+
+/* P13.7A — Device Intelligence & Compatibility Probes */
+.device-intelligence {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--accent) 3%, rgba(0,0,0,0.04));
+}
+
+.device-intelligence[hidden] {
+    display: none;
+}
+
+.device-intelligence-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.device-intelligence-head > div {
+    min-width: 0;
+}
+
+.device-intelligence-head h5 {
+    margin: 3px 0 4px;
+    color: var(--text);
+    font-size: 0.88rem;
+}
+
+.device-intelligence-head p,
+.device-intelligence-checked {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.69rem;
+    line-height: 1.45;
+}
+
+#device-intelligence-refresh {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+    color: var(--text);
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#device-intelligence-refresh:disabled {
+    cursor: progress;
+    opacity: 0.55;
+}
+
+.device-intelligence-status {
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.05);
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.45;
+}
+
+.device-intelligence-status[data-state="error"] {
+    border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
+    color: color-mix(in srgb, var(--danger) 72%, var(--text));
+}
+
+.device-intelligence-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.device-intelligence-grid article {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(0,0,0,0.055);
+}
+
+.device-intelligence-grid article > span {
+    color: var(--muted-2);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.device-intelligence-grid article > strong {
+    overflow-wrap: anywhere;
+    color: var(--text);
+    font-size: 0.74rem;
+    line-height: 1.35;
+}
+
+.device-intelligence-grid article > small {
+    color: var(--muted);
+    font-size: 0.64rem;
+    line-height: 1.4;
+}
+
+.device-intelligence-grid article[data-state="confirmed"] {
+    border-color: color-mix(in srgb, var(--success) 20%, var(--border));
+}
+
+.device-intelligence-grid article[data-state="observed"] {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
+.device-intelligence-grid article[data-state="fallback"],
+.device-intelligence-grid article[data-state="unknown"] {
+    border-color: color-mix(in srgb, var(--warning) 18%, var(--border));
+}
+
+.device-intelligence-targets {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+#device-intelligence-targets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.device-intelligence-target-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.04);
+}
+
+.device-intelligence-target-row code {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.64rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.device-intelligence-target-badges {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.device-intelligence-target-badges span {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted-2);
+    font-size: 0.56rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.device-intelligence-target-badges span[data-state="primary"] {
+    border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+    color: color-mix(in srgb, var(--accent) 72%, var(--text));
+}
+
+.device-intelligence-target-badges span[data-state="confirmed"] {
+    border-color: color-mix(in srgb, var(--success) 24%, var(--border));
+    color: color-mix(in srgb, var(--success) 72%, var(--text));
+}
+
+.device-intelligence-target-badges span[data-state="observed"] {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+    color: color-mix(in srgb, var(--accent) 65%, var(--text));
+}
+
+.device-intelligence-target-empty {
+    color: var(--muted);
+    font-size: 0.67rem;
+}
+
+.device-intelligence-checked {
+    text-align: right;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    #device-intelligence-refresh:not(:disabled):hover {
+        border-color: var(--accent);
+    }
+}
+
+@media (max-width: 640px) {
+    .device-intelligence-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .device-intelligence-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    #device-intelligence-refresh {
+        width: 100%;
+    }
+
+    .device-intelligence-target-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .device-intelligence-target-row code {
+        width: 100%;
+        white-space: normal;
+    }
+
+    .device-intelligence-target-badges {
+        justify-content: flex-start;
+    }
+}
