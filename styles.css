@@ -16330,119 +16330,6 @@ summary:focus-visible {
     }
 }
 
-/* P13.7B — adaptive connected-device build guidance */
-.adaptive-build-card {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    padding: 11px;
-    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
-    border-radius: 13px;
-    background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 6%, var(--surface)), var(--surface));
-}
-
-.adaptive-build-card[hidden] {
-    display: none;
-}
-
-.adaptive-build-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.adaptive-build-head > div {
-    min-width: 0;
-}
-
-.adaptive-build-head strong {
-    display: block;
-    margin-top: 2px;
-    color: var(--text-soft);
-    font-size: 10px;
-}
-
-.adaptive-build-head p,
-.adaptive-build-note {
-    margin: 3px 0 0;
-    color: var(--muted);
-    font-size: 8px;
-    line-height: 1.45;
-}
-
-.adaptive-build-live {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 22px;
-    padding: 3px 7px;
-    border: 1px solid color-mix(in srgb, var(--success) 26%, var(--line));
-    border-radius: 999px;
-    color: var(--success);
-    font-size: 7px;
-    font-weight: 850;
-    letter-spacing: 0.05em;
-}
-
-.adaptive-build-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-}
-
-.adaptive-build-grid > div {
-    min-width: 0;
-    padding: 7px 8px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: rgba(0,0,0,0.05);
-}
-
-.adaptive-build-grid span {
-    display: block;
-    color: var(--muted-2);
-    font-size: 7px;
-    text-transform: uppercase;
-    letter-spacing: 0.035em;
-}
-
-.adaptive-build-grid strong {
-    display: block;
-    margin-top: 2px;
-    overflow: hidden;
-    color: var(--text-soft);
-    font-size: 9px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.adaptive-build-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-}
-
-.adaptive-build-actions button,
-#device-profile-analyze {
-    min-height: 34px;
-    padding: 7px 10px;
-    border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
-    border-radius: 10px;
-    background: var(--accent-soft);
-    color: #baf6ff;
-    font: inherit;
-    font-size: 8px;
-    font-weight: 800;
-    cursor: pointer;
-}
-
-.adaptive-build-actions button:disabled,
-#device-profile-analyze:disabled {
-    cursor: not-allowed;
-    opacity: 0.46;
-}
-
 .optimizer-target {
     min-height: 0;
     color: var(--muted-2);
@@ -16457,67 +16344,31 @@ summary:focus-visible {
     color: #ffd4a1;
 }
 
-.device-profile-build-guidance {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 3px 10px;
+
+
+/* P13.7B R2: compact build-target selector. Device facts stay in the canonical
+   Connected Device Profile / Compatibility surfaces instead of being repeated
+   inside Smart Optimize. */
+.device-target-control {
+    display: flex;
     align-items: center;
-    padding: 10px;
-    border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--accent) 4%, var(--surface-2));
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.035);
 }
-
-.device-profile-build-guidance > span,
-.device-profile-build-guidance > strong,
-.device-profile-build-guidance > small {
-    grid-column: 1;
-}
-
-.device-profile-build-guidance > strong {
-    color: var(--text);
-    font-size: 0.76rem;
-}
-
-.device-profile-build-guidance > small {
-    color: var(--muted);
-    font-size: 0.69rem;
-    line-height: 1.4;
-}
-
-#device-profile-analyze {
-    grid-column: 2;
-    grid-row: 1 / span 3;
-    align-self: center;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .adaptive-build-actions button:not(:disabled):hover,
-    #device-profile-analyze:not(:disabled):hover {
-        border-color: var(--accent);
-    }
-}
-
-@media (max-width: 720px) {
-    .adaptive-build-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 520px) {
-    .adaptive-build-actions {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-
-    .device-profile-build-guidance {
-        grid-template-columns: 1fr;
-    }
-
-    #device-profile-analyze {
-        grid-column: 1;
-        grid-row: auto;
-        width: 100%;
-        margin-top: 5px;
-    }
+.device-target-copy { min-width: 0; display: grid; gap: 2px; }
+.device-target-copy > span { font-weight: 800; }
+.device-target-copy > small { color: var(--text-muted); line-height: 1.35; }
+.device-target-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.device-target-actions select { min-width: min(320px, 45vw); max-width: 100%; }
+.device-target-actions button { min-height: 38px; }
+@media (max-width: 760px) {
+    .device-target-control { align-items: stretch; flex-direction: column; }
+    .device-target-actions { justify-content: stretch; }
+    .device-target-actions select { width: 100%; min-width: 0; flex: 1 1 100%; }
+    .device-target-actions button { flex: 1 1 auto; }
 }
