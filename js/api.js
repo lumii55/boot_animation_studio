@@ -389,6 +389,7 @@ function completeConnectedState(data) {
     if (hasModuleFeature('history')) loadHistory();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
+    if (window.BASDeviceIntelligence?.refresh) window.BASDeviceIntelligence.refresh({ silent: true });
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (window.BASPlaylist?.supported?.()) window.BASPlaylist.refresh().then(() => window.BASRotation?.refresh?.());
@@ -668,6 +669,7 @@ function startManualMode() {
     if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
     sessionToken = '';
     resetModuleCompatibility();
+    if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
     window.connectedPhoneResolution = '';
@@ -692,6 +694,7 @@ async function disconnectPhone() {
     try { await apiFetch('/disconnect', { method: 'POST' }); } catch(e) {}
     sessionToken = '';
     resetModuleCompatibility();
+    if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
     window.connectedPhoneResolution = '';
@@ -736,6 +739,7 @@ async function removeAnimation() {
                     document.getElementById('btn-remove').style.display = "none";
                     window.hasCustomAnimApplied = false;
                     syncConnectedDeviceSurfaces();
+                    if (window.BASDeviceIntelligence?.refresh) window.BASDeviceIntelligence.refresh({ silent: true });
                 } else {
                     alert(t.msgRemoveError + data.message);
                 }
@@ -762,6 +766,7 @@ async function resetarModulo() {
                 }
                 document.getElementById('btn-remove').style.display = hasModuleFeature('remove') && window.hasCustomAnimApplied ? 'flex' : 'none';
                 syncConnectedDeviceSurfaces();
+                if (window.BASDeviceIntelligence?.refresh) window.BASDeviceIntelligence.refresh({ silent: true });
             } else {
                 alert(t.msgResetError);
             }

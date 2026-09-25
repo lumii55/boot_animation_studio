@@ -1,4 +1,4 @@
-const BAS_DEVICE_PROFILE_VERSION = 2;
+const BAS_DEVICE_PROFILE_VERSION = 3;
 
 const deviceProfileRuntime = {
     initialized: false,
@@ -54,7 +54,8 @@ function deviceProfileCapabilityDefinitions() {
         ['direct_upload', 'deviceProfileCapabilityDirect', 'Direct apply'],
         ['history', 'deviceProfileCapabilityHistory', 'History'],
         ['pull', 'deviceProfileCapabilityPull', 'Pull'],
-        ['test_animation', 'deviceProfileCapabilityPreview', 'Phone preview']
+        ['test_animation', 'deviceProfileCapabilityPreview', 'Phone preview'],
+        ['device_intelligence', 'deviceProfileCapabilityIntelligence', 'Device probes']
     ];
 }
 

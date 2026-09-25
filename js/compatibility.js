@@ -1,4 +1,4 @@
-const BAS_COMPATIBILITY_VERSION = 2;
+const BAS_COMPATIBILITY_VERSION = 3;
 const BAS_LEGACY_DIRECT_UPLOAD_LIMIT_BYTES = 25 * 1024 * 1024;
 const BAS_LARGE_BOOT_WARNING_BYTES = 25 * 1024 * 1024;
 
@@ -470,24 +470,48 @@ function compatibilityDeviceDiagnostics(diagnostics) {
             }
         ));
     }
+    const intelligence = window.BASDeviceIntelligence?.get?.() || null;
+    const bootProbe = intelligence && intelligence.boot ? intelligence.boot : null;
+    const audioProbe = bootProbe && bootProbe.audio ? bootProbe.audio : null;
     if (compatibilityHasAudio()) {
-        diagnostics.push(compatibilityDiagnostic(
-            'DEVICE_AUDIO_SUPPORT_UNKNOWN', 'unknown', 'device',
-            compatibilityText('compatDeviceAudioUnknownTitle', 'Boot audio support cannot be confirmed'),
-            compatibilityText('compatDeviceAudioUnknownDesc', 'The current Companion API can validate delivery, but it does not report whether this ROM plays audio.wav inside bootanimation Parts.'),
-            { certainty: 'unknown', action: (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive())
-                ? { type: 'parts', labelKey: 'compatActionOpenParts' }
-                : { type: 'audio', role: 'intro', labelKey: 'compatActionOpenAudio' } }
-        ));
+        const audioAction = (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive())
+            ? { type: 'parts', labelKey: 'compatActionOpenParts' }
+            : { type: 'audio', role: 'intro', labelKey: 'compatActionOpenAudio' };
+        if (audioProbe && audioProbe.state === 'observed') {
+            diagnostics.push(compatibilityDiagnostic(
+                'DEVICE_AUDIO_SUPPORT_OBSERVED', 'info', 'device',
+                compatibilityText('compatDeviceAudioObservedTitle', 'Boot audio support was observed'),
+                compatibilityText('compatDeviceAudioObservedDesc', 'The connected bootanimation renderer exposes evidence for audio.wav support. Playback can still depend on ROM sound policy, so a phone test is recommended.'),
+                { certainty: 'observed', action: audioAction }
+            ));
+        } else {
+            diagnostics.push(compatibilityDiagnostic(
+                'DEVICE_AUDIO_SUPPORT_UNKNOWN', 'unknown', 'device',
+                compatibilityText('compatDeviceAudioUnknownTitle', 'Boot audio support cannot be confirmed'),
+                compatibilityText('compatDeviceAudioUnknownDesc', 'The connected device has not provided safe evidence that this ROM plays audio.wav inside bootanimation Parts.'),
+                { certainty: 'unknown', action: audioAction }
+            ));
+        }
     }
-    const model = String(window.connectedPhoneModel || '').trim();
-    if (/\bsamsung\b/i.test(model) || /^SM[-_]/i.test(model)) {
+    if (bootProbe && bootProbe.primary_path_confidence === 'fallback') {
         diagnostics.push(compatibilityDiagnostic(
-            'SAMSUNG_QMG_UNKNOWN', 'unknown', 'device',
-            compatibilityText('compatSamsungTitle', 'Samsung stock boot format may be incompatible'),
-            compatibilityText('compatSamsungDesc', 'Stock Samsung firmware commonly uses QMG instead of standard bootanimation.zip. Custom ROMs and GSIs may still support the generated ZIP.'),
+            'DEVICE_BOOT_TARGET_FALLBACK', 'unknown', 'device',
+            compatibilityText('compatDeviceTargetFallbackTitle', 'Boot target is not fully verified'),
+            compatibilityText('compatDeviceTargetFallbackDesc', 'The module is using a safe fallback bootanimation path, but it has not confirmed that path as an original system target on this installation.'),
             { certainty: 'unknown' }
         ));
+    }
+    const hasDeviceIntelligence = typeof hasModuleFeature === 'function' && hasModuleFeature('device_intelligence');
+    if (!hasDeviceIntelligence) {
+        const model = String(window.connectedPhoneModel || '').trim();
+        if (/\bsamsung\b/i.test(model) || /^SM[-_]/i.test(model)) {
+            diagnostics.push(compatibilityDiagnostic(
+                'SAMSUNG_QMG_UNKNOWN', 'unknown', 'device',
+                compatibilityText('compatSamsungTitle', 'Samsung stock boot format may be incompatible'),
+                compatibilityText('compatSamsungDesc', 'Stock Samsung firmware commonly uses QMG instead of standard bootanimation.zip. Custom ROMs and GSIs may still support the generated ZIP.'),
+                { certainty: 'unknown' }
+            ));
+        }
     }
 }
 
