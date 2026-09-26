@@ -965,11 +965,9 @@ const traducoes = {
         modalNetTitle: "Connect via Network",
         pairOther: "Manual connection",
         modalNetDesc: "Choose a discovered Companion Module or enter an IP address manually.",
-        btnScan: "Auto-Scan",
+
         btnConnectIp: "Connect by IP",
-        scanningMsg: "Looking for the module on your local network...",
-        scanFound: "Device found! Connecting...",
-        scanNotFound: "Device not found! Make sure the server is running and you are on the same Wi-Fi.",
+
         btnDownloadVideo: "Download Video",
         btnDownloadZip: "Download .ZIP",
         dicaVideo: "Click video to Play or Pause!",
@@ -2403,11 +2401,9 @@ const traducoes = {
         modalNetTitle: "Conectar pela Rede",
         pairOther: "Conexão manual",
         modalNetDesc: "Escolha um Companion Module encontrado ou digite um endereço IP manualmente.",
-        btnScan: "Varredura Auto",
+
         btnConnectIp: "Conectar por IP",
-        scanningMsg: "Procurando o módulo na sua rede local...",
-        scanFound: "Dispositivo encontrado! Conectando...",
-        scanNotFound: "Celular não encontrado! Certifique-se de que o servidor está rodando e você está no mesmo Wi-Fi.",
+
         btnDownloadVideo: "Baixar Vídeo",
         btnDownloadZip: "Baixar .ZIP",
         dicaVideo: "Clique no vídeo para dar Play ou Pausar!",
@@ -3841,11 +3837,9 @@ const traducoes = {
         modalNetTitle: "Conectar vía Red",
         pairOther: "Conexión manual",
         modalNetDesc: "Elige un Companion Module detectado o introduce una dirección IP manualmente.",
-        btnScan: "Escaneo Auto",
+
         btnConnectIp: "Conectar por IP",
-        scanningMsg: "Buscando el módulo en tu red local...",
-        scanFound: "¡Dispositivo encontrado! Conectando...",
-        scanNotFound: "¡Dispositivo no encontrado! Asegúrate de estar en el mismo Wi-Fi.",
+
         btnDownloadVideo: "Descargar Video",
         btnDownloadZip: "Descargar .ZIP",
         dicaVideo: "¡Haz clic en el video para Reproducir o Pausar!",
@@ -5279,11 +5273,9 @@ const traducoes = {
         modalNetTitle: "Connexion via Réseau",
         pairOther: "Connexion manuelle",
         modalNetDesc: "Choisissez un Companion Module détecté ou saisissez une adresse IP manuellement.",
-        btnScan: "Scan Auto",
+
         btnConnectIp: "Connexion par IP",
-        scanningMsg: "Recherche du module sur votre réseau local...",
-        scanFound: "Appareil trouvé ! Connexion...",
-        scanNotFound: "Appareil introuvable ! Assurez-vous d'être sur le même Wi-Fi.",
+
         btnDownloadVideo: "Télécharger Vidéo",
         btnDownloadZip: "Télécharger .ZIP",
         dicaVideo: "Cliquez sur la vidéo pour Lire ou Mettre en pause !",
@@ -5876,7 +5868,6 @@ function mudarIdioma(lang) {
     document.getElementById('btn-pull-cancel').textContent = t.btnPullCancel;
     document.getElementById('lbl-modal-net-title').textContent = t.modalNetTitle;
     document.getElementById('lbl-modal-net-desc').textContent = t.modalNetDesc;
-    document.getElementById('btn-scan-net').textContent = t.btnScan;
     document.getElementById('btn-connect-ip').textContent = t.btnConnectIp;
     document.getElementById('btn-cancel-net').textContent = t.btnPullCancel;
     document.getElementById('lbl-network-other').textContent = t.pairOther;

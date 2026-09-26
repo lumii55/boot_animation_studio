@@ -310,19 +310,47 @@ function multiDeviceConnectedCount() {
 
 async function multiDeviceProbeIP(ip, timeout = 850) {
     if (!isPrivateIPv4(ip) && ip !== '127.0.0.1') return null;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    const baseUrl = `http://${ip}:4040`;
+
+    // Current/public modules expose /info. Prefer it because it carries API/capability
+    // metadata and, on P13.9A+, the stable bridge id + public device model.
+    const infoController = new AbortController();
+    const infoTimer = setTimeout(() => infoController.abort(), timeout);
     try {
-        const response = await localNetworkFetch(`http://${ip}:4040/info`, { signal: controller.signal });
+        const response = await localNetworkFetch(baseUrl + '/info', { signal: infoController.signal });
+        if (response.ok) {
+            const info = await response.json().catch(() => null);
+            if (info && Number.isInteger(Number(info.api_version))) {
+                const device = multiDeviceUpsert({ baseUrl, info });
+                return device ? { ...device, token: device.token } : null;
+            }
+        }
+    } catch (error) {
+        // A timeout/no-host result is not useful for a second probe. A real older
+        // module normally answers /info quickly with 404, which falls through below.
+        if (infoController.signal.aborted) return null;
+    } finally {
+        clearTimeout(infoTimer);
+    }
+
+    // Compatibility fallback for older secure Companion Modules that predate /info.
+    // /ping is discovery-only here: it identifies a BAS bridge, but no session token,
+    // feature set or privileged device metadata is inferred from it.
+    const pingController = new AbortController();
+    const pingTimer = setTimeout(() => pingController.abort(), Math.max(450, Math.min(timeout, 1200)));
+    try {
+        const response = await localNetworkFetch(baseUrl + '/ping', { signal: pingController.signal });
         if (!response.ok) return null;
-        const info = await response.json();
-        if (!Number.isInteger(Number(info.api_version))) return null;
-        const device = multiDeviceUpsert({ baseUrl: `http://${ip}:4040`, info });
+        const data = await response.json().catch(() => null);
+        const status = String(data?.status || '');
+        if (status !== 'auth_required' && status !== 'ok') return null;
+        const device = multiDeviceUpsert({ baseUrl, info: null, model: data?.model || '', resolution: data?.resolution || '' });
+        if (device) device.compatibilityMode = 'legacy_pending';
         return device ? { ...device, token: device.token } : null;
     } catch (error) {
         return null;
     } finally {
-        clearTimeout(timer);
+        clearTimeout(pingTimer);
     }
 }
 
@@ -343,7 +371,7 @@ async function multiDeviceScanSubnet(subnet, exactSet, generation) {
     return results;
 }
 
-async function multiDeviceScan() {
+async function multiDeviceScan(options = {}) {
     const generation = ++multiDeviceRuntime.scanGeneration;
     multiDeviceRuntime.scanning = true;
     multiDeviceRender();
@@ -392,10 +420,11 @@ async function multiDeviceScan() {
         const batch = await multiDeviceScanSubnet(subnet, exactSet, generation);
         found.push(...batch);
     }
-    multiDeviceRuntime.scanning = false;
+    const unique = Array.from(new Map(found.map(device => [device.id, device])).values());
+    multiDeviceRuntime.scanning = Boolean(options.keepScanningOnEmpty && !unique.length);
     multiDevicePersist();
     multiDeviceRender();
-    return Array.from(new Map(found.map(device => [device.id, device])).values());
+    return unique;
 }
 
 function multiDeviceLabel(device) {
@@ -535,15 +564,30 @@ async function multiDeviceConnectIP(ip) {
 async function multiDeviceOpenPicker(options = {}) {
     const modal = document.getElementById('modal-network');
     if (modal) modal.style.display = 'flex';
-    multiDeviceRender();
-    if (options.scan !== false) {
-        const desc = document.getElementById('lbl-modal-net-desc');
-        if (desc) desc.textContent = multiDeviceText('multiDeviceScanning', 'Scanning the local network…');
-        const found = await multiDeviceScan();
-        if (desc) desc.textContent = found.length
-            ? multiDeviceText('multiDeviceFound', '{count} Companion Module(s) found. Choose the device you want to control.').replace('{count}', String(found.length))
-            : multiDeviceText('multiDeviceNoneDesc', 'No Companion Module was found automatically. You can still enter an IP address.');
+
+    if (options.scan === false) {
+        multiDeviceRender();
+        return;
     }
+
+    const desc = document.getElementById('lbl-modal-net-desc');
+    multiDeviceRuntime.scanning = true;
+    if (desc) desc.textContent = multiDeviceText('multiDeviceScanning', 'Scanning the local network…');
+    multiDeviceRender();
+
+    // Cold browser/network stacks can occasionally miss the first LAN sweep (the
+    // exact behavior seen on Quest). Keep the UI in a truthful scanning state and
+    // automatically perform one retry before declaring that nothing was found.
+    let found = await multiDeviceScan({ keepScanningOnEmpty: true });
+    const stillOpen = () => !modal || modal.style.display !== 'none';
+    if (!found.length && stillOpen() && options.retryOnEmpty !== false) {
+        await new Promise(resolve => setTimeout(resolve, 350));
+        if (stillOpen()) found = await multiDeviceScan();
+    }
+
+    if (desc && stillOpen()) desc.textContent = found.length
+        ? multiDeviceText('multiDeviceFound', '{count} Companion Module(s) found. Choose the device you want to control.').replace('{count}', String(found.length))
+        : multiDeviceText('multiDeviceNoneDesc', 'No Companion Module was found automatically. You can still enter an IP address.');
 }
 
 function multiDeviceSyncText() {

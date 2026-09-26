@@ -595,40 +595,6 @@ async function checkIP(ip) {
     return null;
 }
 
-async function iniciarVarredura() {
-    if (window.BASMultiDevice?.openPicker) {
-        await window.BASMultiDevice.openPicker({ scan: true });
-        return;
-    }
-
-    const btn = document.getElementById('btn-scan-net');
-    const desc = document.getElementById('lbl-modal-net-desc');
-    const originalText = btn.textContent;
-    const t = traducoes[idiomaAtual];
-    btn.textContent = t.scanningMsg;
-    btn.style.pointerEvents = 'none';
-    desc.textContent = t.scanningMsg;
-    const plan = await discoveryPlan();
-    let foundIp = null;
-    for (const ip of plan.exactIps) { foundIp = await checkIP(ip); if (foundIp) break; }
-    for (const subnet of plan.subnets) {
-        if (foundIp) break;
-        foundIp = await scanDiscoverySubnet(subnet, plan.exactIps, checkIP, null, 24);
-    }
-    if (foundIp) {
-        desc.textContent = t.scanFound;
-        document.getElementById('input-ip').value = foundIp;
-        rememberPhoneIp(foundIp);
-        sessionToken = '';
-        IP_LOCAL = `http://${foundIp}:4040`;
-        setTimeout(() => { fecharModalRede(); tentaConexao(); }, 1500);
-    } else {
-        desc.textContent = t.scanNotFound;
-        btn.textContent = originalText;
-        btn.style.pointerEvents = 'all';
-    }
-}
-
 function startManualMode() {
     if (typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
     if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
