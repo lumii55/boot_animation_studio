@@ -1615,10 +1615,16 @@ video.pausado {
 }
 
 .modal-actions,
-.confirm-actions,
-.network-actions {
+.confirm-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+}
+
+.network-actions {
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 8px;
     width: 100%;
 }
@@ -1772,11 +1778,6 @@ video.pausado {
     border-color: rgba(111, 227, 244, 0.22);
     background: var(--accent-soft);
     color: #baf6ff;
-}
-
-#btn-scan-net {
-    background: var(--surface-raised);
-    color: var(--text-soft);
 }
 
 #btn-pair-open {
