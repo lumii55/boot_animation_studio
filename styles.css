@@ -16552,6 +16552,10 @@ summary:focus-visible {
 .trust-client-facts>div{display:grid;gap:3px;padding:9px 10px;border-radius:10px;background:rgba(0,0,0,.13)}
 .trust-client-facts span{color:var(--muted);font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .trust-client-facts strong{font-size:.78rem;line-height:1.35;overflow-wrap:anywhere}
-.trust-client-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.trust-client-actions{display:flex;gap:8px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap}
 .trust-client-actions .btn-upload{width:auto}
+.trust-client-role{display:grid;gap:4px;min-width:150px}
+.trust-client-role>span{color:var(--muted);font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.trust-client-role select{min-height:40px;padding:8px 34px 8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font:inherit}
+.trust-client-role select:disabled{opacity:.58;cursor:not-allowed}
 @media(max-width:700px){.trust-center-heading,.trust-client-head{flex-direction:column}.trust-center-heading-actions,.trust-client-actions{width:100%}.trust-center-heading-actions .btn-upload,.trust-client-actions .btn-upload{flex:1 1 140px}.trust-client-facts{grid-template-columns:1fr}.trust-client-current{align-self:flex-start}}
