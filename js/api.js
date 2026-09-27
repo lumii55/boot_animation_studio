@@ -228,7 +228,10 @@ function mergeAbortSignals(...signals) {
 function apiFetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
-    const trustHeaders = window.BASTrustClient?.headers?.() || {};
+    // P13.9B trust identity headers are capability-gated. The last public pre-P13
+    // module is API v1 but its CORS allowlist predates these headers, so sending them
+    // unconditionally would trigger a browser preflight failure before legacy auth.
+    const trustHeaders = hasModuleFeature('trusted_clients') ? (window.BASTrustClient?.headers?.() || {}) : {};
     Object.entries(trustHeaders).forEach(([name, value]) => { if (value) headers.set(name, value); });
     const deviceSignal = window.BASMultiDevice?.activeSignal?.();
     const signal = mergeAbortSignals(options.signal, deviceSignal);
