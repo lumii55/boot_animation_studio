@@ -62,7 +62,7 @@ function renderBootActivity() {
     const clear = document.getElementById('boot-activity-clear');
     const refresh = document.getElementById('boot-activity-refresh');
     if (count) count.textContent = `${bootActivityRuntime.items.length} / ${bootActivityRuntime.limit}`;
-    if (clear) clear.disabled = bootActivityRuntime.loading || bootActivityRuntime.items.length === 0;
+    if (clear) { clear.hidden = typeof hasModulePermission === 'function' && !hasModulePermission('manage'); clear.disabled = bootActivityRuntime.loading || bootActivityRuntime.items.length === 0; }
     if (refresh) refresh.disabled = bootActivityRuntime.loading;
     if (!list) return;
     list.replaceChildren();

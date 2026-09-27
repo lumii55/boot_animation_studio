@@ -103,6 +103,7 @@ function syncRotationPlaylists() {
 }
 
 function renderRotationState() {
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
     const wrapper = document.getElementById('playlist-rotation');
     const enabled = document.getElementById('rotation-enabled');
     const playlist = document.getElementById('rotation-playlist');
@@ -120,11 +121,11 @@ function renderRotationState() {
     const data = rotationRuntime.status || {};
     const playlists = rotationPlaylists();
     const hasUsablePlaylist = playlists.some(item => item.items?.length > 0);
-    if (enabled) enabled.disabled = rotationRuntime.busy || !hasUsablePlaylist;
-    if (playlist) playlist.disabled = rotationRuntime.busy || !hasUsablePlaylist;
-    if (mode) mode.disabled = rotationRuntime.busy || !hasUsablePlaylist;
-    if (save) save.disabled = rotationRuntime.busy || !hasUsablePlaylist;
-    if (prepare) prepare.disabled = rotationRuntime.busy || !data.enabled || data.paused || !data.playlist_id || (!!data.next_source && data.next_source !== 'rotation');
+    if (enabled) enabled.disabled = !canManage || rotationRuntime.busy || !hasUsablePlaylist;
+    if (playlist) playlist.disabled = !canManage || rotationRuntime.busy || !hasUsablePlaylist;
+    if (mode) mode.disabled = !canManage || rotationRuntime.busy || !hasUsablePlaylist;
+    if (save) save.disabled = !canManage || rotationRuntime.busy || !hasUsablePlaylist;
+    if (prepare) prepare.disabled = !canManage || rotationRuntime.busy || !data.enabled || data.paused || !data.playlist_id || (!!data.next_source && data.next_source !== 'rotation');
     if (statusBadge) {
         statusBadge.dataset.state = data.enabled ? 'on' : 'off';
         statusBadge.textContent = data.enabled ? (data.paused ? rotationText('bootQueuePaused', 'Rotation paused') : rotationText('rotationStatusOn', 'Rotation active')) : rotationText('rotationStatusOff', 'Rotation off');

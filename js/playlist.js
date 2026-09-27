@@ -153,6 +153,7 @@ function syncPlaylistVisibility() {
 }
 
 function renderPlaylistSidebar() {
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
     const list = document.getElementById('playlist-list');
     if (!list) return;
     list.innerHTML = '';
@@ -187,13 +188,13 @@ function renderPlaylistSidebar() {
         const up = document.createElement('button');
         up.type = 'button';
         up.textContent = '↑';
-        up.disabled = index === 0 || playlistRuntime.busy;
+        up.disabled = !canManage || index === 0 || playlistRuntime.busy;
         up.setAttribute('aria-label', playlistText('playlistMoveUp', 'Move playlist up'));
         up.onclick = () => movePlaylist(index, -1);
         const down = document.createElement('button');
         down.type = 'button';
         down.textContent = '↓';
-        down.disabled = index === playlistRuntime.playlists.length - 1 || playlistRuntime.busy;
+        down.disabled = !canManage || index === playlistRuntime.playlists.length - 1 || playlistRuntime.busy;
         down.setAttribute('aria-label', playlistText('playlistMoveDown', 'Move playlist down'));
         down.onclick = () => movePlaylist(index, 1);
         reorder.append(up, down);
@@ -203,6 +204,8 @@ function renderPlaylistSidebar() {
 }
 
 async function renderPlaylistItems() {
+    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
     const playlist = selectedPlaylist();
     const header = document.getElementById('playlist-selected-header');
     const title = document.getElementById('playlist-selected-name');
@@ -254,11 +257,11 @@ async function renderPlaylistItems() {
         const controls = document.createElement('div');
         controls.className = 'playlist-item-order';
         const up = document.createElement('button');
-        up.type = 'button'; up.textContent = '↑'; up.disabled = index === 0 || playlistRuntime.busy;
+        up.type = 'button'; up.textContent = '↑'; up.disabled = !canManage || index === 0 || playlistRuntime.busy;
         up.setAttribute('aria-label', playlistText('playlistMoveItemUp', 'Move animation up'));
         up.onclick = () => movePlaylistItem(index, -1);
         const down = document.createElement('button');
-        down.type = 'button'; down.textContent = '↓'; down.disabled = index === playlist.items.length - 1 || playlistRuntime.busy;
+        down.type = 'button'; down.textContent = '↓'; down.disabled = !canManage || index === playlist.items.length - 1 || playlistRuntime.busy;
         down.setAttribute('aria-label', playlistText('playlistMoveItemDown', 'Move animation down'));
         down.onclick = () => movePlaylistItem(index, 1);
         controls.append(up, down);
@@ -273,13 +276,13 @@ async function renderPlaylistItems() {
         });
         const actions = document.createElement('div');
         actions.className = 'playlist-item-actions';
-        if (playlistTestSupported()) {
+        if (playlistTestSupported() && canControl) {
             const test = document.createElement('button');
             test.type = 'button'; test.textContent = playlistText('playlistTest', 'Test');
             test.onclick = () => testPlaylistItem(item);
             actions.appendChild(test);
         }
-        if (typeof hasModuleFeature === 'function' && hasModuleFeature('boot_queue') && window.BASBootQueue) {
+        if (canManage && typeof hasModuleFeature === 'function' && hasModuleFeature('boot_queue') && window.BASBootQueue) {
             const useNext = document.createElement('button');
             useNext.type = 'button'; useNext.textContent = playlistText('bootQueueUseNext', 'Use next boot');
             useNext.onclick = () => window.BASBootQueue.useNextPlaylist(item);
@@ -290,7 +293,7 @@ async function renderPlaylistItems() {
             actions.appendChild(addQueue);
         }
         const apply = document.createElement('button');
-        apply.type = 'button'; apply.className = 'is-primary'; apply.textContent = playlistText('playlistApply', 'Apply');
+        apply.type = 'button'; apply.className = 'is-primary'; apply.textContent = playlistText('playlistApply', 'Apply'); apply.hidden = !canControl;
         apply.onclick = () => applyPlaylistItem(item);
         const open = document.createElement('button');
         open.type = 'button'; open.textContent = playlistText('playlistOpenStudio', 'Open in Studio');
@@ -299,7 +302,7 @@ async function renderPlaylistItems() {
         download.type = 'button'; download.textContent = playlistText('playlistDownload', 'Download');
         download.onclick = () => downloadPlaylistItem(item);
         const remove = document.createElement('button');
-        remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = playlistText('playlistRemoveItem', 'Remove');
+        remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = playlistText('playlistRemoveItem', 'Remove'); remove.hidden = !canManage;
         remove.onclick = () => removePlaylistItem(item);
         actions.append(apply, open, download, remove);
         body.append(heading, meta);
@@ -317,6 +320,11 @@ function renderPlaylists() {
     renderPlaylistItems();
     syncPlaylistCount();
     syncPlaylistText();
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
+    ['playlist-create','playlist-rename','playlist-duplicate','playlist-delete','playlist-upload'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.hidden = !canManage;
+    });
     if (window.BASRotation?.syncPlaylists) window.BASRotation.syncPlaylists();
     if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
 }

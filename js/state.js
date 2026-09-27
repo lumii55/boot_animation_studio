@@ -25,6 +25,7 @@ let moduleInfo = null;
 let moduleApiVersion = null;
 let moduleFeatures = new Set();
 let moduleCompatibilityMode = 'unknown';
+let moduleAccessPermission = 'admin';
 
 const inputVideo = document.getElementById('upload-video');
 const playerVideo = document.getElementById('player-video');

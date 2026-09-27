@@ -173,6 +173,47 @@ async function scanDiscoverySubnet(subnet, exactIps, checker, generationCheck, c
     return null;
 }
 
+
+const MODULE_ACCESS_RANK = Object.freeze({ view: 0, control: 1, manage: 2, admin: 3 });
+
+function normalizeModuleAccessPermission(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(MODULE_ACCESS_RANK, normalized) ? normalized : 'admin';
+}
+
+function hasModulePermission(required = 'view') {
+    const needed = normalizeModuleAccessPermission(required);
+    const current = normalizeModuleAccessPermission(moduleAccessPermission);
+    return MODULE_ACCESS_RANK[current] >= MODULE_ACCESS_RANK[needed];
+}
+
+function syncModulePermissionUi() {
+    const canView = hasModulePermission('view');
+    const canControl = hasModulePermission('control');
+    const canManage = hasModulePermission('manage');
+    const canAdmin = hasModulePermission('admin');
+    const setDisplay = (id, visible, display = 'flex') => {
+        const element = document.getElementById(id);
+        if (element) element.style.display = visible ? display : 'none';
+    };
+    setDisplay('lbl-upload-direto', hasModuleFeature('direct_upload') && canControl);
+    setDisplay('btn-pull', hasModuleFeature('pull') && canView);
+    setDisplay('btn-remove', hasModuleFeature('remove') && window.hasCustomAnimApplied && canControl);
+    setDisplay('btn-reset', hasModuleFeature('rescan_paths') && canManage);
+    const clearActivity = document.getElementById('boot-activity-clear');
+    if (clearActivity) clearActivity.hidden = !canManage;
+    const accessTab = document.getElementById('module-workspace-tab-access');
+    if (accessTab && hasModuleFeature('trust_permissions')) accessTab.hidden = !canAdmin;
+    if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
+    if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
+    if (window.BASRotation?.sync) window.BASRotation.sync();
+    if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
+    if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
+    if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
+    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    if (typeof syncReleaseUi === 'function') syncReleaseUi();
+}
+
 function completeConnectedState(data) {
     const t = traducoes[idiomaAtual];
     isConnectedMode = true;
@@ -183,6 +224,7 @@ function completeConnectedState(data) {
     document.getElementById('wrap-nome').style.display = 'flex';
     window.connectedPhoneModel = data.model || '';
     window.connectedPhoneResolution = data.resolution || '';
+    moduleAccessPermission = normalizeModuleAccessPermission(data.permission);
     if (window.BASMultiDevice?.captureConnected) window.BASMultiDevice.captureConnected(data);
     document.getElementById('status-connected').textContent = window.connectedPhoneModel || t.statusConnected;
     if (hasModuleFeature('device_resolution') && data.resolution && data.resolution !== 'Unknown') {
@@ -194,6 +236,7 @@ function completeConnectedState(data) {
     }
     rememberPhoneIp(currentPhoneIp());
     applyConnectedCapabilities(data);
+    syncModulePermissionUi();
     document.getElementById('acoes-principais').style.gridTemplateColumns = '1fr 1fr';
     if (typeof verificarModulo === 'function') verificarModulo();
     if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(document.getElementById('input-gerar-modulo')?.checked ? 'download' : 'phone', { skipButtons: true });
@@ -240,6 +283,7 @@ function apiFetch(path, options = {}) {
 
 function resetModuleCompatibility() {
     moduleInfo = null;
+    moduleAccessPermission = 'admin';
     moduleApiVersion = null;
     moduleFeatures = new Set();
     moduleCompatibilityMode = 'unknown';
@@ -311,12 +355,12 @@ function activateLegacySecureCompatibility() {
 }
 
 function applyConnectedCapabilities(data) {
-    const canRemove = hasModuleFeature('remove') && data.has_custom;
-    document.getElementById('btn-remove').style.display = canRemove ? 'flex' : 'none';
     window.hasCustomAnimApplied = Boolean(data.has_custom);
-    document.getElementById('btn-pull').style.display = hasModuleFeature('pull') ? 'flex' : 'none';
-    document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') ? 'flex' : 'none';
-    document.getElementById('btn-reset').style.display = hasModuleFeature('rescan_paths') ? 'flex' : 'none';
+    const canRemove = hasModuleFeature('remove') && data.has_custom && hasModulePermission('control');
+    document.getElementById('btn-remove').style.display = canRemove ? 'flex' : 'none';
+    document.getElementById('btn-pull').style.display = hasModuleFeature('pull') && hasModulePermission('view') ? 'flex' : 'none';
+    document.getElementById('lbl-upload-direto').style.display = hasModuleFeature('direct_upload') && hasModulePermission('control') ? 'flex' : 'none';
+    document.getElementById('btn-reset').style.display = hasModuleFeature('rescan_paths') && hasModulePermission('manage') ? 'flex' : 'none';
     const historyWrapper = document.getElementById('history-wrapper');
     if (historyWrapper) historyWrapper.style.display = hasModuleFeature('history') ? '' : 'none';
     if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
@@ -626,6 +670,7 @@ function startManualMode() {
     if (typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
     if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
     sessionToken = '';
+    moduleAccessPermission = 'admin';
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
     if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
@@ -855,6 +900,8 @@ async function loadHistory() {
         }
 
         const t = traducoes[idiomaAtual];
+        const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
+        const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
         for (const rawItem of items) {
             const item = { ...historyItemFromLegacyId(rawItem.id), ...rawItem, id: String(rawItem.id) };
             const card = document.createElement('article');
@@ -903,6 +950,7 @@ async function loadHistory() {
             btnApply.className = 'btn-apply';
             btnApply.type = 'button';
             btnApply.textContent = t.btnApplyHist;
+            btnApply.hidden = !canControl;
             btnApply.onclick = () => applyHistory(item.id);
 
             actions.appendChild(btnApply);
@@ -923,7 +971,7 @@ async function loadHistory() {
                 actions.appendChild(btnDownload);
             }
 
-            if (hasModuleFeature('playlists') && window.BASPlaylist?.addHistory) {
+            if (canManage && hasModuleFeature('playlists') && window.BASPlaylist?.addHistory) {
                 const btnPlaylist = document.createElement('button');
                 btnPlaylist.className = 'btn-history-secondary';
                 btnPlaylist.type = 'button';
@@ -931,7 +979,7 @@ async function loadHistory() {
                 btnPlaylist.onclick = () => window.BASPlaylist.addHistory(item.id, `${t.historyPlaylistName || 'History'} ${dateValue.toLocaleString()}`);
                 actions.appendChild(btnPlaylist);
             }
-            if (hasModuleFeature('boot_queue') && window.BASBootQueue) {
+            if (canManage && hasModuleFeature('boot_queue') && window.BASBootQueue) {
                 const queueName = `${t.historyPlaylistName || 'History'} ${dateValue.toLocaleString()}`;
                 const btnNext = document.createElement('button');
                 btnNext.className = 'btn-history-secondary';
@@ -952,6 +1000,7 @@ async function loadHistory() {
             btnDelete.type = 'button';
             btnDelete.setAttribute('aria-label', t.historyDelete || 'Delete from History');
             btnDelete.textContent = '×';
+            btnDelete.hidden = !canManage;
             btnDelete.onclick = () => deleteHistory(item.id);
             mediaWrap.appendChild(btnDelete);
 

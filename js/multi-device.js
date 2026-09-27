@@ -76,6 +76,7 @@ function multiDeviceSanitizeStored(raw) {
         connected: false,
         info: null,
         compatibilityMode: 'unknown',
+        permission: 'admin',
         features: [],
         hasCustom: false
     };
@@ -142,7 +143,7 @@ function multiDeviceUpsert(candidate) {
         device = {
             id, baseUrl, ip, stableIdentity: id.startsWith('bc_'), model: '', resolution: '',
             lastSeen: 0, lastConnected: 0, apiVersion: 0, moduleVersion: '', token: '', connected: false,
-            info: null, compatibilityMode: 'unknown', features: [], hasCustom: false
+            info: null, compatibilityMode: 'unknown', permission: 'admin', features: [], hasCustom: false
         };
         multiDeviceRuntime.devices.set(id, device);
     }
@@ -181,6 +182,7 @@ function multiDeviceCaptureGlobals() {
     current.apiVersion = Number(moduleApiVersion) || current.apiVersion || 0;
     current.features = Array.from(moduleFeatures || []);
     current.compatibilityMode = String(moduleCompatibilityMode || 'unknown');
+    current.permission = normalizeModuleAccessPermission(moduleAccessPermission);
     if (current.connected) current.lastConnected = Date.now();
     multiDevicePersist();
 }
@@ -205,6 +207,7 @@ function multiDeviceApplyRecord(device) {
     moduleApiVersion = device.apiVersion || null;
     moduleFeatures = new Set(Array.isArray(device.features) ? device.features : []);
     moduleCompatibilityMode = String(device.compatibilityMode || 'unknown');
+    moduleAccessPermission = normalizeModuleAccessPermission(device.permission);
     window.connectedPhoneModel = String(device.model || '');
     window.connectedPhoneResolution = String(device.resolution || '');
     window.hasCustomAnimApplied = Boolean(device.hasCustom);
@@ -232,6 +235,7 @@ function multiDeviceSnapshotGlobals() {
         moduleApiVersion,
         moduleFeatures: Array.from(moduleFeatures || []),
         moduleCompatibilityMode,
+        moduleAccessPermission,
         isConnectedMode,
         model: String(window.connectedPhoneModel || ''),
         resolution: String(window.connectedPhoneResolution || ''),
@@ -249,6 +253,7 @@ function multiDeviceRestoreGlobals(snapshot) {
     moduleApiVersion = snapshot.moduleApiVersion;
     moduleFeatures = new Set(snapshot.moduleFeatures || []);
     moduleCompatibilityMode = snapshot.moduleCompatibilityMode || 'unknown';
+    moduleAccessPermission = normalizeModuleAccessPermission(snapshot.moduleAccessPermission);
     isConnectedMode = Boolean(snapshot.isConnectedMode);
     window.connectedPhoneModel = snapshot.model || '';
     window.connectedPhoneResolution = snapshot.resolution || '';
@@ -289,6 +294,7 @@ function multiDeviceCaptureConnected(data) {
     device.apiVersion = Number(moduleApiVersion) || device.apiVersion || 0;
     device.features = Array.from(moduleFeatures || []);
     device.compatibilityMode = String(moduleCompatibilityMode || 'unknown');
+    device.permission = normalizeModuleAccessPermission(data?.permission || moduleAccessPermission);
     multiDevicePersist();
     multiDeviceRender();
     return device;

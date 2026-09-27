@@ -54,7 +54,7 @@ function syncModuleWorkspaceTabAvailability() {
     const testAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
     const playlistAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('playlists');
     const activityAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_activity');
-    const accessAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients');
+    const accessAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && (!hasModuleFeature('trust_permissions') || (typeof hasModulePermission === 'function' && hasModulePermission('admin')));
     if (historyTab) {
         historyTab.hidden = !historyAvailable;
         historyTab.style.display = historyAvailable ? '' : 'none';
@@ -89,7 +89,7 @@ function setModuleWorkspaceTab(tab, options = {}) {
     if (!['overview', 'test', 'playlists', 'history', 'activity', 'access', 'device'].includes(tab)) return;
     if (tab === 'history' && typeof hasModuleFeature === 'function' && !hasModuleFeature('history')) tab = 'overview';
     if (tab === 'activity' && typeof hasModuleFeature === 'function' && !hasModuleFeature('boot_activity')) tab = 'overview';
-    if (tab === 'access' && typeof hasModuleFeature === 'function' && !hasModuleFeature('trusted_clients')) tab = 'overview';
+    if (tab === 'access' && typeof hasModuleFeature === 'function' && (!hasModuleFeature('trusted_clients') || (hasModuleFeature('trust_permissions') && typeof hasModulePermission === 'function' && !hasModulePermission('admin')))) tab = 'overview';
     if (tab === 'test' && typeof hasModuleFeature === 'function' && !hasModuleFeature('test_staging')) tab = 'overview';
     if (tab === 'playlists' && typeof hasModuleFeature === 'function' && !hasModuleFeature('playlists')) tab = 'overview';
     moduleWorkspaceUi.currentTab = tab;

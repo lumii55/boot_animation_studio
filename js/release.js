@@ -15,7 +15,8 @@ function rootModulePackagingEnabled() {
 
 function getBuildDeliveryTarget() {
     if (rootModulePackagingEnabled()) return 'download';
-    return isConnectedMode && buildDeliveryTarget === 'phone' ? 'phone' : 'download';
+    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
+    return isConnectedMode && canControl && buildDeliveryTarget === 'phone' ? 'phone' : 'download';
 }
 
 function setBuildDeliveryTarget(target, options = {}) {
@@ -26,6 +27,11 @@ function setBuildDeliveryTarget(target, options = {}) {
     }
     if (target === 'phone' && !isConnectedMode) {
         if (typeof connectToPhone === 'function') connectToPhone();
+        return;
+    }
+    if (target === 'phone' && typeof hasModulePermission === 'function' && !hasModulePermission('control')) {
+        buildDeliveryTarget = 'download';
+        syncReleaseUi();
         return;
     }
     buildDeliveryTarget = target === 'phone' ? 'phone' : 'download';
@@ -89,7 +95,9 @@ function syncReleaseReadiness() {
 function syncReleaseDestination() {
     const connected = isConnectedMode;
     const modulePackage = rootModulePackagingEnabled();
-    if ((!connected || modulePackage) && buildDeliveryTarget === 'phone') buildDeliveryTarget = 'download';
+    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
+    const permissionBlocked = connected && !canControl;
+    if ((!connected || modulePackage || permissionBlocked) && buildDeliveryTarget === 'phone') buildDeliveryTarget = 'download';
     const activeTarget = getBuildDeliveryTarget();
     document.querySelectorAll('.delivery-option[data-delivery-target]').forEach(button => {
         const active = button.dataset.deliveryTarget === activeTarget;
@@ -100,12 +108,14 @@ function syncReleaseDestination() {
     if (phone) {
         phone.classList.toggle('needs-connection', !connected && !modulePackage);
         phone.classList.toggle('is-package-blocked', modulePackage);
-        phone.disabled = modulePackage;
-        phone.setAttribute('aria-disabled', modulePackage ? 'true' : 'false');
+        phone.disabled = modulePackage || permissionBlocked;
+        phone.setAttribute('aria-disabled', phone.disabled ? 'true' : 'false');
         const desc = document.getElementById('p11-delivery-phone-desc');
         if (desc) desc.textContent = modulePackage
             ? releaseText('deliveryPhoneModuleBlockedDesc', 'Disable root module packaging to apply directly to the phone.')
-            : releaseText('deliveryPhoneDesc', 'Generate, install and save it to device history when available.');
+            : permissionBlocked
+                ? releaseText('deliveryPhonePermissionBlockedDesc', 'This trusted client can view the device but cannot apply animations.')
+                : releaseText('deliveryPhoneDesc', 'Generate, install and save it to device history when available.');
     }
     const connect = document.getElementById('btn-build-connect');
     if (connect) connect.style.display = connected || modulePackage ? 'none' : 'flex';

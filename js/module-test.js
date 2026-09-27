@@ -79,6 +79,8 @@ function syncModuleTestText() {
 
 function syncModuleTestUi() {
     const supported = moduleTestSupported();
+    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
     const tab = document.getElementById('module-workspace-tab-test');
     if (tab) {
         tab.hidden = !supported;
@@ -91,8 +93,8 @@ function syncModuleTestUi() {
     if (buildButton) {
         const modulePackage = !!document.getElementById('input-gerar-modulo')?.checked;
         const buildReady = !document.getElementById('btn-gerar')?.classList.contains('btn-desativado');
-        buildButton.hidden = !supported || modulePackage;
-        buildButton.disabled = !buildReady || moduleTestRuntime.busy;
+        buildButton.hidden = !supported || modulePackage || !canControl;
+        buildButton.disabled = !buildReady || moduleTestRuntime.busy || !canControl;
     }
 
     const badge = document.getElementById('module-test-badge');
@@ -129,17 +131,17 @@ function syncModuleTestUi() {
     if (metaBox) metaBox.hidden = !moduleTestRuntime.staged;
     if (metaOutput) metaOutput.textContent = moduleTestMetaText(moduleTestRuntime.metadata) || '—';
     if (metaSize) metaSize.textContent = moduleTestRuntime.metadata ? moduleTestFormatBytes(moduleTestRuntime.metadata.size_bytes) : '—';
-    if (replay) replay.hidden = !moduleTestRuntime.staged || moduleTestRuntime.previewActive;
-    if (stop) stop.hidden = !moduleTestRuntime.previewActive;
-    if (apply) apply.hidden = !moduleTestRuntime.staged;
-    if (clear) clear.hidden = !moduleTestRuntime.staged;
-    if (addPlaylist) addPlaylist.hidden = !moduleTestRuntime.staged || !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
+    if (replay) replay.hidden = !moduleTestRuntime.staged || moduleTestRuntime.previewActive || !canControl;
+    if (stop) stop.hidden = !moduleTestRuntime.previewActive || !canControl;
+    if (apply) apply.hidden = !moduleTestRuntime.staged || !canControl;
+    if (clear) clear.hidden = !moduleTestRuntime.staged || !canControl;
+    if (addPlaylist) addPlaylist.hidden = !moduleTestRuntime.staged || !canManage || !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
     const queueSupported = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_queue');
     const useNext = document.getElementById('module-test-use-next');
     const addQueue = document.getElementById('module-test-add-queue');
-    if (useNext) useNext.hidden = !moduleTestRuntime.staged || !queueSupported;
-    if (addQueue) addQueue.hidden = !moduleTestRuntime.staged || !queueSupported;
-    if (stage) stage.disabled = moduleTestRuntime.busy;
+    if (useNext) useNext.hidden = !moduleTestRuntime.staged || !queueSupported || !canManage;
+    if (addQueue) addQueue.hidden = !moduleTestRuntime.staged || !queueSupported || !canManage;
+    if (stage) stage.disabled = moduleTestRuntime.busy || !canControl;
 
     const result = document.getElementById('build-test-result');
     if (result) result.hidden = !(moduleTestRuntime.buildSource && moduleTestRuntime.staged);

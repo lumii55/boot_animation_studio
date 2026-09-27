@@ -502,6 +502,7 @@ function downloadGeneratedBlob(blob, filename) {
 async function deliverBootanimation(rawBootAnimBlob, options, t) {
     const deliveryTarget = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
     if (isConnectedMode && deliveryTarget === 'phone') {
+        if (typeof hasModulePermission === 'function' && !hasModulePermission('control')) throw new Error(t.msgFeatureUnavailable);
         if (!ensureModuleFeature('direct_upload')) throw new Error(t.msgFeatureUnavailable);
         await updateGenerationProgress(t.msgInjecting, null, { forcePaint: true });
         const previewWebmBlob = await createMiniPreviewWebm(options);

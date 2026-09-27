@@ -73,6 +73,7 @@ function syncBootQueueText() {
 }
 
 function renderBootQueueList(state) {
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
     const list = document.getElementById('boot-queue-list');
     if (!list) return;
     list.replaceChildren();
@@ -107,15 +108,15 @@ function renderBootQueueList(state) {
         const actions = document.createElement('div');
         actions.className = 'boot-queue-row-actions';
         const up = document.createElement('button');
-        up.type = 'button'; up.textContent = '↑'; up.disabled = index === 0 || bootQueueRuntime.busy;
+        up.type = 'button'; up.textContent = '↑'; up.disabled = !canManage || index === 0 || bootQueueRuntime.busy;
         up.setAttribute('aria-label', bootQueueText('bootQueueMoveUp', 'Move up'));
         up.onclick = () => reorderBootQueue(index, -1);
         const down = document.createElement('button');
-        down.type = 'button'; down.textContent = '↓'; down.disabled = index === queue.length - 1 || bootQueueRuntime.busy;
+        down.type = 'button'; down.textContent = '↓'; down.disabled = !canManage || index === queue.length - 1 || bootQueueRuntime.busy;
         down.setAttribute('aria-label', bootQueueText('bootQueueMoveDown', 'Move down'));
         down.onclick = () => reorderBootQueue(index, 1);
         const remove = document.createElement('button');
-        remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = '×'; remove.disabled = bootQueueRuntime.busy;
+        remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = '×'; remove.disabled = !canManage || bootQueueRuntime.busy;
         remove.setAttribute('aria-label', bootQueueText('bootQueueRemove', 'Remove'));
         remove.onclick = () => removeBootQueueItem(item.id);
         actions.append(up, down, remove);
@@ -134,6 +135,7 @@ function syncBootQueueUi() {
         return;
     }
     const state = bootQueueState();
+    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
     const next = document.getElementById('boot-queue-next');
     const source = document.getElementById('boot-queue-next-source');
     const badge = document.getElementById('boot-queue-status');
@@ -152,11 +154,11 @@ function syncBootQueueUi() {
         compactSummary.textContent = `${countLabel} · ${nextLabel}`;
     }
     setBootQueueCollapsed(bootQueueRuntime.collapsed);
-    if (clear) clear.disabled = bootQueueRuntime.busy || queue.length === 0;
-    if (skip) skip.disabled = bootQueueRuntime.busy || !state.next_source;
+    if (clear) clear.disabled = !canManage || bootQueueRuntime.busy || queue.length === 0;
+    if (skip) skip.disabled = !canManage || bootQueueRuntime.busy || !state.next_source;
     if (pause) {
         pause.hidden = !state.enabled;
-        pause.disabled = bootQueueRuntime.busy;
+        pause.disabled = !canManage || bootQueueRuntime.busy;
         pause.textContent = state.paused ? bootQueueText('bootQueueResume', 'Resume rotation') : bootQueueText('bootQueuePause', 'Pause rotation');
     }
     if (after) {
@@ -166,9 +168,9 @@ function syncBootQueueUi() {
     }
     renderBootQueueList(state);
     const staged = !!window.BASModuleTest?.state?.().staged;
-    ['module-test-use-next', 'module-test-add-queue'].forEach(id => { const element = document.getElementById(id); if (element) element.hidden = !staged; });
+    ['module-test-use-next', 'module-test-add-queue'].forEach(id => { const element = document.getElementById(id); if (element) element.hidden = !staged || !canManage; });
     const buildSource = !!window.BASModuleTest?.state?.().buildSource;
-    ['build-test-result-use-next', 'build-test-result-queue'].forEach(id => { const element = document.getElementById(id); if (element) element.hidden = !(staged && buildSource); });
+    ['build-test-result-use-next', 'build-test-result-queue'].forEach(id => { const element = document.getElementById(id); if (element) element.hidden = !(staged && buildSource && canManage); });
     syncBootQueueTextLabelsOnly();
 }
 

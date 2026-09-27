@@ -13,7 +13,11 @@ function trustCenterText(key, fallback) {
 }
 
 function trustCenterSupported() {
-    return typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients');
+    return typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && (!hasModuleFeature('trust_permissions') || (typeof hasModulePermission === 'function' && hasModulePermission('admin')));
+}
+
+function trustCenterPermissionsSupported() {
+    return typeof hasModuleFeature === 'function' && hasModuleFeature('trust_permissions');
 }
 
 function trustCenterShortId(value) {
@@ -103,9 +107,33 @@ function trustCenterRender() {
         addFact(trustCenterText('trustLastSeen', 'Last access'), trustCenterFormatTime(client.last_seen_at));
         addFact(trustCenterText('trustApproved', 'Approved'), trustCenterFormatTime(client.last_approved_at || client.created_at));
         addFact(trustCenterText('trustSessions', 'Active sessions'), String(Number(client.active_sessions) || 0));
+        if (trustCenterPermissionsSupported()) addFact(trustCenterText('trustPermission', 'Access level'), trustCenterText('trustPermission' + String(client.permission || 'admin').replace(/^./, c => c.toUpperCase()), String(client.permission || 'admin')));
 
         const actions = document.createElement('div');
         actions.className = 'trust-client-actions';
+        if (trustCenterPermissionsSupported()) {
+            const roleWrap = document.createElement('label');
+            roleWrap.className = 'trust-client-role';
+            const roleLabel = document.createElement('span');
+            roleLabel.textContent = trustCenterText('trustPermission', 'Access level');
+            const role = document.createElement('select');
+            role.setAttribute('aria-label', trustCenterText('trustPermission', 'Access level'));
+            [
+                ['view', trustCenterText('trustPermissionView', 'View')],
+                ['control', trustCenterText('trustPermissionControl', 'Control')],
+                ['manage', trustCenterText('trustPermissionManage', 'Manage')],
+                ['admin', trustCenterText('trustPermissionAdmin', 'Admin')]
+            ].forEach(([value, label]) => {
+                const option = document.createElement('option');
+                option.value = value; option.textContent = label; role.appendChild(option);
+            });
+            role.value = ['view','control','manage','admin'].includes(client.permission) ? client.permission : 'admin';
+            role.disabled = trustCenterState.loading || client.current;
+            if (client.current) role.title = trustCenterText('trustPermissionCurrentHint', 'Use another Admin client to change this browser access level.');
+            role.addEventListener('change', () => trustCenterSetPermission(client, role.value));
+            roleWrap.append(roleLabel, role);
+            actions.appendChild(roleWrap);
+        }
         const revoke = document.createElement('button');
         revoke.type = 'button';
         revoke.className = 'btn-upload is-danger';
@@ -133,6 +161,31 @@ async function trustCenterRefresh(options = {}) {
     } catch (error) {
         const signal = window.BASMultiDevice?.activeSignal?.();
         if (!signal?.aborted) trustCenterSetStatus(trustCenterText('trustLoadError', 'Could not load trusted clients.'), 'error');
+    } finally {
+        trustCenterState.loading = false;
+        trustCenterRender();
+    }
+}
+
+async function trustCenterSetPermission(client, permission) {
+    if (!client?.id || trustCenterState.loading || !trustCenterPermissionsSupported()) return;
+    trustCenterState.loading = true;
+    trustCenterRender();
+    try {
+        const response = await apiFetch('/trust/permission', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: client.id, permission })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== 'ok') throw new Error(data.message || 'trust_permission_failed');
+        client.permission = data.permission || permission;
+        if (client.current) {
+            moduleAccessPermission = normalizeModuleAccessPermission(client.permission);
+            syncModulePermissionUi();
+        }
+        trustCenterSetStatus(trustCenterText('trustPermissionSaved', 'Access level updated.'), 'success');
+        await trustCenterRefresh({ silent: true });
+    } catch (error) {
+        trustCenterSetStatus(trustCenterText('trustPermissionError', 'Could not update this client access level.'), 'error');
     } finally {
         trustCenterState.loading = false;
         trustCenterRender();
