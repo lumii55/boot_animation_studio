@@ -228,6 +228,8 @@ function mergeAbortSignals(...signals) {
 function apiFetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
+    const trustHeaders = window.BASTrustClient?.headers?.() || {};
+    Object.entries(trustHeaders).forEach(([name, value]) => { if (value) headers.set(name, value); });
     const deviceSignal = window.BASMultiDevice?.activeSignal?.();
     const signal = mergeAbortSignals(options.signal, deviceSignal);
     return localNetworkFetch(IP_LOCAL + path, { ...options, headers, ...(signal ? { signal } : {}) });
@@ -318,6 +320,7 @@ function applyConnectedCapabilities(data) {
     if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
     if (window.BASRotation?.sync) window.BASRotation.sync();
     if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
+    if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
 }
 
 function syncConnectedDeviceSurfaces() {
@@ -381,10 +384,18 @@ function moduleDiscoveryConfirmed() {
 async function requestAsyncAuthorization(btn, t) {
     let startData = null;
     let lastError = null;
+    let trustPayload = null;
+    if (hasModuleFeature('trusted_clients') && window.BASTrustClient?.authPayload) {
+        try { trustPayload = await window.BASTrustClient.authPayload(); } catch (error) { trustPayload = null; }
+    }
 
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
-            const response = await apiFetch('/auth/start', { method: 'POST', signal: AbortSignal.timeout(5000) });
+            const response = await apiFetch('/auth/start', {
+                method: 'POST',
+                ...(trustPayload ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(trustPayload) } : {}),
+                signal: AbortSignal.timeout(5000)
+            });
             const data = await response.json().catch(() => ({}));
             if (response.ok && (data.status === 'pending' || data.status === 'ok') && data.request_id) {
                 startData = data;
@@ -489,6 +500,19 @@ async function tentaConexao() {
                 if (activeSignal?.aborted) throw error;
                 sessionToken = '';
                 data = null;
+            }
+        }
+
+        if (!sessionToken && hasModuleFeature('trusted_clients') && window.BASTrustClient?.reconnect) {
+            try {
+                const trusted = await window.BASTrustClient.reconnect(IP_LOCAL);
+                if (trusted?.status === 'ok' && trusted.token) {
+                    data = trusted;
+                    sessionToken = trusted.token;
+                }
+            } catch (error) {
+                const activeSignal = window.BASMultiDevice?.activeSignal?.();
+                if (activeSignal?.aborted) throw error;
             }
         }
 
@@ -601,6 +625,7 @@ function startManualMode() {
     sessionToken = '';
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
+    if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
     window.connectedPhoneResolution = '';
@@ -627,6 +652,7 @@ async function disconnectPhone() {
     sessionToken = '';
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
+    if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
     window.connectedPhoneResolution = '';

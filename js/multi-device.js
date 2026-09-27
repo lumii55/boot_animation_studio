@@ -212,6 +212,7 @@ function multiDeviceApplyRecord(device) {
     if (window.BASPlaylist?.resetConnection) window.BASPlaylist.resetConnection();
     if (window.BASRotation?.resetConnection) window.BASRotation.resetConnection();
     if (window.BASBootActivity?.resetConnection) window.BASBootActivity.resetConnection();
+    if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
 }
 
 function multiDevicePrepareBase(baseUrl, info = null) {
