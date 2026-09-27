@@ -209,6 +209,7 @@ function syncModulePermissionUi() {
     if (window.BASRotation?.sync) window.BASRotation.sync();
     if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
     if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
+    if (window.BASHealthCenter?.sync) window.BASHealthCenter.sync();
     if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
@@ -367,6 +368,7 @@ function applyConnectedCapabilities(data) {
     if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
     if (window.BASRotation?.sync) window.BASRotation.sync();
     if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
+    if (window.BASHealthCenter?.sync) window.BASHealthCenter.sync();
     if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
 }
 
