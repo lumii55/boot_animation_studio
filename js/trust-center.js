@@ -1,6 +1,7 @@
 const trustCenterState = {
     clients: [],
     sessions: [],
+    audit: [],
     loading: false,
     bound: false
 };
@@ -23,6 +24,10 @@ function trustCenterPermissionsSupported() {
 
 function trustCenterSessionsSupported() {
     return typeof hasModuleFeature === 'function' && hasModuleFeature('trust_session_management');
+}
+
+function trustCenterAuditSupported() {
+    return typeof hasModuleFeature === 'function' && hasModuleFeature('security_audit');
 }
 
 function trustCenterShortId(value) {
@@ -146,6 +151,104 @@ function trustCenterRenderSessions() {
     });
 }
 
+function trustCenterAuditActionLabel(action) {
+    const key = 'securityAuditAction' + String(action || '').split(/[._-]/).filter(Boolean).map(part => part.replace(/^./, c => c.toUpperCase())).join('');
+    const fallbacks = {
+        'auth.approved': 'Connection approved',
+        'auth.denied': 'Connection denied',
+        'auth.reconnected': 'Trusted browser reconnected',
+        'session.disconnected.self': 'Website disconnected',
+        'session.disconnected.admin': 'Session disconnected by Admin',
+        'session.disconnected.all': 'All website sessions disconnected',
+        'trust.permission.changed': 'Trusted browser access changed',
+        'trust.revoked': 'Trusted browser revoked',
+        'trust.revoked.all': 'All trusted browsers revoked',
+        'animation.applied': 'Animation applied',
+        'animation.restored_default': 'Default animation restored',
+        'module.reset': 'Module data reset',
+        'module.rescan': 'Boot paths rescanned',
+        'module.factory_reset': 'Factory reset',
+        'history.applied': 'History animation applied',
+        'history.deleted': 'History item deleted',
+        'playlist.applied': 'Playlist animation applied',
+        'rotation.configured': 'Rotation changed',
+        'rotation.next_prepared': 'Next rotation animation changed',
+        'rotation.pause_changed': 'Rotation pause changed',
+        'queue.changed': 'Boot Queue changed',
+        'queue.cleared': 'Boot Queue cleared',
+        'queue.next_skipped': 'Next boot skipped',
+        'test.applied': 'Test animation applied',
+        'audit.cleared': 'Security audit cleared'
+    };
+    return trustCenterText(key, fallbacks[action] || String(action || 'Security event'));
+}
+
+function trustCenterAuditActorLabel(actor) {
+    if (actor?.label) return String(actor.label);
+    const type = String(actor?.type || 'unknown');
+    if (type === 'webui') return trustCenterText('securityAuditActorWebUI', 'Local Module WebUI');
+    if (type === 'legacy') return trustCenterText('securityAuditActorLegacy', 'Legacy BAS website');
+    if (type === 'companion') return trustCenterText('securityAuditActorCompanion', 'Companion approval');
+    if (type === 'trusted') return trustCenterText('securityAuditActorTrusted', 'Trusted BAS browser');
+    return trustCenterText('securityAuditActorUnknown', 'Unknown client');
+}
+
+function trustCenterRenderAudit() {
+    const block = document.getElementById('security-audit-block');
+    const list = document.getElementById('security-audit-list');
+    const count = document.getElementById('security-audit-count');
+    const clear = document.getElementById('security-audit-clear');
+    const download = document.getElementById('security-audit-download');
+    if (!block || !list) return;
+    const supported = trustCenterAuditSupported();
+    block.hidden = !supported;
+    if (!supported) return;
+    if (count) count.textContent = String(trustCenterState.audit.length);
+    if (clear) clear.disabled = trustCenterState.loading || !trustCenterState.audit.length;
+    if (download) download.disabled = trustCenterState.loading || !trustCenterState.audit.length;
+    if (trustCenterState.loading && !trustCenterState.audit.length) {
+        list.innerHTML = `<div class="trust-center-empty"><strong>${trustCenterText('securityAuditLoading', 'Loading Security Audit…')}</strong></div>`;
+        return;
+    }
+    if (!trustCenterState.audit.length) {
+        list.innerHTML = `<div class="trust-center-empty"><strong>${trustCenterText('securityAuditEmpty', 'No sensitive actions recorded yet')}</strong><span>${trustCenterText('securityAuditEmptyDesc', 'Approvals, access changes and sensitive module controls will appear here.')}</span></div>`;
+        return;
+    }
+    list.innerHTML = '';
+    trustCenterState.audit.forEach(event => {
+        const card = document.createElement('article');
+        card.className = 'security-audit-event';
+        const head = document.createElement('div');
+        head.className = 'security-audit-event-head';
+        const copy = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = trustCenterAuditActionLabel(event.action);
+        const when = document.createElement('span');
+        when.textContent = trustCenterFormatTime(event.timestamp);
+        copy.append(title, when);
+        const category = document.createElement('span');
+        category.className = 'security-audit-category';
+        category.textContent = String(event.category || 'security');
+        head.append(copy, category);
+        const facts = document.createElement('div');
+        facts.className = 'trust-client-facts security-audit-facts';
+        trustCenterFact(facts, trustCenterText('securityAuditActor', 'Actor'), trustCenterAuditActorLabel(event.actor));
+        if (event.actor?.permission) trustCenterFact(facts, trustCenterText('trustPermission', 'Access level'), trustCenterPermissionLabel(event.actor.permission));
+        if (event.actor?.client_ip) trustCenterFact(facts, trustCenterText('trustSessionIP', 'IP address'), String(event.actor.client_ip));
+        if (event.target) trustCenterFact(facts, trustCenterText('securityAuditTarget', 'Target'), trustCenterShortId(event.target));
+        const details = event.details && typeof event.details === 'object' ? Object.entries(event.details).filter(([, value]) => String(value || '').trim()) : [];
+        if (details.length) {
+            const detail = document.createElement('p');
+            detail.className = 'security-audit-details';
+            detail.textContent = details.map(([key, value]) => `${key.replaceAll('_', ' ')}: ${value}`).join(' · ');
+            card.append(head, facts, detail);
+        } else {
+            card.append(head, facts);
+        }
+        list.appendChild(card);
+    });
+}
+
 function trustCenterRenderClients() {
     const list = document.getElementById('trust-center-list');
     const trustedCount = document.getElementById('trust-client-count');
@@ -247,6 +350,7 @@ function trustCenterRender() {
     if (count) count.textContent = String(trustCenterSessionsSupported() ? trustCenterState.sessions.length : trustCenterState.clients.length);
     trustCenterRenderSessions();
     trustCenterRenderClients();
+    trustCenterRenderAudit();
 }
 
 async function trustCenterRefresh(options = {}) {
@@ -259,7 +363,10 @@ async function trustCenterRefresh(options = {}) {
         const sessionRequest = trustCenterSessionsSupported()
             ? apiFetch('/trust/sessions', { signal: AbortSignal.timeout(5000) })
             : Promise.resolve(null);
-        const [clientResponse, sessionResponse] = await Promise.all([clientRequest, sessionRequest]);
+        const auditRequest = trustCenterAuditSupported()
+            ? apiFetch('/audit/list', { signal: AbortSignal.timeout(5000) })
+            : Promise.resolve(null);
+        const [clientResponse, sessionResponse, auditResponse] = await Promise.all([clientRequest, sessionRequest, auditRequest]);
         const clientData = await clientResponse.json().catch(() => ({}));
         if (!clientResponse.ok || clientData.status !== 'ok' || !Array.isArray(clientData.clients)) throw new Error(clientData.message || 'trust_list_failed');
         trustCenterState.clients = clientData.clients;
@@ -269,6 +376,13 @@ async function trustCenterRefresh(options = {}) {
             trustCenterState.sessions = sessionData.sessions;
         } else {
             trustCenterState.sessions = [];
+        }
+        if (auditResponse) {
+            const auditData = await auditResponse.json().catch(() => ({}));
+            if (!auditResponse.ok || auditData.status !== 'ok' || !Array.isArray(auditData.events)) throw new Error(auditData.message || 'security_audit_failed');
+            trustCenterState.audit = auditData.events;
+        } else {
+            trustCenterState.audit = [];
         }
         trustCenterSetStatus('', '');
     } catch (error) {
@@ -405,6 +519,49 @@ async function trustCenterRevokeAll() {
     }
 }
 
+async function trustCenterClearAudit() {
+    if (!trustCenterAuditSupported() || trustCenterState.loading || !trustCenterState.audit.length) return;
+    if (!confirm(trustCenterText('securityAuditClearConfirm', 'Clear the Security & Access Audit? A new entry will record that the audit was cleared.'))) return;
+    trustCenterState.loading = true;
+    trustCenterRender();
+    try {
+        const response = await apiFetch('/audit/clear', { method: 'POST' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== 'cleared') throw new Error(data.message || 'security_audit_clear_failed');
+        trustCenterSetStatus(trustCenterText('securityAuditCleared', 'Security Audit cleared.'), 'success');
+        await trustCenterRefresh({ silent: true });
+    } catch (error) {
+        trustCenterSetStatus(trustCenterText('securityAuditClearError', 'Could not clear Security Audit.'), 'error');
+    } finally {
+        trustCenterState.loading = false;
+        trustCenterRender();
+    }
+}
+
+async function trustCenterDownloadAudit() {
+    if (!trustCenterAuditSupported() || trustCenterState.loading || !trustCenterState.audit.length) return;
+    trustCenterState.loading = true;
+    trustCenterRender();
+    try {
+        const response = await apiFetch('/audit/export');
+        if (!response.ok) throw new Error('security_audit_export_failed');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'boot-animation-studio-security-audit.json';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (error) {
+        trustCenterSetStatus(trustCenterText('securityAuditExportError', 'Could not export Security Audit.'), 'error');
+    } finally {
+        trustCenterState.loading = false;
+        trustCenterRender();
+    }
+}
+
 function trustCenterSyncText() {
     const set = (id, key, fallback) => {
         const element = document.getElementById(id);
@@ -421,6 +578,10 @@ function trustCenterSyncText() {
     set('trust-client-title', 'trustTrustedBrowsersTitle', 'Trusted browsers');
     set('trust-client-desc', 'trustTrustedBrowsersDesc', 'Browsers approved with “Always trust” can reconnect securely without another prompt.');
     set('trust-center-revoke-all-label', 'trustRevokeAll', 'Revoke all trust');
+    set('security-audit-title', 'securityAuditTitle', 'Security & access audit');
+    set('security-audit-desc', 'securityAuditDesc', 'A bounded on-device record of sensitive access and control actions. Tokens, private keys and animation media are never stored here.');
+    set('security-audit-download-label', 'securityAuditDownload', 'Export');
+    set('security-audit-clear-label', 'securityAuditClear', 'Clear audit');
     set('module-workspace-tab-access-label', 'moduleWorkspaceAccess', 'Access');
     trustCenterRender();
 }
@@ -428,6 +589,7 @@ function trustCenterSyncText() {
 function trustCenterResetConnection() {
     trustCenterState.clients = [];
     trustCenterState.sessions = [];
+    trustCenterState.audit = [];
     trustCenterState.loading = false;
     trustCenterSetStatus('', '');
     trustCenterRender();
@@ -439,6 +601,8 @@ function trustCenterBind() {
     document.getElementById('trust-center-refresh')?.addEventListener('click', () => trustCenterRefresh());
     document.getElementById('trust-center-revoke-all')?.addEventListener('click', trustCenterRevokeAll);
     document.getElementById('trust-center-disconnect-all')?.addEventListener('click', trustCenterDisconnectAllSessions);
+    document.getElementById('security-audit-clear')?.addEventListener('click', trustCenterClearAudit);
+    document.getElementById('security-audit-download')?.addEventListener('click', trustCenterDownloadAudit);
     trustCenterSyncText();
 }
 

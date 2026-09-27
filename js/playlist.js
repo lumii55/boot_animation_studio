@@ -321,10 +321,15 @@ function renderPlaylists() {
     syncPlaylistCount();
     syncPlaylistText();
     const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
-    ['playlist-create','playlist-rename','playlist-duplicate','playlist-delete','playlist-upload'].forEach(id => {
+    ['playlist-create','playlist-rename','playlist-duplicate','playlist-delete','playlist-upload-label'].forEach(id => {
         const element = document.getElementById(id);
         if (element) element.hidden = !canManage;
     });
+    const uploadInput = document.getElementById('playlist-upload');
+    if (uploadInput) {
+        uploadInput.hidden = true;
+        uploadInput.disabled = !canManage;
+    }
     if (window.BASRotation?.syncPlaylists) window.BASRotation.syncPlaylists();
     if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
 }
