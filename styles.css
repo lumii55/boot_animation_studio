@@ -16559,3 +16559,15 @@ summary:focus-visible {
 .trust-client-role select{min-height:40px;padding:8px 34px 8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font:inherit}
 .trust-client-role select:disabled{opacity:.58;cursor:not-allowed}
 @media(max-width:700px){.trust-center-heading,.trust-client-head{flex-direction:column}.trust-center-heading-actions,.trust-client-actions{width:100%}.trust-center-heading-actions .btn-upload,.trust-client-actions .btn-upload{flex:1 1 140px}.trust-client-facts{grid-template-columns:1fr}.trust-client-current{align-self:flex-start}}
+
+.trust-center-subsection{display:grid;gap:10px;padding-top:4px}
+.trust-center-subsection+.trust-center-subsection{margin-top:4px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)}
+.trust-center-subheading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.trust-center-subheading h4{margin:0 0 4px;font-size:.94rem}
+.trust-center-subheading p{margin:0;color:var(--text-secondary,#aeb6c5);font-size:.78rem;line-height:1.5;max-width:700px}
+.trust-center-subactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.trust-center-subactions .btn-upload{width:auto}
+.trust-center-count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);font-size:.72rem;font-weight:700}
+.trust-client-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.trust-session-kind{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);font-size:.68rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+@media(max-width:700px){.trust-center-subheading{flex-direction:column}.trust-center-subactions{width:100%;justify-content:flex-start}.trust-center-subactions .btn-upload{flex:1 1 160px}.trust-client-badges{justify-content:flex-start}}
