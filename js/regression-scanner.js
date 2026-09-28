@@ -2,7 +2,7 @@
     'use strict';
 
     const VERSION = 1;
-    const RELEASE = 'P13.12 R1';
+    const RELEASE = 'P13.12 R2';
     const HISTORY_KEY = 'bas.developer.regression.history.v1';
     const HISTORY_LIMIT = 5;
     const DEFAULT_TIMEOUT_MS = 7000;
@@ -619,7 +619,7 @@
         const response=await fetch('./service-worker.js',{cache:'no-store'}); const source=await response.text(); const match=source.match(/const\s+BAS_SHELL\s*=\s*(\[[\s\S]*?\]);/); if(!match) throw new Error('BAS_SHELL not found'); const list=JSON.parse(match[1]); let failed=[]; for(const path of list){ try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok)failed.push(`${path}:${r.status}`);}catch(e){failed.push(path);} } if(failed.length) throw new Error(`${failed.length} unreachable: ${failed.slice(0,4).join(', ')}`); return `${list.length}/${list.length} assets reachable`;
     }});
     register({ id: 'pwa.cache-version', name: 'PWA cache version matches release', category: 'pwa', severity: 'normal', run: async () => {
-        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-12-r1')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
+        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-12-r2')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
     }});
 
     // ---- Connected Companion: read-only ----
@@ -638,6 +638,8 @@
     register({ id: 'companion.rotation', name: 'Rotation / queue read path', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('boot_rotation')?'':'Rotation unavailable', run:async()=>{ const d=await jsonEndpoint('/rotation/status','boot_rotation'); if(!d||typeof d!=='object')throw new Error('Rotation payload invalid'); return `${Array.isArray(d.queue)?d.queue.length:0} queued`; }});
     register({ id: 'companion.activity', name: 'Boot Activity read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('boot_activity')?'':'Activity unavailable', run:async()=>{ const d=await jsonEndpoint('/activity/list','boot_activity'); const items=d?.items==null?[]:d.items; if(!d||typeof d!=='object'||!Array.isArray(items)){ const shape=Array.isArray(d)?'top-level array':(d&&typeof d==='object'?`object keys: ${Object.keys(d).slice(0,8).join(', ')||'(none)'}`:typeof d); throw new Error(`Activity payload invalid (${shape})`); } if(d.status&&d.status!=='success'&&d.status!=='ok')throw new Error(`Unexpected activity status ${d.status}`); return `${items.length} event(s)`; }});
     register({ id: 'companion.device-probes', name: 'Device Intelligence probes', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('device_intelligence')?'':'Device Intelligence unavailable', run:async()=>{ const d=await jsonEndpoint('/device/probes','device_intelligence'); if(!d||typeof d!=='object')throw new Error('Probe payload invalid'); return 'Probe payload available'; }});
+    register({ id: 'companion.path-environment', name: 'Boot-path environment status', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('path_environment_status')&&hasFeature('device_intelligence')?'':'Path environment status unavailable', run:async()=>{ const d=await jsonEndpoint('/device/probes','device_intelligence'); const boot=d?.boot||{}; const status=String(boot.path_environment_status||''); if(!['current','changed','unknown'].includes(status))throw new Error('Invalid path environment status'); if(boot.rescan_recommended===true&&status!=='changed')throw new Error('Rescan recommendation/status mismatch'); return `${status}${boot.rescan_recommended?' · rescan recommended':''}`; }});
+    register({ id: 'ui.path-rescan-banner', name: 'Overview rescan recommendation wiring', category: 'ui', severity: 'major', run:()=>{ const root=document.getElementById('path-rescan-notice'); const action=document.getElementById('path-rescan-notice-action'); if(!root||!action)throw new Error('Path-rescan notice missing'); if(typeof window.BASPathResilience?.sync!=='function')throw new Error('Path-resilience owner missing'); return 'Overview notice + action wired'; }});
     register({ id: 'companion.health', name: 'Module Health read path', category: 'companion', severity: 'critical', requires:()=>connected()&&hasFeature('module_health')?'':'Health unavailable', run:async()=>{ const d=await jsonEndpoint('/health/status','module_health'); if(!d||typeof d!=='object')throw new Error('Health payload invalid'); return String(d.overall||'available'); }});
     register({ id: 'companion.test-status', name: 'Device Test Lab read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('test_staging')?'':'Device Test unavailable', run:async()=>{ const d=await jsonEndpoint('/test/status','test_staging'); if(!d||typeof d!=='object')throw new Error('Test status invalid'); return d.has_staged?'staged':'clear'; }});
 

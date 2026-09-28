@@ -24,7 +24,8 @@ function moduleWorkspaceSections() {
         overview: [
             document.getElementById('p11-device-actions-label'),
             document.getElementById('device-actions'),
-            document.querySelector('#connected-state .device-secondary-actions')
+            document.querySelector('#connected-state .device-secondary-actions'),
+            document.getElementById('path-rescan-notice')
         ].filter(Boolean),
         test: [document.getElementById('module-test-lab')].filter(Boolean),
         playlists: [document.getElementById('module-playlists')].filter(Boolean),
@@ -37,6 +38,10 @@ function moduleWorkspaceRestoreSections() {
     const sections = moduleWorkspaceSections();
     Object.entries(sections).forEach(([name, elements]) => {
         elements.forEach(element => {
+            if (element.id === 'path-rescan-notice') {
+                element.hidden = !window.BASPathResilience?.needsRescan?.();
+                return;
+            }
             element.hidden = name === 'history' || name === 'test' || name === 'playlists';
         });
     });
@@ -101,6 +106,10 @@ function setModuleWorkspaceTab(tab, options = {}) {
     const sections = moduleWorkspaceSections();
     Object.entries(sections).forEach(([name, elements]) => {
         elements.forEach(element => {
+            if (element.id === 'path-rescan-notice') {
+                element.hidden = name !== tab || !window.BASPathResilience?.needsRescan?.();
+                return;
+            }
             element.hidden = name !== tab;
         });
     });
@@ -166,6 +175,7 @@ function syncModuleWorkspaceUi() {
     if (window.BASHealthCenter?.syncText) window.BASHealthCenter.syncText();
     if (window.BASTrustCenter?.syncText) window.BASTrustCenter.syncText();
     if (window.BASPresence?.syncText) window.BASPresence.syncText();
+    if (window.BASPathResilience?.sync) window.BASPathResilience.sync();
 }
 
 function moduleWorkspaceMovePanelIntoWorkspace() {
