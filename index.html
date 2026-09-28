@@ -5,12 +5,12 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>Boot Animation Studio</title>
-<link href="manifest.webmanifest?v=p13-11-r4-2" rel="manifest"/>
+<link href="manifest.webmanifest?v=p13-11-r4-2-1" rel="manifest"/>
 <link href="icons/icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
 <link href="icons/apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=p13-11-r4-2" rel="stylesheet"/>
-<script src="vendor/jszip.min.js?v=p13-11-r4-2"></script>
-<script src="vendor/gifuct.min.js?v=p13-11-r4-2"></script>
+<link href="styles.css?v=p13-11-r4-2-1" rel="stylesheet"/>
+<script src="vendor/jszip.min.js?v=p13-11-r4-2-1"></script>
+<script src="vendor/gifuct.min.js?v=p13-11-r4-2-1"></script>
 <meta content="#070b12" name="theme-color"/>
 <meta content="Boot Animation Studio" name="application-name"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -328,7 +328,7 @@
 <section class="developer-lab-section developer-extended-section"><div class="developer-lab-section-head"><div><h3 id="developer-extended-title">Extended Device Scan</h3><p id="developer-extended-desc">Opt-in destructive-to-sandbox diagnostics. This scan temporarily writes module state and cleans up only resources it creates.</p></div><div class="developer-lab-actions"><button id="developer-extended-run" type="button" disabled>Run Extended Device Scan</button><button id="developer-extended-copy" type="button">Copy extended report</button></div></div><div class="developer-extended-warning"><strong id="developer-extended-warning-title">This scan temporarily changes the Companion Module</strong><p id="developer-extended-warning">It can create, rename and delete diagnostic playlists, stage a tiny test boot animation, and optionally start a visible temporary preview. It never applies a permanent animation, restores stock, rescans paths, factory-resets, or changes Rotation/Queue.</p></div><div class="developer-extended-options"><label><input id="developer-extended-ack" type="checkbox"/><span id="developer-extended-ack-label">I understand that temporary module state will be changed.</span></label><label><input id="developer-extended-preview" type="checkbox"/><span id="developer-extended-preview-label">Include visible Device Test preview (temporary).</span></label></div><div class="developer-regression-summary" id="developer-extended-summary"></div><div class="developer-regression-results" id="developer-extended-results"></div></section>
 <section class="developer-lab-section"><div class="developer-lab-section-head"><div><h3 id="developer-lab-snapshot-title">Sanitized Debug Snapshot</h3><p id="developer-lab-snapshot-desc">Shareable technical summary with tokens, private keys, exact LAN IPs and project media omitted.</p></div><button id="developer-lab-copy-snapshot" type="button">Copy debug snapshot</button></div><pre class="developer-lab-snapshot" id="developer-lab-snapshot-preview">{}</pre></section>
 </div>
-<footer class="developer-lab-footer"><span>Boot Animation Studio · P13.11 R4.2</span><button class="is-danger" id="developer-lab-disable" type="button">Disable developer mode</button></footer>
+<footer class="developer-lab-footer"><span>Boot Animation Studio · P13.11 R4.2.1</span><button class="is-danger" id="developer-lab-disable" type="button">Disable developer mode</button></footer>
 </div></div>
 <div aria-live="polite" class="toast-container" id="toast-container"></div>
 <div class="modal-overlay" id="loading-overlay">
@@ -369,38 +369,38 @@
 <button class="btn-fechar-modal" id="btn-fechar-modal" onclick="fecharModal()">Close</button>
 </div>
 </div>
-<script src="js/state.js?v=p13-11-r4-2"></script>
-<script src="js/media-seek.js?v=p13-11-r4-2"></script>
-<script src="js/project.js?v=p13-11-r4-2"></script>
-<script src="js/i18n.js?v=p13-11-r4-2"></script>
-<script src="js/loading-tips.js?v=p13-11-r4-2"></script>
-<script src="js/ux.js?v=p13-11-r4-2"></script>
-<script src="js/workspace.js?v=p13-11-r4-2"></script><script src="js/help.js?v=p13-11-r4-2"></script><script src="js/api.js?v=p13-11-r4-2"></script><script src="js/trust-client.js?v=p13-11-r4-2"></script><script src="js/multi-device.js?v=p13-11-r4-2"></script><script src="js/live-sync.js?v=p13-11-r4-2"></script><script src="js/module-workspace.js?v=p13-11-r4-2"></script><script src="js/presence.js?v=p13-11-r4-2"></script><script src="js/trust-center.js?v=p13-11-r4-2"></script><script src="js/health-center.js?v=p13-11-r4-2"></script><script src="js/module-test.js?v=p13-11-r4-2"></script><script src="js/playlist.js?v=p13-11-r4-2"></script><script src="js/rotation.js?v=p13-11-r4-2"></script><script src="js/boot-queue.js?v=p13-11-r4-2"></script><script src="js/boot-activity.js?v=p13-11-r4-2"></script>
-<script src="js/media.js?v=p13-11-r4-2"></script>
-<script src="js/source-library.js?v=p13-11-r4-2"></script>
-<script src="js/master-sequence.js?v=p13-11-r4-2"></script>
-<script src="js/timeline.js?v=p13-11-r4-2"></script>
-<script src="js/contextual.js?v=p13-11-r4-2"></script>
-<script src="js/audio.js?v=p13-11-r4-2"></script>
-<script src="js/parts.js?v=p13-11-r4-2"></script>
-<script src="js/timeline-2.js?v=p13-11-r4-2"></script>
-<script src="js/timeline-3.js?v=p13-11-r4-2"></script>
-<script src="js/composition.js?v=p13-11-r4-2"></script>
-<script src="js/performance.js?v=p13-11-r4-2"></script>
-<script src="js/output-presets.js?v=p13-11-r4-2"></script>
-<script src="js/custom-profiles.js?v=p13-11-r4-2"></script>
-<script src="js/device-intelligence.js?v=p13-11-r4-2"></script>
-<script src="js/device-profile.js?v=p13-11-r4-2"></script>
-<script src="js/compatibility.js?v=p13-11-r4-2"></script>
-<script src="js/release.js?v=p13-11-r4-2"></script><script src="js/finish.js?v=p13-11-r4-2"></script><script src="js/export.js?v=p13-11-r4-2"></script>
-<script src="js/project-engine.js?v=p13-11-r4-2"></script>
-<script src="js/project-restore.js?v=p13-11-r4-2"></script>
-<script src="js/history.js?v=p13-11-r4-2"></script>
-<script src="js/autosave.js?v=p13-11-r4-2"></script>
-<script src="js/project-file.js?v=p13-11-r4-2"></script>
-<script src="js/pwa.js?v=p13-11-r4-2"></script>
-<script src="js/developer-lab.js?v=p13-11-r4-2"></script>
-<script src="js/regression-scanner.js?v=p13-11-r4-2"></script>
-<script src="js/extended-device-scan.js?v=p13-11-r4-2"></script>
+<script src="js/state.js?v=p13-11-r4-2-1"></script>
+<script src="js/media-seek.js?v=p13-11-r4-2-1"></script>
+<script src="js/project.js?v=p13-11-r4-2-1"></script>
+<script src="js/i18n.js?v=p13-11-r4-2-1"></script>
+<script src="js/loading-tips.js?v=p13-11-r4-2-1"></script>
+<script src="js/ux.js?v=p13-11-r4-2-1"></script>
+<script src="js/workspace.js?v=p13-11-r4-2-1"></script><script src="js/help.js?v=p13-11-r4-2-1"></script><script src="js/api.js?v=p13-11-r4-2-1"></script><script src="js/trust-client.js?v=p13-11-r4-2-1"></script><script src="js/multi-device.js?v=p13-11-r4-2-1"></script><script src="js/live-sync.js?v=p13-11-r4-2-1"></script><script src="js/module-workspace.js?v=p13-11-r4-2-1"></script><script src="js/presence.js?v=p13-11-r4-2-1"></script><script src="js/trust-center.js?v=p13-11-r4-2-1"></script><script src="js/health-center.js?v=p13-11-r4-2-1"></script><script src="js/module-test.js?v=p13-11-r4-2-1"></script><script src="js/playlist.js?v=p13-11-r4-2-1"></script><script src="js/rotation.js?v=p13-11-r4-2-1"></script><script src="js/boot-queue.js?v=p13-11-r4-2-1"></script><script src="js/boot-activity.js?v=p13-11-r4-2-1"></script>
+<script src="js/media.js?v=p13-11-r4-2-1"></script>
+<script src="js/source-library.js?v=p13-11-r4-2-1"></script>
+<script src="js/master-sequence.js?v=p13-11-r4-2-1"></script>
+<script src="js/timeline.js?v=p13-11-r4-2-1"></script>
+<script src="js/contextual.js?v=p13-11-r4-2-1"></script>
+<script src="js/audio.js?v=p13-11-r4-2-1"></script>
+<script src="js/parts.js?v=p13-11-r4-2-1"></script>
+<script src="js/timeline-2.js?v=p13-11-r4-2-1"></script>
+<script src="js/timeline-3.js?v=p13-11-r4-2-1"></script>
+<script src="js/composition.js?v=p13-11-r4-2-1"></script>
+<script src="js/performance.js?v=p13-11-r4-2-1"></script>
+<script src="js/output-presets.js?v=p13-11-r4-2-1"></script>
+<script src="js/custom-profiles.js?v=p13-11-r4-2-1"></script>
+<script src="js/device-intelligence.js?v=p13-11-r4-2-1"></script>
+<script src="js/device-profile.js?v=p13-11-r4-2-1"></script>
+<script src="js/compatibility.js?v=p13-11-r4-2-1"></script>
+<script src="js/release.js?v=p13-11-r4-2-1"></script><script src="js/finish.js?v=p13-11-r4-2-1"></script><script src="js/export.js?v=p13-11-r4-2-1"></script>
+<script src="js/project-engine.js?v=p13-11-r4-2-1"></script>
+<script src="js/project-restore.js?v=p13-11-r4-2-1"></script>
+<script src="js/history.js?v=p13-11-r4-2-1"></script>
+<script src="js/autosave.js?v=p13-11-r4-2-1"></script>
+<script src="js/project-file.js?v=p13-11-r4-2-1"></script>
+<script src="js/pwa.js?v=p13-11-r4-2-1"></script>
+<script src="js/developer-lab.js?v=p13-11-r4-2-1"></script>
+<script src="js/regression-scanner.js?v=p13-11-r4-2-1"></script>
+<script src="js/extended-device-scan.js?v=p13-11-r4-2-1"></script>
 </body>
 </html>
