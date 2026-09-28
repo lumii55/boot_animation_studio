@@ -2,7 +2,7 @@
     'use strict';
 
     const VERSION = 1;
-    const RELEASE = 'P13.11 R4.2.1';
+    const RELEASE = 'P13.11 R5';
     const HISTORY_KEY = 'bas.developer.regression.history.v1';
     const HISTORY_LIMIT = 5;
     const DEFAULT_TIMEOUT_MS = 7000;
@@ -445,6 +445,13 @@
         const blob = await zip.generateAsync({ type: 'blob' }); const read = await JSZip.loadAsync(blob); const value = await read.file('probe.txt').async('text');
         if (value !== 'bas-ok') throw new Error('ZIP roundtrip mismatch'); return `${blob.size} bytes`;
     }});
+    register({ id: 'runtime.connection-lifecycle', name: 'Connection lifecycle / BFCache contract', category: 'runtime', severity: 'major', run: () => {
+        const owner = window.BASConnectionLifecycle;
+        if (!owner || typeof owner.status !== 'function' || typeof owner.shouldDisconnectOnPageHide !== 'function') throw new Error('Lifecycle owner unavailable');
+        if (owner.shouldDisconnectOnPageHide({ type: 'pagehide', persisted: true }) !== false) throw new Error('BFCache pagehide would disconnect');
+        if (owner.shouldDisconnectOnPageHide({ type: 'pagehide', persisted: false }) !== true) throw new Error('Real page exit would not disconnect');
+        return 'BFCache preserved · real exits disconnect';
+    }});
     register({ id: 'runtime.media-seek-clamp', name: 'Media seek boundary clamp', category: 'media', severity: 'major', run: () => {
         const fake = { duration: 10 }; const value = BASMediaSeek.clampTarget(fake, 99, 0.001); if (!(value > 9.99 && value < 10)) throw new Error(`Unexpected clamp ${value}`); return value.toFixed(3);
     }});
@@ -532,8 +539,12 @@
         if (typeof BASCompatibility.analyze !== 'function' || typeof BASCompatibility.getResult !== 'function') throw new Error('Compatibility owner incomplete'); return `v${BASCompatibility.version}`;
     }});
     register({ id: 'output.compatibility-unknown', name: 'Unknown compatibility remains representable', category: 'output', severity: 'major', run: () => {
-        const source = BASCompatibility.getResult?.(); if (!source) return { status:'warn', detail:'No current compatibility result; analyzer supports nullable/unknown state' };
-        const encoded = stableStringify(source).toLowerCase(); if (encoded.includes('unknown') || encoded.includes('unavailable') || encoded.includes('pending')) return 'Unknown/unavailable state represented'; return { status:'warn', detail:'Current result is fully known; unknown state not active in this project' };
+        const source = BASCompatibility.getResult?.() || BASCompatibility.analyze?.(); if (!source || typeof source !== 'object') throw new Error('Compatibility result unavailable');
+        const allowedScopes = new Set(['ready','warning','blocked','unknown']); const allowedSeverity = new Set(['blocked','warning','unknown','info']);
+        const invalidScope = Object.entries(source.scopes || {}).find(([,value]) => !allowedScopes.has(String(value)));
+        const invalidDiagnostic = (source.diagnostics || []).find(item => !allowedSeverity.has(String(item?.severity || '')));
+        if (invalidScope || invalidDiagnostic) throw new Error('Compatibility state enum drift');
+        const encoded = stableStringify(source).toLowerCase(); return encoded.includes('unknown') || encoded.includes('unavailable') || encoded.includes('pending') ? 'Unknown/unavailable state represented' : 'Current result fully known · unknown remains a valid analyzer state';
     }});
     register({ id: 'output.device-profile-contract', name: 'Device profile contract', category: 'output', severity: 'normal', run: () => {
         if (!window.BASDeviceProfile || typeof BASDeviceProfile.getResolution !== 'function') throw new Error('Device Profile unavailable'); return `v${BASDeviceProfile.version || 'current'}`;
@@ -583,7 +594,7 @@
         const locales=Object.keys(traducoes||{}); const base=traducoes[locales[0]]||{}; const tokens=s=>[...String(s||'').matchAll(/\{[A-Za-z0-9_]+\}/g)].map(m=>m[0]).sort().join('|'); const bad=[]; Object.keys(base).forEach(key=>{ const expected=tokens(base[key]); locales.slice(1).forEach(locale=>{ if(tokens(traducoes[locale]?.[key])!==expected) bad.push(`${locale}:${key}`); }); }); if(bad.length) throw new Error(`Placeholder mismatches: ${bad.slice(0,6).join(', ')}`); return 'Placeholders aligned';
     }});
     register({ id: 'ui.actionable-identities', name: 'Actionable control identities', category: 'ui', severity: 'minor', run: () => {
-        const nodes=Array.from(document.querySelectorAll('button,input,select,textarea')); const anonymous=nodes.filter(el=>!el.id&&!el.name&&!el.dataset?.action&&!el.onclick); if(anonymous.length>15) return {status:'warn',detail:`${anonymous.length} controls without stable identity`}; return `${nodes.length-anonymous.length}/${nodes.length} identifiable`;
+        const nodes=Array.from(document.querySelectorAll('button,input,select,textarea')); const stable=el=>Boolean(el.id||el.name||el.onclick||el.getAttribute('aria-label')||el.getAttribute('aria-controls')||Object.keys(el.dataset||{}).length||el.labels?.length); const anonymous=nodes.filter(el=>!stable(el)); if(anonymous.length>15) return {status:'warn',detail:`${anonymous.length} controls without stable identity`}; return `${nodes.length-anonymous.length}/${nodes.length} identifiable`;
     }});
     register({ id: 'ui.developer-lab-wiring', name: 'Developer Lab wiring', category: 'ui', severity: 'major', run: () => {
         const ids=['developer-lab','developer-lab-launcher','developer-regression-run','developer-regression-results']; const missing=ids.filter(id=>!byId(id)); if(missing.length) throw new Error(`Missing: ${missing.join(', ')}`); return 'Hidden lab surfaces present';
@@ -608,7 +619,7 @@
         const response=await fetch('./service-worker.js',{cache:'no-store'}); const source=await response.text(); const match=source.match(/const\s+BAS_SHELL\s*=\s*(\[[\s\S]*?\]);/); if(!match) throw new Error('BAS_SHELL not found'); const list=JSON.parse(match[1]); let failed=[]; for(const path of list){ try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok)failed.push(`${path}:${r.status}`);}catch(e){failed.push(path);} } if(failed.length) throw new Error(`${failed.length} unreachable: ${failed.slice(0,4).join(', ')}`); return `${list.length}/${list.length} assets reachable`;
     }});
     register({ id: 'pwa.cache-version', name: 'PWA cache version matches release', category: 'pwa', severity: 'normal', run: async () => {
-        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-11-r4-2-1')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
+        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-11-r5')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
     }});
 
     // ---- Connected Companion: read-only ----
@@ -616,12 +627,14 @@
     register({ id: 'companion.info', name: 'Companion /info', category: 'companion', severity: 'critical', requires:requireConnected, run:async()=>{ const r=await localNetworkFetch(IP_LOCAL+'/info',{cache:'no-store',signal:AbortSignal.timeout(5000)}); const d=await r.json().catch(()=>null); if(!r.ok||!Number.isInteger(Number(d?.api_version)))throw new Error('/info invalid'); return `API ${d.api_version} · ${(d.features||[]).length} capabilities`; }});
     register({ id: 'companion.ping', name: 'Authorized /ping', category: 'companion', severity: 'critical', requires:requireConnected, run:async()=>{ const d=await jsonEndpoint('/ping'); if(d?.status!=='ok')throw new Error('Unexpected ping status'); return d.permission||'authorized'; }});
     register({ id: 'companion.capabilities', name: 'Capability set integrity', category: 'companion', severity: 'major', requires:requireConnected, run:()=>{ const values=Array.from(moduleFeatures||[]); if(values.some(v=>typeof v!=='string'||!v.trim()))throw new Error('Invalid capability'); if(new Set(values).size!==values.length)throw new Error('Duplicate capability'); return `${values.length} capabilities`; }});
+    register({ id: 'companion.live-capability-gating', name: 'Live capability gating', category: 'companion', severity: 'major', requires:requireConnected, run:()=>{ const expected=hasFeature('live_events')&&hasFeature('state_revisions'); const actual=Boolean(window.BASLiveSync?.supported?.()); if(actual!==expected)throw new Error(`Live gating mismatch: advertised=${expected} runtime=${actual}`); return expected?'Live endpoints enabled by capability':'Legacy fallback · no /live/* assumption'; }});
+    register({ id: 'companion.coordination-capability-gating', name: 'Presence / coordination capability gating', category: 'companion', severity: 'normal', requires:requireConnected, run:()=>{ const expectedPresence=hasFeature('client_presence'); const expectedCoordination=hasFeature('operation_coordination'); const actualPresence=Boolean(window.BASPresence?.supported?.()); const actualCoordination=Boolean(window.BASPresence?.operationSupported?.()); if(actualPresence!==expectedPresence||actualCoordination!==expectedCoordination)throw new Error('Presence/coordination gating mismatch'); return `${expectedPresence?'presence':'no presence'} · ${expectedCoordination?'coordination':'no coordination'}`; }});
     register({ id: 'companion.live-revisions', name: 'Live revision snapshot', category: 'companion', severity: 'major', requires:()=>connected()&&window.BASLiveSync?.supported?.()?'':'Live Sync unavailable', run:async()=>{ const d=await BASLiveSync.fetchSnapshot('full-regression'); if(!d||typeof d.epoch!=='string'||!d.revisions)throw new Error('Invalid revision snapshot'); return `${Object.keys(d.revisions).length} domains`; }});
     register({ id: 'companion.presence', name: 'Presence status', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('client_presence')?'':'Presence unavailable', run:async()=>{ const d=await jsonEndpoint('/presence/status','client_presence'); if(!Array.isArray(d.clients))throw new Error('clients missing'); return `${d.clients.length} live stream(s)`; }});
     register({ id: 'companion.history', name: 'History read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('history')?'':'History unavailable', run:async()=>{ const d=await jsonEndpoint('/history/items','history'); if(!Array.isArray(d))throw new Error('History payload invalid'); return `${d.length} item(s)`; }});
     register({ id: 'companion.playlists', name: 'Playlist read path', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('playlists')?'':'Playlists unavailable', run:async()=>{ const d=await jsonEndpoint('/playlist/list','playlists'); if(!Array.isArray(d.playlists))throw new Error('Playlist payload invalid'); return `${d.playlists.length} playlist(s)`; }});
     register({ id: 'companion.rotation', name: 'Rotation / queue read path', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('boot_rotation')?'':'Rotation unavailable', run:async()=>{ const d=await jsonEndpoint('/rotation/status','boot_rotation'); if(!d||typeof d!=='object')throw new Error('Rotation payload invalid'); return `${Array.isArray(d.queue)?d.queue.length:0} queued`; }});
-    register({ id: 'companion.activity', name: 'Boot Activity read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('boot_activity')?'':'Activity unavailable', run:async()=>{ const d=await jsonEndpoint('/activity/list','boot_activity'); if(!Array.isArray(d?.items)){ const shape=Array.isArray(d)?'top-level array':(d&&typeof d==='object'?`object keys: ${Object.keys(d).slice(0,8).join(', ')||'(none)'}`:typeof d); throw new Error(`Activity payload invalid (${shape})`); } return `${d.items.length} event(s)`; }});
+    register({ id: 'companion.activity', name: 'Boot Activity read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('boot_activity')?'':'Activity unavailable', run:async()=>{ const d=await jsonEndpoint('/activity/list','boot_activity'); const items=d?.items==null?[]:d.items; if(!d||typeof d!=='object'||!Array.isArray(items)){ const shape=Array.isArray(d)?'top-level array':(d&&typeof d==='object'?`object keys: ${Object.keys(d).slice(0,8).join(', ')||'(none)'}`:typeof d); throw new Error(`Activity payload invalid (${shape})`); } if(d.status&&d.status!=='success'&&d.status!=='ok')throw new Error(`Unexpected activity status ${d.status}`); return `${items.length} event(s)`; }});
     register({ id: 'companion.device-probes', name: 'Device Intelligence probes', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('device_intelligence')?'':'Device Intelligence unavailable', run:async()=>{ const d=await jsonEndpoint('/device/probes','device_intelligence'); if(!d||typeof d!=='object')throw new Error('Probe payload invalid'); return 'Probe payload available'; }});
     register({ id: 'companion.health', name: 'Module Health read path', category: 'companion', severity: 'critical', requires:()=>connected()&&hasFeature('module_health')?'':'Health unavailable', run:async()=>{ const d=await jsonEndpoint('/health/status','module_health'); if(!d||typeof d!=='object')throw new Error('Health payload invalid'); return String(d.overall||'available'); }});
     register({ id: 'companion.test-status', name: 'Device Test Lab read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('test_staging')?'':'Device Test unavailable', run:async()=>{ const d=await jsonEndpoint('/test/status','test_staging'); if(!d||typeof d!=='object')throw new Error('Test status invalid'); return d.has_staged?'staged':'clear'; }});

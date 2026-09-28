@@ -2,7 +2,7 @@
     'use strict';
 
     const VERSION = 1;
-    const RELEASE = 'P13.11 R4.2.1';
+    const RELEASE = 'P13.11 R5';
     const state = { running:false, results:[], report:null, acknowledged:false, includePreview:false };
     const weights = { critical:12, major:6, normal:3, minor:1 };
     const factors = { pass:1, warn:.6, fail:0, skip:0 };

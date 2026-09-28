@@ -11,6 +11,8 @@
         lastEvent: null,
         lastRefresh: null,
         lastError: '',
+        pauseReason: '',
+        lastResumeAt: 0,
         controller: null,
         retryTimer: 0,
         generation: 0,
@@ -278,6 +280,12 @@
 
     function scheduleReconnect(generation) {
         if (!state.active || generation !== state.generation || state.retryTimer) return;
+        if (navigator.onLine === false) {
+            state.connected = false;
+            state.pauseReason = 'offline';
+            emit('bas:live-status', status());
+            return;
+        }
         const delay = Math.min(5000, 500 * Math.pow(2, Math.min(4, state.reconnects)));
         state.retryTimer = setTimeout(() => {
             state.retryTimer = 0;
@@ -289,6 +297,12 @@
 
     async function connectStream(generation) {
         if (!state.active || generation !== state.generation) return;
+        if (navigator.onLine === false) {
+            state.connected = false;
+            state.pauseReason = 'offline';
+            emit('bas:live-status', status());
+            return;
+        }
         if (state.controller) state.controller.abort();
         const controller = new AbortController();
         state.controller = controller;
@@ -302,6 +316,7 @@
             }
             state.connected = true;
             state.lastError = '';
+            state.pauseReason = '';
             pushEventLog('stream.connected', { reason: state.reconnects ? 'reconnect' : 'start' });
             emit('bas:live-status', status());
             await consumeStream(response, generation);
@@ -333,6 +348,8 @@
         state.lastEvent = null;
         state.lastRefresh = null;
         state.lastError = '';
+        state.pauseReason = '';
+        state.lastResumeAt = Date.now();
         state.epoch = '';
         state.revisions = {};
         state.eventLog = [];
@@ -350,6 +367,7 @@
     function stop() {
         state.active = false;
         state.connected = false;
+        state.pauseReason = '';
         state.generation += 1;
         clearDebugTimers();
         if (state.controller) state.controller.abort();
@@ -362,6 +380,43 @@
             task.running = false;
             task.dirty = false;
         });
+    }
+
+
+    function suspend(reason = 'lifecycle') {
+        if (!state.active) return false;
+        state.generation += 1;
+        if (state.controller) state.controller.abort();
+        state.controller = null;
+        if (state.retryTimer) clearTimeout(state.retryTimer);
+        state.retryTimer = 0;
+        state.connected = false;
+        state.pauseReason = String(reason || 'lifecycle');
+        pushEventLog('stream.suspended', { reason: state.pauseReason });
+        emit('bas:live-status', status());
+        return true;
+    }
+
+    function resume(reason = 'lifecycle') {
+        if (!supported()) return false;
+        if (!state.active) return start();
+        if (navigator.onLine === false) {
+            suspend('offline');
+            return false;
+        }
+        state.generation += 1;
+        if (state.controller) state.controller.abort();
+        state.controller = null;
+        if (state.retryTimer) clearTimeout(state.retryTimer);
+        state.retryTimer = 0;
+        state.connected = false;
+        state.pauseReason = '';
+        state.lastResumeAt = Date.now();
+        const generation = state.generation;
+        pushEventLog('stream.resume', { reason: String(reason || 'lifecycle') });
+        emit('bas:live-status', status());
+        connectStream(generation);
+        return true;
     }
 
     function status() {
@@ -378,6 +433,8 @@
             lastEvent: state.lastEvent,
             lastRefresh: state.lastRefresh,
             lastError: state.lastError,
+            pauseReason: state.pauseReason,
+            lastResumeAt: state.lastResumeAt,
             eventLog: state.eventLog.map(item => ({ ...item })),
             debug: { ...state.debug }
         };
@@ -446,6 +503,8 @@
         supported,
         start,
         stop,
+        suspend,
+        resume,
         status,
         fetchSnapshot,
         refreshDomain: scheduleDomainRefresh,

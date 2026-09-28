@@ -1,6 +1,6 @@
 (function() {
     const BAS_DEVELOPER_LAB_VERSION = 3;
-    const BAS_DEVELOPER_RELEASE = 'P13.11 R4.2.1';
+    const BAS_DEVELOPER_RELEASE = 'P13.11 R5';
     const BAS_DEVELOPER_TAP_TARGET = 7;
     const BAS_DEVELOPER_TAP_WINDOW_MS = 4200;
     const BAS_DEVELOPER_EVENT_LIMIT = 60;
@@ -608,6 +608,7 @@
 
     function sanitizedSnapshot() {
         const live = window.BASLiveSync?.status?.() || {};
+        const lifecycle = window.BASConnectionLifecycle?.status?.() || {};
         const presence = window.BASPresence?.state?.() || {};
         const seek = window.BASMediaSeek?.status?.() || {};
         const autosave = window.BASAutosave?.status?.() || {};
@@ -650,7 +651,16 @@
                 secure_context: Boolean(window.isSecureContext),
                 indexeddb: Boolean(globalThis.indexedDB),
                 viewport: { width: window.innerWidth, height: window.innerHeight, dpr: Number(window.devicePixelRatio || 1) },
-                visibility: document.visibilityState || null
+                visibility: document.visibilityState || null,
+                lifecycle: {
+                    bound: Boolean(lifecycle.bound),
+                    running: Boolean(lifecycle.running),
+                    resumes: Number(lifecycle.resumes) || 0,
+                    live_resumes: Number(lifecycle.liveResumes) || 0,
+                    legacy_refreshes: Number(lifecycle.legacyRefreshes) || 0,
+                    last_reason: String(lifecycle.lastReason || '').slice(0, 80),
+                    last_error: String(lifecycle.lastError || '').slice(0, 180)
+                }
             },
             module: {
                 connected: Boolean(isConnectedMode),
@@ -676,6 +686,8 @@
                 events: Number(live.events) || 0,
                 refreshes: Number(live.refreshes) || 0,
                 refresh_errors: Number(live.refreshErrors) || 0,
+                pause_reason: String(live.pauseReason || '').slice(0, 80),
+                last_resume_at: Number(live.lastResumeAt) || 0,
                 last_error: String(live.lastError || '').slice(0, 220),
                 debug: {
                     delay_ms: Number(live.debug?.delayMs) || 0,

@@ -418,16 +418,15 @@ async function refreshConnectedModuleState(options = {}) {
 }
 window.BASRefreshConnectedModuleState = refreshConnectedModuleState;
 
-function forcarDesconexao() {
+function forcarDesconexao(event) {
+    if (window.BASConnectionLifecycle?.shouldDisconnectOnPageHide && !window.BASConnectionLifecycle.shouldDisconnectOnPageHide(event)) return;
     if (window.BASMultiDevice?.disconnectAllOnUnload) {
         window.BASMultiDevice.disconnectAllOnUnload();
         return;
     }
     if (isConnectedMode && sessionToken) apiFetch('/disconnect', { method: 'POST', keepalive: true }).catch(()=>{});
 }
-window.addEventListener('beforeunload', forcarDesconexao);
 window.addEventListener('pagehide', forcarDesconexao);
-window.addEventListener('unload', forcarDesconexao);
 
 async function connectToPhone() {
     const btn = document.getElementById('btn-connect');
