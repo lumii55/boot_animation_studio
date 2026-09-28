@@ -331,7 +331,7 @@ async function exportHealthDiagnostics() {
             format: 'boot-animation-studio-support-report',
             schema_version: 1,
             generated_at: new Date().toISOString(),
-            studio: { release: 'P13.11 R4.2', locale: String(idiomaAtual || 'en') },
+            studio: { release: 'P13.11 R4.2.1', locale: String(idiomaAtual || 'en') },
             privacy_manifest: {
                 shareable_by_default: true,
                 includes: [

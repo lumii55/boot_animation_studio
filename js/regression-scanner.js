@@ -2,7 +2,7 @@
     'use strict';
 
     const VERSION = 1;
-    const RELEASE = 'P13.11 R4.2';
+    const RELEASE = 'P13.11 R4.2.1';
     const HISTORY_KEY = 'bas.developer.regression.history.v1';
     const HISTORY_LIMIT = 5;
     const DEFAULT_TIMEOUT_MS = 7000;
@@ -590,6 +590,11 @@
     }});
 
     // ---- PWA ----
+    register({ id: 'ui.developer-lab-modal-layering', name: 'Developer Lab confirmation layering', category: 'ui', severity: 'major', run: () => {
+        const lab=byId('developer-lab'), modal=byId('modal-confirm'); if(!lab||!modal) throw new Error('Developer Lab or confirmation modal missing');
+        const labZ=Number.parseInt(getComputedStyle(lab).zIndex,10)||0, modalZ=Number.parseInt(getComputedStyle(modal).zIndex,10)||0;
+        if(modalZ<=labZ) throw new Error(`Confirmation modal hidden behind Developer Lab (${modalZ} <= ${labZ})`); return `confirmation ${modalZ} > lab ${labZ}`;
+    }});
     register({ id: 'pwa.manifest', name: 'PWA manifest parse', category: 'pwa', severity: 'major', run: async () => {
         const response=await fetch('./manifest.webmanifest',{cache:'no-store'}); if(!response.ok) throw new Error(`manifest ${response.status}`); const data=await response.json(); if(!data.name||!data.start_url||!Array.isArray(data.icons)||!data.icons.length) throw new Error('Manifest fields incomplete'); return `${data.icons.length} icon(s)`;
     }});
@@ -603,7 +608,7 @@
         const response=await fetch('./service-worker.js',{cache:'no-store'}); const source=await response.text(); const match=source.match(/const\s+BAS_SHELL\s*=\s*(\[[\s\S]*?\]);/); if(!match) throw new Error('BAS_SHELL not found'); const list=JSON.parse(match[1]); let failed=[]; for(const path of list){ try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok)failed.push(`${path}:${r.status}`);}catch(e){failed.push(path);} } if(failed.length) throw new Error(`${failed.length} unreachable: ${failed.slice(0,4).join(', ')}`); return `${list.length}/${list.length} assets reachable`;
     }});
     register({ id: 'pwa.cache-version', name: 'PWA cache version matches release', category: 'pwa', severity: 'normal', run: async () => {
-        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-11-r4-2')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
+        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-11-r4-2-1')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
     }});
 
     // ---- Connected Companion: read-only ----
@@ -616,7 +621,7 @@
     register({ id: 'companion.history', name: 'History read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('history')?'':'History unavailable', run:async()=>{ const d=await jsonEndpoint('/history/items','history'); if(!Array.isArray(d))throw new Error('History payload invalid'); return `${d.length} item(s)`; }});
     register({ id: 'companion.playlists', name: 'Playlist read path', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('playlists')?'':'Playlists unavailable', run:async()=>{ const d=await jsonEndpoint('/playlist/list','playlists'); if(!Array.isArray(d.playlists))throw new Error('Playlist payload invalid'); return `${d.playlists.length} playlist(s)`; }});
     register({ id: 'companion.rotation', name: 'Rotation / queue read path', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('boot_rotation')?'':'Rotation unavailable', run:async()=>{ const d=await jsonEndpoint('/rotation/status','boot_rotation'); if(!d||typeof d!=='object')throw new Error('Rotation payload invalid'); return `${Array.isArray(d.queue)?d.queue.length:0} queued`; }});
-    register({ id: 'companion.activity', name: 'Boot Activity read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('boot_activity')?'':'Activity unavailable', run:async()=>{ const d=await jsonEndpoint('/activity/list','boot_activity'); if(!Array.isArray(d.items))throw new Error('Activity payload invalid'); return `${d.items.length} event(s)`; }});
+    register({ id: 'companion.activity', name: 'Boot Activity read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('boot_activity')?'':'Activity unavailable', run:async()=>{ const d=await jsonEndpoint('/activity/list','boot_activity'); if(!Array.isArray(d?.items)){ const shape=Array.isArray(d)?'top-level array':(d&&typeof d==='object'?`object keys: ${Object.keys(d).slice(0,8).join(', ')||'(none)'}`:typeof d); throw new Error(`Activity payload invalid (${shape})`); } return `${d.items.length} event(s)`; }});
     register({ id: 'companion.device-probes', name: 'Device Intelligence probes', category: 'companion', severity: 'major', requires:()=>connected()&&hasFeature('device_intelligence')?'':'Device Intelligence unavailable', run:async()=>{ const d=await jsonEndpoint('/device/probes','device_intelligence'); if(!d||typeof d!=='object')throw new Error('Probe payload invalid'); return 'Probe payload available'; }});
     register({ id: 'companion.health', name: 'Module Health read path', category: 'companion', severity: 'critical', requires:()=>connected()&&hasFeature('module_health')?'':'Health unavailable', run:async()=>{ const d=await jsonEndpoint('/health/status','module_health'); if(!d||typeof d!=='object')throw new Error('Health payload invalid'); return String(d.overall||'available'); }});
     register({ id: 'companion.test-status', name: 'Device Test Lab read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('test_staging')?'':'Device Test unavailable', run:async()=>{ const d=await jsonEndpoint('/test/status','test_staging'); if(!d||typeof d!=='object')throw new Error('Test status invalid'); return d.has_staged?'staged':'clear'; }});
