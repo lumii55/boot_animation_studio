@@ -614,11 +614,23 @@ function multiDeviceSendUnloadDisconnect(device) {
     if (!device?.token || !device?.baseUrl) return;
     const supportsFeedback = Array.isArray(device.features) && device.features.includes('disconnect_feedback');
     if (supportsFeedback) {
+        try {
+            const controller = navigator.serviceWorker?.controller;
+            if (controller) {
+                controller.postMessage({
+                    type: 'BAS_PAGE_DISCONNECT',
+                    baseUrl: device.baseUrl,
+                    token: device.token,
+                    reason: 'page_unload'
+                });
+            }
+        } catch (error) {
+        }
         const body = new URLSearchParams();
         body.set('token', device.token);
         body.set('reason', 'page_unload');
         try {
-            if (navigator.sendBeacon && navigator.sendBeacon(device.baseUrl + '/disconnect/beacon', body)) return;
+            if (navigator.sendBeacon) navigator.sendBeacon(device.baseUrl + '/disconnect/beacon', body);
         } catch (error) {
         }
         try {

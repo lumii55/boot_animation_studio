@@ -211,6 +211,110 @@ async function runHealthMaintenance(action) {
     }
 }
 
+function sanitizeHealthReport(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+        status: raw.status || '',
+        schema_version: Number(raw.schema_version) || 0,
+        collected_at: Number(raw.collected_at) || 0,
+        overall: raw.overall || '',
+        ok_count: Number(raw.ok_count) || 0,
+        warning_count: Number(raw.warning_count) || 0,
+        error_count: Number(raw.error_count) || 0,
+        checks: Array.isArray(raw.checks) ? raw.checks.map(check => ({
+            id: String(check?.id || ''),
+            state: String(check?.state || ''),
+            code: String(check?.code || ''),
+            detail: String(check?.detail || ''),
+            count: Number(check?.count) || 0,
+            bytes: Number(check?.bytes) || 0
+        })) : [],
+        storage: raw.storage && typeof raw.storage === 'object' ? {
+            filesystem_available: Boolean(raw.storage.filesystem_available),
+            filesystem_total_bytes: Number(raw.storage.filesystem_total_bytes) || 0,
+            filesystem_free_bytes: Number(raw.storage.filesystem_free_bytes) || 0,
+            module_bytes: Number(raw.storage.module_bytes) || 0,
+            module_files: Number(raw.storage.module_files) || 0,
+            orphan_object_bytes: Number(raw.storage.orphan_object_bytes) || 0,
+            orphan_object_count: Number(raw.storage.orphan_object_count) || 0,
+            buckets: Array.isArray(raw.storage.buckets) ? raw.storage.buckets.map(bucket => ({
+                id: String(bucket?.id || ''),
+                bytes: Number(bucket?.bytes) || 0,
+                files: Number(bucket?.files) || 0
+            })) : []
+        } : null,
+        available_actions: Array.isArray(raw.actions) ? raw.actions.map(action => ({
+            id: String(action?.id || ''),
+            count: Number(action?.count) || 0,
+            bytes: Number(action?.bytes) || 0,
+            required_permission: String(action?.required_permission || '')
+        })) : []
+    };
+}
+
+function sanitizeModuleInfo(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+        api_version: Number(raw.api_version) || 0,
+        model: String(raw.model || ''),
+        module_version: String(raw.module_version || ''),
+        module_version_code: Number(raw.module_version_code) || 0,
+        companion_version_code: Number(raw.companion_version_code) || 0,
+        features: Array.isArray(raw.features) ? raw.features.filter(value => typeof value === 'string') : [],
+        max_direct_upload_bytes: Number(raw.max_direct_upload_bytes) || 0,
+        direct_upload_warning_bytes: Number(raw.direct_upload_warning_bytes) || 0,
+        history_limit: Number(raw.history_limit) || 0
+    };
+}
+
+function sanitizeDeviceProbe(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const system = raw.system && typeof raw.system === 'object' ? raw.system : {};
+    const boot = raw.boot && typeof raw.boot === 'object' ? raw.boot : {};
+    const archive = value => value && typeof value === 'object' ? {
+        status: String(value.status || ''), format: String(value.format || ''), width: Number(value.width) || 0,
+        height: Number(value.height) || 0, fps: Number(value.fps) || 0, frame_count: Number(value.frame_count) || 0,
+        parts: Number(value.parts) || 0, video_count: Number(value.video_count) || 0, has_audio_wav: Boolean(value.has_audio_wav),
+        has_audio_config: Boolean(value.has_audio_config)
+    } : null;
+    return {
+        status: String(raw.status || ''),
+        schema_version: Number(raw.schema_version) || 0,
+        collected_at: Number(raw.collected_at) || 0,
+        system: {
+            manufacturer: String(system.manufacturer || ''), brand: String(system.brand || ''), model: String(system.model || ''),
+            device: String(system.device || ''), product: String(system.product || ''), android: String(system.android || ''),
+            sdk: Number(system.sdk) || 0, build_id: String(system.build_id || ''), build_display: String(system.build_display || ''),
+            security_patch: String(system.security_patch || ''), slot: String(system.slot || ''), resolution: String(system.resolution || ''),
+            density_dpi: Number(system.density_dpi) || 0
+        },
+        boot: {
+            primary_path: String(boot.primary_path || ''),
+            primary_path_confidence: String(boot.primary_path_confidence || ''),
+            custom_applied: Boolean(boot.custom_applied),
+            targets: Array.isArray(boot.targets) ? boot.targets.map(target => ({
+                path: String(target?.path || ''), global_present: Boolean(target?.global_present),
+                module_overlay: Boolean(target?.module_overlay), stock_backup: Boolean(target?.stock_backup),
+                verified_system_path: Boolean(target?.verified_system_path)
+            })) : [],
+            stock_archive: archive(boot.stock_archive),
+            current_archive: archive(boot.current_archive),
+            renderer: boot.renderer && typeof boot.renderer === 'object' ? {
+                present: Boolean(boot.renderer.present), audio_wav_marker: Boolean(boot.renderer.audio_wav_marker),
+                audio_conf_marker: Boolean(boot.renderer.audio_conf_marker)
+            } : null,
+            audio: boot.audio && typeof boot.audio === 'object' ? {
+                state: String(boot.audio.state || ''),
+                evidence: Array.isArray(boot.audio.evidence) ? boot.audio.evidence.map(value => String(value)) : [],
+                play_sound_property: String(boot.audio.play_sound_property || ''),
+                set_volume_property: String(boot.audio.set_volume_property || '')
+            } : null,
+            global_mount_access: Boolean(boot.global_mount_access),
+            path_schema: String(boot.path_schema || '')
+        }
+    };
+}
+
 async function exportHealthDiagnostics() {
     if (!healthSupported()) return;
     try {
@@ -220,23 +324,46 @@ async function exportHealthDiagnostics() {
             hasModuleFeature('device_intelligence') ? apiFetch('/device/probes', { cache: 'no-store' }) : Promise.resolve(null)
         ]);
         if (!healthResponse.ok || !infoResponse.ok || (probesResponse && !probesResponse.ok)) throw new Error('diagnostics');
+        const health = await healthResponse.json();
+        const info = await infoResponse.json();
+        const probes = probesResponse ? await probesResponse.json() : null;
         const report = {
+            format: 'boot-animation-studio-support-report',
+            schema_version: 1,
             generated_at: new Date().toISOString(),
-            health: await healthResponse.json(),
-            module: await infoResponse.json(),
-            device: probesResponse ? await probesResponse.json() : null
+            studio: { release: 'P13.10 R4', locale: String(idiomaAtual || 'en') },
+            privacy_manifest: {
+                shareable_by_default: true,
+                includes: [
+                    'module version/capability metadata without bridge identity',
+                    'module health checks and storage counters',
+                    'device/build and boot-animation compatibility metadata',
+                    'system boot-animation paths used only for diagnostics'
+                ],
+                excludes: [
+                    'session tokens and authorization credentials',
+                    'trusted-client IDs, public keys and private browser keys',
+                    'bridge_id and client IP addresses',
+                    'Security Audit and module log contents',
+                    'projects, source media, bootanimation archives and History files'
+                ],
+                note: 'This report is generated from an explicit whitelist. It does not export arbitrary module state.'
+            },
+            module: sanitizeModuleInfo(info),
+            health: sanitizeHealthReport(health),
+            device: sanitizeDeviceProbe(probes)
         };
         const blob = new Blob([JSON.stringify(report, null, 2) + '\n'], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `boot-animation-studio-diagnostics-${Date.now()}.json`;
+        link.download = `boot-animation-studio-support-${Date.now()}.json`;
         document.body.appendChild(link);
         link.click();
         link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-        alert(healthText('healthExportError', 'Could not export diagnostics.'));
+        alert(healthText('healthExportError', 'Could not export the support report.'));
     }
 }
 
@@ -249,7 +376,7 @@ function syncHealthCenterText() {
     set('health-center-title', 'healthTitle', 'Health & diagnostics');
     set('health-center-desc', 'healthDesc', 'Check current module integrity, storage and recoverability without changing anything.');
     set('health-center-refresh-label', 'healthRefresh', 'Run checks');
-    set('health-center-export-label', 'healthExport', 'Export diagnostics');
+    set('health-center-export-label', 'healthExport', 'Export support report');
     set('health-checks-title', 'healthChecksTitle', 'Integrity checks');
     set('health-storage-title', 'healthStorageTitle', 'Storage');
     set('health-maintenance-title', 'healthMaintenanceTitle', 'Safe maintenance');
