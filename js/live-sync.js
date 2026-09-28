@@ -50,6 +50,9 @@
             case 'sessions':
             case 'audit':
                 return 'access';
+            case 'presence':
+            case 'operation':
+                return 'presence';
             default:
                 return domain;
         }
@@ -78,6 +81,9 @@
             case 'access':
                 if (typeof window.BASRefreshConnectedModuleState === 'function') await window.BASRefreshConnectedModuleState({ silent: true });
                 await window.BASTrustCenter?.refresh?.({ silent: true });
+                break;
+            case 'presence':
+                await window.BASPresence?.refresh?.({ silent: true });
                 break;
             case 'test':
                 await window.BASModuleTest?.refreshStatus?.();

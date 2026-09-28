@@ -209,6 +209,7 @@ function syncModulePermissionUi() {
     if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
     if (window.BASHealthCenter?.sync) window.BASHealthCenter.sync();
     if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
+    if (window.BASPresence?.sync) window.BASPresence.sync();
     if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
@@ -250,6 +251,7 @@ function completeConnectedState(data) {
     else if (window.BASRotation?.refresh) window.BASRotation.refresh();
     if (window.BASLiveSync?.supported?.()) window.BASLiveSync.start();
     else window.BASLiveSync?.stop?.();
+    if (window.BASPresence?.supported?.()) window.BASPresence.refresh({ silent: true });
     if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
         if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
     }
@@ -279,7 +281,14 @@ function apiFetch(path, options = {}) {
     Object.entries(trustHeaders).forEach(([name, value]) => { if (value) headers.set(name, value); });
     const deviceSignal = window.BASMultiDevice?.activeSignal?.();
     const signal = mergeAbortSignals(options.signal, deviceSignal);
-    return localNetworkFetch(IP_LOCAL + path, { ...options, headers, ...(signal ? { signal } : {}) });
+    return localNetworkFetch(IP_LOCAL + path, { ...options, headers, ...(signal ? { signal } : {}) }).then(response => {
+        if (response.status === 409 && hasModuleFeature('operation_coordination')) {
+            response.clone().json().then(data => {
+                if (data?.status === 'busy' && data.operation) window.BASPresence?.handleBusy?.(data.operation);
+            }).catch(() => {});
+        }
+        return response;
+    });
 }
 
 function resetModuleCompatibility() {
@@ -370,6 +379,7 @@ function applyConnectedCapabilities(data) {
     if (window.BASBootActivity?.sync) window.BASBootActivity.sync();
     if (window.BASHealthCenter?.sync) window.BASHealthCenter.sync();
     if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
+    if (window.BASPresence?.sync) window.BASPresence.sync();
 }
 
 function syncConnectedDeviceSurfaces() {
@@ -724,6 +734,7 @@ function startManualMode() {
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
     if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
+    if (window.BASPresence?.resetConnection) window.BASPresence.resetConnection();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
     window.connectedPhoneResolution = '';
@@ -751,6 +762,7 @@ function finalizeLocalModuleDisconnect() {
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
     if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
+    if (window.BASPresence?.resetConnection) window.BASPresence.resetConnection();
     isConnectedMode = false;
     window.connectedPhoneModel = '';
     window.connectedPhoneResolution = '';

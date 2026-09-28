@@ -24,7 +24,8 @@ function moduleWorkspaceSections() {
         overview: [
             document.getElementById('p11-device-actions-label'),
             document.getElementById('device-actions'),
-            document.querySelector('#connected-state .device-secondary-actions')
+            document.querySelector('#connected-state .device-secondary-actions'),
+            document.getElementById('module-presence')
         ].filter(Boolean),
         test: [document.getElementById('module-test-lab')].filter(Boolean),
         playlists: [document.getElementById('module-playlists')].filter(Boolean),
@@ -96,6 +97,7 @@ function setModuleWorkspaceTab(tab, options = {}) {
         if (typeof hasModuleFeature === 'function' && hasModuleFeature('module_health') && window.BASHealthCenter?.refresh) window.BASHealthCenter.refresh({ silent: true });
         if (typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && window.BASTrustCenter?.refresh) window.BASTrustCenter.refresh({ silent: true });
     }
+    if (tab === 'overview' && window.BASPresence?.supported?.()) window.BASPresence.refresh({ silent: true });
     if (tab === 'test' && window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (tab === 'playlists' && window.BASPlaylist?.refresh) window.BASPlaylist.refresh();
     const sections = moduleWorkspaceSections();
@@ -165,6 +167,7 @@ function syncModuleWorkspaceUi() {
     syncModuleWorkspaceText();
     if (window.BASHealthCenter?.syncText) window.BASHealthCenter.syncText();
     if (window.BASTrustCenter?.syncText) window.BASTrustCenter.syncText();
+    if (window.BASPresence?.syncText) window.BASPresence.syncText();
 }
 
 function moduleWorkspaceMovePanelIntoWorkspace() {
