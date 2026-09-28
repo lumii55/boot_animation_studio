@@ -16620,3 +16620,39 @@ summary:focus-visible {
 .developer-lab-open #modal-confirm{z-index:10050}
 /* P13.11 R4.2.1 — Extended Device Scan */
 .developer-extended-section{border-color:rgba(236,178,70,.26);background:linear-gradient(145deg,rgba(236,178,70,.035),rgba(255,255,255,.012))}.developer-extended-warning{padding:13px 14px;border:1px solid rgba(236,178,70,.28);border-radius:13px;background:rgba(236,178,70,.055)}.developer-extended-warning strong{display:block;margin-bottom:5px;color:#efc469;font-size:.82rem}.developer-extended-warning p{margin:0;color:var(--muted);font-size:.74rem;line-height:1.55}.developer-extended-options{display:grid;gap:8px}.developer-extended-options label{display:flex;align-items:flex-start;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.016);color:var(--muted);font-size:.74rem;line-height:1.45}.developer-extended-options input{width:18px;height:18px;flex:0 0 auto;margin-top:1px}.developer-extended-section #developer-extended-run:disabled{opacity:.45;cursor:not-allowed}
+
+
+/* P13.12 R2 — path-rescan recommendation */
+.path-rescan-notice {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    margin-top: 12px;
+    padding: 14px 15px;
+    border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--border));
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--warning-soft), rgba(255,255,255,0.018));
+}
+.path-rescan-notice[hidden] { display: none !important; }
+.path-rescan-notice-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    color: var(--warning);
+    font-size: 20px;
+    font-weight: 800;
+}
+.path-rescan-notice-copy { min-width: 0; }
+.path-rescan-notice-copy strong { display: block; color: var(--text); font-size: .9rem; }
+.path-rescan-notice-copy p { margin: 4px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+.path-rescan-notice .btn-upload { white-space: nowrap; }
+.module-workspace-panel .path-rescan-notice { margin-top: 2px; }
+@media (max-width: 620px) {
+    .path-rescan-notice { grid-template-columns: auto minmax(0, 1fr); }
+    .path-rescan-notice .btn-upload { grid-column: 1 / -1; width: 100%; }
+}
