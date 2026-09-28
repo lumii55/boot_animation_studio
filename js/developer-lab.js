@@ -1,6 +1,6 @@
 (function() {
-    const BAS_DEVELOPER_LAB_VERSION = 1;
-    const BAS_DEVELOPER_RELEASE = 'P13.11 R4';
+    const BAS_DEVELOPER_LAB_VERSION = 3;
+    const BAS_DEVELOPER_RELEASE = 'P13.11 R4.2';
     const BAS_DEVELOPER_TAP_TARGET = 7;
     const BAS_DEVELOPER_TAP_WINDOW_MS = 4200;
     const BAS_DEVELOPER_EVENT_LIMIT = 60;
@@ -407,7 +407,7 @@
         set('developer-lab-reset-faults', 'developerLabResetFaults', 'Reset fault injection');
         set('developer-lab-editor-title', 'developerLabEditorTitle', 'Editor / Runtime Diagnostics');
         set('developer-lab-editor-desc', 'developerLabEditorDesc', 'Read-only metadata from existing canonical owners; no parallel project state.');
-        set('developer-lab-checks-title', 'developerLabChecksTitle', 'Regression Smoke Checks');
+        set('developer-lab-checks-title', 'developerLabChecksTitle', 'Quick Smoke Checks');
         set('developer-lab-checks-desc', 'developerLabChecksDesc', 'Safe checks only. These do not apply, restore, rescan or mutate the phone.');
         set('developer-lab-run-checks', state.smokeRunning ? 'developerLabRunning' : 'developerLabRunChecks', state.smokeRunning ? 'Running…' : 'Run checks');
         set('developer-lab-snapshot-title', 'developerLabSnapshotTitle', 'Sanitized Debug Snapshot');
@@ -708,7 +708,9 @@
                 autosave,
                 history
             },
-            smoke_checks: state.smoke.map(check => ({ name: check.name, status: check.status, detail: check.detail.slice(0, 220) }))
+            smoke_checks: state.smoke.map(check => ({ name: check.name, status: check.status, detail: check.detail.slice(0, 220) })),
+            regression_scan: window.BASRegressionScanner?.report?.()?.summary || null,
+            extended_device_scan: window.BASExtendedDeviceScan?.report?.()?.summary || null
         };
     }
 
@@ -865,6 +867,7 @@
         refresh,
         runSmokeChecks,
         snapshot: sanitizedSnapshot,
+        notify: toast,
         syncText,
         state: () => ({ enabled: state.enabled, open: state.open, smokeRunning: state.smokeRunning })
     });
