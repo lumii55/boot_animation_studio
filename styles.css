@@ -15064,6 +15064,8 @@ summary:focus-visible {
 .module-workspace-panel .hist-wrapper,
 .module-workspace-panel .module-playlists,
 .module-workspace-panel .module-trust-center,
+.module-workspace-panel .module-health-center,
+.module-workspace-panel .boot-activity,
 .module-workspace-panel .device-profile-card {
     width: 100%;
     margin-top: 0;
@@ -15169,6 +15171,8 @@ summary:focus-visible {
 #connected-state:not(.module-workspace-panel) #history-wrapper,
 #connected-state:not(.module-workspace-panel) #module-test-lab,
 #connected-state:not(.module-workspace-panel) #module-playlists,
+#connected-state:not(.module-workspace-panel) #boot-activity,
+#connected-state:not(.module-workspace-panel) #module-health-center,
 #connected-state:not(.module-workspace-panel) #module-trust-center {
     display: none !important;
 }
@@ -16591,3 +16595,14 @@ summary:focus-visible {
 
 /* P13.10 R1 — Module Health Center */
 .module-health-center{display:grid;gap:18px}.module-health-center[hidden]{display:none!important}.health-center-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.health-center-heading h3{margin:5px 0 6px;font-size:1.18rem}.health-center-heading p{margin:0;max-width:760px;color:var(--text-secondary,#aaa)}.health-center-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.health-center-status,.health-readonly-note{margin:0;padding:12px 14px;border:1px solid var(--border-color,#333);border-radius:14px;color:var(--text-secondary,#aaa);background:rgba(255,255,255,.025)}.health-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.health-summary-card,.health-storage-grid article{display:grid;gap:5px;padding:14px;border:1px solid var(--border-color,#333);border-radius:16px;background:rgba(255,255,255,.025)}.health-summary-card span,.health-storage-grid span{font-size:.76rem;text-transform:uppercase;letter-spacing:.045em;color:var(--text-secondary,#aaa)}.health-summary-card strong,.health-storage-grid strong{font-size:1.12rem}.health-summary-card small,.health-storage-grid small{color:var(--text-secondary,#aaa)}.health-summary-card.health-ok{border-color:rgba(80,200,130,.35)}.health-summary-card.health-warn{border-color:rgba(236,178,70,.42)}.health-summary-card.health-error{border-color:rgba(240,93,93,.42)}.health-center-block{display:grid;gap:10px}.health-center-block h4{margin:0}.health-check-list{display:grid;gap:9px}.health-check{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--border-color,#333);border-radius:14px;background:rgba(255,255,255,.02)}.health-check-main{display:flex;gap:11px;min-width:0}.health-state-dot{width:10px;height:10px;margin-top:5px;border-radius:50%;flex:0 0 auto;background:#71c995}.health-check.health-warn .health-state-dot{background:#e7b955}.health-check.health-error .health-state-dot{background:#ec7171}.health-check strong{display:block}.health-check p{margin:3px 0 0;color:var(--text-secondary,#aaa);font-size:.88rem;line-height:1.45}.health-check small{display:block;margin-top:5px;color:var(--text-secondary,#aaa);word-break:break-word}.health-state-label{padding:4px 8px;border:1px solid currentColor;border-radius:999px;font-size:.74rem;white-space:nowrap;color:#71c995}.health-warn .health-state-label{color:#e7b955}.health-error .health-state-label{color:#ec7171}.health-storage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}@media(max-width:760px){.health-center-heading{display:grid}.health-center-actions{justify-content:stretch}.health-center-actions .btn-upload{flex:1}.health-summary-grid{grid-template-columns:1fr}.health-check{display:grid}.health-state-label{justify-self:start}}
+
+.module-workspace-panel #boot-activity,
+.module-workspace-panel #module-health-center,
+.module-workspace-panel #module-trust-center {
+    width: 100%;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+}
+.health-maintenance-heading h4{margin:0 0 4px}.health-maintenance-heading p{margin:0;color:var(--text-secondary,#aaa);font-size:.88rem;line-height:1.45}.health-maintenance-list{display:grid;gap:10px}.health-maintenance-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border:1px solid rgba(111,227,244,.18);border-radius:14px;background:rgba(111,227,244,.025)}.health-maintenance-card>div{min-width:0}.health-maintenance-card strong{display:block}.health-maintenance-card p{margin:4px 0 0;color:var(--text-secondary,#aaa);font-size:.86rem;line-height:1.45}.health-maintenance-card small{display:block;margin-top:6px;color:var(--muted)}.health-maintenance-card .btn-upload{width:auto;flex:0 0 auto}.health-maintenance-empty{padding:14px;border:1px dashed var(--line);border-radius:14px;color:var(--muted)}
+@media(max-width:700px){.health-maintenance-card{display:grid}.health-maintenance-card .btn-upload{width:100%}}
