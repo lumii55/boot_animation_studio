@@ -2,7 +2,7 @@
     'use strict';
 
     const VERSION = 1;
-    const RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Development build';
+    const RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Web app';
     const HISTORY_KEY = 'bas.developer.regression.history.v1';
     const HISTORY_LIMIT = 5;
     const DEFAULT_TIMEOUT_MS = 7000;
@@ -492,6 +492,15 @@
         if (!label || /\bP\d+(?:\.\d+)+/i.test(label)) throw new Error('Public build label contains an internal phase codename');
         return label;
     }});
+    register({ id: 'compat.public-runtime-identity', name: 'Rolling web-app identity stays independent from module version', category: 'compatibility', severity: 'major', run: async () => {
+        const label = String(typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : '');
+        if (label !== 'Web app') throw new Error(`Unexpected public web label: ${label || 'empty'}`);
+        if (/^v\d+\.\d+$/i.test(label)) throw new Error('Rolling website is incorrectly coupled to the module semantic version');
+        const sw = await fetch('./service-worker.js', { cache: 'no-store' }).then(response => response.text());
+        const cache = sw.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)['"]/i)?.[1] || '';
+        if (!cache || /development|p\d|r\d/i.test(cache)) throw new Error(`Service Worker cache exposes an internal checkpoint: ${cache || 'missing'}`);
+        return `${label} · ${cache}`;
+    }});
     register({ id: 'runtime.media-seek-clamp', name: 'Media seek boundary clamp', category: 'media', severity: 'major', run: () => {
         const fake = { duration: 10 }; const value = BASMediaSeek.clampTarget(fake, 99, 0.001); if (!(value > 9.99 && value < 10)) throw new Error(`Unexpected clamp ${value}`); return value.toFixed(3);
     }});
@@ -659,7 +668,7 @@
         const response=await fetch('./service-worker.js',{cache:'no-store'}); const source=await response.text(); const match=source.match(/const\s+BAS_SHELL\s*=\s*(\[[\s\S]*?\]);/); if(!match) throw new Error('BAS_SHELL not found'); const list=JSON.parse(match[1]); let failed=[]; for(const path of list){ try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok)failed.push(`${path}:${r.status}`);}catch(e){failed.push(path);} } if(failed.length) throw new Error(`${failed.length} unreachable: ${failed.slice(0,4).join(', ')}`); return `${list.length}/${list.length} assets reachable`;
     }});
     register({ id: 'pwa.cache-version', name: 'PWA cache version matches release', category: 'pwa', severity: 'normal', run: async () => {
-        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('development-r1')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
+        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(cache!=='bas-shell-web-v1') return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
     }});
 
     // ---- Connected Companion: read-only ----

@@ -1,6 +1,6 @@
 (function() {
     const BAS_DEVELOPER_LAB_VERSION = 3;
-    const BAS_DEVELOPER_RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Development build';
+    const BAS_DEVELOPER_RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Web app';
     const BAS_DEVELOPER_TAP_TARGET = 7;
     const BAS_DEVELOPER_TAP_WINDOW_MS = 4200;
     const BAS_DEVELOPER_EVENT_LIMIT = 60;

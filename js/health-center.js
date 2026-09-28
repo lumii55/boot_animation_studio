@@ -331,7 +331,7 @@ async function exportHealthDiagnostics() {
             format: 'boot-animation-studio-support-report',
             schema_version: 1,
             generated_at: new Date().toISOString(),
-            studio: { release: (typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Development build'), locale: String(idiomaAtual || 'en') },
+            studio: { release: (typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Web app'), locale: String(idiomaAtual || 'en') },
             privacy_manifest: {
                 shareable_by_default: true,
                 includes: [

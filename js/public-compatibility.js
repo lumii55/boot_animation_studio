@@ -112,8 +112,10 @@
 
     function publicSurfaceCodenameLeaks(root = document) {
         const text = String(root?.body?.textContent || '');
-        const matches = text.match(/\bP(?:1[0-9]|[0-9])(?:\.\d+)+(?:\s+R[0-9A-Za-z.]+)?\b/g) || [];
-        return Array.from(new Set(matches)).slice(0, 20);
+        const phaseMatches = text.match(/\bP(?:1[0-9]|[0-9])(?:\.\d+)+(?:\s+R[0-9A-Za-z.]+)?\b/g) || [];
+        const revisionMatches = text.match(/\bR\d+(?:\.\d+)*(?:[A-Za-z]+)?\b/g) || [];
+        const developmentMatches = /Development build/i.test(text) ? ['Development build'] : [];
+        return Array.from(new Set([...phaseMatches, ...revisionMatches, ...developmentMatches])).slice(0, 20);
     }
 
     window.BASPublicCompatibility = Object.freeze({
