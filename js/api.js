@@ -248,6 +248,8 @@ function completeConnectedState(data) {
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (window.BASPlaylist?.supported?.()) window.BASPlaylist.refresh().then(() => window.BASRotation?.refresh?.());
     else if (window.BASRotation?.refresh) window.BASRotation.refresh();
+    if (window.BASLiveSync?.supported?.()) window.BASLiveSync.start();
+    else window.BASLiveSync?.stop?.();
     if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
         if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
     }
@@ -685,6 +687,7 @@ async function checkIP(ip) {
 }
 
 function startManualMode() {
+    window.BASLiveSync?.stop?.();
     if (typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
     if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
     sessionToken = '';
@@ -713,6 +716,7 @@ function startManualMode() {
 }
 
 async function disconnectPhone() {
+    window.BASLiveSync?.stop?.();
     const disconnectPath = hasModuleFeature('disconnect_feedback') ? '/disconnect?reason=manual' : '/disconnect';
     try { await apiFetch(disconnectPath, { method: 'POST' }); } catch(e) {}
     if (window.BASMultiDevice?.captureDisconnected) window.BASMultiDevice.captureDisconnected();
