@@ -1,6 +1,6 @@
-const BAS_CACHE = 'bas-shell-p13-10-r3-v1';
+const BAS_CACHE = 'bas-shell-p13-10-r4-v1';
 const BAS_CACHE_PREFIX = 'bas-shell-';
-const BAS_SHELL = ["./", "./index.html", "./styles.css?v=p13-10-r3", "./manifest.webmanifest?v=p13-10-r3", "./js/api.js?v=p13-10-r3", "./js/trust-client.js?v=p13-10-r3", "./js/multi-device.js?v=p13-10-r3", "./js/trust-center.js?v=p13-10-r3", "./js/health-center.js?v=p13-10-r3", "./js/audio.js?v=p13-10-r3", "./js/autosave.js?v=p13-10-r3", "./js/compatibility.js?v=p13-10-r3", "./js/composition.js?v=p13-10-r3", "./js/contextual.js?v=p13-10-r3", "./js/custom-profiles.js?v=p13-10-r3", "./js/device-intelligence.js?v=p13-10-r3", "./js/device-profile.js?v=p13-10-r3", "./js/export.js?v=p13-10-r3", "./js/history.js?v=p13-10-r3", "./js/help.js?v=p13-10-r3", "./js/i18n.js?v=p13-10-r3", "./js/loading-tips.js?v=p13-10-r3", "./js/master-sequence.js?v=p13-10-r3", "./js/media-seek.js?v=p13-10-r3", "./js/module-workspace.js?v=p13-10-r3", "./js/module-test.js?v=p13-10-r3", "./js/playlist.js?v=p13-10-r3", "./js/rotation.js?v=p13-10-r3", "./js/boot-queue.js?v=p13-10-r3", "./js/boot-activity.js?v=p13-10-r3", "./js/media.js?v=p13-10-r3", "./js/output-presets.js?v=p13-10-r3", "./js/parts.js?v=p13-10-r3", "./js/performance.js?v=p13-10-r3", "./js/project-engine.js?v=p13-10-r3", "./js/project-file.js?v=p13-10-r3", "./js/project-restore.js?v=p13-10-r3", "./js/project.js?v=p13-10-r3", "./js/pwa.js?v=p13-10-r3", "./js/release.js?v=p13-10-r3", "./js/finish.js?v=p13-10-r3", "./js/source-library.js?v=p13-10-r3", "./js/state.js?v=p13-10-r3", "./js/timeline-2.js?v=p13-10-r3", "./js/timeline-3.js?v=p13-10-r3", "./js/timeline.js?v=p13-10-r3", "./js/ux.js?v=p13-10-r3", "./js/workspace.js?v=p13-10-r3", "./vendor/jszip.min.js?v=p13-10-r3", "./vendor/gifuct.min.js?v=p13-10-r3", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
+const BAS_SHELL = ["./", "./index.html", "./styles.css?v=p13-10-r4", "./manifest.webmanifest?v=p13-10-r4", "./js/api.js?v=p13-10-r4", "./js/trust-client.js?v=p13-10-r4", "./js/multi-device.js?v=p13-10-r4", "./js/trust-center.js?v=p13-10-r4", "./js/health-center.js?v=p13-10-r4", "./js/audio.js?v=p13-10-r4", "./js/autosave.js?v=p13-10-r4", "./js/compatibility.js?v=p13-10-r4", "./js/composition.js?v=p13-10-r4", "./js/contextual.js?v=p13-10-r4", "./js/custom-profiles.js?v=p13-10-r4", "./js/device-intelligence.js?v=p13-10-r4", "./js/device-profile.js?v=p13-10-r4", "./js/export.js?v=p13-10-r4", "./js/history.js?v=p13-10-r4", "./js/help.js?v=p13-10-r4", "./js/i18n.js?v=p13-10-r4", "./js/loading-tips.js?v=p13-10-r4", "./js/master-sequence.js?v=p13-10-r4", "./js/media-seek.js?v=p13-10-r4", "./js/module-workspace.js?v=p13-10-r4", "./js/module-test.js?v=p13-10-r4", "./js/playlist.js?v=p13-10-r4", "./js/rotation.js?v=p13-10-r4", "./js/boot-queue.js?v=p13-10-r4", "./js/boot-activity.js?v=p13-10-r4", "./js/media.js?v=p13-10-r4", "./js/output-presets.js?v=p13-10-r4", "./js/parts.js?v=p13-10-r4", "./js/performance.js?v=p13-10-r4", "./js/project-engine.js?v=p13-10-r4", "./js/project-file.js?v=p13-10-r4", "./js/project-restore.js?v=p13-10-r4", "./js/project.js?v=p13-10-r4", "./js/pwa.js?v=p13-10-r4", "./js/release.js?v=p13-10-r4", "./js/finish.js?v=p13-10-r4", "./js/source-library.js?v=p13-10-r4", "./js/state.js?v=p13-10-r4", "./js/timeline-2.js?v=p13-10-r4", "./js/timeline-3.js?v=p13-10-r4", "./js/timeline.js?v=p13-10-r4", "./js/ux.js?v=p13-10-r4", "./js/workspace.js?v=p13-10-r4", "./vendor/jszip.min.js?v=p13-10-r4", "./vendor/gifuct.min.js?v=p13-10-r4", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
 const BAS_SHELL_URLS = new Set(BAS_SHELL.map(path => new URL(path, self.location.href).href));
 const BAS_INDEX_URL = new URL('./index.html', self.location.href).href;
 
@@ -16,8 +16,56 @@ self.addEventListener('activate', event => {
     );
 });
 
+function basModuleBaseAllowed(value) {
+    try {
+        const url = new URL(String(value || ''));
+        if (url.protocol !== 'http:' || url.port !== '4040' || url.username || url.password) return false;
+        const host = url.hostname;
+        if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+        const parts = host.split('.').map(Number);
+        if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+        return parts[0] === 10 || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || (parts[0] === 192 && parts[1] === 168);
+    } catch (error) {
+        return false;
+    }
+}
+
+async function basFinishPageDisconnect(data) {
+    const baseUrl = String(data?.baseUrl || '').replace(/\/$/, '');
+    const token = String(data?.token || '');
+    if (!token || !basModuleBaseAllowed(baseUrl)) return;
+    const body = new URLSearchParams();
+    body.set('token', token);
+    body.set('reason', 'page_unload');
+    try {
+        const response = await fetch(baseUrl + '/disconnect/beacon', {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-store',
+            body
+        });
+        if (response.ok || response.status === 401) return;
+    } catch (error) {
+    }
+    try {
+        await fetch(baseUrl + '/disconnect?reason=page_unload', {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-store',
+            headers: { 'X-Boot-Creator-Token': token }
+        });
+    } catch (error) {
+    }
+}
+
 self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'BAS_SKIP_WAITING') self.skipWaiting();
+    if (event.data && event.data.type === 'BAS_SKIP_WAITING') {
+        self.skipWaiting();
+        return;
+    }
+    if (event.data && event.data.type === 'BAS_PAGE_DISCONNECT') {
+        event.waitUntil(basFinishPageDisconnect(event.data));
+    }
 });
 
 self.addEventListener('fetch', event => {
