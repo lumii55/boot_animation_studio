@@ -202,8 +202,6 @@ function syncModulePermissionUi() {
     setDisplay('btn-reset', hasModuleFeature('rescan_paths') && canManage);
     const clearActivity = document.getElementById('boot-activity-clear');
     if (clearActivity) clearActivity.hidden = !canManage;
-    const accessTab = document.getElementById('module-workspace-tab-access');
-    if (accessTab && hasModuleFeature('trust_permissions')) accessTab.hidden = !canAdmin;
     if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
     if (window.BASPlaylist?.sync) window.BASPlaylist.sync();
     if (window.BASRotation?.sync) window.BASRotation.sync();

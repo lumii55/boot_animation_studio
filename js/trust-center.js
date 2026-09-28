@@ -340,14 +340,13 @@ function trustCenterRenderClients() {
 
 function trustCenterRender() {
     const section = document.getElementById('module-trust-center');
-    const count = document.getElementById('trust-center-count');
     if (!section) return;
 
     const supported = trustCenterSupported();
-    section.hidden = !supported || moduleWorkspaceUi?.currentTab !== 'access';
-    if (!supported) return;
+    const permissionAllowed = !hasModuleFeature('trust_permissions') || (typeof hasModulePermission === 'function' && hasModulePermission('admin'));
+    section.hidden = !supported || !permissionAllowed || moduleWorkspaceUi?.currentTab !== 'device';
+    if (!supported || !permissionAllowed) return;
 
-    if (count) count.textContent = String(trustCenterSessionsSupported() ? trustCenterState.sessions.length : trustCenterState.clients.length);
     trustCenterRenderSessions();
     trustCenterRenderClients();
     trustCenterRenderAudit();
@@ -582,7 +581,6 @@ function trustCenterSyncText() {
     set('security-audit-desc', 'securityAuditDesc', 'A bounded on-device record of sensitive access and control actions. Tokens, private keys and animation media are never stored here.');
     set('security-audit-download-label', 'securityAuditDownload', 'Export');
     set('security-audit-clear-label', 'securityAuditClear', 'Clear audit');
-    set('module-workspace-tab-access-label', 'moduleWorkspaceAccess', 'Access');
     trustCenterRender();
 }
 

@@ -28,11 +28,8 @@ function moduleWorkspaceSections() {
         ].filter(Boolean),
         test: [document.getElementById('module-test-lab')].filter(Boolean),
         playlists: [document.getElementById('module-playlists')].filter(Boolean),
-        history: [document.getElementById('history-wrapper')].filter(Boolean),
-        activity: [document.getElementById('boot-activity')].filter(Boolean),
-        health: [document.getElementById('module-health-center')].filter(Boolean),
-        access: [document.getElementById('module-trust-center')].filter(Boolean),
-        device: [document.getElementById('device-profile')].filter(Boolean)
+        history: [document.getElementById('history-wrapper'), document.getElementById('boot-activity')].filter(Boolean),
+        device: [document.getElementById('device-profile'), document.getElementById('module-health-center'), document.getElementById('module-trust-center')].filter(Boolean)
     };
 }
 
@@ -40,27 +37,29 @@ function moduleWorkspaceRestoreSections() {
     const sections = moduleWorkspaceSections();
     Object.entries(sections).forEach(([name, elements]) => {
         elements.forEach(element => {
-            element.hidden = name === 'history' || name === 'activity' || name === 'health' || name === 'access' || name === 'test' || name === 'playlists';
+            element.hidden = name === 'history' || name === 'test' || name === 'playlists';
         });
     });
+    const health = document.getElementById('module-health-center');
+    if (health) health.hidden = true;
+    const trust = document.getElementById('module-trust-center');
+    if (trust) trust.hidden = true;
+    const activity = document.getElementById('boot-activity');
+    if (activity) activity.hidden = true;
 }
 
 function syncModuleWorkspaceTabAvailability() {
     const historyTab = document.getElementById('module-workspace-tab-history');
     const testTab = document.getElementById('module-workspace-tab-test');
     const playlistTab = document.getElementById('module-workspace-tab-playlists');
-    const activityTab = document.getElementById('module-workspace-tab-activity');
-    const healthTab = document.getElementById('module-workspace-tab-health');
-    const accessTab = document.getElementById('module-workspace-tab-access');
     const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
+    const activityAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_activity');
     const testAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
     const playlistAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('playlists');
-    const activityAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_activity');
-    const healthAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('module_health');
-    const accessAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && (!hasModuleFeature('trust_permissions') || (typeof hasModulePermission === 'function' && hasModulePermission('admin')));
+    const historyGroupAvailable = historyAvailable || activityAvailable;
     if (historyTab) {
-        historyTab.hidden = !historyAvailable;
-        historyTab.style.display = historyAvailable ? '' : 'none';
+        historyTab.hidden = !historyGroupAvailable;
+        historyTab.style.display = historyGroupAvailable ? '' : 'none';
     }
     if (testTab) {
         testTab.hidden = !testAvailable;
@@ -70,42 +69,33 @@ function syncModuleWorkspaceTabAvailability() {
         playlistTab.hidden = !playlistAvailable;
         playlistTab.style.display = playlistAvailable ? '' : 'none';
     }
-    if (activityTab) {
-        activityTab.hidden = !activityAvailable;
-        activityTab.style.display = activityAvailable ? '' : 'none';
-    }
-    if (healthTab) {
-        healthTab.hidden = !healthAvailable;
-        healthTab.style.display = healthAvailable ? '' : 'none';
-    }
-    if (accessTab) {
-        accessTab.hidden = !accessAvailable;
-        accessTab.style.display = accessAvailable ? '' : 'none';
-    }
     const tabs = document.querySelector('.module-workspace-tabs');
     if (tabs) {
         const visibleCount = Array.from(tabs.querySelectorAll('[data-module-workspace-tab]')).filter(button => !button.hidden && button.style.display !== 'none').length;
         tabs.style.gridTemplateColumns = `repeat(${Math.max(1, visibleCount)}, minmax(0, 1fr))`;
     }
-    if ((!historyAvailable && moduleWorkspaceUi.currentTab === 'history') || (!activityAvailable && moduleWorkspaceUi.currentTab === 'activity') || (!healthAvailable && moduleWorkspaceUi.currentTab === 'health') || (!accessAvailable && moduleWorkspaceUi.currentTab === 'access') || (!testAvailable && moduleWorkspaceUi.currentTab === 'test') || (!playlistAvailable && moduleWorkspaceUi.currentTab === 'playlists')) {
+    if ((!historyGroupAvailable && moduleWorkspaceUi.currentTab === 'history') || (!testAvailable && moduleWorkspaceUi.currentTab === 'test') || (!playlistAvailable && moduleWorkspaceUi.currentTab === 'playlists')) {
         setModuleWorkspaceTab('overview', { focus: false });
     }
 }
 
 function setModuleWorkspaceTab(tab, options = {}) {
-    if (!['overview', 'test', 'playlists', 'history', 'activity', 'health', 'access', 'device'].includes(tab)) return;
-    if (tab === 'history' && typeof hasModuleFeature === 'function' && !hasModuleFeature('history')) tab = 'overview';
-    if (tab === 'activity' && typeof hasModuleFeature === 'function' && !hasModuleFeature('boot_activity')) tab = 'overview';
-    if (tab === 'health' && typeof hasModuleFeature === 'function' && !hasModuleFeature('module_health')) tab = 'overview';
-    if (tab === 'access' && typeof hasModuleFeature === 'function' && (!hasModuleFeature('trusted_clients') || (hasModuleFeature('trust_permissions') && typeof hasModulePermission === 'function' && !hasModulePermission('admin')))) tab = 'overview';
+    if (!['overview', 'test', 'playlists', 'history', 'device'].includes(tab)) return;
+    const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
+    const activityAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_activity');
+    if (tab === 'history' && !historyAvailable && !activityAvailable) tab = 'overview';
     if (tab === 'test' && typeof hasModuleFeature === 'function' && !hasModuleFeature('test_staging')) tab = 'overview';
     if (tab === 'playlists' && typeof hasModuleFeature === 'function' && !hasModuleFeature('playlists')) tab = 'overview';
     moduleWorkspaceUi.currentTab = tab;
     if (tab === 'device' && window.BASDeviceProfile?.setExpanded) window.BASDeviceProfile.setExpanded(true);
-    if (tab === 'history' && typeof loadHistory === 'function' && typeof hasModuleFeature === 'function' && hasModuleFeature('history')) loadHistory();
-    if (tab === 'activity' && window.BASBootActivity?.refresh) window.BASBootActivity.refresh();
-    if (tab === 'health' && window.BASHealthCenter?.refresh) window.BASHealthCenter.refresh();
-    if (tab === 'access' && window.BASTrustCenter?.refresh) window.BASTrustCenter.refresh();
+    if (tab === 'history') {
+        if (historyAvailable && typeof loadHistory === 'function') loadHistory();
+        if (activityAvailable && window.BASBootActivity?.refresh) window.BASBootActivity.refresh();
+    }
+    if (tab === 'device') {
+        if (typeof hasModuleFeature === 'function' && hasModuleFeature('module_health') && window.BASHealthCenter?.refresh) window.BASHealthCenter.refresh({ silent: true });
+        if (typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && window.BASTrustCenter?.refresh) window.BASTrustCenter.refresh({ silent: true });
+    }
     if (tab === 'test' && window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (tab === 'playlists' && window.BASPlaylist?.refresh) window.BASPlaylist.refresh();
     const sections = moduleWorkspaceSections();
@@ -114,6 +104,19 @@ function setModuleWorkspaceTab(tab, options = {}) {
             element.hidden = name !== tab;
         });
     });
+    if (tab === 'history') {
+        const history = document.getElementById('history-wrapper');
+        if (history) history.hidden = !historyAvailable;
+        const activity = document.getElementById('boot-activity');
+        if (activity) activity.hidden = !activityAvailable;
+    }
+    if (tab === 'device') {
+        const health = document.getElementById('module-health-center');
+        if (health) health.hidden = !(typeof hasModuleFeature === 'function' && hasModuleFeature('module_health'));
+        const access = document.getElementById('module-trust-center');
+        const accessAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && (!hasModuleFeature('trust_permissions') || (typeof hasModulePermission === 'function' && hasModulePermission('admin')));
+        if (access) access.hidden = !accessAvailable;
+    }
     document.querySelectorAll('[data-module-workspace-tab]').forEach(button => {
         const active = button.dataset.moduleWorkspaceTab === tab;
         button.classList.toggle('is-active', active);
@@ -136,9 +139,6 @@ function syncModuleWorkspaceText() {
     set('module-workspace-tab-test-label', 'moduleWorkspaceTest', 'Test');
     set('module-workspace-tab-playlists-label', 'moduleWorkspacePlaylists', 'Playlists');
     set('module-workspace-tab-history-label', 'moduleWorkspaceHistory', 'History');
-    set('module-workspace-tab-activity-label', 'moduleWorkspaceActivity', 'Activity');
-    set('module-workspace-tab-health-label', 'moduleWorkspaceHealth', 'Health');
-    set('module-workspace-tab-access-label', 'moduleWorkspaceAccess', 'Access');
     set('module-workspace-tab-device', 'moduleWorkspaceDevice', 'Device');
     set('module-workspace-open-label', 'moduleWorkspaceOpen', 'Open Module Workspace');
     set('module-workspace-open-studio-label', moduleWorkspaceUi.entryContext === 'launch' ? 'moduleWorkspaceOpenStudio' : 'moduleWorkspaceBackStudio', moduleWorkspaceUi.entryContext === 'launch' ? 'Open Studio' : 'Back to Studio');

@@ -1,4 +1,4 @@
-const healthCenterState = { data: null, loading: false, error: false };
+const healthCenterState = { data: null, loading: false, error: false, actionRunning: '' };
 
 function healthText(key, fallback) {
     try {
@@ -10,6 +10,25 @@ function healthText(key, fallback) {
 
 function healthSupported() {
     return typeof hasModuleFeature === 'function' && hasModuleFeature('module_health');
+}
+
+function healthMaintenanceSupported() {
+    return typeof hasModuleFeature === 'function' && hasModuleFeature('module_health_maintenance');
+}
+
+function healthCanManage() {
+    return typeof hasModulePermission !== 'function' || hasModulePermission('manage');
+}
+
+const HEALTH_ACTION_KEYS = {
+    cleanup_stale_temps: ['healthActionTempsTitle', 'Clean stale temporary files', 'healthActionTempsDesc', 'Remove interrupted-write .tmp files older than five minutes.'],
+    cleanup_orphan_objects: ['healthActionOrphansTitle', 'Remove unused playlist objects', 'healthActionOrphansDesc', 'Delete stored playlist objects that are not referenced by any playlist, Queue, override or prepared next boot.'],
+    clear_invalid_staging: ['healthActionStagingTitle', 'Clear invalid test staging', 'healthActionStagingDesc', 'Remove only the invalid temporary Test Lab animation so a clean staging session can be created.']
+};
+
+function healthActionCopy(action) {
+    const row = HEALTH_ACTION_KEYS[action.id] || ['healthActionGenericTitle', action.id || 'Maintenance', 'healthActionGenericDesc', 'Narrowly scoped module maintenance.'];
+    return { title: healthText(row[0], row[1]), description: healthText(row[2], row[3]) };
 }
 
 function healthBytes(value) {
@@ -66,7 +85,7 @@ function healthDetail(check) {
 function renderHealthCenter() {
     const root = document.getElementById('module-health-center');
     if (!root) return;
-    root.hidden = !healthSupported();
+    root.hidden = !healthSupported() || moduleWorkspaceUi?.currentTab !== 'device';
     if (!healthSupported()) return;
     const data = healthCenterState.data;
     const status = document.getElementById('health-center-status');
@@ -104,6 +123,46 @@ function renderHealthCenter() {
     if (storage) {
         storage.innerHTML = (data.storage?.buckets || []).map(bucket => `<article><span>${healthText(`healthBucket_${bucket.id}`, bucket.id)}</span><strong>${healthBytes(bucket.bytes)}</strong><small>${bucket.files || 0} ${healthText('healthFiles', 'files')}</small></article>`).join('');
     }
+    const maintenanceBlock = document.getElementById('health-maintenance-block');
+    const maintenanceList = document.getElementById('health-maintenance-list');
+    const actions = healthMaintenanceSupported() && Array.isArray(data.actions) ? data.actions : [];
+    if (maintenanceBlock) maintenanceBlock.hidden = !healthMaintenanceSupported();
+    if (maintenanceList && healthMaintenanceSupported()) {
+        maintenanceList.replaceChildren();
+        if (!actions.length) {
+            const empty = document.createElement('div');
+            empty.className = 'health-maintenance-empty';
+            empty.textContent = healthText('healthMaintenanceEmpty', 'No safe maintenance is needed right now.');
+            maintenanceList.appendChild(empty);
+        } else {
+            actions.forEach(action => {
+                const copy = healthActionCopy(action);
+                const card = document.createElement('article');
+                card.className = 'health-maintenance-card';
+                const body = document.createElement('div');
+                const title = document.createElement('strong');
+                title.textContent = copy.title;
+                const desc = document.createElement('p');
+                desc.textContent = copy.description;
+                const impact = document.createElement('small');
+                const bits = [];
+                if (Number(action.count) > 0) bits.push(`${healthText('healthCountLabel', 'Count')}: ${Number(action.count)}`);
+                if (Number(action.bytes) > 0) bits.push(healthBytes(action.bytes));
+                impact.textContent = bits.join(' · ');
+                body.append(title, desc);
+                if (impact.textContent) body.appendChild(impact);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn-upload';
+                button.textContent = healthCenterState.actionRunning === action.id ? healthText('healthActionRunning', 'Working…') : healthText('healthActionRun', 'Run maintenance');
+                button.disabled = !!healthCenterState.actionRunning || !healthCanManage();
+                if (!healthCanManage()) button.title = healthText('healthActionManageRequired', 'Manage access is required for maintenance actions.');
+                button.addEventListener('click', () => runHealthMaintenance(action));
+                card.append(body, button);
+                maintenanceList.appendChild(card);
+            });
+        }
+    }
 }
 
 async function refreshHealthCenter(options = {}) {
@@ -120,6 +179,34 @@ async function refreshHealthCenter(options = {}) {
         if (!options.silent) console.warn('Health Center refresh failed', error);
     } finally {
         healthCenterState.loading = false;
+        renderHealthCenter();
+    }
+}
+
+async function runHealthMaintenance(action) {
+    if (!healthMaintenanceSupported() || !healthCanManage() || healthCenterState.actionRunning) return;
+    const copy = healthActionCopy(action);
+    const question = healthText('healthActionConfirm', 'Run “{name}”? BAS will only touch the items described by this maintenance action.').replace('{name}', copy.title);
+    const confirmed = typeof askConfirmation === 'function' ? await askConfirmation(question, true) : window.confirm(question);
+    if (!confirmed) return;
+    healthCenterState.actionRunning = action.id;
+    renderHealthCenter();
+    try {
+        const response = await apiFetch('/health/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action.id })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.status !== 'ok') throw new Error(result.message || 'maintenance_failed');
+        if (result.health) healthCenterState.data = result.health;
+        else await refreshHealthCenter({ silent: true });
+        const message = healthText('healthActionDone', 'Maintenance finished: {count} item(s) removed.').replace('{count}', String(Number(result.removed_count) || 0));
+        if (typeof showToast === 'function') showToast(message, 'success', 3200);
+    } catch (error) {
+        if (typeof showToast === 'function') showToast(healthText('healthActionError', 'Could not complete module maintenance.'), 'error', 4500);
+    } finally {
+        healthCenterState.actionRunning = '';
         renderHealthCenter();
     }
 }
@@ -165,7 +252,9 @@ function syncHealthCenterText() {
     set('health-center-export-label', 'healthExport', 'Export diagnostics');
     set('health-checks-title', 'healthChecksTitle', 'Integrity checks');
     set('health-storage-title', 'healthStorageTitle', 'Storage');
-    set('health-readonly-note', 'healthReadonlyNote', 'This checkpoint is read-only. Repair and cleanup actions will only appear after their safety rules are validated.');
+    set('health-maintenance-title', 'healthMaintenanceTitle', 'Safe maintenance');
+    set('health-maintenance-desc', 'healthMaintenanceDesc', 'Only disposable or unreferenced data detected by the checks appears here.');
+    set('health-readonly-note', 'healthReadonlyNote', 'Maintenance is explicit and narrowly scoped. BAS rechecks module health after every action.');
     renderHealthCenter();
 }
 

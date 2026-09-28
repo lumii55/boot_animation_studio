@@ -55,7 +55,7 @@ function bootActivityReason(reason) {
 function renderBootActivity() {
     const section = document.getElementById('boot-activity');
     const supported = bootActivitySupported();
-    if (section) section.hidden = !supported || moduleWorkspaceUi?.currentTab !== 'activity';
+    if (section) section.hidden = !supported || moduleWorkspaceUi?.currentTab !== 'history';
     if (!supported) return;
     const list = document.getElementById('boot-activity-list');
     const count = document.getElementById('boot-activity-count');
