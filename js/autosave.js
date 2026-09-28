@@ -418,7 +418,15 @@ window.BASAutosave = Object.freeze({
     restore: restoreAutosavedProject,
     list: getAutosaveProjects,
     remove: deleteAutosaveProject,
-    refresh: renderRecentProjects
+    refresh: renderRecentProjects,
+    status: () => ({
+        unavailable: autosaveRuntime.unavailable,
+        saving: autosaveRuntime.saving,
+        restoring: autosaveRuntime.restoring,
+        scheduled: Boolean(autosaveRuntime.saveTimer),
+        pendingAfterSave: autosaveRuntime.pendingAfterSave,
+        lastSavedAt: autosaveRuntime.lastSavedAt
+    })
 });
 window.syncAutosaveUiText = syncAutosaveUiText;
 window.restoreAutosavedProject = restoreAutosavedProject;

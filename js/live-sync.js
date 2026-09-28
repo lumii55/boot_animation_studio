@@ -14,8 +14,38 @@
         controller: null,
         retryTimer: 0,
         generation: 0,
-        tasks: new Map()
+        tasks: new Map(),
+        eventLog: [],
+        debugTimers: new Set(),
+        debug: {
+            dropNextEvent: false,
+            delayMs: 0,
+            droppedEvents: 0,
+            forcedReconnects: 0,
+            staleTests: 0
+        }
     };
+
+
+
+    function pushEventLog(kind, detail = {}) {
+        const item = {
+            timestamp: Date.now(),
+            kind: String(kind || 'event'),
+            domain: detail.domain ? String(detail.domain) : '',
+            revision: Number.isFinite(Number(detail.revision)) ? Number(detail.revision) : null,
+            reason: detail.reason ? String(detail.reason).slice(0, 80) : '',
+            message: detail.message ? String(detail.message).slice(0, 160) : ''
+        };
+        state.eventLog.push(item);
+        if (state.eventLog.length > 120) state.eventLog.splice(0, state.eventLog.length - 120);
+        return item;
+    }
+
+    function clearDebugTimers() {
+        state.debugTimers.forEach(timer => clearTimeout(timer));
+        state.debugTimers.clear();
+    }
 
     function supported() {
         return typeof hasModuleFeature === 'function' && hasModuleFeature('live_events') && hasModuleFeature('state_revisions');
@@ -128,9 +158,11 @@
                 await refreshTask(key);
                 state.refreshes += 1;
                 state.lastRefresh = { key, reason: refreshReason, revision: refreshRevision, timestamp: Date.now() };
+                pushEventLog('refresh.ok', { domain: key, revision: refreshRevision, reason: refreshReason });
                 emit('bas:live-refresh', { ...state.lastRefresh });
             } catch (error) {
                 state.refreshErrors += 1;
+                pushEventLog('refresh.error', { domain: key, revision: refreshRevision, reason: refreshReason, message: String(error?.message || error || 'refresh failed') });
                 emit('bas:live-refresh-error', { key, reason: refreshReason, revision: refreshRevision, error: String(error?.message || error || 'refresh failed') });
             } finally {
                 task.running = false;
@@ -160,13 +192,14 @@
         state.epoch = nextEpoch;
         state.revisions = next;
         if (changed.length) {
+            pushEventLog('resync', { reason, message: changed.join(', ') });
             emit('bas:live-resync', { reason, changed, previousEpoch, epoch: nextEpoch, revisions: { ...next } });
             scheduleChangedDomains(changed, reason, next);
         }
         return data;
     }
 
-    function handleEvent(event) {
+    function processEvent(event) {
         if (!event || typeof event !== 'object') return;
         if (event.type === 'sync.ready') {
             const nextEpoch = String(event.epoch || '');
@@ -175,7 +208,9 @@
             const previousEpoch = state.epoch;
             state.epoch = nextEpoch;
             state.revisions = next;
+            pushEventLog('sync.ready', { reason: changed.length ? 'changed' : 'steady', message: abbreviateEpoch(nextEpoch) });
             if (changed.length) {
+                pushEventLog('resync', { reason: 'stream-ready', message: changed.join(', ') });
                 emit('bas:live-resync', { reason: 'stream-ready', changed, previousEpoch, epoch: nextEpoch, revisions: { ...next } });
                 scheduleChangedDomains(changed, 'stream-ready', next);
             }
@@ -186,8 +221,39 @@
         if (domain && Number.isFinite(revision) && revision >= 0) state.revisions[domain] = revision;
         state.events += 1;
         state.lastEvent = event;
+        pushEventLog('event', { domain, revision, reason: String(event.type || '') });
         emit('bas:live-event', event);
         if (domain) scheduleDomainRefresh(domain, 'event', revision);
+    }
+
+    function abbreviateEpoch(value) {
+        const raw = String(value || '');
+        return raw.length > 14 ? `${raw.slice(0, 5)}…${raw.slice(-5)}` : raw;
+    }
+
+    function handleEvent(event) {
+        if (!event || typeof event !== 'object') return;
+        const isDomainEvent = event.type !== 'sync.ready' && Boolean(event.domain);
+        if (isDomainEvent && state.debug.dropNextEvent) {
+            state.debug.dropNextEvent = false;
+            state.debug.droppedEvents += 1;
+            pushEventLog('fault.drop', { domain: event.domain, revision: event.revision, reason: event.type || 'event' });
+            emit('bas:live-debug', { type: 'drop', domain: String(event.domain || ''), revision: Number(event.revision || 0) });
+            return;
+        }
+        const delay = isDomainEvent ? Math.max(0, Math.min(10000, Number(state.debug.delayMs) || 0)) : 0;
+        if (!delay) {
+            processEvent(event);
+            return;
+        }
+        pushEventLog('fault.delay', { domain: event.domain, revision: event.revision, reason: `${delay}ms` });
+        const generation = state.generation;
+        const timer = setTimeout(() => {
+            state.debugTimers.delete(timer);
+            if (!state.active || generation !== state.generation) return;
+            processEvent(event);
+        }, delay);
+        state.debugTimers.add(timer);
     }
 
     async function consumeStream(response, generation) {
@@ -236,6 +302,7 @@
             }
             state.connected = true;
             state.lastError = '';
+            pushEventLog('stream.connected', { reason: state.reconnects ? 'reconnect' : 'start' });
             emit('bas:live-status', status());
             await consumeStream(response, generation);
             if (state.active && generation === state.generation) throw new Error('live stream ended');
@@ -248,6 +315,7 @@
             }
             state.connected = false;
             state.lastError = String(error?.message || error || 'live stream error');
+            pushEventLog('stream.error', { reason: 'retry', message: state.lastError });
             emit('bas:live-status', status());
             scheduleReconnect(generation);
         }
@@ -267,6 +335,13 @@
         state.lastError = '';
         state.epoch = '';
         state.revisions = {};
+        state.eventLog = [];
+        clearDebugTimers();
+        state.debug.dropNextEvent = false;
+        state.debug.delayMs = 0;
+        state.debug.droppedEvents = 0;
+        state.debug.forcedReconnects = 0;
+        state.debug.staleTests = 0;
         state.generation += 1;
         connectStream(state.generation);
         return true;
@@ -276,6 +351,7 @@
         state.active = false;
         state.connected = false;
         state.generation += 1;
+        clearDebugTimers();
         if (state.controller) state.controller.abort();
         state.controller = null;
         if (state.retryTimer) clearTimeout(state.retryTimer);
@@ -301,9 +377,85 @@
             refreshErrors: state.refreshErrors,
             lastEvent: state.lastEvent,
             lastRefresh: state.lastRefresh,
-            lastError: state.lastError
+            lastError: state.lastError,
+            eventLog: state.eventLog.map(item => ({ ...item })),
+            debug: { ...state.debug }
         };
     }
 
-    window.BASLiveSync = { supported, start, stop, status, fetchSnapshot, refreshDomain: scheduleDomainRefresh };
+    function debugSetDropNext(enabled = true) {
+        state.debug.dropNextEvent = Boolean(enabled);
+        pushEventLog('fault.config', { reason: state.debug.dropNextEvent ? 'drop-next:on' : 'drop-next:off' });
+        emit('bas:live-debug', { type: 'drop-next', enabled: state.debug.dropNextEvent });
+        return state.debug.dropNextEvent;
+    }
+
+    function debugSetDelay(value = 0) {
+        state.debug.delayMs = Math.max(0, Math.min(10000, Math.floor(Number(value) || 0)));
+        pushEventLog('fault.config', { reason: `delay:${state.debug.delayMs}ms` });
+        emit('bas:live-debug', { type: 'delay', delayMs: state.debug.delayMs });
+        return state.debug.delayMs;
+    }
+
+    function debugForceReconnect() {
+        if (!state.active || !supported()) return false;
+        const generation = state.generation;
+        state.debug.forcedReconnects += 1;
+        pushEventLog('fault.reconnect', { reason: 'developer' });
+        state.connected = false;
+        if (state.controller) state.controller.abort();
+        state.controller = null;
+        if (state.retryTimer) clearTimeout(state.retryTimer);
+        state.retryTimer = 0;
+        setTimeout(() => {
+            if (!state.active || generation !== state.generation) return;
+            state.reconnects += 1;
+            connectStream(generation);
+        }, 0);
+        emit('bas:live-debug', { type: 'force-reconnect' });
+        return true;
+    }
+
+    async function debugTestStaleRevision(domain) {
+        if (!state.active || !supported()) return false;
+        const key = String(domain || '').trim();
+        if (!key) return false;
+        const current = Number(state.revisions[key] || 0);
+        state.revisions[key] = current - 1;
+        state.debug.staleTests += 1;
+        pushEventLog('fault.stale', { domain: key, revision: state.revisions[key], reason: 'developer' });
+        emit('bas:live-debug', { type: 'stale-revision', domain: key, revision: state.revisions[key] });
+        await fetchSnapshot('developer-stale');
+        return true;
+    }
+
+    function debugReset() {
+        state.debug.dropNextEvent = false;
+        state.debug.delayMs = 0;
+        clearDebugTimers();
+        pushEventLog('fault.config', { reason: 'reset' });
+        emit('bas:live-debug', { type: 'reset' });
+    }
+
+    function debugClearLog() {
+        state.eventLog = [];
+        emit('bas:live-debug', { type: 'clear-log' });
+    }
+
+    window.BASLiveSync = {
+        supported,
+        start,
+        stop,
+        status,
+        fetchSnapshot,
+        refreshDomain: scheduleDomainRefresh,
+        debug: Object.freeze({
+            setDropNext: debugSetDropNext,
+            setDelay: debugSetDelay,
+            forceReconnect: debugForceReconnect,
+            testStaleRevision: debugTestStaleRevision,
+            reset: debugReset,
+            clearLog: debugClearLog
+        })
+    };
 })();

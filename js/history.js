@@ -223,7 +223,14 @@ window.BASProjectHistory = Object.freeze({
     canUndo: projectHistoryCanUndo,
     canRedo: projectHistoryCanRedo,
     reset: resetProjectHistory,
-    syncUi: syncProjectHistoryUi
+    syncUi: syncProjectHistoryUi,
+    status: () => ({
+        entries: projectHistoryRuntime.entries.length,
+        index: projectHistoryRuntime.index,
+        undoDepth: Math.max(0, projectHistoryRuntime.index),
+        redoDepth: Math.max(0, projectHistoryRuntime.entries.length - projectHistoryRuntime.index - 1),
+        applying: projectHistoryRuntime.applying
+    })
 });
 window.syncProjectHistoryUi = syncProjectHistoryUi;
 window.addEventListener('DOMContentLoaded', bindProjectHistory);

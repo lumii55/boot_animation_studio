@@ -1,4 +1,6 @@
 (function() {
+    const debugState = { active: 0, total: 0, failures: 0, aborts: 0, lastError: '', lastStartedAt: 0, lastSettledAt: 0 };
+
     function abortError() {
         const error = new Error('Media seek aborted');
         error.name = 'AbortError';
@@ -99,29 +101,43 @@
     }
 
     async function seek(element, time, options = {}) {
-        if (!element) throw new Error('Media element unavailable');
-        const target = clampTarget(element, time, options.epsilon);
-        const tolerance = Math.max(0.0001, Number(options.tolerance) || 0.01);
-        const requireData = options.requireData !== false;
-        if (options.signal && options.signal.aborted) throw abortError();
-        if (canFinish(element, target, tolerance, requireData)) return target;
-        const retries = Math.max(0, Math.min(3, Math.floor(Number(options.retries) || 0)));
-        let lastError = null;
-        for (let attempt = 0; attempt <= retries; attempt++) {
-            try {
-                return await seekOnce(element, target, options);
-            } catch (error) {
-                if (error && error.name === 'AbortError') throw error;
-                lastError = error;
-                if (options.signal && options.signal.aborted) throw abortError();
+        debugState.total += 1;
+        debugState.active += 1;
+        debugState.lastStartedAt = Date.now();
+        try {
+            if (!element) throw new Error('Media element unavailable');
+            const target = clampTarget(element, time, options.epsilon);
+            const tolerance = Math.max(0.0001, Number(options.tolerance) || 0.01);
+            const requireData = options.requireData !== false;
+            if (options.signal && options.signal.aborted) throw abortError();
+            if (canFinish(element, target, tolerance, requireData)) return target;
+            const retries = Math.max(0, Math.min(3, Math.floor(Number(options.retries) || 0)));
+            let lastError = null;
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    return await seekOnce(element, target, options);
+                } catch (error) {
+                    if (error && error.name === 'AbortError') throw error;
+                    lastError = error;
+                    if (options.signal && options.signal.aborted) throw abortError();
+                }
             }
+            throw lastError || new Error('Unable to seek media');
+        } catch (error) {
+            if (error && error.name === 'AbortError') debugState.aborts += 1;
+            else debugState.failures += 1;
+            debugState.lastError = String(error?.message || error || 'Media seek failed').slice(0, 180);
+            throw error;
+        } finally {
+            debugState.active = Math.max(0, debugState.active - 1);
+            debugState.lastSettledAt = Date.now();
         }
-        throw lastError || new Error('Unable to seek media');
     }
 
     window.BASMediaSeek = Object.freeze({
         seek,
         clampTarget,
-        isFrameReady
+        isFrameReady,
+        status: () => ({ ...debugState })
     });
 })();
