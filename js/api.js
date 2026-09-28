@@ -379,6 +379,35 @@ function syncConnectedDeviceSurfaces() {
     if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
 }
 
+async function refreshConnectedModuleState(options = {}) {
+    if (!isConnectedMode || !sessionToken) return null;
+    try {
+        const response = await apiFetch('/ping', { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== 'ok') {
+            const error = new Error(data.message || `module_state_${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+        window.connectedPhoneModel = data.model || window.connectedPhoneModel || '';
+        window.connectedPhoneResolution = data.resolution || window.connectedPhoneResolution || '';
+        moduleAccessPermission = normalizeModuleAccessPermission(data.permission);
+        if (Object.prototype.hasOwnProperty.call(data, 'has_custom')) window.hasCustomAnimApplied = Boolean(data.has_custom);
+        if (window.BASMultiDevice?.captureConnected) window.BASMultiDevice.captureConnected(data);
+        const status = document.getElementById('status-connected');
+        if (status) status.textContent = window.connectedPhoneModel || traducoes[idiomaAtual].statusConnected;
+        applyConnectedCapabilities(data);
+        syncModulePermissionUi();
+        syncConnectedDeviceSurfaces();
+        if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+        return data;
+    } catch (error) {
+        if (!options.silent) console.warn('[BAS] Connected module state refresh failed.', error);
+        throw error;
+    }
+}
+window.BASRefreshConnectedModuleState = refreshConnectedModuleState;
+
 function forcarDesconexao() {
     if (window.BASMultiDevice?.disconnectAllOnUnload) {
         window.BASMultiDevice.disconnectAllOnUnload();
@@ -715,12 +744,10 @@ function startManualMode() {
     syncConnectedDeviceSurfaces();
 }
 
-async function disconnectPhone() {
-    window.BASLiveSync?.stop?.();
-    const disconnectPath = hasModuleFeature('disconnect_feedback') ? '/disconnect?reason=manual' : '/disconnect';
-    try { await apiFetch(disconnectPath, { method: 'POST' }); } catch(e) {}
+function finalizeLocalModuleDisconnect() {
     if (window.BASMultiDevice?.captureDisconnected) window.BASMultiDevice.captureDisconnected();
     sessionToken = '';
+    moduleAccessPermission = 'admin';
     resetModuleCompatibility();
     if (window.BASDeviceIntelligence?.reset) window.BASDeviceIntelligence.reset();
     if (window.BASTrustCenter?.resetConnection) window.BASTrustCenter.resetConnection();
@@ -753,6 +780,20 @@ async function disconnectPhone() {
     if (window.BASRotation?.resetConnection) window.BASRotation.resetConnection();
     if (window.BASBootActivity?.resetConnection) window.BASBootActivity.resetConnection();
 }
+
+async function disconnectPhone() {
+    window.BASLiveSync?.stop?.();
+    const disconnectPath = hasModuleFeature('disconnect_feedback') ? '/disconnect?reason=manual' : '/disconnect';
+    try { await apiFetch(disconnectPath, { method: 'POST' }); } catch(e) {}
+    finalizeLocalModuleDisconnect();
+}
+
+function handleLiveAuthorizationLost() {
+    if (!isConnectedMode) return;
+    window.BASLiveSync?.stop?.();
+    finalizeLocalModuleDisconnect();
+}
+window.addEventListener('bas:live-auth-lost', handleLiveAuthorizationLost);
 
 async function removeAnimation() {
     const t = traducoes[idiomaAtual];

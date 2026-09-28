@@ -334,7 +334,7 @@ function renderPlaylists() {
     if (window.BASBootQueue?.sync) window.BASBootQueue.sync();
 }
 
-async function refreshPlaylists() {
+async function refreshPlaylists(options = {}) {
     if (!playlistSupported()) {
         playlistRuntime.playlists = [];
         playlistRuntime.selectedId = '';
@@ -349,7 +349,7 @@ async function refreshPlaylists() {
         renderPlaylists();
         return playlistRuntime.playlists;
     } catch (error) {
-        if (typeof showToast === 'function') showToast(error.message, 'error', 4400);
+        if (!options.silent && typeof showToast === 'function') showToast(error.message, 'error', 4400);
         return [];
     }
 }

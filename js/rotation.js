@@ -164,7 +164,7 @@ function syncRotationVisibility() {
     renderRotationState();
 }
 
-async function refreshRotation() {
+async function refreshRotation(options = {}) {
     if (!rotationSupported()) {
         rotationRuntime.status = null;
         rotationRuntime.loaded = false;
@@ -180,7 +180,7 @@ async function refreshRotation() {
         renderRotationState();
         return data;
     } catch (error) {
-        if (typeof showToast === 'function') showToast(error.message, 'error', 4400);
+        if (!options.silent && typeof showToast === 'function') showToast(error.message, 'error', 4400);
         return null;
     }
 }

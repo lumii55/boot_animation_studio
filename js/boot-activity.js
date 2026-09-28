@@ -148,7 +148,7 @@ function syncBootActivityText() {
     renderBootActivity();
 }
 
-async function refreshBootActivity() {
+async function refreshBootActivity(options = {}) {
     if (!bootActivitySupported() || bootActivityRuntime.loading) return null;
     bootActivityRuntime.loading = true;
     renderBootActivity();
@@ -160,7 +160,7 @@ async function refreshBootActivity() {
         bootActivityRuntime.limit = Math.max(1, Number(data.limit) || 50);
         return data;
     } catch (error) {
-        if (typeof showToast === 'function') showToast(error.message || bootActivityText('bootActivityError', 'Could not load Boot Activity.'), 'error', 4500);
+        if (!options.silent && typeof showToast === 'function') showToast(error.message || bootActivityText('bootActivityError', 'Could not load Boot Activity.'), 'error', 4500);
         return null;
     } finally {
         bootActivityRuntime.loading = false;
