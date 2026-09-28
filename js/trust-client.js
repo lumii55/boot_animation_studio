@@ -33,6 +33,15 @@ function trustClientOpenDb() {
     });
 }
 
+function trustClientDeleteDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(BAS_TRUST_CLIENT_DB);
+        request.onsuccess = () => resolve(true);
+        request.onerror = () => reject(request.error || new Error('trust_identity_db_delete_failed'));
+        request.onblocked = () => reject(new Error('trust_identity_db_delete_blocked'));
+    });
+}
+
 async function trustClientReadStored() {
     const db = await trustClientOpenDb();
     try {
@@ -107,26 +116,37 @@ function trustClientStoredValid(identity) {
 
 async function trustClientInitialize() {
     if (!trustClientRuntime.available) return null;
-    try {
-        let identity = await trustClientReadStored();
-        if (trustClientStoredValid(identity)) {
-            const expectedId = await trustClientIdForPublicJwk(identity.publicJwk);
-            if (expectedId !== identity.id) identity = null;
-        } else {
-            identity = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            let identity = await trustClientReadStored();
+            if (trustClientStoredValid(identity)) {
+                const expectedId = await trustClientIdForPublicJwk(identity.publicJwk);
+                if (expectedId !== identity.id) identity = null;
+            } else {
+                identity = null;
+            }
+            if (!identity) {
+                identity = await trustClientGenerate();
+                await trustClientWriteStored(identity);
+            }
+            trustClientRuntime.identity = identity;
+            return identity;
+        } catch (error) {
+            console.warn('[BAS] Trusted-client identity initialization failed.', error);
+            if (attempt === 0) {
+                try {
+                    await trustClientDeleteDb();
+                    continue;
+                } catch (repairError) {
+                    console.warn('[BAS] Trusted-client identity repair failed.', repairError);
+                }
+            }
+            trustClientRuntime.available = false;
+            trustClientRuntime.identity = null;
+            return null;
         }
-        if (!identity) {
-            identity = await trustClientGenerate();
-            await trustClientWriteStored(identity);
-        }
-        trustClientRuntime.identity = identity;
-        return identity;
-    } catch (error) {
-        console.warn('[BAS] Trusted-client identity is unavailable; approval will use the legacy session path.', error);
-        trustClientRuntime.available = false;
-        trustClientRuntime.identity = null;
-        return null;
     }
+    return null;
 }
 
 function trustClientReady() {

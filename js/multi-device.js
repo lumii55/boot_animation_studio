@@ -413,7 +413,9 @@ async function multiDeviceScan(options = {}) {
         });
     } catch (error) {
     }
-    if (!subnets.length) ['192.168.0', '192.168.1', '192.168.15', '10.0.0'].forEach(subnet => subnets.push(subnet));
+    ['192.168.0', '192.168.1', '192.168.15', '10.0.0'].forEach(subnet => {
+        if (!subnets.includes(subnet)) subnets.push(subnet);
+    });
 
     const exactSet = new Set(exact);
     const found = [];

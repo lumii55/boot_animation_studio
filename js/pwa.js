@@ -1,4 +1,4 @@
-const BAS_PWA_VERSION = '13.6D';
+const BAS_PWA_VERSION = '13.10-R1A';
 const basPwaState = {
     version: BAS_PWA_VERSION,
     supported: 'serviceWorker' in navigator,
@@ -84,6 +84,7 @@ async function registerBASPWA() {
     try {
         basPwaState.registration = await navigator.serviceWorker.register('./service-worker.js', { scope: './', updateViaCache: 'none' });
         watchPwaRegistration(basPwaState.registration);
+        try { await basPwaState.registration.update(); } catch (error) {}
         return basPwaState.registration;
     } catch (error) {
         basPwaState.error = error;

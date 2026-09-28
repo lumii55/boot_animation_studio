@@ -393,6 +393,24 @@ window.addEventListener('unload', forcarDesconexao);
 async function connectToPhone() {
     const btn = document.getElementById('btn-connect');
     const t = traducoes[idiomaAtual];
+
+    if (!isConnectedMode) {
+        btn.textContent = t.msgSearching;
+        try {
+            const loopbackBase = 'http://127.0.0.1:4040';
+            const response = await localNetworkFetch(loopbackBase + '/info', { signal: AbortSignal.timeout(650) });
+            if (response.ok) {
+                const info = await response.json().catch(() => null);
+                if (info && Number.isInteger(Number(info.api_version))) {
+                    if (window.BASMultiDevice?.prepareBase) window.BASMultiDevice.prepareBase(loopbackBase, info);
+                    else IP_LOCAL = loopbackBase;
+                    if (await tentaConexao()) return;
+                }
+            }
+        } catch (error) {
+        }
+    }
+
     const knownDevices = window.BASMultiDevice?.devices?.() || [];
     const connectedDevices = window.BASMultiDevice?.connectedCount?.() || 0;
     if (knownDevices.length > 1 || (!isConnectedMode && connectedDevices > 0)) {
