@@ -610,6 +610,34 @@ function multiDeviceSyncText() {
     multiDeviceRender();
 }
 
+function multiDeviceSendUnloadDisconnect(device) {
+    if (!device?.token || !device?.baseUrl) return;
+    const supportsFeedback = Array.isArray(device.features) && device.features.includes('disconnect_feedback');
+    if (supportsFeedback) {
+        const body = new URLSearchParams();
+        body.set('token', device.token);
+        body.set('reason', 'page_unload');
+        try {
+            if (navigator.sendBeacon && navigator.sendBeacon(device.baseUrl + '/disconnect/beacon', body)) return;
+        } catch (error) {
+        }
+        try {
+            fetch(device.baseUrl + '/disconnect/beacon', {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                keepalive: true,
+                body
+            }).catch(() => {});
+            return;
+        } catch (error) {
+        }
+    }
+    const headers = { 'X-Boot-Creator-Token': device.token };
+    const path = supportsFeedback ? '/disconnect?reason=page_unload' : '/disconnect';
+    localNetworkFetch(device.baseUrl + path, { method: 'POST', headers, keepalive: true }).catch(() => {});
+}
+
 function multiDeviceOnBeforeUnload() {
     if (multiDeviceRuntime.unloadSent) return;
     multiDeviceRuntime.unloadSent = true;
@@ -618,8 +646,7 @@ function multiDeviceOnBeforeUnload() {
     multiDeviceRuntime.devices.forEach(device => {
         if (!device.token || !device.baseUrl || seen.has(device.id)) return;
         seen.add(device.id);
-        const headers = { 'X-Boot-Creator-Token': device.token };
-        localNetworkFetch(device.baseUrl + '/disconnect', { method: 'POST', headers, keepalive: true }).catch(() => {});
+        multiDeviceSendUnloadDisconnect(device);
     });
 }
 

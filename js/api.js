@@ -713,7 +713,8 @@ function startManualMode() {
 }
 
 async function disconnectPhone() {
-    try { await apiFetch('/disconnect', { method: 'POST' }); } catch(e) {}
+    const disconnectPath = hasModuleFeature('disconnect_feedback') ? '/disconnect?reason=manual' : '/disconnect';
+    try { await apiFetch(disconnectPath, { method: 'POST' }); } catch(e) {}
     if (window.BASMultiDevice?.captureDisconnected) window.BASMultiDevice.captureDisconnected();
     sessionToken = '';
     resetModuleCompatibility();

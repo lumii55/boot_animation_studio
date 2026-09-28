@@ -158,6 +158,7 @@ function trustCenterAuditActionLabel(action) {
         'auth.denied': 'Connection denied',
         'auth.reconnected': 'Trusted browser reconnected',
         'session.disconnected.self': 'Website disconnected',
+        'session.disconnected.page_unload': 'Website closed or reloaded',
         'session.disconnected.admin': 'Session disconnected by Admin',
         'session.disconnected.all': 'All website sessions disconnected',
         'trust.permission.changed': 'Trusted browser access changed',
