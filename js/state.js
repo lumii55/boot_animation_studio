@@ -8,6 +8,9 @@ let currentProject = null;
 let currentPlayerObjectUrl = null;
 let jpegExportQuality = 0.90;
 
+const BAS_PUBLIC_BUILD_LABEL = 'Development build';
+const BAS_PUBLIC_MODULE_BASELINE = 'v1.3';
+
 const SITE_API_MIN = 1;
 const SITE_API_MAX = 1;
 const LEGACY_SECURE_FEATURES = new Set([

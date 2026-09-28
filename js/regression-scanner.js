@@ -2,13 +2,13 @@
     'use strict';
 
     const VERSION = 1;
-    const RELEASE = 'P13.12 R2';
+    const RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Development build';
     const HISTORY_KEY = 'bas.developer.regression.history.v1';
     const HISTORY_LIMIT = 5;
     const DEFAULT_TIMEOUT_MS = 7000;
     const STATUS_FACTOR = Object.freeze({ pass: 1, warn: 0.6, fail: 0 });
     const SEVERITY_WEIGHT = Object.freeze({ critical: 12, major: 6, normal: 3, minor: 1 });
-    const CATEGORY_ORDER = ['runtime', 'project', 'media', 'sequence', 'composition', 'output', 'persistence', 'ui', 'pwa', 'companion'];
+    const CATEGORY_ORDER = ['runtime', 'compatibility', 'project', 'media', 'sequence', 'composition', 'output', 'persistence', 'ui', 'pwa', 'companion'];
 
     const registry = [];
     const state = {
@@ -229,7 +229,7 @@
 
     function categoryLabel(category) {
         const labels = {
-            runtime: ['regressionCategoryRuntime', 'Runtime'], project: ['regressionCategoryProject', 'Project'],
+            runtime: ['regressionCategoryRuntime', 'Runtime'], compatibility: ['regressionCategoryCompatibility', 'Compatibility'], project: ['regressionCategoryProject', 'Project'],
             media: ['regressionCategoryMedia', 'Media'], sequence: ['regressionCategorySequence', 'Timeline / Sequence'],
             composition: ['regressionCategoryComposition', 'Composition / Audio'], output: ['regressionCategoryOutput', 'Output / Compatibility'],
             persistence: ['regressionCategoryPersistence', 'Persistence'], ui: ['regressionCategoryUi', 'UI / Wiring'],
@@ -452,6 +452,46 @@
         if (owner.shouldDisconnectOnPageHide({ type: 'pagehide', persisted: false }) !== true) throw new Error('Real page exit would not disconnect');
         return 'BFCache preserved · real exits disconnect';
     }});
+    register({ id: 'compat.public-v13-contract', name: 'Published module v1.3 contract', category: 'compatibility', severity: 'critical', run: () => {
+        const contract = window.BASPublicCompatibility?.publicModuleV13;
+        if (!contract) throw new Error('Public v1.3 compatibility contract missing');
+        if (contract.apiVersion !== 1 || contract.moduleVersion !== 'v1.3' || contract.moduleVersionCode !== 4 || contract.companionVersionCode !== 6) throw new Error('Published v1.3 metadata drift');
+        const expected = ['session_auth','direct_upload','pull','history','history_webm','remove','reset','test_animation','device_resolution','update_preservation','qr_pairing'];
+        if (!BASPublicCompatibility.sameSet(contract.features, expected)) throw new Error('Published v1.3 capability fixture drift');
+        if (SITE_API_MIN > 1 || SITE_API_MAX < 1) throw new Error('Site API range no longer accepts public API v1');
+        return 'v1.3 · versionCode 4 · API 1 · 11 capabilities';
+    }});
+    register({ id: 'compat.public-v13-gating', name: 'Published v1.3 capability gating', category: 'compatibility', severity: 'critical', run: () => {
+        const audit = window.BASPublicCompatibility?.auditPublicV13FeatureGating?.();
+        if (!audit) throw new Error('Public v1.3 gating audit unavailable');
+        if (!audit.ok) throw new Error(audit.problems.join('; '));
+        return audit.detail;
+    }});
+    register({ id: 'compat.public-v13-reset-distinction', name: 'Legacy reset / modern rescan distinction', category: 'compatibility', severity: 'critical', run: async () => {
+        const source = await (await fetch('./js/api.js', { cache: 'no-store' })).text();
+        if (!/function\s+resetarModulo\s*\([^)]*\)\s*\{[\s\S]*?ensureModuleFeature\(['\"]rescan_paths['\"]\)[\s\S]*?apiFetch\(['\"]\/rescan['\"]/.test(source)) throw new Error('Rescan action is not strictly gated to rescan_paths + /rescan');
+        if (/function\s+resetarModulo\s*\([^)]*\)\s*\{[\s\S]*?apiFetch\(['\"]\/reset['\"]/.test(source)) throw new Error('Modern Rescan aliases the destructive public-v1.3 /reset endpoint');
+        return 'Public /reset remains distinct from modern /rescan';
+    }});
+    register({ id: 'compat.public-v13-endpoint-fallbacks', name: 'Published v1.3 endpoint fallbacks', category: 'compatibility', severity: 'critical', run: async () => {
+        const [apiSource, mediaSource, exportSource] = await Promise.all([
+            fetch('./js/api.js', { cache: 'no-store' }).then(r => r.text()),
+            fetch('./js/media.js', { cache: 'no-store' }).then(r => r.text()),
+            fetch('./js/export.js', { cache: 'no-store' }).then(r => r.text())
+        ]);
+        if (!/hasModuleFeature\(['\"]history_details['\"]\)[\s\S]*?\/history\/items[\s\S]*?\/history\/list/.test(apiSource)) throw new Error('Legacy History /history/list fallback missing');
+        if (!/hasModuleFeature\(['\"]trusted_clients['\"]\)[\s\S]*?BASTrustClient/.test(apiSource)) throw new Error('Modern Trust headers are not capability-gated');
+        if (!/ensureModuleFeature\(['\"]test_animation['\"]\)[\s\S]*?apiFetch\(['\"]\/test_anim['\"]/.test(mediaSource)) throw new Error('Legacy /test_anim flow missing');
+        if (!/ensureModuleFeature\(['\"]direct_upload['\"]\)[\s\S]*?apiFetch\(['\"]\/upload['\"]/.test(exportSource)) throw new Error('Legacy direct /upload flow missing');
+        return 'Auth/History/Test/Apply fallbacks retained for published v1.3';
+    }});
+    register({ id: 'compat.public-surface-codenames', name: 'Public surface hides internal phase codenames', category: 'compatibility', severity: 'major', run: () => {
+        const leaks = window.BASPublicCompatibility?.publicSurfaceCodenameLeaks?.() || [];
+        if (leaks.length) throw new Error(`Internal phase label visible: ${leaks.join(', ')}`);
+        const label = String(typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : '');
+        if (!label || /\bP\d+(?:\.\d+)+/i.test(label)) throw new Error('Public build label contains an internal phase codename');
+        return label;
+    }});
     register({ id: 'runtime.media-seek-clamp', name: 'Media seek boundary clamp', category: 'media', severity: 'major', run: () => {
         const fake = { duration: 10 }; const value = BASMediaSeek.clampTarget(fake, 99, 0.001); if (!(value > 9.99 && value < 10)) throw new Error(`Unexpected clamp ${value}`); return value.toFixed(3);
     }});
@@ -619,7 +659,7 @@
         const response=await fetch('./service-worker.js',{cache:'no-store'}); const source=await response.text(); const match=source.match(/const\s+BAS_SHELL\s*=\s*(\[[\s\S]*?\]);/); if(!match) throw new Error('BAS_SHELL not found'); const list=JSON.parse(match[1]); let failed=[]; for(const path of list){ try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok)failed.push(`${path}:${r.status}`);}catch(e){failed.push(path);} } if(failed.length) throw new Error(`${failed.length} unreachable: ${failed.slice(0,4).join(', ')}`); return `${list.length}/${list.length} assets reachable`;
     }});
     register({ id: 'pwa.cache-version', name: 'PWA cache version matches release', category: 'pwa', severity: 'normal', run: async () => {
-        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('p13-12-r2')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
+        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(!cache.includes('development-r1')) return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
     }});
 
     // ---- Connected Companion: read-only ----
