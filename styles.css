@@ -16656,3 +16656,65 @@ summary:focus-visible {
     .path-rescan-notice { grid-template-columns: auto minmax(0, 1fr); }
     .path-rescan-notice .btn-upload { grid-column: 1 / -1; width: 100%; }
 }
+
+.studio-install-button {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(91, 233, 220, 0.24);
+    border-radius: 10px;
+    background: rgba(18, 43, 43, 0.88);
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+}
+
+.studio-install-button[hidden] {
+    display: none !important;
+}
+
+.studio-install-button:hover {
+    border-color: rgba(91, 233, 220, 0.5);
+    background: rgba(24, 58, 57, 0.94);
+}
+
+.studio-install-button .pwa-install-glyph {
+    width: 16px;
+    height: 16px;
+}
+
+.samsung-compat-notice {
+    position: relative;
+    z-index: 1;
+    margin: 0 0 14px;
+    padding: 12px 14px 12px 42px;
+    border: 1px solid rgba(255, 190, 92, 0.3);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255, 190, 92, 0.11), rgba(255, 116, 116, 0.055));
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.samsung-compat-notice::before {
+    content: "!";
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    display: grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    border: 1px solid rgba(255, 190, 92, 0.42);
+    border-radius: 999px;
+    color: #ffd07a;
+    font-weight: 800;
+    transform: translateY(-50%);
+}
+
+.samsung-compat-notice strong {
+    color: #ffd07a;
+}

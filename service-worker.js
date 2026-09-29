@@ -91,7 +91,20 @@ self.addEventListener('fetch', event => {
         return;
     }
     if (!BAS_SHELL_URLS.has(request.url)) return;
-    event.respondWith(
-        caches.match(request).then(cached => cached || fetch(request))
-    );
+    event.respondWith((async () => {
+        try {
+            const response = await fetch(request, { cache: 'no-store' });
+            if (response && response.ok) {
+                const cache = await caches.open(BAS_CACHE);
+                await cache.put(request, response.clone());
+                return response;
+            }
+            const cached = await caches.match(request);
+            return cached || response;
+        } catch (error) {
+            const cached = await caches.match(request);
+            if (cached) return cached;
+            throw error;
+        }
+    })());
 });
