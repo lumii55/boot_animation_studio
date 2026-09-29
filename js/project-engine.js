@@ -716,6 +716,7 @@ function projectEngineChangeKeyForTarget(target) {
 
 function projectEngineTargetIsContent(target) {
     if (!(target instanceof Element)) return false;
+    if (target.matches('input[type="file"]')) return false;
     if (target.closest('#timeline-view-switch, .sequence-zoom-controls, #custom-profiles')) return false;
     if (target.closest('#editor-section') && target.matches('input, select, textarea')) return true;
     if (target.closest('[data-advanced-field], [data-advanced-audio-file]')) return true;

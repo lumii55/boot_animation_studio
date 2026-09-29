@@ -625,6 +625,15 @@
         if (!indexedDB) throw new Error('IndexedDB unavailable'); const name = `bas-regression-${Date.now()}-${Math.random()}`;
         try { await new Promise((resolve,reject)=>{ const req=indexedDB.open(name,1); req.onupgradeneeded=()=>req.result.createObjectStore('probe'); req.onerror=()=>reject(req.error); req.onsuccess=()=>{ const db=req.result; const tx=db.transaction('probe','readwrite'); tx.objectStore('probe').put('ok','key'); tx.oncomplete=()=>{ const rtx=db.transaction('probe'); const get=rtx.objectStore('probe').get('key'); get.onsuccess=()=>{ const value=get.result; db.close(); value==='ok'?resolve():reject(new Error('IndexedDB value mismatch')); }; get.onerror=()=>reject(get.error); }; tx.onerror=()=>reject(tx.error); }; }); } finally { try { indexedDB.deleteDatabase(name); } catch (_) {} } return 'Scratch DB transaction OK';
     }});
+    register({ id: 'persistence.asset-materialization', name: 'Project asset ownership materialization', category: 'persistence', severity: 'critical', run: async () => {
+        if(!window.BASAssetOwnership||typeof window.BASAssetOwnership.materialize!=='function'||typeof window.BASAssetOwnership.isMaterialized!=='function') throw new Error('Project asset ownership API unavailable');
+        const original=new File([new Uint8Array([11,22,33,44,55])],'picker-probe.bin',{type:'application/octet-stream',lastModified:123456});
+        const owned=await window.BASAssetOwnership.materialize(original); if(!(owned instanceof Blob)||owned===original) throw new Error('Picker File was not detached');
+        if(!window.BASAssetOwnership.isMaterialized(owned)) throw new Error('Detached asset ownership was not recorded');
+        const bytes=Array.from(new Uint8Array(await owned.arrayBuffer())); if(bytes.join(',')!=='11,22,33,44,55') throw new Error('Detached asset bytes changed');
+        if(String(owned.name||'')!=='picker-probe.bin'||String(owned.type||'')!=='application/octet-stream') throw new Error('Detached asset metadata changed');
+        return 'Picker File detached into BAS-owned bytes';
+    }});
     register({ id: 'persistence.autosave-read', name: 'Autosave index read', category: 'persistence', severity: 'major', run: async () => {
         const list = await BASAutosave.list(); if (!Array.isArray(list)) throw new Error('Autosave list is not an array'); const status=BASAutosave.status(); if(!status||typeof status!=='object') throw new Error('Autosave status unavailable'); return `${list.length} record(s)`;
     }});
@@ -639,7 +648,15 @@
         const required=['build','open','read','readLoaded','migrateContainer']; const missing=required.filter(name=>typeof BASProjectFile[name]!=='function'); if(missing.length) throw new Error(`Missing: ${missing.join(', ')}`); return `container v${BASProjectFile.containerVersion}`;
     }});
     register({ id: 'persistence.project-package-roundtrip', name: '.basproject package readback', category: 'persistence', severity: 'critical', timeout:20000, requires: ctx => ctx.projectLoaded ? '' : 'No project loaded', run: async () => {
-        const built = await BASProjectFile.build(); const blob = built?.blob; if (!(blob instanceof Blob) || blob.size<=0) throw new Error('Project package build failed'); const loaded = await BASProjectFile.read(blob); if (!loaded?.manifest || !BASProjectEngine.validateManifest(BASProjectEngine.migrateManifest(loaded.manifest))) throw new Error('Readback manifest invalid'); return `${Math.round(blob.size/1024)} KB package readback OK`;
+        const assets=BASProjectEngine.getAssets().filter(asset=>!asset.transient&&asset.blob instanceof Blob);
+        for(const asset of assets){ try { await asset.blob.slice(0,Math.min(asset.blob.size,65536)).arrayBuffer(); } catch(error){ throw new Error(`Project asset unreadable before package build (${asset.key||'unknown'}): ${error&&error.message?error.message:'read failed'}`); } }
+        let built; try { built=await BASProjectFile.build(); } catch(error){ throw new Error(`Project package build failed: ${error&&error.message?error.message:'unknown error'}`); }
+        const blob=built?.blob; if(!(blob instanceof Blob)||blob.size<=0) throw new Error('Project package build returned an empty Blob');
+        try { await blob.slice(0,Math.min(blob.size,65536)).arrayBuffer(); } catch(error){ throw new Error(`Generated project package is unreadable: ${error&&error.message?error.message:'read failed'}`); }
+        let loaded; try { loaded=await BASProjectFile.read(blob); } catch(error){ throw new Error(`Generated project package could not be reopened: ${error&&error.message?error.message:'readback failed'}`); }
+        if(!loaded?.manifest) throw new Error('Generated project package reopened without a manifest');
+        if(!BASProjectEngine.validateManifest(BASProjectEngine.migrateManifest(loaded.manifest))) throw new Error('Readback manifest invalid');
+        return `${Math.round(blob.size/1024)} KB package readback OK · ${assets.length} persistent asset(s)`;
     }});
     register({ id: 'persistence.restore-contract', name: 'Project restore API contract', category: 'persistence', severity: 'major', run: () => {
         const required=['restore','openSource','toFile','waitForCondition']; const missing=required.filter(name=>typeof BASProjectRestore[name]!=='function'); if(missing.length) throw new Error(`Missing: ${missing.join(', ')}`); return `v${BASProjectRestore.version}`;

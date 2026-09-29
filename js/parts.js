@@ -1792,20 +1792,28 @@ if (advancedEditor) {
         if (event.target.closest('.advanced-flow-chip[data-part-id], .advanced-part-summary-main[data-part-id]')) event.preventDefault();
     });
 
-    advancedEditor.addEventListener('change', event => {
+    advancedEditor.addEventListener('change', async event => {
         const fileInput = event.target.closest('[data-advanced-audio-file]');
         if (fileInput) {
             const part = getAdvancedPartById(fileInput.dataset.advancedAudioFile);
-            const file = fileInput.files && fileInput.files[0];
-            if (part && file) {
-                part.audio.mode = 'file';
-                part.audio.source = file;
-                part.audio.sourceName = file.name || 'audio';
-                part.audio.sourceKind = 'file';
-                part.audio.sourceLibraryId = '';
-                markAdvancedPartsDirty();
-                if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
-                renderAdvancedPartsEditor();
+            const selected = fileInput.files && fileInput.files[0];
+            if (selected) fileInput.value = '';
+            if (part && selected) {
+                try {
+                    const file = window.BASAssetOwnership ? await window.BASAssetOwnership.materialize(selected) : selected;
+                    part.audio.mode = 'file';
+                    part.audio.source = file;
+                    part.audio.sourceName = selected.name || file.name || 'audio';
+                    part.audio.sourceKind = 'file';
+                    part.audio.sourceLibraryId = '';
+                    markAdvancedPartsDirty();
+                    if (typeof invalidateAdvancedAudioWaveform === 'function') invalidateAdvancedAudioWaveform(part.id);
+                    renderAdvancedPartsEditor();
+                } catch (error) {
+                    console.error(error);
+                    fileInput.value = '';
+                    if (typeof showToast === 'function') showToast(error && error.message ? error.message : 'This audio file could not be read.', 'error');
+                }
             } else if (part && !(part.audio.source instanceof Blob)) {
                 part.audio.mode = 'none';
                 renderAdvancedPartsEditor();

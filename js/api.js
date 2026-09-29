@@ -1281,10 +1281,18 @@ async function puxarAnimacao(source) {
     }
 }
 
-document.getElementById('upload-zip').addEventListener('change', function(evento) {
-    const arquivo = evento.target.files[0];
-    if (!arquivo) return;
-    abrirZipNoEditor(arquivo);
+document.getElementById('upload-zip').addEventListener('change', async function(evento) {
+    const selected = evento.target.files[0];
+    evento.target.value = '';
+    if (!selected) return;
+    try {
+        const arquivo = window.BASAssetOwnership ? await window.BASAssetOwnership.materialize(selected) : selected;
+        await abrirZipNoEditor(arquivo);
+    } catch (error) {
+        console.error(error);
+        const t = traducoes[idiomaAtual] || traducoes.en;
+        alert((t.msgZipReadError || 'Could not read this boot animation: ') + (error && error.message ? error.message : 'Unknown error'));
+    }
 });
 
 document.getElementById('upload-zip-direto').addEventListener('change', async function(evento) {

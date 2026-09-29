@@ -411,6 +411,7 @@ async function sourceLibraryBuildFramePreview(source, frames) {
 }
 
 async function sourceLibraryCreateSource(file) {
+    if (window.BASAssetOwnership && typeof File !== 'undefined' && file instanceof File) file = await window.BASAssetOwnership.materialize(file);
     const detected = sourceLibraryDetectFile(file);
     if (!detected) throw new Error(sourceLibraryText('sourceLibraryUnsupported', 'This source could not be read.'));
     const source = {

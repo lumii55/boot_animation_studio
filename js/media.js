@@ -1292,19 +1292,30 @@ function handleAudioSelect(part) {
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio', { changeKey: `audio:${part}:source` });
 }
 
-function fileAudioSelecionado(part) {
+async function fileAudioSelecionado(part) {
     const inputFile = document.getElementById(`file-audio-${part}`);
     const select = document.getElementById(`sel-audio-${part}`);
     const optFile = document.getElementById(`opt-file-${part}`);
     const wrap = document.getElementById(`vol-wrap-${part}`);
-    if (inputFile.files.length > 0) {
+    const selected = inputFile.files[0] || null;
+    if (selected) {
+        inputFile.value = '';
         importedAudioFiles[part] = null;
         importedAudioKinds[part] = 'none';
         importedAudioNames[part] = '';
-        const nome = inputFile.files[0].name;
-        optFile.textContent = `${nome}`;
-        optFile.setAttribute('data-custom', `${nome}`);
-        wrap.style.display = "grid";
+        try {
+            const owned = window.BASAssetOwnership ? await window.BASAssetOwnership.materialize(selected) : selected;
+            setImportedAudio(part, owned, selected.name || owned.name || 'audio', 'file');
+        } catch (error) {
+            console.error(error);
+            inputFile.value = '';
+            select.value = "none";
+            const t = traducoes[idiomaAtual];
+            optFile.textContent = t.optFile;
+            optFile.removeAttribute('data-custom');
+            wrap.style.display = "none";
+            if (typeof showToast === 'function') showToast(error && error.message ? error.message : 'This audio file could not be read.', 'error');
+        }
     } else if (!importedAudioFiles[part]) {
         select.value = "none";
         const t = traducoes[idiomaAtual];

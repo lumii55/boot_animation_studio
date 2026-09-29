@@ -883,6 +883,7 @@ function addCompositionTextLayer() {
 
 async function addCompositionImageLayer(file) {
     if (!currentProject || !(file instanceof Blob) || getCompositionLayers().length >= BAS_COMPOSITION_LAYER_LIMIT) return;
+    if (window.BASAssetOwnership && typeof File !== 'undefined' && file instanceof File) file = await window.BASAssetOwnership.materialize(file);
     if (!String(file.type || '').startsWith('image/')) {
         if (typeof showToast === 'function') showToast(compositionText('compositionImageInvalid', 'Choose a valid image file.'), 'error', 3600);
         return;
@@ -1167,10 +1168,16 @@ function bindComposition() {
     if (compositionRuntime.initialized) return;
     compositionRuntime.initialized = true;
     document.getElementById('composition-add-text')?.addEventListener('click', addCompositionTextLayer);
-    document.getElementById('composition-add-image')?.addEventListener('change', event => {
+    document.getElementById('composition-add-image')?.addEventListener('change', async event => {
         const file = event.target.files && event.target.files[0];
-        if (file) addCompositionImageLayer(file);
         event.target.value = '';
+        if (!file) return;
+        try {
+            await addCompositionImageLayer(file);
+        } catch (error) {
+            console.error(error);
+            if (typeof showToast === 'function') showToast(error && error.message ? error.message : compositionText('compositionImageInvalid', 'Choose a valid image file.'), 'error', 3600);
+        }
     });
     document.getElementById('composition-layer-list')?.addEventListener('click', event => {
         const select = event.target.closest('[data-composition-select]');

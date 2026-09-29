@@ -1,3 +1,33 @@
+const basOwnedProjectAssets = new WeakSet();
+
+async function materializeProjectAsset(blob, options = {}) {
+    if (!(blob instanceof Blob)) throw new TypeError('Project asset must be a Blob');
+    if (basOwnedProjectAssets.has(blob)) return blob;
+    const name = String(options.name || (typeof blob.name === 'string' ? blob.name : '') || 'asset.bin');
+    const type = String(options.type || blob.type || '');
+    const lastModified = Number(options.lastModified !== undefined ? options.lastModified : blob.lastModified) || Date.now();
+    const bytes = await blob.arrayBuffer();
+    let owned;
+    try {
+        owned = new File([bytes], name, { type, lastModified });
+    } catch (error) {
+        owned = new Blob([bytes], { type });
+        try { Object.defineProperty(owned, 'name', { value: name, configurable: true }); } catch (ignored) {}
+        try { Object.defineProperty(owned, 'lastModified', { value: lastModified, configurable: true }); } catch (ignored) {}
+    }
+    basOwnedProjectAssets.add(owned);
+    return owned;
+}
+
+function isMaterializedProjectAsset(blob) {
+    return blob instanceof Blob && basOwnedProjectAssets.has(blob);
+}
+
+window.BASAssetOwnership = Object.freeze({
+    materialize: materializeProjectAsset,
+    isMaterialized: isMaterializedProjectAsset
+});
+
 function createMarkerState() {
     return { m0: null, m1: null, m2: null, m3: null };
 }

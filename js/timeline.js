@@ -767,23 +767,27 @@ function openVideoSourceInEditor(arquivo, options = {}) {
     atualizarBotoesELinhas();
 }
 
-inputVideo.addEventListener('change', function(evento) {
-    const arquivo = evento.target.files[0];
-    if (!arquivo) return;
+inputVideo.addEventListener('change', async function(evento) {
+    const selected = evento.target.files[0];
+    if (!selected) return;
     evento.target.value = '';
-
-    const isGif = arquivo.type === 'image/gif' || /\.gif$/i.test(arquivo.name || '');
-    if (isGif) {
-        converterGifParaVideo(arquivo);
-        return;
+    try {
+        const arquivo = window.BASAssetOwnership ? await window.BASAssetOwnership.materialize(selected) : selected;
+        const isGif = arquivo.type === 'image/gif' || /\.gif$/i.test(arquivo.name || '');
+        if (isGif) {
+            await converterGifParaVideo(arquivo);
+            return;
+        }
+        const isImage = arquivo.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(arquivo.name || '');
+        if (isImage && typeof openImageSourceInEditor === 'function') {
+            await openImageSourceInEditor(arquivo);
+            return;
+        }
+        openVideoSourceInEditor(arquivo);
+    } catch (error) {
+        console.error(error);
+        if (typeof showToast === 'function') showToast(error && error.message ? error.message : 'This source could not be read.', 'error');
     }
-    const isImage = arquivo.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(arquivo.name || '');
-    if (isImage && typeof openImageSourceInEditor === 'function') {
-        openImageSourceInEditor(arquivo);
-        return;
-    }
-
-    openVideoSourceInEditor(arquivo);
 });
 
 window.openVideoSourceInEditor = openVideoSourceInEditor;
