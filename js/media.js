@@ -390,6 +390,15 @@ function validateBootAnimationArchiveSafety(zip) {
     }
 }
 
+function parseAospBootAnimationHeader(line) {
+    const tokens = String(line || '').trim().split(/\s+/);
+    const width = Number.parseInt(tokens[0], 10);
+    const height = Number.parseInt(tokens[1], 10);
+    const fps = Number.parseInt(tokens[2], 10);
+    if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0 || !Number.isSafeInteger(fps) || fps <= 0) return null;
+    return { width, height, fps };
+}
+
 function findBootAnimationRootFile(zip, fileName) {
     const target = String(fileName || '').toLowerCase();
     return Object.values(zip.files || {}).find(entry => !entry.dir && String(entry.name || '').toLowerCase() === target) || null;
@@ -714,11 +723,9 @@ async function abrirZipAospNoEditor(zipBlob) {
         const linhas = descText.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
         if (linhas.length === 0) throw new Error(t.msgZipNoDesc);
         
-        const configTops = linhas[0].split(/\s+/);
-        const zipW = parseInt(configTops[0]);
-        const zipH = parseInt(configTops[1]);
-        const zipFps = parseInt(configTops[2]) || 30;
-        if (!zipW || !zipH) throw new Error(t.msgZipReadError);
+        const configTop = parseAospBootAnimationHeader(linhas[0]);
+        if (!configTop) throw new Error(t.msgZipReadError);
+        const { width: zipW, height: zipH, fps: zipFps } = configTop;
 
         let temSomNoDesc = false;
         for (let i = 1; i < linhas.length; i++) {

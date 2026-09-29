@@ -40,13 +40,20 @@ function formatByteEstimate(bytes) {
     return `${value.toFixed(digits)} ${units[unit]}`;
 }
 
+function normalizeOutputDimension(value, fallback = 1) {
+    const numeric = Math.floor(Number(value));
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    const fallbackNumeric = Math.floor(Number(fallback));
+    return Number.isFinite(fallbackNumeric) && fallbackNumeric > 0 ? fallbackNumeric : 1;
+}
+
 function getPerformanceOptions() {
     let fps = parseInt(document.getElementById('input-fps').value) || 30;
     fps = Math.min(60, Math.max(1, fps));
     return {
         fps,
-        width: Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || 1),
-        height: Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || 1),
+        width: normalizeOutputDimension(document.getElementById('input-largura').value, originalW),
+        height: normalizeOutputDimension(document.getElementById('input-altura').value, originalH),
         format: document.getElementById('input-formato').value,
         jpegQuality: normalizeJpegExportQuality(jpegExportQuality),
         framing: normalizeFramingMode(document.getElementById('input-enquadramento').value),

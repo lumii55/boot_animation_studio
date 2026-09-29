@@ -575,6 +575,15 @@
     register({ id: 'project.parts-state', name: 'Parts manifest state', category: 'sequence', severity: 'major', requires: ctx => ctx.projectLoaded ? '' : 'No project loaded', run: ctx => {
         const advanced = ctx.manifest?.editor?.advanced; if (!advanced || typeof advanced !== 'object') throw new Error('Advanced Parts state missing from manifest'); return Array.isArray(advanced.parts) ? `${advanced.parts.length} part(s)` : 'Advanced Parts state available';
     }});
+    register({ id: 'project.advanced-folder-safety', name: 'Advanced Parts folder safety', category: 'sequence', severity: 'critical', run: () => {
+        if(typeof isAdvancedPartFolderValid!=='function') throw new Error('Advanced folder validator unavailable');
+        if(isAdvancedPartFolderValid('.')||isAdvancedPartFolderValid('..')||!isAdvancedPartFolderValid('part.1')) throw new Error('Advanced folder path contract drift'); return 'Dot traversal rejected';
+    }});
+    register({ id: 'media.aosp-header-validation', name: 'AOSP descriptor header validation', category: 'media', severity: 'critical', run: () => {
+        if(typeof parseAospBootAnimationHeader!=='function') throw new Error('AOSP header parser unavailable');
+        const valid=parseAospBootAnimationHeader('1080 2400 30'); if(!valid||valid.width!==1080||valid.height!==2400||valid.fps!==30) throw new Error('Valid AOSP header rejected');
+        const invalid=['-1080 2400 30','1080 -2400 30','1080 2400 -30','0 2400 30','1080 2400']; if(invalid.some(line=>parseAospBootAnimationHeader(line))) throw new Error('Invalid AOSP header accepted'); return `${invalid.length} malformed headers rejected`;
+    }});
 
     // ---- Output / compatibility ----
     register({ id: 'output.presets-contract', name: 'Output preset registry', category: 'output', severity: 'major', run: () => {
@@ -595,6 +604,12 @@
         if (invalidScope || invalidDiagnostic) throw new Error('Compatibility state enum drift');
         const encoded = stableStringify(source).toLowerCase(); return encoded.includes('unknown') || encoded.includes('unavailable') || encoded.includes('pending') ? 'Unknown/unavailable state represented' : 'Current result fully known · unknown remains a valid analyzer state';
     }});
+    register({ id: 'output.dimension-normalization', name: 'Output dimension normalization', category: 'output', severity: 'critical', run: () => {
+        if(typeof normalizeOutputDimension!=='function') throw new Error('Dimension normalizer unavailable');
+        const cases=[[-100,1080,1080],[0,2400,2400],['bad',720,720],[123.9,1,123]];
+        for(const [value,fallback,expected] of cases){ const actual=normalizeOutputDimension(value,fallback); if(actual!==expected) throw new Error(`${String(value)} with ${fallback} -> ${actual}, expected ${expected}`); }
+        return `${cases.length} edge cases aligned`;
+    }});
     register({ id: 'output.device-profile-contract', name: 'Device profile contract', category: 'output', severity: 'normal', run: () => {
         if (!window.BASDeviceProfile || typeof BASDeviceProfile.getResolution !== 'function') throw new Error('Device Profile unavailable'); return `v${BASDeviceProfile.version || 'current'}`;
     }});
@@ -612,6 +627,13 @@
     }});
     register({ id: 'persistence.autosave-read', name: 'Autosave index read', category: 'persistence', severity: 'major', run: async () => {
         const list = await BASAutosave.list(); if (!Array.isArray(list)) throw new Error('Autosave list is not an array'); const status=BASAutosave.status(); if(!status||typeof status!=='object') throw new Error('Autosave status unavailable'); return `${list.length} record(s)`;
+    }});
+    register({ id: 'persistence.autosave-content-fingerprint', name: 'Autosave asset content fingerprint', category: 'persistence', severity: 'critical', run: async () => {
+        if(typeof BASAutosave.fingerprintAssets!=='function') throw new Error('Autosave fingerprint API unavailable');
+        const metadata={key:'probe',kind:'image',name:'same.bin',size:4,type:'application/octet-stream',lastModified:123,transient:false};
+        const a=new Blob([new Uint8Array([1,2,3,4])],{type:metadata.type}); const b=new Blob([new Uint8Array([4,3,2,1])],{type:metadata.type});
+        const sa=await BASAutosave.fingerprintAssets([{...metadata,blob:a}]); const sb=await BASAutosave.fingerprintAssets([{...metadata,blob:b}]);
+        if(!sa||!sb||sa===sb) throw new Error('Different asset bytes share one autosave fingerprint'); return 'Content changes detected';
     }});
     register({ id: 'persistence.project-file-contract', name: '.basproject API contract', category: 'persistence', severity: 'critical', run: () => {
         const required=['build','open','read','readLoaded','migrateContainer']; const missing=required.filter(name=>typeof BASProjectFile[name]!=='function'); if(missing.length) throw new Error(`Missing: ${missing.join(', ')}`); return `container v${BASProjectFile.containerVersion}`;
@@ -645,6 +667,13 @@
     register({ id: 'ui.actionable-identities', name: 'Actionable control identities', category: 'ui', severity: 'minor', run: () => {
         const nodes=Array.from(document.querySelectorAll('button,input,select,textarea')); const stable=el=>Boolean(el.id||el.name||el.onclick||el.getAttribute('aria-label')||el.getAttribute('aria-controls')||Object.keys(el.dataset||{}).length||el.labels?.length); const anonymous=nodes.filter(el=>!stable(el)); if(anonymous.length>15) return {status:'warn',detail:`${anonymous.length} controls without stable identity`}; return `${nodes.length-anonymous.length}/${nodes.length} identifiable`;
     }});
+    register({ id: 'ui.samsung-warning-placement', name: 'Samsung compatibility warning placement', category: 'ui', severity: 'major', run: () => {
+        const warning=document.getElementById('txt-dica1'); const tips=document.getElementById('dicas-iniciais'); const launch=document.getElementById('initial-state');
+        if(!warning||!launch)throw new Error('Samsung warning missing'); if(tips&&tips.contains(warning))throw new Error('Samsung warning is still buried inside Tips'); if(!launch.contains(warning))throw new Error('Samsung warning is not in the launch surface'); return 'Visible launch warning outside Tips';
+    }});
+    register({ id: 'ui.pwa-install-header-action', name: 'PWA install action placement', category: 'ui', severity: 'normal', run: () => {
+        const button=document.getElementById('pwa-install-button'); if(!button)throw new Error('Install action missing'); if(!button.closest('.header-tools'))throw new Error('Install action is not in the header tools'); if(document.querySelector('.pwa-install-card'))throw new Error('Legacy install card still present'); if(typeof window.requestBASInstall!=='function')throw new Error('Install handler unavailable'); return 'Header install action wired';
+    }});
     register({ id: 'ui.developer-lab-wiring', name: 'Developer Lab wiring', category: 'ui', severity: 'major', run: () => {
         const ids=['developer-lab','developer-lab-launcher','developer-regression-run','developer-regression-results']; const missing=ids.filter(id=>!byId(id)); if(missing.length) throw new Error(`Missing: ${missing.join(', ')}`); return 'Hidden lab surfaces present';
     }});
@@ -660,6 +689,11 @@
     }});
     register({ id: 'pwa.service-worker-source', name: 'Service Worker source contract', category: 'pwa', severity: 'critical', run: async () => {
         const response=await fetch('./service-worker.js',{cache:'no-store'}); if(!response.ok) throw new Error(`SW ${response.status}`); const source=await response.text(); if(!/const\s+BAS_CACHE\s*=/.test(source)||!source.includes("request.mode === 'navigate'")) throw new Error('Service Worker contract missing'); return `${source.length} chars`;
+    }});
+    register({ id: 'pwa.rolling-shell-refresh', name: 'Rolling shell network refresh', category: 'pwa', severity: 'critical', run: async () => {
+        const response=await fetch('./service-worker.js',{cache:'no-store'}); if(!response.ok) throw new Error(`SW ${response.status}`); const source=await response.text();
+        if(!source.includes("fetch(request, { cache: 'no-store' })")||!source.includes('await cache.put(request, response.clone())')) throw new Error('Shell assets are not network-refreshed before cache fallback');
+        return 'Network-first shell with cache fallback';
     }});
     register({ id: 'pwa.service-worker-registration', name: 'Service Worker registration', category: 'pwa', severity: 'normal', run: async () => {
         if(!('serviceWorker' in navigator)) throw new Error('Service Worker unsupported'); const reg=await navigator.serviceWorker.getRegistration('./'); return reg ? 'Registered' : {status:'warn',detail:'Supported but not registered in this browsing context'};

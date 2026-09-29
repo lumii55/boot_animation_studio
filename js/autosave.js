@@ -110,12 +110,57 @@ function setAutosaveStatus(state, text = '') {
     );
 }
 
-function autosaveAssetSignature(assets) {
-    return assets
-        .filter(asset => !asset.transient)
-        .map(asset => [asset.key, asset.kind, asset.name || '', asset.size || 0, asset.type || '', asset.lastModified || 0].join(':'))
-        .sort()
-        .join('|');
+const autosaveBlobHashCache = new WeakMap();
+
+function autosaveHex(bytes) {
+    return Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('');
+}
+
+async function autosaveBlobHash(blob) {
+    if (!(blob instanceof Blob)) return '';
+    const cached = autosaveBlobHashCache.get(blob);
+    if (cached) return cached;
+    const pending = (async () => {
+        if (globalThis.crypto && crypto.subtle && typeof crypto.subtle.digest === 'function') {
+            return autosaveHex(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
+        }
+        let h1 = 2166136261;
+        let h2 = 2246822519;
+        const reader = blob.stream().getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            for (let index = 0; index < value.length; index += 1) {
+                const byte = value[index];
+                h1 = Math.imul(h1 ^ byte, 16777619) >>> 0;
+                h2 = Math.imul(h2 ^ byte, 3266489917) >>> 0;
+            }
+        }
+        return `${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`;
+    })();
+    autosaveBlobHashCache.set(blob, pending);
+    try {
+        return await pending;
+    } catch (error) {
+        autosaveBlobHashCache.delete(blob);
+        throw error;
+    }
+}
+
+async function autosaveAssetSignature(assets) {
+    const rows = [];
+    for (const asset of assets.filter(asset => !asset.transient)) {
+        rows.push([
+            asset.key,
+            asset.kind,
+            asset.name || '',
+            asset.size || 0,
+            asset.type || '',
+            asset.lastModified || 0,
+            await autosaveBlobHash(asset.blob)
+        ].join(':'));
+    }
+    return rows.sort().join('|');
 }
 
 function autosaveAssetRecord(projectId, asset) {
@@ -192,7 +237,7 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
         const assets = BASProjectEngine.getAssets().filter(asset => !asset.transient && asset.blob instanceof Blob);
         const source = assets.find(asset => asset.key === 'source');
         if (!source) throw new Error('Project source unavailable');
-        const signature = autosaveAssetSignature(assets);
+        const signature = await autosaveAssetSignature(assets);
         const previousSignature = autosaveRuntime.assetSignatures.get(meta.id);
         const previousAssets = previousSignature === signature ? [] : await getAutosaveAssets(meta.id);
         const db = await openAutosaveDatabase();
@@ -419,6 +464,7 @@ window.BASAutosave = Object.freeze({
     list: getAutosaveProjects,
     remove: deleteAutosaveProject,
     refresh: renderRecentProjects,
+    fingerprintAssets: autosaveAssetSignature,
     status: () => ({
         unavailable: autosaveRuntime.unavailable,
         saving: autosaveRuntime.saving,

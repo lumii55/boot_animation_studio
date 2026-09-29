@@ -27,8 +27,12 @@ async function updateGenerationProgress(text, percent = null, options = {}) {
 function getExportOptions() {
     let fps = parseInt(document.getElementById('input-fps').value) || 30;
     fps = Math.min(60, Math.max(1, fps));
-    const width = parseInt(document.getElementById('input-largura').value) || originalW;
-    const height = parseInt(document.getElementById('input-altura').value) || originalH;
+    const width = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(document.getElementById('input-largura').value, originalW)
+        : Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || 1);
+    const height = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(document.getElementById('input-altura').value, originalH)
+        : Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || 1);
     let name = document.getElementById('input-nome').value.trim();
     if (!name) name = 'bootanimation';
     return {

@@ -56,8 +56,12 @@ function compatibilityGetOutputValues() {
     const rawWidth = Number(widthInput && widthInput.value);
     const rawHeight = Number(heightInput && heightInput.value);
     const rawFps = Number(fpsInput && fpsInput.value);
-    const width = Number.isFinite(rawWidth) && rawWidth > 0 ? Math.floor(rawWidth) : Math.max(0, Math.floor(Number(originalW) || 0));
-    const height = Number.isFinite(rawHeight) && rawHeight > 0 ? Math.floor(rawHeight) : Math.max(0, Math.floor(Number(originalH) || 0));
+    const width = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(rawWidth, originalW)
+        : Number.isFinite(rawWidth) && rawWidth > 0 ? Math.floor(rawWidth) : Math.max(1, Math.floor(Number(originalW) || 1));
+    const height = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(rawHeight, originalH)
+        : Number.isFinite(rawHeight) && rawHeight > 0 ? Math.floor(rawHeight) : Math.max(1, Math.floor(Number(originalH) || 1));
     const fps = Number.isFinite(rawFps) ? rawFps : 30;
     return { rawWidth, rawHeight, rawFps, width, height, fps };
 }
@@ -203,7 +207,7 @@ function compatibilityCompositionDiagnostics(diagnostics) {
 
 function compatibilityOutputDiagnostics(diagnostics) {
     const output = compatibilityGetOutputValues();
-    if (output.width <= 0 || output.height <= 0) {
+    if (!Number.isFinite(output.rawWidth) || output.rawWidth <= 0 || !Number.isFinite(output.rawHeight) || output.rawHeight <= 0) {
         diagnostics.push(compatibilityDiagnostic(
             'OUTPUT_DIMENSIONS_INVALID', 'blocked', 'project',
             compatibilityText('compatOutputInvalidTitle', 'Output dimensions are invalid'),

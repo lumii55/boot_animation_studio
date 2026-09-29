@@ -70,8 +70,12 @@ function outputPresetFitPixelBudget(width, height, maxPixels) {
 
 function outputPresetCurrentOptions() {
     if (typeof getPerformanceOptions === 'function') return { ...getPerformanceOptions() };
-    const width = Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || originalW || 1);
-    const height = Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || originalH || 1);
+    const width = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(document.getElementById('input-largura')?.value, originalW)
+        : Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || originalW || 1);
+    const height = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(document.getElementById('input-altura')?.value, originalH)
+        : Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || originalH || 1);
     const fps = outputPresetClampFps(document.getElementById('input-fps')?.value, 30);
     return {
         width,

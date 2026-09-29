@@ -205,8 +205,12 @@ function syncTimelineEditorUi() {
 }
 
 function getCurrentFramingSettings() {
-    const width = Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || playerVideo.videoWidth || 1);
-    const height = Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || playerVideo.videoHeight || 1);
+    const width = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(document.getElementById('input-largura').value, originalW || playerVideo.videoWidth || 1)
+        : Math.max(1, parseInt(document.getElementById('input-largura').value) || originalW || playerVideo.videoWidth || 1);
+    const height = typeof normalizeOutputDimension === 'function'
+        ? normalizeOutputDimension(document.getElementById('input-altura').value, originalH || playerVideo.videoHeight || 1)
+        : Math.max(1, parseInt(document.getElementById('input-altura').value) || originalH || playerVideo.videoHeight || 1);
     const mode = normalizeFramingMode(document.getElementById('input-enquadramento').value);
     const focus = getCurrentFramingFocus();
     return { width, height, mode, focus };

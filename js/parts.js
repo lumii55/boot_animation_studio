@@ -513,6 +513,11 @@ function ensureAdvancedPartsInitialized() {
     return currentProject.advancedParts.length > 0;
 }
 
+function isAdvancedPartFolderValid(folder) {
+    const value = String(folder || '');
+    return /^[A-Za-z0-9._-]{1,64}$/.test(value) && value !== '.' && value !== '..';
+}
+
 function getAdvancedValidationIssues() {
     const t = traducoes[idiomaAtual];
     if (!isAdvancedPartsActive()) return [{ partId: '', index: -1, field: '', code: 'structure', message: t.advInvalidParts }];
@@ -526,7 +531,7 @@ function getAdvancedValidationIssues() {
         if (window.BASSourceLibrary && (!source || source.role !== 'visual')) issues.push({ partId: part.id, index, field: 'source', code: 'source', message: t.advMissingSource || t.advInvalidRange });
         if (!Number.isFinite(part.start) || part.start < 0 || part.start >= part.end) issues.push({ partId: part.id, index, field: 'start', code: 'range-start', message: t.advInvalidRange });
         else if (!Number.isFinite(part.end) || part.end <= part.start || part.end > duration + 0.001) issues.push({ partId: part.id, index, field: 'end', code: 'range-end', message: t.advInvalidRange });
-        if (!/^[A-Za-z0-9._-]{1,64}$/.test(part.folder)) issues.push({ partId: part.id, index, field: 'folder', code: 'folder', message: t.advInvalidFolder });
+        if (!isAdvancedPartFolderValid(part.folder)) issues.push({ partId: part.id, index, field: 'folder', code: 'folder', message: t.advInvalidFolder });
         const folderKey = String(part.folder || '').toLowerCase();
         if (folderKey) {
             if (folderOwners.has(folderKey)) issues.push({ partId: part.id, index, field: 'folder', code: 'duplicate-folder', message: t.advDuplicateFolder });

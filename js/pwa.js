@@ -30,10 +30,6 @@ function pwaText(key, fallback) {
 
 function syncPwaText() {
     const bindings = {
-        'pwa-install-kicker': ['pwaInstallKicker', 'APP'],
-        'pwa-install-title': ['pwaInstallTitle', 'Install Boot Animation Studio'],
-        'pwa-install-desc': ['pwaInstallDesc', 'Open the Studio in its own window and keep the app shell available offline.'],
-        'pwa-install-button-label': ['pwaInstallButton', 'Install app'],
         'pwa-update-title': ['pwaUpdateTitle', 'Update available'],
         'pwa-update-desc': ['pwaUpdateDesc', 'A newer version of Boot Animation Studio is ready.'],
         'pwa-update-later-label': ['pwaUpdateLater', 'Later'],
@@ -44,13 +40,17 @@ function syncPwaText() {
         if (element) element.textContent = pwaText(value[0], value[1]);
     });
     const installButton = document.getElementById('pwa-install-button');
-    if (installButton) installButton.setAttribute('aria-label', pwaText('pwaInstallButton', 'Install app'));
+    if (installButton) {
+        const label = pwaText('pwaInstallButton', 'Install app');
+        installButton.setAttribute('aria-label', label);
+        installButton.setAttribute('title', label);
+    }
 }
 
 function syncPwaInstallUi() {
-    const card = document.getElementById('pwa-install-card');
-    if (!card) return;
-    card.hidden = basPwaState.installed || !basPwaState.installPrompt;
+    const button = document.getElementById('pwa-install-button');
+    if (!button) return;
+    button.hidden = basPwaState.installed || !basPwaState.installPrompt;
 }
 
 function syncPwaUpdateUi() {
