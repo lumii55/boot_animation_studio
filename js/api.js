@@ -271,8 +271,41 @@ function mergeAbortSignals(...signals) {
     return controller.signal;
 }
 
+const BAS_API_SHORT_TIMEOUT_MS = 15000;
+const BAS_API_LONG_REQUEST_PATHS = Object.freeze([
+    '/upload',
+    '/test/stage',
+    '/live/events',
+    '/history/download',
+    '/history/preview',
+    '/playlist/download',
+    '/playlist/preview',
+    '/pull',
+    '/audit/export'
+]);
+
+function apiRequestTimeoutMs(path, options = {}) {
+    if (Object.prototype.hasOwnProperty.call(options, 'timeoutMs')) {
+        const explicit = Number(options.timeoutMs);
+        return Number.isFinite(explicit) && explicit > 0 ? explicit : 0;
+    }
+    const pathname = String(path || '').split('?')[0];
+    if (BAS_API_LONG_REQUEST_PATHS.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'))) return 0;
+    return BAS_API_SHORT_TIMEOUT_MS;
+}
+
+function apiTimeoutSignal(path, options = {}) {
+    const timeoutMs = apiRequestTimeoutMs(path, options);
+    if (!timeoutMs) return undefined;
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(timeoutMs);
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), timeoutMs);
+    return controller.signal;
+}
+
 function apiFetch(path, options = {}) {
-    const headers = new Headers(options.headers || {});
+    const { timeoutMs: _timeoutOverride, ...fetchOptions } = options;
+    const headers = new Headers(fetchOptions.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
     // P13.9B trust identity headers are capability-gated. The last public pre-P13
     // module is API v1 but its CORS allowlist predates these headers, so sending them
@@ -280,8 +313,9 @@ function apiFetch(path, options = {}) {
     const trustHeaders = hasModuleFeature('trusted_clients') ? (window.BASTrustClient?.headers?.() || {}) : {};
     Object.entries(trustHeaders).forEach(([name, value]) => { if (value) headers.set(name, value); });
     const deviceSignal = window.BASMultiDevice?.activeSignal?.();
-    const signal = mergeAbortSignals(options.signal, deviceSignal);
-    return localNetworkFetch(IP_LOCAL + path, { ...options, headers, ...(signal ? { signal } : {}) }).then(response => {
+    const timeoutSignal = apiTimeoutSignal(path, options);
+    const signal = mergeAbortSignals(fetchOptions.signal, timeoutSignal, deviceSignal);
+    return localNetworkFetch(IP_LOCAL + path, { ...fetchOptions, headers, ...(signal ? { signal } : {}) }).then(response => {
         if (response.status === 409 && hasModuleFeature('operation_coordination')) {
             response.clone().json().then(data => {
                 if (data?.status === 'busy' && data.operation) window.BASPresence?.handleBusy?.(data.operation);

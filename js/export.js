@@ -133,6 +133,12 @@ function syncPreviewAudioFromCurrentState(audioState) {
     });
 }
 
+function requireExportAudioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Audio processing is not supported by this browser. Disable boot animation audio or use a browser with Web Audio support.');
+    return AudioContextClass;
+}
+
 async function applyImportedAudioEdits(zip, audioState) {
     const baseline = currentProject.editorBaseline.audio;
     const previewKeys = { intro: 'm0', loop: 'm1', final: 'm2' };
@@ -151,7 +157,7 @@ async function applyImportedAudioEdits(zip, audioState) {
     let audioCtx = null;
     let videoAudioBuffer = null;
     const getAudioContext = () => {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!audioCtx) audioCtx = new (requireExportAudioContext())();
         return audioCtx;
     };
 
@@ -336,7 +342,7 @@ async function applySimpleAudio(zip, audioState, t) {
     if (!audioState.enabled) return;
 
     await updateGenerationProgress(t.processandoAudio, null, { forcePaint: true });
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = new (requireExportAudioContext())();
     let videoAudioBuffer = null;
 
     try {
@@ -445,8 +451,7 @@ async function applyAdvancedPartAudio(zip, t) {
     const hasAudio = parts.some(part => part.audio && part.audio.mode !== 'none');
     if (!hasAudio) return;
     await updateGenerationProgress(t.processandoAudio, null, { forcePaint: true });
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
+    const AudioContextClass = requireExportAudioContext();
     const audioCtx = new AudioContextClass();
     const videoAudioBuffers = new Map();
     try {
@@ -578,6 +583,12 @@ btnGerar.addEventListener('click', async () => {
         }
     }
     const estimate = typeof estimateExportPerformance === 'function' ? estimateExportPerformance(options) : null;
+    if (estimate && estimate.archiveEntryBudgetExceeded) {
+        const message = `This boot animation would create about ${Number(estimate.archiveEntries || 0).toLocaleString()} ZIP entries, above the ${Number(estimate.archiveEntryLimit || 10000).toLocaleString()} entry limit. Reduce FPS or duration before generating.`;
+        if (typeof showToast === 'function') showToast(message, 'error', 6200);
+        if (typeof runCompatibilityCheck === 'function') runCompatibilityCheck();
+        return;
+    }
     if (typeof confirmHeavyExport === 'function' && !confirmHeavyExport(estimate)) return;
 
     isGenerating = true;

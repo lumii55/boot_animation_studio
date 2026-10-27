@@ -259,6 +259,21 @@ function compatibilityPerformanceDiagnostics(diagnostics) {
     if (typeof estimateExportPerformance !== 'function' || !currentProject) return;
     const estimate = estimateExportPerformance();
     if (!estimate) return;
+    if (estimate.archiveEntryBudgetExceeded) {
+        diagnostics.push(compatibilityDiagnostic(
+            'ARCHIVE_ENTRY_LIMIT', 'blocked', 'project',
+            compatibilityText('compatEntryLimitTitle', 'This boot animation would contain too many ZIP entries'),
+            compatibilityTemplate(
+                'compatEntryLimitDesc',
+                'BAS estimates about {entries} archive entries, above the hard limit of {limit}. Reduce FPS, duration, or the number of Parts before generating.',
+                {
+                    entries: Number(estimate.archiveEntries || 0).toLocaleString(),
+                    limit: Number(estimate.archiveEntryLimit || 10000).toLocaleString()
+                }
+            ),
+            { extraBlocker: true, action: { type: 'optimize', labelKey: 'compatActionOptimize' } }
+        ));
+    }
     if (estimate.level === 'heavy') {
         diagnostics.push(compatibilityDiagnostic(
             'EXPORT_HEAVY', 'warning', 'project',

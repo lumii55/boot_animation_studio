@@ -1,10 +1,15 @@
 (() => {
+    const LIVE_STALE_TIMEOUT_MS = 50000;
+    const LIVE_WATCHDOG_INTERVAL_MS = 10000;
+
     const state = {
         active: false,
         connected: false,
         epoch: '',
         revisions: {},
         reconnects: 0,
+        lastByteAt: 0,
+        watchdogTimer: 0,
         events: 0,
         refreshes: 0,
         refreshErrors: 0,
@@ -47,6 +52,31 @@
     function clearDebugTimers() {
         state.debugTimers.forEach(timer => clearTimeout(timer));
         state.debugTimers.clear();
+    }
+
+    function clearStreamWatchdog() {
+        if (state.watchdogTimer) clearInterval(state.watchdogTimer);
+        state.watchdogTimer = 0;
+    }
+
+    function startStreamWatchdog(generation, controller) {
+        clearStreamWatchdog();
+        state.lastByteAt = Date.now();
+        state.watchdogTimer = setInterval(() => {
+            if (!state.active || generation !== state.generation || controller.signal.aborted) {
+                clearStreamWatchdog();
+                return;
+            }
+            if (!state.connected || !state.lastByteAt) return;
+            const silentFor = Date.now() - state.lastByteAt;
+            if (silentFor <= LIVE_STALE_TIMEOUT_MS) return;
+            state.connected = false;
+            state.lastError = 'live stream stalled';
+            pushEventLog('stream.stale', { reason: 'watchdog', message: `${silentFor}ms without bytes` });
+            emit('bas:live-status', status());
+            scheduleReconnect(generation);
+            controller.abort();
+        }, LIVE_WATCHDOG_INTERVAL_MS);
     }
 
     function supported() {
@@ -266,6 +296,7 @@
         while (state.active && generation === state.generation) {
             const { value, done } = await reader.read();
             if (done) break;
+            if (value && value.length) state.lastByteAt = Date.now();
             buffer += decoder.decode(value, { stream: true });
             let split;
             while ((split = buffer.indexOf('\n\n')) >= 0) {
@@ -307,17 +338,21 @@
         const controller = new AbortController();
         state.controller = controller;
         try {
-            await fetchSnapshot(state.reconnects ? 'reconnect' : 'start');
-            const response = await apiFetch('/live/events', { cache: 'no-store', signal: controller.signal });
+            const connectionReason = state.reconnects ? 'reconnect' : 'start';
+            await fetchSnapshot(connectionReason);
+            const response = await apiFetch('/live/events', { cache: 'no-store', signal: controller.signal, timeoutMs: 0 });
             if (!response.ok) {
                 const error = new Error(`live events ${response.status}`);
                 error.status = response.status;
                 throw error;
             }
             state.connected = true;
+            state.reconnects = 0;
             state.lastError = '';
             state.pauseReason = '';
-            pushEventLog('stream.connected', { reason: state.reconnects ? 'reconnect' : 'start' });
+            state.lastByteAt = Date.now();
+            startStreamWatchdog(generation, controller);
+            pushEventLog('stream.connected', { reason: connectionReason });
             emit('bas:live-status', status());
             await consumeStream(response, generation);
             if (state.active && generation === state.generation) throw new Error('live stream ended');
@@ -333,6 +368,9 @@
             pushEventLog('stream.error', { reason: 'retry', message: state.lastError });
             emit('bas:live-status', status());
             scheduleReconnect(generation);
+        } finally {
+            clearStreamWatchdog();
+            if (state.controller === controller) state.controller = null;
         }
     }
 
@@ -342,6 +380,8 @@
         state.active = true;
         state.connected = false;
         state.reconnects = 0;
+        state.lastByteAt = 0;
+        clearStreamWatchdog();
         state.events = 0;
         state.refreshes = 0;
         state.refreshErrors = 0;
@@ -370,6 +410,8 @@
         state.pauseReason = '';
         state.generation += 1;
         clearDebugTimers();
+        clearStreamWatchdog();
+        state.lastByteAt = 0;
         if (state.controller) state.controller.abort();
         state.controller = null;
         if (state.retryTimer) clearTimeout(state.retryTimer);
@@ -386,6 +428,8 @@
     function suspend(reason = 'lifecycle') {
         if (!state.active) return false;
         state.generation += 1;
+        clearStreamWatchdog();
+        state.lastByteAt = 0;
         if (state.controller) state.controller.abort();
         state.controller = null;
         if (state.retryTimer) clearTimeout(state.retryTimer);
@@ -405,6 +449,8 @@
             return false;
         }
         state.generation += 1;
+        clearStreamWatchdog();
+        state.lastByteAt = 0;
         if (state.controller) state.controller.abort();
         state.controller = null;
         if (state.retryTimer) clearTimeout(state.retryTimer);
@@ -427,6 +473,7 @@
             epoch: state.epoch,
             revisions: { ...state.revisions },
             reconnects: state.reconnects,
+            lastByteAt: state.lastByteAt,
             events: state.events,
             refreshes: state.refreshes,
             refreshErrors: state.refreshErrors,
@@ -460,6 +507,8 @@
         state.debug.forcedReconnects += 1;
         pushEventLog('fault.reconnect', { reason: 'developer' });
         state.connected = false;
+        clearStreamWatchdog();
+        state.lastByteAt = 0;
         if (state.controller) state.controller.abort();
         state.controller = null;
         if (state.retryTimer) clearTimeout(state.retryTimer);

@@ -121,7 +121,7 @@ function renderHealthCenter() {
         }).join('');
     }
     if (storage) {
-        storage.innerHTML = (data.storage?.buckets || []).map(bucket => `<article><span>${healthText(`healthBucket_${bucket.id}`, bucket.id)}</span><strong>${healthBytes(bucket.bytes)}</strong><small>${bucket.files || 0} ${healthText('healthFiles', 'files')}</small></article>`).join('');
+        storage.innerHTML = (data.storage?.buckets || []).map(bucket => `<article><span>${healthEscape(healthText(`healthBucket_${bucket.id}`, bucket.id))}</span><strong>${healthBytes(bucket.bytes)}</strong><small>${bucket.files || 0} ${healthText('healthFiles', 'files')}</small></article>`).join('');
     }
     const maintenanceBlock = document.getElementById('health-maintenance-block');
     const maintenanceList = document.getElementById('health-maintenance-list');

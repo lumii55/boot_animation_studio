@@ -20,7 +20,9 @@
         smokeRunning: false,
         swCache: '',
         storage: null,
-        snapshotText: ''
+        snapshotText: '',
+        runtimeErrorBound: false,
+        runtimeErrors: []
     };
 
     function text(key, fallback) {
@@ -30,6 +32,37 @@
         } catch (error) {
             return fallback;
         }
+    }
+
+    function recordRuntimeError(kind, value, meta = {}) {
+        const rawMessage = value?.message || value || 'Unknown runtime error';
+        const source = String(meta.source || '').split('?')[0].slice(-180);
+        const item = {
+            timestamp: Date.now(),
+            kind: String(kind || 'error').slice(0, 40),
+            message: String(rawMessage).slice(0, 500),
+            source,
+            line: Math.max(0, Number(meta.line) || 0),
+            column: Math.max(0, Number(meta.column) || 0)
+        };
+        state.runtimeErrors.push(item);
+        if (state.runtimeErrors.length > BAS_DEVELOPER_EVENT_LIMIT) state.runtimeErrors.splice(0, state.runtimeErrors.length - BAS_DEVELOPER_EVENT_LIMIT);
+        return item;
+    }
+
+    function bindGlobalRuntimeErrors() {
+        if (state.runtimeErrorBound) return;
+        state.runtimeErrorBound = true;
+        window.addEventListener('error', event => {
+            recordRuntimeError('error', event?.error || event?.message, {
+                source: event?.filename,
+                line: event?.lineno,
+                column: event?.colno
+            });
+        });
+        window.addEventListener('unhandledrejection', event => {
+            recordRuntimeError('unhandledrejection', event?.reason);
+        });
     }
 
     function byId(id) {
@@ -652,6 +685,7 @@
                 indexeddb: Boolean(globalThis.indexedDB),
                 viewport: { width: window.innerWidth, height: window.innerHeight, dpr: Number(window.devicePixelRatio || 1) },
                 visibility: document.visibilityState || null,
+                recent_errors: state.runtimeErrors.slice(-20).map(item => ({ ...item })),
                 lifecycle: {
                     bound: Boolean(lifecycle.bound),
                     running: Boolean(lifecycle.running),
@@ -869,6 +903,8 @@
         syncText();
     }
 
+    bindGlobalRuntimeErrors();
+
     window.BASDeveloperLab = Object.freeze({
         version: BAS_DEVELOPER_LAB_VERSION,
         release: BAS_DEVELOPER_RELEASE,
@@ -879,6 +915,7 @@
         refresh,
         runSmokeChecks,
         snapshot: sanitizedSnapshot,
+        runtimeErrors: () => state.runtimeErrors.map(item => ({ ...item })),
         notify: toast,
         syncText,
         state: () => ({ enabled: state.enabled, open: state.open, smokeRunning: state.smokeRunning })

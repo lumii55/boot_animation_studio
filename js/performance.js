@@ -4,6 +4,9 @@ let performanceFrameSampleVersion = 0;
 let lastPerformanceEstimate = null;
 const performanceFrameSamples = new WeakMap();
 
+const BAS_BOOTANIMATION_EXPORT_MAX_ENTRIES = 10000;
+const BAS_BOOTANIMATION_EXPORT_ENTRY_RESERVE = 4;
+
 const jpegQualityIntentRuntime = {
     source: 'default',
     changedAt: 0
@@ -96,6 +99,66 @@ function getImportedRoundTripFrameCount(fps) {
         if (count > 0) total += Math.max(1, Math.round(count * fps / sourceFps));
     });
     return total;
+}
+
+function estimateBootArchiveEntryCount(frameCount, folderCount = 3, audioCount = 0, preservedEntries = 0) {
+    const frames = Math.max(0, Math.floor(Number(frameCount) || 0));
+    const folders = Math.max(0, Math.floor(Number(folderCount) || 0));
+    const audio = Math.max(0, Math.floor(Number(audioCount) || 0));
+    const preserved = Math.max(0, Math.floor(Number(preservedEntries) || 0));
+    // desc.txt + a small reserve for JSZip structural/auxiliary entries keep the
+    // preflight conservative instead of allowing a generated archive to hit the
+    // server/import hard ceiling exactly by accident.
+    return frames + folders + audio + preserved + 1 + BAS_BOOTANIMATION_EXPORT_ENTRY_RESERVE;
+}
+
+function getBootArchiveFolderCount() {
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedParts === 'function') {
+        const folders = new Set(getAdvancedParts().map(part => String(part && part.folder || '').trim()).filter(Boolean));
+        return Math.max(1, folders.size);
+    }
+    if (currentProject && Array.isArray(currentProject.parts) && currentProject.parts.length) {
+        const folders = new Set(currentProject.parts.map(part => String(part && part.name || '').trim()).filter(Boolean));
+        if (folders.size) return folders.size;
+    }
+    return 3;
+}
+
+function getBootArchiveAudioEntryCount(options) {
+    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive() && typeof getAdvancedParts === 'function') {
+        return getAdvancedParts().filter(part => part && part.audio && part.audio.mode && part.audio.mode !== 'none').length;
+    }
+    const audio = options && options.audio;
+    if (!audio || !audio.enabled) return 0;
+    return ['intro', 'loop', 'final'].filter(role => audio[role] && audio[role].mode && audio[role].mode !== 'none').length;
+}
+
+function getBootArchivePreservedEntryCount(importedPreserve) {
+    if (!importedPreserve || !currentProject) return 0;
+    if (Array.isArray(currentProject.videoAuxiliaryEntries)) return currentProject.videoAuxiliaryEntries.length;
+    return 0;
+}
+
+function estimateBootArchiveEntryBudget(options, totalFrames, importedPreserve, untouched) {
+    if (untouched) {
+        // Untouched imported archives already passed the import-side 10k check.
+        return {
+            estimatedEntries: null,
+            maxEntries: BAS_BOOTANIMATION_EXPORT_MAX_ENTRIES,
+            exceeded: false
+        };
+    }
+    const estimatedEntries = estimateBootArchiveEntryCount(
+        totalFrames,
+        getBootArchiveFolderCount(),
+        getBootArchiveAudioEntryCount(options),
+        getBootArchivePreservedEntryCount(importedPreserve)
+    );
+    return {
+        estimatedEntries,
+        maxEntries: BAS_BOOTANIMATION_EXPORT_MAX_ENTRIES,
+        exceeded: estimatedEntries > BAS_BOOTANIMATION_EXPORT_MAX_ENTRIES
+    };
 }
 
 function getKnownImportedFrameBytes() {
@@ -362,6 +425,7 @@ function estimateExportPerformance(options = getPerformanceOptions(), frameBytes
     const simpleFrames = getSimpleFrameCount(options.fps);
     const totalFrames = importedPreserve ? (frameSettingsChanged ? getImportedRoundTripFrameCount(options.fps) : currentProject.frames.length) : simpleFrames;
     const framesToProcess = untouched || (importedPreserve && !frameSettingsChanged) ? 0 : totalFrames;
+    const archiveEntryBudget = estimateBootArchiveEntryBudget(options, totalFrames, importedPreserve, untouched);
     const frameBytes = frameBytesOverride > 0 ? frameBytesOverride : estimateEncodedFrameBytes(options);
     const audioBytes = estimateAudioBytes(options, importedPreserve);
 
@@ -411,6 +475,9 @@ function estimateExportPerformance(options = getPerformanceOptions(), frameBytes
         untouched,
         importedPreserve,
         frameSettingsChanged,
+        archiveEntries: archiveEntryBudget.estimatedEntries,
+        archiveEntryLimit: archiveEntryBudget.maxEntries,
+        archiveEntryBudgetExceeded: archiveEntryBudget.exceeded,
         level,
         bootLevel,
         copies
