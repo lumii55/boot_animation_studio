@@ -425,25 +425,35 @@ function markProjectEngineClean() {
 
 const BAS_PROJECT_SCHEMA_MIGRATIONS = Object.freeze({});
 
+const BAS_PROJECT_PERSISTENCE_SCHEMA = BASPersistenceSchema.define({
+    id: 'browser.project-manifest',
+    currentVersion: BAS_PROJECT_SCHEMA_VERSION,
+    minimumVersion: 1,
+    versionField: 'schemaVersion',
+    formatField: 'format',
+    formatValue: 'boot-animation-studio-project',
+    migrations: BAS_PROJECT_SCHEMA_MIGRATIONS,
+    policy: 'canonical-migrate',
+    owner: 'BASProjectEngine',
+    storage: 'memory/.basproject/autosave'
+});
+
 function cloneProjectManifestForMigration(manifest) {
     return JSON.parse(JSON.stringify(manifest));
 }
 
 function migrateProjectManifest(manifest) {
-    if (!manifest || typeof manifest !== 'object') throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
-    if (manifest.format !== 'boot-animation-studio-project') throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
-    let migrated = cloneProjectManifestForMigration(manifest);
-    let version = Number(migrated.schemaVersion);
-    if (!Number.isInteger(version) || version < 1) throw new Error(projectEngineText('projectManifestVersionUnsupported', 'This project uses an unsupported schema version.'));
-    if (version > BAS_PROJECT_SCHEMA_VERSION) throw new Error(projectEngineText('projectManifestVersionNewer', 'This project was created by a newer Boot Animation Studio version.'));
-    while (version < BAS_PROJECT_SCHEMA_VERSION) {
-        const migration = BAS_PROJECT_SCHEMA_MIGRATIONS[version];
-        if (typeof migration !== 'function') throw new Error(projectEngineText('projectManifestVersionUnsupported', 'This project uses an unsupported schema version.'));
-        migrated = migration(migrated);
-        version = Number(migrated.schemaVersion);
-        if (!Number.isInteger(version)) throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
+    try {
+        return BASPersistenceSchema.migrate(BAS_PROJECT_PERSISTENCE_SCHEMA, manifest);
+    } catch (error) {
+        if (error && error.code === 'future_version') {
+            throw new Error(projectEngineText('projectManifestVersionNewer', 'This project was created by a newer Boot Animation Studio version.'));
+        }
+        if (error && (error.code === 'unsupported_version' || error.code === 'missing_migration')) {
+            throw new Error(projectEngineText('projectManifestVersionUnsupported', 'This project uses an unsupported schema version.'));
+        }
+        throw new Error(projectEngineText('projectManifestInvalid', 'This project manifest is invalid.'));
     }
-    return migrated;
 }
 
 function validateProjectManifest(manifest) {

@@ -4,6 +4,36 @@ const BAS_AUTOSAVE_PROJECT_STORE = 'projects';
 const BAS_AUTOSAVE_ASSET_STORE = 'assets';
 const BAS_AUTOSAVE_LIMIT = 5;
 const BAS_AUTOSAVE_DELAY = 1200;
+const BAS_AUTOSAVE_PROJECT_RECORD_VERSION = 1;
+const BAS_AUTOSAVE_ASSET_RECORD_VERSION = 1;
+
+const BAS_AUTOSAVE_PROJECT_RECORD_SCHEMA = window.BASPersistenceSchema?.define({
+    id: 'browser.autosave-project-record',
+    currentVersion: BAS_AUTOSAVE_PROJECT_RECORD_VERSION,
+    minimumVersion: 0,
+    versionField: 'recordVersion',
+    policy: 'canonical-migrate',
+    owner: 'BASAutosave',
+    storage: `${BAS_AUTOSAVE_DB_NAME}/${BAS_AUTOSAVE_PROJECT_STORE}`,
+    notes: 'Record-shape version is independent from IndexedDB database version. Legacy records without recordVersion are v0.',
+    migrations: {
+        0(value) { return { ...value, recordVersion: 1 }; }
+    }
+});
+
+const BAS_AUTOSAVE_ASSET_RECORD_SCHEMA = window.BASPersistenceSchema?.define({
+    id: 'browser.autosave-asset-record',
+    currentVersion: BAS_AUTOSAVE_ASSET_RECORD_VERSION,
+    minimumVersion: 0,
+    versionField: 'recordVersion',
+    policy: 'canonical-migrate',
+    owner: 'BASAutosave',
+    storage: `${BAS_AUTOSAVE_DB_NAME}/${BAS_AUTOSAVE_ASSET_STORE}`,
+    notes: 'Blob ownership remains in IndexedDB; future record shapes block downgrade writes for that project.',
+    migrations: {
+        0(value) { return { ...value, recordVersion: 1 }; }
+    }
+});
 
 const autosaveRuntime = {
     dbPromise: null,
@@ -14,7 +44,8 @@ const autosaveRuntime = {
     pendingAfterSave: false,
     assetSignatures: new Map(),
     lastSavedAt: 0,
-    unavailable: false
+    unavailable: false,
+    writeProtectedProjectIds: new Set()
 };
 
 function autosaveText(key, fallback) {
@@ -165,6 +196,7 @@ async function autosaveAssetSignature(assets) {
 
 function autosaveAssetRecord(projectId, asset) {
     return {
+        recordVersion: BAS_AUTOSAVE_ASSET_RECORD_VERSION,
         id: `${projectId}::${asset.key}`,
         projectId,
         key: asset.key,
@@ -177,17 +209,58 @@ function autosaveAssetRecord(projectId, asset) {
     };
 }
 
+
+function autosaveRecordEnvelope(raw, versionField = 'recordVersion') {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+    if (!Object.prototype.hasOwnProperty.call(raw, versionField)) return { ...raw, [versionField]: 0 };
+    return raw;
+}
+
+function autosaveMarkFutureProject(projectId) {
+    const id = String(projectId || '');
+    if (id) autosaveRuntime.writeProtectedProjectIds.add(id);
+}
+
+function autosaveMigrateProjectRecord(raw) {
+    if (!raw) return null;
+    const envelope = autosaveRecordEnvelope(raw);
+    if (!BAS_AUTOSAVE_PROJECT_RECORD_SCHEMA) return envelope;
+    const inspection = BASPersistenceSchema.inspect(BAS_AUTOSAVE_PROJECT_RECORD_SCHEMA, envelope);
+    if (inspection.disposition === 'future') {
+        autosaveMarkFutureProject(raw.id);
+        return null;
+    }
+    return BASPersistenceSchema.migrate(BAS_AUTOSAVE_PROJECT_RECORD_SCHEMA, envelope);
+}
+
+function autosaveMigrateAssetRecord(raw) {
+    if (!raw) return null;
+    const envelope = autosaveRecordEnvelope(raw);
+    if (!BAS_AUTOSAVE_ASSET_RECORD_SCHEMA) return envelope;
+    const inspection = BASPersistenceSchema.inspect(BAS_AUTOSAVE_ASSET_RECORD_SCHEMA, envelope);
+    if (inspection.disposition === 'future') {
+        autosaveMarkFutureProject(raw.projectId);
+        const error = new Error('autosave_future_asset_record');
+        error.code = 'future_version';
+        throw error;
+    }
+    return BASPersistenceSchema.migrate(BAS_AUTOSAVE_ASSET_RECORD_SCHEMA, envelope);
+}
+
 async function getAutosaveProjectRecord(id) {
     const db = await openAutosaveDatabase();
     const transaction = db.transaction(BAS_AUTOSAVE_PROJECT_STORE, 'readonly');
-    return autosaveRequest(transaction.objectStore(BAS_AUTOSAVE_PROJECT_STORE).get(id));
+    const raw = await autosaveRequest(transaction.objectStore(BAS_AUTOSAVE_PROJECT_STORE).get(id));
+    return autosaveMigrateProjectRecord(raw);
 }
 
 async function getAutosaveProjects() {
     const db = await openAutosaveDatabase();
     const transaction = db.transaction(BAS_AUTOSAVE_PROJECT_STORE, 'readonly');
     const records = await autosaveRequest(transaction.objectStore(BAS_AUTOSAVE_PROJECT_STORE).getAll());
-    return (records || []).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    return (records || []).map(raw => {
+        try { return autosaveMigrateProjectRecord(raw); } catch (error) { return null; }
+    }).filter(Boolean).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
 }
 
 async function getAutosaveAssets(projectId) {
@@ -196,7 +269,7 @@ async function getAutosaveAssets(projectId) {
     const store = transaction.objectStore(BAS_AUTOSAVE_ASSET_STORE);
     const index = store.index('projectId');
     const records = await autosaveRequest(index.getAll(IDBKeyRange.only(projectId)));
-    return records || [];
+    return (records || []).map(autosaveMigrateAssetRecord).filter(Boolean);
 }
 
 async function deleteAutosaveProject(id) {
@@ -234,12 +307,24 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
         if (!manifest || !BASProjectEngine.validateManifest(manifest)) throw new Error('Invalid project manifest');
         const meta = manifest.project;
         const savedRevision = Number(meta.revision) || 0;
+        await getAutosaveProjectRecord(meta.id);
+        if (autosaveRuntime.writeProtectedProjectIds.has(meta.id)) {
+            console.warn('[BAS] Autosave record belongs to a newer BAS build; preserving it without downgrade writes.');
+            setAutosaveStatus('error');
+            return false;
+        }
         const assets = BASProjectEngine.getAssets().filter(asset => !asset.transient && asset.blob instanceof Blob);
         const source = assets.find(asset => asset.key === 'source');
         if (!source) throw new Error('Project source unavailable');
         const signature = await autosaveAssetSignature(assets);
         const previousSignature = autosaveRuntime.assetSignatures.get(meta.id);
-        const previousAssets = previousSignature === signature ? [] : await getAutosaveAssets(meta.id);
+        const storedAssets = await getAutosaveAssets(meta.id);
+        if (autosaveRuntime.writeProtectedProjectIds.has(meta.id)) {
+            console.warn('[BAS] Autosave assets belong to a newer BAS build; preserving them without downgrade writes.');
+            setAutosaveStatus('error');
+            return false;
+        }
+        const previousAssets = previousSignature === signature ? [] : storedAssets;
         const db = await openAutosaveDatabase();
         const stores = previousSignature === signature
             ? [BAS_AUTOSAVE_PROJECT_STORE]
@@ -250,6 +335,7 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
         savedManifest.project.dirty = false;
         savedManifest.project.updatedAt = now;
         const record = {
+            recordVersion: BAS_AUTOSAVE_PROJECT_RECORD_VERSION,
             id: meta.id,
             name: meta.name || 'bootanimation',
             createdAt: meta.createdAt || now,

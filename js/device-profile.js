@@ -4,11 +4,29 @@ const BAS_DEVICE_PROFILE_STORAGE_KEY = 'bas.deviceTargets.v1';
 const BAS_DEVICE_PROFILE_ACTIVE_KEY = 'bas.deviceTargets.active.v1';
 const BAS_DEVICE_PROFILE_LIMIT = 12;
 
+const BAS_DEVICE_PROFILE_STORAGE_SCHEMA = window.BASPersistenceSchema?.define({
+    id: 'browser.saved-device-targets',
+    currentVersion: BAS_DEVICE_PROFILE_STORAGE_VERSION,
+    minimumVersion: 0,
+    versionField: 'version',
+    policy: 'tolerant-preference',
+    owner: 'BASDeviceProfile',
+    storage: `localStorage:${BAS_DEVICE_PROFILE_STORAGE_KEY}`,
+    notes: 'Legacy arrays/unversioned wrappers migrate in-memory; future wrappers are preserved and write-protected.',
+    migrations: {
+        0(value) {
+            return { version: 1, profiles: Array.isArray(value.profiles) ? value.profiles : [] };
+        }
+    }
+});
+
 const deviceProfileRuntime = {
     initialized: false,
     expanded: false,
     saved: [],
-    activeTarget: 'live'
+    activeTarget: 'live',
+    storageWriteBlocked: false,
+    storageWarningShown: false
 };
 
 function deviceProfileText(key, fallback) {
@@ -109,10 +127,43 @@ function deviceProfileSanitizeSaved(raw) {
     };
 }
 
+
+function deviceProfileStorageEnvelope(parsed) {
+    if (Array.isArray(parsed)) return { version: 0, profiles: parsed };
+    if (!parsed || typeof parsed !== 'object') return { version: 0, profiles: [] };
+    if (!Object.prototype.hasOwnProperty.call(parsed, 'version')) return { ...parsed, version: 0 };
+    return parsed;
+}
+
+function deviceProfileStorageBlockedMessage() {
+    return deviceProfileText('futureStoredStateWriteBlocked', 'Saved data was created by a newer Boot Animation Studio version. This build will not overwrite it.');
+}
+
+function deviceProfileCanWriteStorage(notify = false) {
+    if (!deviceProfileRuntime.storageWriteBlocked) return true;
+    if (notify && !deviceProfileRuntime.storageWarningShown) {
+        deviceProfileRuntime.storageWarningShown = true;
+        if (typeof showToast === 'function') showToast(deviceProfileStorageBlockedMessage(), 'info', 4200);
+    }
+    return false;
+}
+
 function deviceProfileLoadSaved() {
+    deviceProfileRuntime.storageWriteBlocked = false;
+    deviceProfileRuntime.storageWarningShown = false;
     try {
-        const parsed = JSON.parse(localStorage.getItem(BAS_DEVICE_PROFILE_STORAGE_KEY) || '{}');
-        const source = Array.isArray(parsed) ? parsed : parsed.profiles;
+        const raw = JSON.parse(localStorage.getItem(BAS_DEVICE_PROFILE_STORAGE_KEY) || '{}');
+        const envelope = deviceProfileStorageEnvelope(raw);
+        const inspection = BAS_DEVICE_PROFILE_STORAGE_SCHEMA ? BASPersistenceSchema.inspect(BAS_DEVICE_PROFILE_STORAGE_SCHEMA, envelope) : { disposition: 'current' };
+        if (inspection.disposition === 'future') {
+            deviceProfileRuntime.storageWriteBlocked = true;
+            deviceProfileRuntime.saved = [];
+            deviceProfileRuntime.activeTarget = 'live';
+            console.warn('[BAS] Saved Device Targets were created by a newer BAS build; preserving storage without downgrade writes.');
+            return;
+        }
+        const parsed = BAS_DEVICE_PROFILE_STORAGE_SCHEMA ? BASPersistenceSchema.migrate(BAS_DEVICE_PROFILE_STORAGE_SCHEMA, envelope) : envelope;
+        const source = parsed.profiles;
         deviceProfileRuntime.saved = (Array.isArray(source) ? source : []).map(deviceProfileSanitizeSaved).filter(Boolean).slice(0, BAS_DEVICE_PROFILE_LIMIT);
         const active = String(localStorage.getItem(BAS_DEVICE_PROFILE_ACTIVE_KEY) || 'live');
         deviceProfileRuntime.activeTarget = active === 'live' || deviceProfileRuntime.saved.some(profile => profile.id === active) ? active : 'live';
@@ -123,11 +174,14 @@ function deviceProfileLoadSaved() {
 }
 
 function deviceProfilePersistSaved() {
+    if (!deviceProfileCanWriteStorage(false)) return false;
     try {
         localStorage.setItem(BAS_DEVICE_PROFILE_STORAGE_KEY, JSON.stringify({ version: BAS_DEVICE_PROFILE_STORAGE_VERSION, profiles: deviceProfileRuntime.saved }));
         localStorage.setItem(BAS_DEVICE_PROFILE_ACTIVE_KEY, deviceProfileRuntime.activeTarget);
+        return true;
     } catch (error) {
         if (typeof showToast === 'function') showToast(deviceProfileText('deviceTargetStorageError', 'Device profiles could not be saved in this browser.'), 'error', 3200);
+        return false;
     }
 }
 
@@ -169,6 +223,7 @@ function deviceProfileTargetIntelligence() {
 }
 
 function deviceProfileSaveLiveTarget() {
+    if (!deviceProfileCanWriteStorage(true)) return null;
     const intelligence = deviceProfileIntelligence();
     const live = deviceProfileLiveTarget();
     if (!live || !intelligence) {
@@ -205,6 +260,7 @@ function deviceProfileSaveLiveTarget() {
 }
 
 function deviceProfileDeleteActiveSaved() {
+    if (!deviceProfileCanWriteStorage(true)) return;
     if (deviceProfileRuntime.activeTarget === 'live') return;
     const target = deviceProfileSavedTarget(deviceProfileRuntime.activeTarget);
     if (!target) return;
@@ -218,6 +274,7 @@ function deviceProfileDeleteActiveSaved() {
 }
 
 function deviceProfileSelectTarget(id) {
+    if (!deviceProfileCanWriteStorage(true)) return;
     const value = String(id || 'live');
     deviceProfileRuntime.activeTarget = value === 'live' || deviceProfileRuntime.saved.some(item => item.id === value) ? value : 'live';
     deviceProfilePersistSaved();

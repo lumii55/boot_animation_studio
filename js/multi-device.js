@@ -3,6 +3,22 @@ const BAS_MULTI_DEVICE_STORAGE_KEY = 'bas.multiDevice.registry.v1';
 const BAS_MULTI_DEVICE_STORAGE_VERSION = 1;
 const BAS_MULTI_DEVICE_LIMIT = 24;
 
+const BAS_MULTI_DEVICE_STORAGE_SCHEMA = window.BASPersistenceSchema?.define({
+    id: 'browser.multi-device-registry',
+    currentVersion: BAS_MULTI_DEVICE_STORAGE_VERSION,
+    minimumVersion: 0,
+    versionField: 'version',
+    policy: 'tolerant-preference',
+    owner: 'BASMultiDevice',
+    storage: `localStorage:${BAS_MULTI_DEVICE_STORAGE_KEY}`,
+    notes: 'Legacy arrays/unversioned wrappers migrate in-memory; future wrappers remain untouched while runtime discovery stays available.',
+    migrations: {
+        0(value) {
+            return { version: 1, devices: Array.isArray(value.devices) ? value.devices : [] };
+        }
+    }
+});
+
 const multiDeviceRuntime = {
     devices: new Map(),
     activeId: '',
@@ -11,7 +27,8 @@ const multiDeviceRuntime = {
     scanGeneration: 0,
     bound: false,
     requestController: new AbortController(),
-    unloadSent: false
+    unloadSent: false,
+    storageWriteBlocked: false
 };
 
 function multiDeviceText(key, fallback) {
@@ -82,11 +99,27 @@ function multiDeviceSanitizeStored(raw) {
     };
 }
 
+
+function multiDeviceStorageEnvelope(parsed) {
+    if (Array.isArray(parsed)) return { version: 0, devices: parsed };
+    if (!parsed || typeof parsed !== 'object') return { version: 0, devices: [] };
+    if (!Object.prototype.hasOwnProperty.call(parsed, 'version')) return { ...parsed, version: 0 };
+    return parsed;
+}
+
 function multiDeviceLoad() {
+    multiDeviceRuntime.storageWriteBlocked = false;
     try {
-        const parsed = JSON.parse(localStorage.getItem(BAS_MULTI_DEVICE_STORAGE_KEY) || '{}');
-        const source = Array.isArray(parsed) ? parsed : parsed.devices;
-        (Array.isArray(source) ? source : []).slice(0, BAS_MULTI_DEVICE_LIMIT).forEach(raw => {
+        const raw = JSON.parse(localStorage.getItem(BAS_MULTI_DEVICE_STORAGE_KEY) || '{}');
+        const envelope = multiDeviceStorageEnvelope(raw);
+        const inspection = BAS_MULTI_DEVICE_STORAGE_SCHEMA ? BASPersistenceSchema.inspect(BAS_MULTI_DEVICE_STORAGE_SCHEMA, envelope) : { disposition: 'current' };
+        if (inspection.disposition === 'future') {
+            multiDeviceRuntime.storageWriteBlocked = true;
+            console.warn('[BAS] Multi-Device registry was created by a newer BAS build; preserving storage while allowing transient discovery.');
+            return;
+        }
+        const parsed = BAS_MULTI_DEVICE_STORAGE_SCHEMA ? BASPersistenceSchema.migrate(BAS_MULTI_DEVICE_STORAGE_SCHEMA, envelope) : envelope;
+        (Array.isArray(parsed.devices) ? parsed.devices : []).slice(0, BAS_MULTI_DEVICE_LIMIT).forEach(raw => {
             const device = multiDeviceSanitizeStored(raw);
             if (device) multiDeviceRuntime.devices.set(device.id, device);
         });
@@ -96,6 +129,7 @@ function multiDeviceLoad() {
 }
 
 function multiDevicePersist() {
+    if (multiDeviceRuntime.storageWriteBlocked) return false;
     try {
         const devices = Array.from(multiDeviceRuntime.devices.values())
             .sort((a, b) => Math.max(b.lastConnected, b.lastSeen) - Math.max(a.lastConnected, a.lastSeen))
@@ -112,7 +146,9 @@ function multiDevicePersist() {
                 moduleVersion: device.moduleVersion
             }));
         localStorage.setItem(BAS_MULTI_DEVICE_STORAGE_KEY, JSON.stringify({ version: BAS_MULTI_DEVICE_STORAGE_VERSION, devices }));
+        return true;
     } catch (error) {
+        return false;
     }
 }
 

@@ -1,11 +1,25 @@
 const BAS_TRUST_CLIENT_DB = 'bas.trust.client.v1';
 const BAS_TRUST_CLIENT_STORE = 'identity';
 const BAS_TRUST_CLIENT_KEY = 'primary';
+const BAS_TRUST_CLIENT_STORAGE_VERSION = 1;
+
+const BAS_TRUST_CLIENT_STORAGE_SCHEMA = window.BASPersistenceSchema?.define({
+    id: 'browser.trusted-client-identity',
+    currentVersion: BAS_TRUST_CLIENT_STORAGE_VERSION,
+    minimumVersion: 1,
+    versionField: 'version',
+    policy: 'replaceable-credential',
+    owner: 'BASTrustClient',
+    storage: `${BAS_TRUST_CLIENT_DB}/${BAS_TRUST_CLIENT_STORE}/${BAS_TRUST_CLIENT_KEY}`,
+    notes: 'Malformed current credentials may be regenerated; future credentials are preserved and never downgraded by an older build.',
+    migrations: {}
+});
 
 const trustClientRuntime = {
     identity: null,
     readyPromise: null,
-    available: Boolean(window.crypto?.subtle && window.indexedDB)
+    available: Boolean(window.crypto?.subtle && window.indexedDB),
+    writeBlocked: false
 };
 
 function trustClientBase64Url(bytes) {
@@ -104,6 +118,13 @@ async function trustClientGenerate() {
     };
 }
 
+
+function trustClientInspectStored(identity) {
+    if (!identity || typeof identity !== 'object') return { disposition: 'invalid', code: 'invalid_shape' };
+    if (!BAS_TRUST_CLIENT_STORAGE_SCHEMA) return { disposition: identity.version === BAS_TRUST_CLIENT_STORAGE_VERSION ? 'current' : 'invalid' };
+    return BASPersistenceSchema.inspect(BAS_TRUST_CLIENT_STORAGE_SCHEMA, identity);
+}
+
 function trustClientStoredValid(identity) {
     return Boolean(
         identity && identity.version === 1 &&
@@ -119,7 +140,15 @@ async function trustClientInitialize() {
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
             let identity = await trustClientReadStored();
-            if (trustClientStoredValid(identity)) {
+            const inspection = trustClientInspectStored(identity);
+            if (inspection.disposition === 'future') {
+                trustClientRuntime.writeBlocked = true;
+                trustClientRuntime.identity = null;
+                console.warn('[BAS] Trusted-client identity was created by a newer BAS build; preserving it without downgrade writes.');
+                return null;
+            }
+            trustClientRuntime.writeBlocked = false;
+            if (inspection.disposition === 'current' && trustClientStoredValid(identity)) {
                 const expectedId = await trustClientIdForPublicJwk(identity.publicJwk);
                 if (expectedId !== identity.id) identity = null;
             } else {
@@ -133,7 +162,7 @@ async function trustClientInitialize() {
             return identity;
         } catch (error) {
             console.warn('[BAS] Trusted-client identity initialization failed.', error);
-            if (attempt === 0) {
+            if (attempt === 0 && !trustClientRuntime.writeBlocked) {
                 try {
                     await trustClientDeleteDb();
                     continue;
@@ -221,7 +250,7 @@ window.BASTrustClient = {
     reconnect: trustClientReconnect,
     id: () => trustClientRuntime.identity?.id || '',
     label: () => trustClientRuntime.identity?.label || '',
-    available: () => trustClientRuntime.available
+    available: () => trustClientRuntime.available && !trustClientRuntime.writeBlocked
 };
 
 trustClientReady();

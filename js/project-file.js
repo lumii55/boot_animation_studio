@@ -6,6 +6,19 @@ const BAS_PROJECT_FILE_METADATA_LIMIT = 2 * 1024 * 1024;
 const BAS_PROJECT_FILE_MAX_ASSETS = 2048;
 const BAS_PROJECT_FILE_CONTAINER_MIGRATIONS = Object.freeze({});
 
+const BAS_PROJECT_FILE_PERSISTENCE_SCHEMA = BASPersistenceSchema.define({
+    id: 'browser.basproject-container',
+    currentVersion: BAS_PROJECT_FILE_CONTAINER_VERSION,
+    minimumVersion: 1,
+    versionField: 'containerVersion',
+    formatField: 'format',
+    formatValue: BAS_PROJECT_FILE_FORMAT,
+    migrations: BAS_PROJECT_FILE_CONTAINER_MIGRATIONS,
+    policy: 'portable-migrate',
+    owner: 'BASProjectFile',
+    storage: '.basproject ZIP'
+});
+
 const projectFileRuntime = {
     saving: false,
     opening: false,
@@ -321,21 +334,17 @@ function parseProjectFileJson(text, errorKey, fallback) {
 }
 
 function migrateBasProjectContainer(container) {
-    if (!container || typeof container !== 'object' || container.format !== BAS_PROJECT_FILE_FORMAT) {
+    try {
+        return BASPersistenceSchema.migrate(BAS_PROJECT_FILE_PERSISTENCE_SCHEMA, container);
+    } catch (error) {
+        if (error && error.code === 'future_version') {
+            throw new Error(projectFileText('projectFileContainerNewer', 'This project file was created by a newer Boot Animation Studio version.'));
+        }
+        if (error && (error.code === 'unsupported_version' || error.code === 'missing_migration')) {
+            throw new Error(projectFileText('projectFileContainerUnsupported', 'This project-file version is not supported.'));
+        }
         throw new Error(projectFileText('projectFileInvalidContainer', 'This is not a valid Boot Animation Studio project file.'));
     }
-    let migrated = projectFileClone(container);
-    let version = Number(migrated.containerVersion);
-    if (!Number.isInteger(version) || version < 1) throw new Error(projectFileText('projectFileContainerUnsupported', 'This project-file version is not supported.'));
-    if (version > BAS_PROJECT_FILE_CONTAINER_VERSION) throw new Error(projectFileText('projectFileContainerNewer', 'This project file was created by a newer Boot Animation Studio version.'));
-    while (version < BAS_PROJECT_FILE_CONTAINER_VERSION) {
-        const migration = BAS_PROJECT_FILE_CONTAINER_MIGRATIONS[version];
-        if (typeof migration !== 'function') throw new Error(projectFileText('projectFileContainerUnsupported', 'This project-file version is not supported.'));
-        migrated = migration(migrated);
-        version = Number(migrated.containerVersion);
-        if (!Number.isInteger(version)) throw new Error(projectFileText('projectFileInvalidContainer', 'This is not a valid Boot Animation Studio project file.'));
-    }
-    return migrated;
 }
 
 async function projectFileReadMetadataEntry(zip, path, errorKey, fallback) {

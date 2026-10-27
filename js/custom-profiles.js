@@ -1,6 +1,23 @@
 const BAS_CUSTOM_PROFILE_VERSION = 1;
 const BAS_CUSTOM_PROFILE_STORAGE_KEY = 'boot-animation-studio-custom-profiles-v1';
+const BAS_CUSTOM_PROFILE_STORAGE_VERSION = 1;
 const BAS_CUSTOM_PROFILE_LIMIT = 12;
+
+const BAS_CUSTOM_PROFILE_STORAGE_SCHEMA = window.BASPersistenceSchema?.define({
+    id: 'browser.custom-output-profiles',
+    currentVersion: BAS_CUSTOM_PROFILE_STORAGE_VERSION,
+    minimumVersion: 0,
+    versionField: 'version',
+    policy: 'tolerant-preference',
+    owner: 'BASCustomProfiles',
+    storage: `localStorage:${BAS_CUSTOM_PROFILE_STORAGE_KEY}`,
+    notes: 'Legacy arrays/unversioned wrappers migrate in-memory; future wrappers are preserved and write-protected.',
+    migrations: {
+        0(value) {
+            return { version: 1, profiles: Array.isArray(value.profiles) ? value.profiles : [] };
+        }
+    }
+});
 
 const customProfileRuntime = {
     initialized: false,
@@ -8,7 +25,9 @@ const customProfileRuntime = {
     editorOpen: false,
     menuId: '',
     renameId: '',
-    editorSourceOptions: null
+    editorSourceOptions: null,
+    storageWriteBlocked: false,
+    storageWarningShown: false
 };
 
 function customProfileText(key, fallback) {
@@ -65,11 +84,38 @@ function customProfileSanitize(raw) {
     };
 }
 
+
+function customProfileStorageEnvelope(parsed) {
+    if (Array.isArray(parsed)) return { version: 0, profiles: parsed };
+    if (!parsed || typeof parsed !== 'object') return { version: 0, profiles: [] };
+    if (!Object.prototype.hasOwnProperty.call(parsed, 'version')) return { ...parsed, version: 0 };
+    return parsed;
+}
+
+function customProfileCanWriteStorage(notify = false) {
+    if (!customProfileRuntime.storageWriteBlocked) return true;
+    if (notify && !customProfileRuntime.storageWarningShown) {
+        customProfileRuntime.storageWarningShown = true;
+        if (typeof showToast === 'function') showToast(customProfileText('futureStoredStateWriteBlocked', 'Saved data was created by a newer Boot Animation Studio version. This build will not overwrite it.'), 'info', 4200);
+    }
+    return false;
+}
+
 function customProfileLoad() {
+    customProfileRuntime.storageWriteBlocked = false;
+    customProfileRuntime.storageWarningShown = false;
     try {
-        const parsed = JSON.parse(localStorage.getItem(BAS_CUSTOM_PROFILE_STORAGE_KEY) || '{}');
-        const source = Array.isArray(parsed) ? parsed : parsed.profiles;
-        customProfileRuntime.profiles = (Array.isArray(source) ? source : [])
+        const raw = JSON.parse(localStorage.getItem(BAS_CUSTOM_PROFILE_STORAGE_KEY) || '{}');
+        const envelope = customProfileStorageEnvelope(raw);
+        const inspection = BAS_CUSTOM_PROFILE_STORAGE_SCHEMA ? BASPersistenceSchema.inspect(BAS_CUSTOM_PROFILE_STORAGE_SCHEMA, envelope) : { disposition: 'current' };
+        if (inspection.disposition === 'future') {
+            customProfileRuntime.storageWriteBlocked = true;
+            customProfileRuntime.profiles = [];
+            console.warn('[BAS] Custom Output Profiles were created by a newer BAS build; preserving storage without downgrade writes.');
+            return;
+        }
+        const parsed = BAS_CUSTOM_PROFILE_STORAGE_SCHEMA ? BASPersistenceSchema.migrate(BAS_CUSTOM_PROFILE_STORAGE_SCHEMA, envelope) : envelope;
+        customProfileRuntime.profiles = (Array.isArray(parsed.profiles) ? parsed.profiles : [])
             .map(customProfileSanitize)
             .filter(Boolean)
             .slice(0, BAS_CUSTOM_PROFILE_LIMIT);
@@ -79,13 +125,16 @@ function customProfileLoad() {
 }
 
 function customProfilePersist() {
+    if (!customProfileCanWriteStorage(false)) return false;
     try {
         localStorage.setItem(BAS_CUSTOM_PROFILE_STORAGE_KEY, JSON.stringify({
-            version: BAS_CUSTOM_PROFILE_VERSION,
+            version: BAS_CUSTOM_PROFILE_STORAGE_VERSION,
             profiles: customProfileRuntime.profiles
         }));
+        return true;
     } catch (error) {
         if (typeof showToast === 'function') showToast(customProfileText('customProfileStorageError', 'Profiles could not be saved in this browser.'), 'error', 3600);
+        return false;
     }
 }
 
@@ -158,6 +207,7 @@ function customProfileCloseEditor() {
 }
 
 function customProfileSaveCurrent() {
+    if (!customProfileCanWriteStorage(true)) return;
     if (customProfileRuntime.profiles.length >= BAS_CUSTOM_PROFILE_LIMIT) return;
     const options = customProfileRuntime.editorSourceOptions || customProfileCurrentOptions();
     if (!options) return;
@@ -272,6 +322,7 @@ function customProfileCancelRename() {
 }
 
 function customProfileCommitRename(id) {
+    if (!customProfileCanWriteStorage(true)) return;
     const profile = customProfileRuntime.profiles.find(item => item.id === id);
     const input = document.querySelector(`[data-custom-profile-id="${CSS.escape(id)}"] [data-profile-rename-input]`);
     if (!profile || !input) return;
@@ -291,6 +342,7 @@ function customProfileCommitRename(id) {
 }
 
 async function customProfileDelete(id) {
+    if (!customProfileCanWriteStorage(true)) return;
     const profile = customProfileRuntime.profiles.find(item => item.id === id);
     if (!profile) return;
     const message = customProfileText('customProfileDeleteConfirm', 'Delete “{name}”?').replace('{name}', profile.name);
