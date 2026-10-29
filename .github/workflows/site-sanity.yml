@@ -1,0 +1,78 @@
+# P14.6 static-only CI template for the public site-hosting repository.
+# This workflow never builds/installs the Companion and never deploys the site.
+name: BAS website sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate HTML, locales, assets and PWA offline shell
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          import json, re
+          root=Path('.')
+          class Tags(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.ids=[];self.scripts=[];self.styles=[];self.refs=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if a.get('id'):self.ids.append(a['id'])
+                  if tag=='script' and a.get('src'):self.scripts.append(a['src'])
+                  if tag=='link' and a.get('href'):
+                      self.refs.append(a['href'])
+                      if a.get('rel')=='stylesheet':self.styles.append(a['href'])
+          html=(root/'index.html').read_text('utf-8')
+          sw=(root/'service-worker.js').read_text('utf-8')
+          t=Tags();t.feed(html)
+          assert len(t.ids)==len(set(t.ids)), 'Duplicate HTML ID'
+          assert len(t.scripts)==len(set(t.scripts)), 'Duplicate JS URL'
+          assert len(t.styles)==len(set(t.styles)), 'Duplicate CSS URL'
+          m=re.search(r"const\s+BAS_CACHE\s*=\s*['\"]bas-shell-web-v\d+['\"]",sw)
+          assert m,'Missing versioned PWA cache'
+          match=re.search(r'const\s+BAS_SHELL\s*=\s*(\[[^;]+\]);',sw,re.S)
+          assert match,'Missing PWA shell'
+          assets=json.loads(match.group(1))
+          assert len(assets)==len(set(assets)),'Duplicate PWA shell entry'
+          assert './' in assets and './index.html' in assets
+          versions=set()
+          for url in t.scripts+t.refs:
+              if url.startswith(('http:', 'https:', '//', '#', 'data:')):continue
+              path,_,q=url.partition('?')
+              assert (root/path).is_file(),f'Missing HTML asset: {path}'
+              if q.startswith('v=web-v'):
+                  versions.add(q)
+                  if path.endswith(('.css','.js','.webmanifest')):
+                      assert './'+url in assets,f'Missing offline asset: {url}'
+          assert len(versions)==1,f'Asset version drift: {versions}'
+          for asset in assets:
+              assert asset.startswith('./')
+              if asset=='./':continue
+              path,_,q=asset[2:].partition('?')
+              assert (root/path).is_file(),f'Missing shell asset: {path}'
+              if q.startswith('v=web-v'):assert q in versions,f'Shell version drift: {asset}'
+          own=set(x.as_posix() for x in (root/'js').rglob('*.js'))
+          loaded=set(s.split('?')[0] for s in t.scripts if s.startswith('js/'))
+          assert own==loaded,f'Orphan/missing JavaScript: {sorted(own^loaded)}'
+          langs=['en','pt','es','fr','de','it','ja','zh']
+          keys=[]
+          for lang in langs:
+              p=root/'js'/'locales'/f'{lang}.js'
+              assert p.is_file(),f'Missing locale: {lang}'
+              found=re.findall(r'^ {8}"([^"\n]+)"\s*:',p.read_text('utf-8'),re.M)
+              assert found and len(found)==len(set(found)),f'Duplicate/empty locale keys: {lang}'
+              keys.append(set(found))
+          assert all(k==keys[0] for k in keys),'Locale key mismatch'
+          print(f'PASS: {len(t.scripts)} scripts, {len(t.styles)} stylesheets, {len(assets)} offline assets, {len(keys[0])} keys x {len(langs)} locales')
+          PY
