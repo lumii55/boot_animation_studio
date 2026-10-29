@@ -1,7 +1,7 @@
 const BAS_PROJECT_FILE_CONTAINER_VERSION = 1;
 const BAS_PROJECT_FILE_EXTENSION = '.basproject';
 const BAS_PROJECT_FILE_FORMAT = 'boot-animation-studio-project-package';
-const BAS_PROJECT_FILE_RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Web app';
+const BAS_PROJECT_FILE_RELEASE = window.BASState?.publicBuildLabel || 'Web app';
 const BAS_PROJECT_FILE_METADATA_LIMIT = 2 * 1024 * 1024;
 const BAS_PROJECT_FILE_MAX_ASSETS = 2048;
 const BAS_PROJECT_FILE_CONTAINER_MIGRATIONS = Object.freeze({});
@@ -29,12 +29,11 @@ const projectFileRuntime = {
 };
 
 function projectFileText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual];
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) || fallback;
+}
+
+function projectFileCurrentProject() {
+    return window.BASState?.currentProject || null;
 }
 
 function projectFileNow() {
@@ -115,6 +114,7 @@ function projectFileClearHandle() {
 }
 
 function syncProjectFileUi() {
+    const currentProject = projectFileCurrentProject();
     const openButton = document.getElementById('p12-open-project');
     const launchOpenButton = document.getElementById('p12-open-project-launch');
     const saveButton = document.getElementById('p12-save-project');
@@ -169,6 +169,7 @@ function syncProjectFileText() {
 }
 
 async function buildBasProjectPackage() {
+    const currentProject = projectFileCurrentProject();
     if (typeof JSZip === 'undefined') throw new Error(projectFileText('projectFileZipUnavailable', 'Project files are unavailable because JSZip did not load.'));
     if (!currentProject || !(currentProject.sourceBlob instanceof Blob) || !window.BASProjectEngine) {
         throw new Error(projectFileText('projectFileNoProject', 'Load a project before saving it.'));
@@ -258,8 +259,8 @@ async function buildBasProjectPackage() {
 }
 
 function downloadBasProjectBlob(blob, filename) {
-    if (typeof downloadGeneratedBlob === 'function') {
-        downloadGeneratedBlob(blob, filename);
+    if (window.BASExport?.downloadBlob) {
+        window.BASExport.downloadBlob(blob, filename);
         return;
     }
     const url = URL.createObjectURL(blob);
@@ -288,12 +289,12 @@ async function writeBasProjectResult(result, options = {}) {
         await writable.close();
         projectFileRuntime.fileHandle = handle;
         projectFileRuntime.filename = handle.name || result.filename;
-        projectFileRuntime.fileProjectId = currentProject && currentProject.projectMeta ? String(currentProject.projectMeta.id || '') : '';
+        { const project = projectFileCurrentProject(); projectFileRuntime.fileProjectId = project && project.projectMeta ? String(project.projectMeta.id || '') : ''; }
         return 'native';
     }
     downloadBasProjectBlob(result.blob, result.filename);
     projectFileRuntime.filename = result.filename;
-    projectFileRuntime.fileProjectId = currentProject && currentProject.projectMeta ? String(currentProject.projectMeta.id || '') : '';
+    { const project = projectFileCurrentProject(); projectFileRuntime.fileProjectId = project && project.projectMeta ? String(project.projectMeta.id || '') : ''; }
     return 'download';
 }
 
@@ -303,13 +304,13 @@ async function saveBasProjectFile(options = {}) {
     try {
         const result = await buildBasProjectPackage();
         await writeBasProjectResult(result, options);
-        if (typeof showToast === 'function') showToast(projectFileText('projectFileSaved', 'Project file saved.'), 'success');
+        window.BASUX?.showToast?.(projectFileText('projectFileSaved', 'Project file saved.'), 'success');
         return result;
     } catch (error) {
         if (projectFileIsAbort(error)) return null;
         console.error(error);
         const message = error && error.message ? error.message : projectFileText('projectFileSaveFailed', 'Could not save the project file.');
-        if (typeof showToast === 'function') showToast(message, 'error');
+        if (window.BASUX?.showToast) window.BASUX.showToast(message, 'error');
         else alert(message);
         return null;
     } finally {
@@ -461,6 +462,7 @@ async function readBasProjectPackage(blob) {
 }
 
 async function protectCurrentProjectBeforeOpen() {
+    const currentProject = projectFileCurrentProject();
     if (!currentProject || !currentProject.projectMeta || !currentProject.projectMeta.dirty) return true;
     if (window.BASAutosave && typeof BASAutosave.save === 'function') {
         const saved = await BASAutosave.save('before-project-file-open');
@@ -494,15 +496,15 @@ async function openBasProjectBlob(blob, options = {}) {
         await BASProjectRestore.restore(packageData.manifest, packageData.assetMap, { reason: 'project-file-open' });
         projectFileRuntime.fileHandle = options.fileHandle || null;
         projectFileRuntime.filename = options.filename || options.fileHandle && options.fileHandle.name || blob.name || `${projectFileBaseName(packageData.manifest)}${BAS_PROJECT_FILE_EXTENSION}`;
-        projectFileRuntime.fileProjectId = currentProject && currentProject.projectMeta ? String(currentProject.projectMeta.id || '') : '';
+        { const project = projectFileCurrentProject(); projectFileRuntime.fileProjectId = project && project.projectMeta ? String(project.projectMeta.id || '') : ''; }
         if (window.BASAutosave && typeof BASAutosave.save === 'function') BASAutosave.save('project-file-open');
-        if (typeof showToast === 'function') showToast(projectFileText('projectFileOpened', 'Project opened.'), 'success');
+        window.BASUX?.showToast?.(projectFileText('projectFileOpened', 'Project opened.'), 'success');
         return packageData;
     } catch (error) {
         if (projectFileIsAbort(error)) return null;
         console.error(error);
         const message = error && error.message ? error.message : projectFileText('projectFileOpenFailed', 'Could not open the project file.');
-        if (typeof showToast === 'function') showToast(message, 'error');
+        if (window.BASUX?.showToast) window.BASUX.showToast(message, 'error');
         else alert(message);
         return null;
     } finally {
@@ -528,7 +530,7 @@ async function chooseBasProjectFile() {
             if (projectFileIsAbort(error)) return null;
             console.error(error);
             const message = error && error.message ? error.message : projectFileText('projectFileOpenFailed', 'Could not open the project file.');
-            if (typeof showToast === 'function') showToast(message, 'error');
+            if (window.BASUX?.showToast) window.BASUX.showToast(message, 'error');
             else alert(message);
             return null;
         }
@@ -574,7 +576,8 @@ window.BASProjectFile = Object.freeze({
     open: openBasProjectBlob,
     read: readBasProjectPackage,
     readLoaded: readLoadedBasProjectPackage,
-    migrateContainer: migrateBasProjectContainer
+    migrateContainer: migrateBasProjectContainer,
+    syncText: syncProjectFileText
 });
 window.saveBasProjectFile = saveBasProjectFile;
 window.openBasProjectFile = chooseBasProjectFile;

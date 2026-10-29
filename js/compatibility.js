@@ -793,45 +793,45 @@ function compatibilityScrollTo(element) {
 function runCompatibilityAction(action) {
     if (!action) return;
     if (action.type === 'edit') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit');
+        window.BASWorkspace?.setView?.('edit');
         return;
     }
     if (action.type === 'markers') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit');
+        window.BASWorkspace?.setView?.('edit');
         compatibilityScrollTo(document.getElementById('timeline-wrapper'));
         return;
     }
     if (action.type === 'parts') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
+        window.BASWorkspace?.setView?.('edit', { scroll: false });
         if (typeof setEditTool === 'function') setEditTool('parts', { scroll: true });
         if (action.issue && typeof focusAdvancedValidationIssue === 'function') setTimeout(() => focusAdvancedValidationIssue(action.issue), 90);
         else compatibilityScrollTo(document.getElementById('advanced-parts-editor'));
         return;
     }
     if (action.type === 'composition') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
+        window.BASWorkspace?.setView?.('edit', { scroll: false });
         if (typeof setEditTool === 'function') setEditTool('composition', { scroll: true });
         if (action.layerId && window.BASComposition) BASComposition.select(action.layerId);
         return;
     }
     if (action.type === 'audio') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
+        window.BASWorkspace?.setView?.('edit', { scroll: false });
         if (typeof setEditTool === 'function') setEditTool('audio', { scroll: true });
         if (action.role && typeof setAudioRole === 'function') setAudioRole(action.role);
         return;
     }
     if (action.type === 'sources') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
+        window.BASWorkspace?.setView?.('edit', { scroll: false });
         compatibilityScrollTo(document.getElementById('source-library'));
         return;
     }
     if (action.type === 'output') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('settings', { scroll: false });
+        window.BASWorkspace?.setView?.('settings', { scroll: false });
         if (typeof setOutputTool === 'function') setOutputTool('basics', { scroll: true });
         return;
     }
     if (action.type === 'optimize') {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('settings', { scroll: false });
+        window.BASWorkspace?.setView?.('settings', { scroll: false });
         if (typeof setOutputTool === 'function') setOutputTool('performance', { scroll: true });
         compatibilityScrollTo(document.getElementById('performance-estimate'));
         return;
@@ -942,7 +942,10 @@ window.BASCompatibility = Object.freeze({
     analyze: analyzeCompatibility,
     refresh: runCompatibilityCheck,
     schedule: scheduleCompatibilityCheck,
-    getResult: () => compatibilityRuntime.result
+    getResult: () => compatibilityRuntime.result,
+    getDeviceResolution: compatibilityGetDeviceResolution,
+    syncText: syncCompatibilityText,
+    applyBuildGate: applyCompatibilityBuildGate
 });
 window.scheduleCompatibilityCheck = scheduleCompatibilityCheck;
 window.syncCompatibilityText = syncCompatibilityText;

@@ -19,13 +19,11 @@ const basPwaState = {
 window.BASPWA = basPwaState;
 
 function pwaText(key, fallback) {
-    try {
-        if (typeof traducoes !== 'undefined' && typeof idiomaAtual !== 'undefined') {
-            const table = traducoes[idiomaAtual] || traducoes.en;
-            if (table && table[key]) return table[key];
-        }
-    } catch (_) {}
-    return fallback;
+    return window.BASI18n?.text?.(key, fallback, { englishFallback: true }) || fallback;
+}
+
+function pwaCurrentProject() {
+    return window.BASState?.currentProject || null;
 }
 
 function syncPwaText() {
@@ -110,14 +108,15 @@ async function requestBASInstall() {
 }
 
 async function protectProjectBeforePwaReload() {
-    const dirty = typeof currentProject !== 'undefined' && !!(currentProject && currentProject.projectMeta && currentProject.projectMeta.dirty);
+    const project = pwaCurrentProject();
+    const dirty = !!(project && project.projectMeta && project.projectMeta.dirty);
     if (!dirty) return true;
     if (window.BASAutosave && typeof BASAutosave.save === 'function') {
         const saved = await BASAutosave.save('pwa-update');
         if (saved) return true;
     }
     const message = pwaText('pwaUpdateBackupFailed', 'The current project could not be backed up. Save it before reloading to update.');
-    if (typeof showToast === 'function') showToast(message, 'error', 5200);
+    window.BASUX?.showToast?.(message, 'error', 5200);
     return false;
 }
 
@@ -153,7 +152,7 @@ function bindBASFileLaunchQueue() {
         } catch (error) {
             basPwaState.error = error;
             const message = error && error.message ? error.message : pwaText('projectFileOpenFailed', 'Could not open the project file.');
-            if (typeof showToast === 'function') showToast(message, 'error');
+            window.BASUX?.showToast?.(message, 'error');
         }
     });
 }
@@ -204,6 +203,7 @@ if (basPwaState.supported) {
 bindBASFileLaunchQueue();
 window.addEventListener('DOMContentLoaded', bindBASPWAUi, { once: true });
 window.addEventListener('load', registerBASPWA, { once: true });
+window.BASPWA.syncText = syncPwaText;
 window.syncPwaText = syncPwaText;
 window.requestBASInstall = requestBASInstall;
 window.reloadForBASUpdate = reloadForBASUpdate;

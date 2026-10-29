@@ -14425,6 +14425,30 @@ const traducoes = {
     }
 };
 
+
+function basI18nTable(locale = idiomaAtual) {
+    return traducoes[locale] || null;
+}
+
+function basI18nText(key, fallback = '', options = {}) {
+    const table = basI18nTable(options.locale || idiomaAtual);
+    if (table && table[key]) return table[key];
+    if (options.englishFallback && traducoes.en && traducoes.en[key]) return traducoes.en[key];
+    return fallback;
+}
+
+const BASI18nFacade = {};
+Object.defineProperties(BASI18nFacade, {
+    locale: { enumerable: true, get: () => idiomaAtual }
+});
+Object.assign(BASI18nFacade, {
+    table: basI18nTable,
+    current: () => basI18nTable(idiomaAtual),
+    fallback: () => traducoes.en || null,
+    text: basI18nText
+});
+window.BASI18n = Object.freeze(BASI18nFacade);
+
 window.addEventListener('DOMContentLoaded', () => {
     let langDetectada = 'en';
     const idiomasSuportados = ['en', 'pt', 'es', 'fr', 'de', 'it', 'ja', 'zh'];
@@ -14528,7 +14552,7 @@ function mudarIdioma(lang) {
         const element = document.getElementById(id);
         if (element) element.textContent = t[key];
     });
-    if (typeof syncFinishCenterUi === 'function') syncFinishCenterUi();
+    window.BASFinishCenter?.sync?.();
     document.getElementById('txt-dicas-titulo').innerHTML = t.dicasTitulo;
     document.getElementById('txt-dica-modulo-prefix').textContent = t.dicaModuloPrefix;
     document.getElementById('txt-dica-modulo-text').textContent = t.dicaModuloText;
@@ -14558,9 +14582,9 @@ function mudarIdioma(lang) {
         resetFocusButton.setAttribute('aria-label', t.focusReset);
         resetFocusButton.title = t.focusReset;
     }
-    if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
-    if (typeof updatePlayerTimeReadout === 'function') updatePlayerTimeReadout();
-    if (typeof syncTimelineEditorUi === 'function') syncTimelineEditorUi();
+    window.BASTimelineFraming?.refreshPreview?.();
+    window.BASTimelineControls?.updateTimeReadout?.();
+    window.BASTimelineControls?.syncEditorUi?.();
     document.getElementById('lbl-m0').textContent = t.m0;
     document.getElementById('lbl-m1').textContent = t.m1;
     document.getElementById('lbl-m2').textContent = t.m2;
@@ -14658,49 +14682,49 @@ function mudarIdioma(lang) {
         if (waveformZoomIn) waveformZoomIn.setAttribute('aria-label', t.audioWaveformZoomIn);
         if (waveformFit) waveformFit.textContent = t.audioWaveformFit;
         if (waveformCanvas) waveformCanvas.setAttribute('aria-label', t.audioWaveformTitle);
-        if (typeof syncAudioStudioSyncControlsText === 'function') syncAudioStudioSyncControlsText(part);
-        if (typeof syncAudioProcessingStudioText === 'function') syncAudioProcessingStudioText(part);
-        if (typeof syncAudioExportCompatibilityText === 'function') syncAudioExportCompatibilityText(part);
-        if (typeof refreshAudioExportCompatibility === 'function') refreshAudioExportCompatibility(part).catch(() => {});
-        if (typeof renderAudioWaveformMarkers === 'function') renderAudioWaveformMarkers(part);
+        window.BASAudioStudio?.syncControlsText?.(part);
+        window.BASAudioStudio?.syncProcessingText?.(part);
+        window.BASAudioStudio?.syncExportText?.(part);
+        window.BASAudioStudio?.refreshExportCompatibility?.(part)?.catch(() => {});
+        window.BASAudioStudio?.renderWaveformMarkers?.(part);
         const transportButton = document.getElementById(`audio-studio-preview-${part}`);
         if (transportButton) transportButton.setAttribute('aria-label', t.audioStudioPlay);
         const transportProgress = document.getElementById(`audio-studio-progress-${part}`);
         if (transportProgress) transportProgress.setAttribute('aria-label', t.audioStudioProgress);
         document.getElementById(`lbl-normalize-${part}`).textContent = t.audioNormalize;
-        if (typeof syncAudioAdvancedLabels === 'function') syncAudioAdvancedLabels(part);
-        if (typeof syncAudioAdvancedVisibility === 'function') syncAudioAdvancedVisibility(part);
+        window.BASMediaAudio?.syncAdvancedLabels?.(part);
+        window.BASMediaAudio?.syncAdvancedVisibility?.(part);
     });
-    if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
-    if (typeof renderAdvancedPartsEditor === 'function' && typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) renderAdvancedPartsEditor();
-    atualizarBotoesELinhas();
-    if (typeof updateOutputIntent === 'function') updateOutputIntent();
-    if (typeof syncOptimizerText === 'function') syncOptimizerText();
-    if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
-    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-    if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
-    if (typeof syncContextualToolsText === 'function') syncContextualToolsText();
-    if (typeof syncFramingToolUi === 'function') syncFramingToolUi();
-    if (typeof syncReleaseUi === 'function') syncReleaseUi();
-    if (typeof syncLoadingTipText === 'function') syncLoadingTipText();
-    if (typeof syncProjectEngineUi === 'function') syncProjectEngineUi();
-    if (typeof syncAutosaveUiText === 'function') syncAutosaveUiText();
-    if (typeof syncProjectFileText === 'function') syncProjectFileText();
-    if (typeof syncPwaText === 'function') syncPwaText();
-    if (typeof syncProjectHistoryUi === 'function') syncProjectHistoryUi();
-    if (typeof syncSourceLibraryText === 'function') syncSourceLibraryText();
-    if (typeof syncMasterSequenceText === 'function') syncMasterSequenceText();
-    if (typeof syncTimeline3Text === 'function') syncTimeline3Text();
-    if (typeof syncCompositionText === 'function') syncCompositionText();
-    if (typeof syncCompatibilityText === 'function') syncCompatibilityText();
-    if (typeof syncOutputPresetsText === 'function') syncOutputPresetsText();
-    if (typeof syncCustomProfilesText === 'function') syncCustomProfilesText();
-    if (typeof syncDeviceProfileText === 'function') syncDeviceProfileUi();
+    window.BASParts?.syncUi?.();
+    if (window.BASParts?.isActive?.()) window.BASParts?.renderEditor?.();
+    window.BASTimelineControls.refreshBuildControls();
+    window.BASUX?.updateOutputIntent?.();
+    window.BASPerformance?.syncOptimizerText?.();
+    window.BASPerformance?.syncQuality?.();
+    window.BASPerformance?.scheduleEstimate?.();
+    window.BASWorkspace?.sync?.();
+    window.BASContextual?.syncText?.();
+    window.BASContextual?.syncFramingToolUi?.();
+    window.BASRelease?.sync?.();
+    window.BASLoadingTips?.syncText?.();
+    window.BASProjectEngine?.syncUi?.();
+    window.BASAutosave?.syncUiText?.();
+    window.BASProjectFile?.syncText?.();
+    window.BASPWA?.syncText?.();
+    window.BASProjectHistory?.syncUi?.();
+    window.BASSourceLibrary?.syncText?.();
+    window.BASMasterSequence?.syncText?.();
+    window.BASTimeline3?.syncText?.();
+    window.BASComposition?.syncText?.();
+    window.BASCompatibility?.syncText?.();
+    window.BASOutputPresets?.syncText?.();
+    window.BASCustomProfiles?.syncText?.();
+    if (window.BASDeviceProfile?.syncText) window.BASDeviceProfile.sync();
     if (window.BASDeviceIntelligence?.sync) window.BASDeviceIntelligence.sync();
-    if (typeof syncHelpText === 'function') syncHelpText();
-    if (typeof syncModuleWorkspaceText === 'function') syncModuleWorkspaceText();
-    if (typeof syncMultiDeviceText === 'function') syncMultiDeviceText();
-    if (typeof syncModuleTestUi === 'function') syncModuleTestUi();
+    window.BASHelp?.syncText?.();
+    window.BASModuleWorkspace?.syncText?.();
+    window.BASMultiDevice?.syncText?.();
+    window.BASModuleTest?.sync?.();
     if (window.BASPlaylist?.syncText) window.BASPlaylist.syncText();
     if (window.BASPlaylist?.render) window.BASPlaylist.render();
     if (window.BASRotation?.syncText) window.BASRotation.syncText();

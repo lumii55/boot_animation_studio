@@ -12,12 +12,11 @@ const projectHistoryRuntime = {
 };
 
 function projectHistoryText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual];
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) || fallback;
+}
+
+function projectHistoryProject() {
+    return window.BASState?.currentProject || null;
 }
 
 function cloneProjectHistoryManifest(manifest) {
@@ -37,7 +36,8 @@ function captureProjectHistoryAssets() {
 }
 
 function captureProjectHistorySnapshot() {
-    if (!currentProject || !(currentProject.sourceBlob instanceof Blob) || !window.BASProjectEngine) return null;
+    const project = projectHistoryProject();
+    if (!project || !(project.sourceBlob instanceof Blob) || !window.BASProjectEngine) return null;
     const manifest = BASProjectEngine.captureManifest();
     if (!manifest || !BASProjectEngine.validateManifest(manifest)) return null;
     return {
@@ -48,7 +48,8 @@ function captureProjectHistorySnapshot() {
 }
 
 function resetProjectHistory() {
-    projectHistoryRuntime.projectId = currentProject && currentProject.projectMeta ? currentProject.projectMeta.id || '' : '';
+    const project = projectHistoryProject();
+    projectHistoryRuntime.projectId = project && project.projectMeta ? project.projectMeta.id || '' : '';
     projectHistoryRuntime.entries = [];
     projectHistoryRuntime.index = -1;
     projectHistoryRuntime.lastChangeKey = '';
@@ -157,9 +158,7 @@ function applyProjectHistorySnapshot(index, reason) {
         projectHistoryRuntime.lastChangeKey = '';
         projectHistoryRuntime.lastChangeAt = 0;
         BASProjectEngine.commitRestoredState(reason);
-        if (typeof showToast === 'function') {
-            showToast(projectHistoryText(reason === 'history-undo' ? 'historyUndone' : 'historyRedone', reason === 'history-undo' ? 'Undone' : 'Redone'), 'info', 1600);
-        }
+        window.BASUX?.showToast?.(projectHistoryText(reason === 'history-undo' ? 'historyUndone' : 'historyRedone', reason === 'history-undo' ? 'Undone' : 'Redone'), 'info', 1600);
         return true;
     } finally {
         projectHistoryRuntime.applying = false;
@@ -185,6 +184,7 @@ function bindProjectHistory() {
     window.addEventListener('bas:projectchange', event => {
         if (projectHistoryRuntime.applying) return;
         const detail = event.detail || {};
+        const currentProject = projectHistoryProject();
         if (!currentProject || !(currentProject.sourceBlob instanceof Blob)) {
             if (projectHistoryRuntime.entries.length) resetProjectHistory();
             return;

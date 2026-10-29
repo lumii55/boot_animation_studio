@@ -146,7 +146,7 @@ function masterSequenceRestoreState(state) {
     currentProject.masterSequenceCounter = Math.max(0, Number(state && state.counter) || 0);
     currentProject.masterSequence = saved.map(clip => ({ id: String(clip.id || ''), sourceId: String(clip.sourceId || ''), in: Math.max(0, Number(clip.in) || 0), out: Math.max(0, Number(clip.out) || masterSequenceSourceDuration(clip.sourceId)) }));
     ensureProjectMasterSequence();
-    if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+    window.BASSourceLibrary?.render?.();
     masterSequenceRuntime.currentTime = Math.min(masterSequenceRuntime.currentTime, masterSequenceGetDuration());
     renderMasterSequenceOverview();
     masterSequenceRefreshTimeline({ seekToStart: false });
@@ -225,7 +225,7 @@ function masterSequenceMoveClip(clipId, direction) {
     [sequence[index], sequence[nextIndex]] = [sequence[nextIndex], sequence[index]];
     masterSequenceRuntime.currentTime = 0;
     renderMasterSequenceOverview();
-    if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+    window.BASSourceLibrary?.render?.();
     if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('master-sequence-order', { changeKey: 'master-sequence', immediate: true });
     masterSequenceRefreshTimeline({ seekToStart: true });
     if (typeof showToast === 'function') showToast(masterSequenceText('masterSequenceReordered', 'Source order updated'), 'success');

@@ -541,7 +541,7 @@ function updatePerformanceEstimate() {
         generationNote = t.perfLightNote;
     }
     document.getElementById('perf-note').textContent = `${generationNote} ${getBootSizeNote(estimate.bootLevel, t)}`;
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 }
 
 function schedulePerformanceEstimate() {
@@ -598,8 +598,8 @@ function getOptimizerDeviceResolution() {
         const resolved = BASDeviceProfile.getResolution();
         if (resolved && resolved.width > 0 && resolved.height > 0) return resolved;
     }
-    if (typeof compatibilityGetDeviceResolution === 'function') {
-        const resolved = compatibilityGetDeviceResolution();
+    if (window.BASCompatibility?.getDeviceResolution) {
+        const resolved = window.BASCompatibility.getDeviceResolution();
         if (resolved && resolved.width > 0 && resolved.height > 0) return resolved;
     }
     return null;
@@ -992,7 +992,7 @@ function setJpegQualityFromControl() {
     schedulePerformanceEstimate();
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 }
 
 function updateOptimizerQualityBadge() {
@@ -1201,6 +1201,18 @@ function syncOptimizerText() {
 
 window.setJpegQualityChangeSource = setJpegQualityChangeSource;
 window.getJpegQualityStatus = getJpegQualityStatus;
+window.BASPerformance = Object.freeze({
+    normalizeDimension: normalizeOutputDimension,
+    scheduleEstimate: schedulePerformanceEstimate,
+    getOptions: getPerformanceOptions,
+    estimate: estimateExportPerformance,
+    formatBytes: formatByteEstimate,
+    setQualitySource: setJpegQualityChangeSource,
+    invalidateOptimizer: invalidateOptimizerResult,
+    syncQuality: syncJpegQualityControl,
+    updateQualityBadge: updateOptimizerQualityBadge,
+    syncOptimizerText: syncOptimizerText
+});
 window.BASSmartOptimizer = Object.freeze({ run: runSmartOptimizer, targetBytes: getOptimizationTargetBytes, recommendedBytes: OPTIMIZER_RECOMMENDED_BOOT_BYTES });
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -1226,7 +1238,7 @@ window.addEventListener('DOMContentLoaded', () => {
         syncJpegQualityControl();
         invalidateOptimizerResult();
         schedulePerformanceEstimate();
-        if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck(0);
+        window.BASCompatibility?.schedule?.(0);
         if (typeof syncReleaseUi === 'function') syncReleaseUi();
         if (typeof projectEngineTouch === 'function') projectEngineTouch('jpeg-quality-reset', { changeKey: 'input-jpeg-quality', immediate: true });
     });

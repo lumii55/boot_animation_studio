@@ -10,16 +10,23 @@ const moduleTestRuntime = {
 };
 
 function moduleTestText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual] || traducoes.en || {};
-        return table[key] || fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
+}
+
+function moduleTestHasFeature(feature) {
+    return window.BASApi?.hasFeature?.(feature) === true;
+}
+
+function moduleTestHasPermission(required) {
+    return window.BASApi?.hasPermission?.(required) ?? true;
+}
+
+function moduleTestToast(message, type = 'info', duration = 3200) {
+    window.BASUX?.showToast?.(message, type, duration);
 }
 
 function moduleTestFormatBytes(value) {
-    if (typeof formatUxBytes === 'function') return formatUxBytes(Number(value) || 0);
+    if (window.BASUX?.formatBytes) return window.BASUX.formatBytes(Number(value) || 0);
     const bytes = Number(value) || 0;
     if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(2)} GB`;
     if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)} MB`;
@@ -28,11 +35,11 @@ function moduleTestFormatBytes(value) {
 }
 
 function moduleTestSupported() {
-    return isConnectedMode && typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
+    return Boolean(window.BASState?.connectedMode) && moduleTestHasFeature('test_staging');
 }
 
 function moduleTestMaxBytes() {
-    const advertised = Number(moduleInfo?.max_direct_upload_bytes || 0);
+    const advertised = Number(window.BASState?.moduleInfo?.max_direct_upload_bytes || 0);
     return advertised > 0 ? advertised : 0;
 }
 
@@ -79,8 +86,8 @@ function syncModuleTestText() {
 
 function syncModuleTestUi() {
     const supported = moduleTestSupported();
-    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
-    const canManage = typeof hasModulePermission !== 'function' || hasModulePermission('manage');
+    const canControl = moduleTestHasPermission('control');
+    const canManage = moduleTestHasPermission('manage');
     const tab = document.getElementById('module-workspace-tab-test');
     if (tab) {
         tab.hidden = !supported;
@@ -135,8 +142,8 @@ function syncModuleTestUi() {
     if (stop) stop.hidden = !moduleTestRuntime.previewActive || !canControl;
     if (apply) apply.hidden = !moduleTestRuntime.staged || !canControl;
     if (clear) clear.hidden = !moduleTestRuntime.staged || !canControl;
-    if (addPlaylist) addPlaylist.hidden = !moduleTestRuntime.staged || !canManage || !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
-    const queueSupported = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_queue');
+    if (addPlaylist) addPlaylist.hidden = !moduleTestRuntime.staged || !canManage || !moduleTestHasFeature('playlists');
+    const queueSupported = moduleTestHasFeature('boot_queue');
     const useNext = document.getElementById('module-test-use-next');
     const addQueue = document.getElementById('module-test-add-queue');
     if (useNext) useNext.hidden = !moduleTestRuntime.staged || !queueSupported || !canManage;
@@ -166,7 +173,7 @@ function syncModuleTestUi() {
     if (resultApply) resultApply.disabled = moduleTestRuntime.busy;
     if (resultDownload) resultDownload.disabled = !moduleTestRuntime.browserBlob || moduleTestRuntime.busy;
     if (resultPlaylist) {
-        resultPlaylist.hidden = !(typeof hasModuleFeature === 'function' && hasModuleFeature('playlists'));
+        resultPlaylist.hidden = !moduleTestHasFeature('playlists');
         resultPlaylist.disabled = moduleTestRuntime.busy;
     }
     if (resultUseNext) { resultUseNext.hidden = !queueSupported; resultUseNext.disabled = moduleTestRuntime.busy; }
@@ -179,7 +186,7 @@ function syncModuleTestUi() {
 }
 
 async function moduleTestRequest(path, options = {}) {
-    const response = await apiFetch(path, options);
+    const response = await window.BASApi.fetch(path, options);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || moduleTestText('moduleTestError', 'Device test failed.'));
     return data;
@@ -243,7 +250,7 @@ async function startModuleTestPreview() {
     try {
         await moduleTestRequest('/test/start', { method: 'POST' });
         moduleTestRuntime.previewActive = true;
-        if (typeof showToast === 'function') showToast(moduleTestText('moduleTestStarted', 'Device test started.'), 'success', 3200);
+        moduleTestToast(moduleTestText('moduleTestStarted', 'Device test started.'), 'success', 3200);
         setTimeout(() => refreshModuleTestStatus(), 16000);
     } finally {
         moduleTestRuntime.busy = false;
@@ -258,7 +265,7 @@ async function stopModuleTestPreview() {
     try {
         await moduleTestRequest('/test/stop', { method: 'POST' });
         moduleTestRuntime.previewActive = false;
-        if (typeof showToast === 'function') showToast(moduleTestText('moduleTestStopped', 'Device test stopped.'), 'info', 2400);
+        moduleTestToast(moduleTestText('moduleTestStopped', 'Device test stopped.'), 'info', 2400);
     } finally {
         moduleTestRuntime.busy = false;
         syncModuleTestUi();
@@ -274,10 +281,10 @@ async function applyModuleTestStage() {
         await moduleTestRequest('/test/apply', { method: 'POST' });
         window.hasCustomAnimApplied = true;
         const removeButton = document.getElementById('btn-remove');
-        if (removeButton && typeof hasModuleFeature === 'function' && hasModuleFeature('remove')) removeButton.style.display = 'flex';
-        if (typeof loadHistory === 'function' && hasModuleFeature('history')) await loadHistory();
-        if (typeof syncConnectedDeviceSurfaces === 'function') syncConnectedDeviceSurfaces();
-        if (typeof showToast === 'function') showToast(moduleTestText('moduleTestApplied', 'Tested animation applied successfully.'), 'success', 3600);
+        if (removeButton && moduleTestHasFeature('remove')) removeButton.style.display = 'flex';
+        if (moduleTestHasFeature('history')) await window.BASApi?.loadHistory?.();
+        window.BASApi?.syncConnectedSurfaces?.();
+        moduleTestToast(moduleTestText('moduleTestApplied', 'Tested animation applied successfully.'), 'success', 3600);
         moduleTestRuntime.staged = false;
         moduleTestRuntime.previewActive = false;
         moduleTestRuntime.metadata = null;
@@ -311,8 +318,8 @@ async function clearModuleTestStage() {
 
 function downloadModuleTestBuild() {
     if (!moduleTestRuntime.browserBlob) return;
-    if (typeof downloadGeneratedBlob === 'function') {
-        downloadGeneratedBlob(moduleTestRuntime.browserBlob, moduleTestRuntime.browserFilename || 'bootanimation.zip');
+    if (window.BASExport?.downloadBlob) {
+        window.BASExport.downloadBlob(moduleTestRuntime.browserBlob, moduleTestRuntime.browserFilename || 'bootanimation.zip');
         return;
     }
     const url = URL.createObjectURL(moduleTestRuntime.browserBlob);
@@ -333,13 +340,13 @@ async function stageSelectedModuleTestFile() {
     try {
         await stageModuleTestBlob(file, file.name || 'bootanimation.zip', { source: 'file' });
     } catch (error) {
-        if (typeof showToast === 'function') showToast(error.message, 'error', 5000);
+        moduleTestToast(error.message, 'error', 5000);
     }
 }
 
 function bindModuleTestUi() {
     document.getElementById('btn-test-build')?.addEventListener('click', () => {
-        if (typeof requestDeviceBuildTest === 'function') requestDeviceBuildTest();
+        window.BASExport?.requestDeviceBuildTest?.();
     });
     document.getElementById('module-test-stage')?.addEventListener('click', stageSelectedModuleTestFile);
     document.getElementById('module-test-file')?.addEventListener('change', event => {
@@ -347,15 +354,15 @@ function bindModuleTestUi() {
         const label = document.getElementById('module-test-file-label');
         if (label && file) label.textContent = file.name;
     });
-    document.getElementById('module-test-replay')?.addEventListener('click', () => startModuleTestPreview().catch(error => showToast(error.message, 'error', 4800)));
-    document.getElementById('module-test-stop')?.addEventListener('click', () => stopModuleTestPreview().catch(error => showToast(error.message, 'error', 4800)));
-    document.getElementById('module-test-apply')?.addEventListener('click', () => applyModuleTestStage().catch(error => showToast(error.message, 'error', 4800)));
-    document.getElementById('module-test-clear')?.addEventListener('click', () => clearModuleTestStage().catch(error => showToast(error.message, 'error', 4800)));
-    document.getElementById('build-test-result-replay')?.addEventListener('click', () => startModuleTestPreview().catch(error => showToast(error.message, 'error', 4800)));
-    document.getElementById('build-test-result-stop')?.addEventListener('click', () => stopModuleTestPreview().catch(error => showToast(error.message, 'error', 4800)));
-    document.getElementById('build-test-result-apply')?.addEventListener('click', () => applyModuleTestStage().catch(error => showToast(error.message, 'error', 4800)));
+    document.getElementById('module-test-replay')?.addEventListener('click', () => startModuleTestPreview().catch(error => moduleTestToast(error.message, 'error', 4800)));
+    document.getElementById('module-test-stop')?.addEventListener('click', () => stopModuleTestPreview().catch(error => moduleTestToast(error.message, 'error', 4800)));
+    document.getElementById('module-test-apply')?.addEventListener('click', () => applyModuleTestStage().catch(error => moduleTestToast(error.message, 'error', 4800)));
+    document.getElementById('module-test-clear')?.addEventListener('click', () => clearModuleTestStage().catch(error => moduleTestToast(error.message, 'error', 4800)));
+    document.getElementById('build-test-result-replay')?.addEventListener('click', () => startModuleTestPreview().catch(error => moduleTestToast(error.message, 'error', 4800)));
+    document.getElementById('build-test-result-stop')?.addEventListener('click', () => stopModuleTestPreview().catch(error => moduleTestToast(error.message, 'error', 4800)));
+    document.getElementById('build-test-result-apply')?.addEventListener('click', () => applyModuleTestStage().catch(error => moduleTestToast(error.message, 'error', 4800)));
     document.getElementById('build-test-result-download')?.addEventListener('click', downloadModuleTestBuild);
-    document.getElementById('build-test-result-discard')?.addEventListener('click', () => clearModuleTestStage().catch(error => showToast(error.message, 'error', 4800)));
+    document.getElementById('build-test-result-discard')?.addEventListener('click', () => clearModuleTestStage().catch(error => moduleTestToast(error.message, 'error', 4800)));
     window.addEventListener('bas:projectchange', event => {
         if (moduleTestRuntime.buildSource && moduleTestRuntime.staged && event.detail?.contentChanged) {
             moduleTestRuntime.buildStale = true;

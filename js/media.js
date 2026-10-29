@@ -683,7 +683,7 @@ async function abrirZipVideoNoEditor(zipBlob, zip) {
         BASMasterSequence.ensure();
         if (typeof BASMasterSequence.refreshTimeline === 'function') BASMasterSequence.refreshTimeline({ seekToStart: true });
     }
-    if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+    window.BASSourceLibrary?.render?.();
     if (typeof syncAdvancedPartsUi === 'function') syncAdvancedPartsUi();
     if (typeof renderAdvancedPartsEditor === 'function') renderAdvancedPartsEditor();
     if (typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
@@ -990,6 +990,11 @@ function getAudioAdvancedState(part) {
     };
 }
 
+window.BASMediaAudio = Object.freeze({
+    captureEditorState: (...args) => captureAudioEditorState(...args),
+    syncAdvancedLabels: syncAudioAdvancedLabels,
+    syncAdvancedVisibility: syncAudioAdvancedVisibility
+});
 function captureAudioEditorState() {
     const state = { enabled: document.getElementById('input-usar-som').checked };
     ['intro', 'loop', 'final'].forEach(part => {

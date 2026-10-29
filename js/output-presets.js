@@ -11,12 +11,7 @@ const outputPresetRuntime = {
 
 
 function outputPresetText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual] || traducoes.en;
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function outputPresetSetExpanded(expanded, options = {}) {
@@ -69,25 +64,25 @@ function outputPresetFitPixelBudget(width, height, maxPixels) {
 }
 
 function outputPresetCurrentOptions() {
-    if (typeof getPerformanceOptions === 'function') return { ...getPerformanceOptions() };
-    const width = typeof normalizeOutputDimension === 'function'
-        ? normalizeOutputDimension(document.getElementById('input-largura')?.value, originalW)
-        : Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || originalW || 1);
-    const height = typeof normalizeOutputDimension === 'function'
-        ? normalizeOutputDimension(document.getElementById('input-altura')?.value, originalH)
-        : Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || originalH || 1);
+    if (!!window.BASPerformance?.getOptions) return { ...window.BASPerformance.getOptions() };
+    const width = !!window.BASPerformance?.normalizeDimension
+        ? window.BASPerformance.normalizeDimension(document.getElementById('input-largura')?.value, window.BASState.sourceWidth)
+        : Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || window.BASState.sourceWidth || 1);
+    const height = !!window.BASPerformance?.normalizeDimension
+        ? window.BASPerformance.normalizeDimension(document.getElementById('input-altura')?.value, window.BASState.sourceHeight)
+        : Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || window.BASState.sourceHeight || 1);
     const fps = outputPresetClampFps(document.getElementById('input-fps')?.value, 30);
     return {
         width,
         height,
         fps,
         format: document.getElementById('input-formato')?.value || 'jpeg',
-        jpegQuality: typeof normalizeJpegExportQuality === 'function' ? normalizeJpegExportQuality(jpegExportQuality) : 0.9,
+        jpegQuality: !!window.BASProjectOutput?.normalizeJpegQuality ? window.BASProjectOutput.normalizeJpegQuality(window.BASState.jpegQuality) : 0.9,
         framing: document.getElementById('input-enquadramento')?.value || 'cover',
-        framingFocus: typeof getCurrentFramingFocus === 'function' ? getCurrentFramingFocus() : { x: 0.5, y: 0.5, zoom: 1 },
+        framingFocus: !!window.BASFraming?.getFocus ? window.BASFraming.getFocus() : { x: 0.5, y: 0.5, zoom: 1 },
         manufacturer: document.getElementById('input-fabricante')?.value || 'standard',
         generateModule: !!document.getElementById('input-gerar-modulo')?.checked,
-        audio: typeof captureAudioEditorState === 'function' ? captureAudioEditorState() : { enabled: false }
+        audio: window.BASMediaAudio?.captureEditorState ? window.BASMediaAudio.captureEditorState() : { enabled: false }
     };
 }
 
@@ -97,9 +92,9 @@ function outputPresetSourceMetadata() {
         const primaryId = BASSourceLibrary.getPrimaryId();
         source = BASSourceLibrary.getById(primaryId);
     }
-    const width = Math.max(0, Number(source && source.width) || Number(currentProject && currentProject.width) || Number(originalW) || 0);
-    const height = Math.max(0, Number(source && source.height) || Number(currentProject && currentProject.height) || Number(originalH) || 0);
-    const fps = Math.max(0, Number(source && source.fps) || Number(currentProject && currentProject.fps) || 0);
+    const width = Math.max(0, Number(source && source.width) || Number(window.BASState.currentProject && window.BASState.currentProject.width) || Number(window.BASState.sourceWidth) || 0);
+    const height = Math.max(0, Number(source && source.height) || Number(window.BASState.currentProject && window.BASState.currentProject.height) || Number(window.BASState.sourceHeight) || 0);
+    const fps = Math.max(0, Number(source && source.fps) || Number(window.BASState.currentProject && window.BASState.currentProject.fps) || 0);
     return { width, height, fps };
 }
 
@@ -108,7 +103,7 @@ function outputPresetDeviceResolution() {
         const resolution = BASDeviceProfile.getResolution();
         if (resolution) return resolution;
     }
-    if (typeof compatibilityGetDeviceResolution === 'function') return compatibilityGetDeviceResolution();
+    if (window.BASCompatibility?.getDeviceResolution) return window.BASCompatibility.getDeviceResolution();
     const value = String(window.BASDeviceIntelligence?.get?.()?.system?.resolution || window.connectedPhoneResolution || '').trim();
     const match = value.match(/(\d+)\s*[x×]\s*(\d+)/i);
     if (!match) return null;
@@ -118,7 +113,7 @@ function outputPresetDeviceResolution() {
 }
 
 function outputPresetImportedBaseline() {
-    const baseline = currentProject && currentProject.sourceType === 'bootanimation' && currentProject.editorBaseline && currentProject.editorBaseline.frame;
+    const baseline = window.BASState.currentProject && window.BASState.currentProject.sourceType === 'bootanimation' && window.BASState.currentProject.editorBaseline && window.BASState.currentProject.editorBaseline.frame;
     if (!baseline) return null;
     const width = Number(baseline.width);
     const height = Number(baseline.height);
@@ -129,7 +124,7 @@ function outputPresetImportedBaseline() {
         height: outputPresetDimension(height),
         fps: outputPresetClampFps(fps),
         format: baseline.format === 'png' ? 'png' : 'jpeg',
-        jpegQuality: typeof normalizeJpegExportQuality === 'function' ? normalizeJpegExportQuality(baseline.jpegQuality) : 0.9
+        jpegQuality: !!window.BASProjectOutput?.normalizeJpegQuality ? window.BASProjectOutput.normalizeJpegQuality(baseline.jpegQuality) : 0.9
     };
 }
 
@@ -224,7 +219,7 @@ function outputPresetDefinitions() {
             summaryKey: 'presetMatchDeviceSummary',
             summary: 'Connected screen · Keep FPS and format',
             resolve(current) {
-                if (!isConnectedMode) return null;
+                if (!window.BASState.connectedMode) return null;
                 const resolution = outputPresetDeviceResolution();
                 if (!resolution) return null;
                 return {
@@ -272,9 +267,9 @@ function outputPresetFormatQuality(options) {
 }
 
 function outputPresetEstimate(options) {
-    if (!options || typeof estimateExportPerformance !== 'function' || !currentProject) return null;
+    if (!options || !window.BASPerformance?.estimate || !window.BASState.currentProject) return null;
     try {
-        return estimateExportPerformance(options);
+        return window.BASPerformance.estimate(options);
     } catch (error) {
         return null;
     }
@@ -282,7 +277,7 @@ function outputPresetEstimate(options) {
 
 function outputPresetFormatEstimate(estimate) {
     if (!estimate || !Number.isFinite(estimate.bootBytes)) return '—';
-    const value = typeof formatByteEstimate === 'function' ? formatByteEstimate(estimate.bootBytes) : `${Math.round(estimate.bootBytes / (1024 * 1024))} MB`;
+    const value = !!window.BASPerformance?.formatBytes ? window.BASPerformance.formatBytes(estimate.bootBytes) : `${Math.round(estimate.bootBytes / (1024 * 1024))} MB`;
     return estimate.exactBootSize ? value : `≈ ${value}`;
 }
 
@@ -351,27 +346,27 @@ function outputPresetApplyResolvedOptions(candidate, options = {}) {
     if (width && candidate.width !== undefined) width.value = outputPresetDimension(candidate.width);
     if (height && candidate.height !== undefined) height.value = outputPresetDimension(candidate.height);
     if (candidate.jpegQuality !== undefined) {
-        jpegExportQuality = typeof normalizeJpegExportQuality === 'function'
-            ? normalizeJpegExportQuality(candidate.jpegQuality)
-            : Math.max(0.55, Math.min(0.95, Number(candidate.jpegQuality) || 0.9));
-        if (typeof setJpegQualityChangeSource === 'function') setJpegQualityChangeSource(options.qualitySource || 'preset');
+        window.BASState.setJpegQuality(window.BASProjectOutput?.normalizeJpegQuality
+            ? window.BASProjectOutput.normalizeJpegQuality(candidate.jpegQuality)
+            : Math.max(0.55, Math.min(0.95, Number(candidate.jpegQuality) || 0.9)));
+        if (window.BASPerformance.setQualitySource) window.BASPerformance.setQualitySource(options.qualitySource || 'preset');
     }
     if (framing && candidate.framing !== undefined) framing.value = candidate.framing;
     if (manufacturer && candidate.manufacturer !== undefined) manufacturer.value = candidate.manufacturer;
     if (typeof aoMudarTamanhoManual === 'function') aoMudarTamanhoManual();
     if (typeof atualizarPreviewEnquadramento === 'function') atualizarPreviewEnquadramento();
-    if (typeof invalidateOptimizerResult === 'function') invalidateOptimizerResult();
-    if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
-    if (typeof updateOptimizerQualityBadge === 'function') updateOptimizerQualityBadge();
-    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-    if (typeof updateOutputIntent === 'function') updateOutputIntent();
-    if (typeof syncReleaseUi === 'function') syncReleaseUi();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
-    if (typeof syncCustomProfilesUi === 'function') syncCustomProfilesUi();
-    if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
-    if (typeof projectEngineTouch === 'function' && options.reason !== false) {
+    if (window.BASPerformance.invalidateOptimizer) window.BASPerformance.invalidateOptimizer();
+    if (window.BASPerformance.syncQuality) window.BASPerformance.syncQuality();
+    if (window.BASPerformance.updateQualityBadge) window.BASPerformance.updateQualityBadge();
+    if (window.BASPerformance.scheduleEstimate) window.BASPerformance.scheduleEstimate();
+    if (window.BASUX.updateOutputIntent) window.BASUX.updateOutputIntent();
+    if (window.BASRelease.sync) window.BASRelease.sync();
+    if (window.BASCompatibility.schedule) window.BASCompatibility.schedule();
+    if (window.BASCustomProfiles.sync) window.BASCustomProfiles.sync();
+    if (window.BASDeviceProfile.sync) window.BASDeviceProfile.sync();
+    if (window.BASProjectEngine?.touch && options.reason !== false) {
         const reason = options.reason || 'output-preset';
-        projectEngineTouch(reason, { changeKey: options.changeKey || reason, immediate: true });
+        window.BASProjectEngine.touch(reason, { changeKey: options.changeKey || reason, immediate: true });
     }
     return true;
 }
@@ -389,9 +384,9 @@ function outputPresetApply() {
             changeKey: `output-preset:${definition.id}`,
             qualitySource: 'preset'
         });
-        if (typeof showToast === 'function') {
+        if (window.BASUX?.showToast) {
             const message = outputPresetText('presetAppliedToast', 'Preset applied: {name}').replace('{name}', outputPresetText(definition.titleKey, definition.title));
-            showToast(message, 'success', 2600);
+            window.BASUX.showToast(message, 'success', 2600);
         }
     } finally {
         outputPresetRuntime.applying = false;
@@ -482,7 +477,9 @@ window.BASOutputPresets = Object.freeze({
     select: outputPresetSelect,
     apply: outputPresetApply,
     applyOptions: outputPresetApplyResolvedOptions,
+    currentOptions: outputPresetCurrentOptions,
     sync: syncOutputPresetsUi,
+    syncText: syncOutputPresetsText,
     getDefinitions: outputPresetDefinitions,
     setExpanded: outputPresetSetExpanded
 });

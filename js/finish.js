@@ -7,8 +7,7 @@ const finishRuntime = {
 };
 
 function finishText(key, fallback) {
-    const table = typeof traducoes !== 'undefined' ? (traducoes[idiomaAtual] || traducoes.en || {}) : {};
-    return table[key] || fallback;
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function finishKindLabel(kind) {
@@ -41,11 +40,11 @@ function finishFormatLabel(result) {
 }
 
 function finishProjectRevision() {
-    return Number(currentProject?.projectMeta?.revision || 0);
+    return Number(window.BASState?.currentProject?.projectMeta?.revision || 0);
 }
 
 function finishProjectId() {
-    return String(currentProject?.projectMeta?.id || '');
+    return String(window.BASState?.currentProject?.projectMeta?.id || '');
 }
 
 function syncFinishCenterUi() {
@@ -77,14 +76,14 @@ function syncFinishCenterUi() {
         ? finishText('finishDescStale', 'The project changed after this build. Build again to include the latest edits.')
         : finishText('finishDescCurrent', 'This result reflects the project exactly as it was when the build finished.');
     if (file) file.textContent = result.filename || '—';
-    if (size) size.textContent = typeof formatUxBytes === 'function' ? formatUxBytes(result.outputBytes) : `${result.outputBytes || 0} B`;
+    if (size) size.textContent = window.BASUX?.formatBytes ? window.BASUX.formatBytes(result.outputBytes) : `${result.outputBytes || 0} B`;
     if (output) output.textContent = `${result.width} × ${result.height} · ${result.fps} FPS · ${finishFormatLabel(result)}`;
     if (packageValue) packageValue.textContent = finishPackageLabel(result);
     if (delivery) delivery.textContent = finishDeliveryLabel(result);
     if (stale) stale.hidden = !finishRuntime.stale;
 
     if (history) {
-        const historyAvailable = result.kind === 'installed' && isConnectedMode && (typeof hasModuleFeature !== 'function' || hasModuleFeature('history'));
+        const historyAvailable = result.kind === 'installed' && Boolean(window.BASState?.connectedMode) && (window.BASApi?.hasFeature?.('history') ?? true);
         history.hidden = !historyAvailable;
     }
 }
@@ -127,8 +126,8 @@ function bindFinishCenter() {
         button?.focus({ preventScroll: true });
     });
     document.getElementById('finish-open-history')?.addEventListener('click', () => {
-        if (typeof openModuleWorkspace === 'function') {
-            openModuleWorkspace({ origin: 'editor', tab: 'history' });
+        if (window.BASModuleWorkspace?.open) {
+            window.BASModuleWorkspace.open({ origin: 'editor', tab: 'history' });
             return;
         }
         const panel = document.getElementById('connected-state');

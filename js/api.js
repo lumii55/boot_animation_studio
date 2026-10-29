@@ -210,7 +210,7 @@ function syncModulePermissionUi() {
     if (window.BASHealthCenter?.sync) window.BASHealthCenter.sync();
     if (window.BASTrustCenter?.sync) window.BASTrustCenter.sync();
     if (window.BASPresence?.sync) window.BASPresence.sync();
-    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    window.BASModuleWorkspace?.sync?.();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
 }
 
@@ -245,15 +245,15 @@ function completeConnectedState(data) {
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
     if (window.BASDeviceIntelligence?.refresh) window.BASDeviceIntelligence.refresh({ silent: true });
-    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    window.BASModuleWorkspace?.sync?.();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (window.BASPlaylist?.supported?.()) window.BASPlaylist.refresh().then(() => window.BASRotation?.refresh?.());
     else if (window.BASRotation?.refresh) window.BASRotation.refresh();
     if (window.BASLiveSync?.supported?.()) window.BASLiveSync.start();
     else window.BASLiveSync?.stop?.();
     if (window.BASPresence?.supported?.()) window.BASPresence.refresh({ silent: true });
-    if (typeof consumeModuleWorkspaceConnectionRequest === 'function' && consumeModuleWorkspaceConnectionRequest()) {
-        if (typeof openModuleWorkspace === 'function') openModuleWorkspace({ origin: 'launch', instant: true });
+    if (window.BASModuleWorkspace?.consumeConnectionRequest?.()) {
+        window.BASModuleWorkspace.open?.({ origin: 'launch', instant: true });
     }
 }
 
@@ -420,7 +420,7 @@ function syncConnectedDeviceSurfaces() {
     if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
     if (typeof syncCustomProfilesUi === 'function') syncCustomProfilesUi();
     if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 }
 
 async function refreshConnectedModuleState(options = {}) {
@@ -443,7 +443,7 @@ async function refreshConnectedModuleState(options = {}) {
         applyConnectedCapabilities(data);
         syncModulePermissionUi();
         syncConnectedDeviceSurfaces();
-        if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+        window.BASModuleWorkspace?.sync?.();
         return data;
     } catch (error) {
         if (!options.silent) console.warn('[BAS] Connected module state refresh failed.', error);
@@ -761,7 +761,7 @@ async function checkIP(ip) {
 function startManualMode() {
     window.BASLiveSync?.stop?.();
     if (typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
-    if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
+    if (window.BASModuleWorkspace?.isOpen?.()) window.BASModuleWorkspace.leave?.();
     sessionToken = '';
     moduleAccessPermission = 'admin';
     resetModuleCompatibility();
@@ -811,15 +811,15 @@ function finalizeLocalModuleDisconnect() {
     document.getElementById('btn-connect').textContent = traducoes[idiomaAtual].btnConnect;
     if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget('download', { skipButtons: true });
     atualizarBotoesELinhas();
-    const returnedToLaunch = typeof handleModuleWorkspaceDisconnect === 'function' ? handleModuleWorkspaceDisconnect() : false;
+    const returnedToLaunch = window.BASModuleWorkspace?.handleDisconnect?.() || false;
     if (!returnedToLaunch) {
         document.getElementById('initial-state').style.display = 'none';
         document.getElementById('editor-section').style.display = 'flex';
     }
-    if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
+    window.BASWorkspace?.sync?.();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     syncConnectedDeviceSurfaces();
-    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    window.BASModuleWorkspace?.sync?.();
     if (window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (window.BASPlaylist?.resetConnection) window.BASPlaylist.resetConnection();
     if (window.BASRotation?.resetConnection) window.BASRotation.resetConnection();
@@ -1140,7 +1140,7 @@ async function openHistoryInStudio(id) {
         const blob = await fetchHistoryBlob(id);
         if (!blob) return;
         await abrirZipNoEditor(blob);
-        if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
+        if (window.BASModuleWorkspace?.isOpen?.()) window.BASModuleWorkspace.leave?.();
         showToast(t.historyOpened || 'History animation opened in Studio.', 'success');
     } catch (error) {
         showToast(t.historyOpenError || 'Could not open this History animation.', 'error');
@@ -1305,7 +1305,7 @@ async function puxarAnimacao(source) {
         
         let blob = await res.blob();
         await abrirZipNoEditor(blob);
-        if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
+        if (window.BASModuleWorkspace?.isOpen?.()) window.BASModuleWorkspace.leave?.();
         
         document.getElementById('container-progresso').style.display = 'none';
         
@@ -1384,3 +1384,17 @@ document.getElementById('upload-zip-direto').addEventListener('change', async fu
     }
 });
 
+
+
+// P14 browser architecture: narrow explicit Companion/network facade.
+// Legacy classic declarations remain for compatibility with unmigrated consumers.
+window.BASApi = Object.freeze({
+    fetch: apiFetch,
+    hasFeature: hasModuleFeature,
+    ensureFeature: ensureModuleFeature,
+    hasPermission: hasModulePermission,
+    loadHistory,
+    connect: connectToPhone,
+    syncConnectedSurfaces: syncConnectedDeviceSurfaces,
+    refreshConnectedState: refreshConnectedModuleState
+});

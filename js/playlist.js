@@ -149,7 +149,7 @@ function syncPlaylistVisibility() {
     }
     if (wrapper && !supported) wrapper.hidden = true;
     syncPlaylistCount();
-    if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+    window.BASModuleWorkspace?.sync?.();
 }
 
 function renderPlaylistSidebar() {
@@ -466,7 +466,7 @@ async function openPlaylistItem(item) {
     try {
         const blob = await playlistDownloadBlob(item);
         await abrirZipNoEditor(blob);
-        if (typeof isModuleWorkspaceOpen === 'function' && isModuleWorkspaceOpen() && typeof leaveModuleWorkspaceToStudio === 'function') leaveModuleWorkspaceToStudio();
+        if (window.BASModuleWorkspace?.isOpen?.()) window.BASModuleWorkspace.leave?.();
     } catch (error) {
         if (typeof showToast === 'function') showToast(error.message, 'error', 4200);
     }

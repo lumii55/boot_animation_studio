@@ -49,12 +49,11 @@ const autosaveRuntime = {
 };
 
 function autosaveText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual];
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) || fallback;
+}
+
+function autosaveCurrentProject() {
+    return window.BASState?.currentProject || null;
 }
 
 function openAutosaveDatabase() {
@@ -113,7 +112,7 @@ function autosaveFormatDate(value) {
     const date = new Date(value || Date.now());
     if (Number.isNaN(date.getTime())) return '';
     try {
-        return new Intl.DateTimeFormat(idiomaAtual === 'pt' ? 'pt-BR' : idiomaAtual === 'es' ? 'es-ES' : idiomaAtual === 'fr' ? 'fr-FR' : 'en-US', {
+        return new Intl.DateTimeFormat(window.BASI18n?.locale === 'pt' ? 'pt-BR' : window.BASI18n?.locale === 'es' ? 'es-ES' : window.BASI18n?.locale === 'fr' ? 'fr-FR' : 'en-US', {
             dateStyle: 'medium',
             timeStyle: 'short'
         }).format(date);
@@ -295,6 +294,7 @@ function getAutosaveProjectSize(assets) {
 
 async function saveCurrentProjectAutosave(reason = 'autosave') {
     if (autosaveRuntime.restoring || autosaveRuntime.unavailable) return false;
+    const currentProject = autosaveCurrentProject();
     if (!currentProject || !(currentProject.sourceBlob instanceof Blob) || !window.BASProjectEngine) return false;
     if (autosaveRuntime.saving) {
         autosaveRuntime.pendingAfterSave = true;
@@ -343,7 +343,7 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
             revision: savedRevision,
             sourceType: manifest.source.type || 'video',
             sourceName: manifest.source.name || '',
-            sourceSummary: typeof getProjectEngineSummary === 'function' ? getProjectEngineSummary(currentProject) : '',
+            sourceSummary: window.BASProjectEngine?.summary?.(currentProject) || '',
             size: getAutosaveProjectSize(assets),
             assetSignature: signature,
             manifest: savedManifest
@@ -384,6 +384,7 @@ async function saveCurrentProjectAutosave(reason = 'autosave') {
 
 function scheduleProjectAutosave(reason = 'change', delay = BAS_AUTOSAVE_DELAY) {
     if (autosaveRuntime.restoring || autosaveRuntime.unavailable) return;
+    const currentProject = autosaveCurrentProject();
     if (!currentProject || !(currentProject.sourceBlob instanceof Blob)) return;
     clearTimeout(autosaveRuntime.saveTimer);
     setAutosaveStatus('saving');
@@ -432,7 +433,7 @@ function autosaveRecentCard(record) {
     removeButton.textContent = autosaveText('autosaveRemove', 'Remove');
     removeButton.addEventListener('click', async () => {
         const message = autosaveText('autosaveDeleteConfirm', 'Remove this saved project from this browser?');
-        const accepted = typeof askConfirmation === 'function' ? await askConfirmation(message, true) : globalThis.confirm(message);
+        const accepted = window.BASUX?.askConfirmation ? await window.BASUX.askConfirmation(message, true) : globalThis.confirm(message);
         if (!accepted) return;
         await deleteAutosaveProject(record.id);
         await renderRecentProjects();
@@ -464,6 +465,7 @@ async function renderRecentProjects() {
 }
 
 function syncAutosaveUiText() {
+    const currentProject = autosaveCurrentProject();
     const kicker = document.getElementById('p12-recent-kicker');
     const title = document.getElementById('p12-recent-title');
     const desc = document.getElementById('p12-recent-desc');
@@ -486,7 +488,7 @@ async function restoreAutosavedProject(id) {
     clearTimeout(autosaveRuntime.saveTimer);
     autosaveRuntime.saveTimer = 0;
     setAutosaveStatus('restoring');
-    if (typeof setLoadingTipContext === 'function') setLoadingTipContext('source');
+    window.BASLoadingTips?.setContext?.('source');
     const overlay = document.getElementById('loading-overlay');
     const loadingText = document.getElementById('txt-loading-timeline');
     if (overlay) overlay.style.display = 'flex';
@@ -499,12 +501,12 @@ async function restoreAutosavedProject(id) {
         await BASProjectRestore.restore(record.manifest, assetMap, { reason: 'restore' });
         autosaveRuntime.assetSignatures.set(id, record.assetSignature || '');
         setAutosaveStatus('saved', autosaveText('autosaveRecovered', 'Project restored'));
-        if (typeof showToast === 'function') showToast(autosaveText('autosaveRecovered', 'Project restored'), 'success');
+        window.BASUX?.showToast?.(autosaveText('autosaveRecovered', 'Project restored'), 'success');
         await renderRecentProjects();
     } catch (error) {
         console.error(error);
         setAutosaveStatus('error');
-        if (typeof showToast === 'function') showToast(error.message || autosaveText('autosaveRestoreFailed', 'Could not restore this project.'), 'error');
+        if (window.BASUX?.showToast) window.BASUX.showToast(error.message || autosaveText('autosaveRestoreFailed', 'Could not restore this project.'), 'error');
         else alert(error.message || autosaveText('autosaveRestoreFailed', 'Could not restore this project.'));
     } finally {
         autosaveRuntime.restoring = false;
@@ -514,6 +516,7 @@ async function restoreAutosavedProject(id) {
 
 function bindAutosave() {
     if (autosaveRuntime.initialized) return;
+    const currentProjectRef = () => autosaveCurrentProject();
     autosaveRuntime.initialized = true;
     openAutosaveDatabase().then(() => {
         setAutosaveStatus('idle');
@@ -523,10 +526,12 @@ function bindAutosave() {
         if (autosaveRuntime.restoring) return;
         const detail = event.detail || {};
         if (detail.reason === 'clean') return;
+        const currentProject = currentProjectRef();
         if (!currentProject || !(currentProject.sourceBlob instanceof Blob)) return;
         if (detail.contentChanged || ['source', 'source-metadata', 'startup'].includes(detail.reason)) scheduleProjectAutosave(detail.reason);
     });
     document.addEventListener('visibilitychange', () => {
+        const currentProject = currentProjectRef();
         if (document.visibilityState === 'hidden' && currentProject && currentProject.projectMeta && currentProject.projectMeta.dirty) {
             clearTimeout(autosaveRuntime.saveTimer);
             autosaveRuntime.saveTimer = 0;
@@ -534,12 +539,14 @@ function bindAutosave() {
         }
     });
     window.addEventListener('beforeunload', event => {
+        const currentProject = currentProjectRef();
         const dirty = !!(currentProject && currentProject.projectMeta && currentProject.projectMeta.dirty);
         if (!dirty && !autosaveRuntime.saveTimer && !autosaveRuntime.saving) return;
         event.preventDefault();
         event.returnValue = '';
     });
     setInterval(() => {
+        const currentProject = currentProjectRef();
         if (currentProject && currentProject.projectMeta && currentProject.projectMeta.dirty && !autosaveRuntime.saving) scheduleProjectAutosave('safety', 0);
     }, 20000);
 }
@@ -551,6 +558,7 @@ window.BASAutosave = Object.freeze({
     remove: deleteAutosaveProject,
     refresh: renderRecentProjects,
     fingerprintAssets: autosaveAssetSignature,
+    syncUiText: syncAutosaveUiText,
     status: () => ({
         unavailable: autosaveRuntime.unavailable,
         saving: autosaveRuntime.saving,

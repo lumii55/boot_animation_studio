@@ -25,7 +25,7 @@ function showToast(message, type = 'info', duration = 3400) {
 }
 
 function askConfirmation(message, danger = false) {
-    const t = traducoes[idiomaAtual];
+    const t = window.BASI18n.current();
     const modal = document.getElementById('modal-confirm');
     const accept = document.getElementById('confirm-accept');
     document.getElementById('confirm-title').textContent = t.confirmTitle;
@@ -48,8 +48,8 @@ function closeConfirmation(result) {
 }
 
 function getGenerateReadyLabel(t) {
-    const target = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
-    if (target === 'phone' && isConnectedMode) return t.btnGenerateApply;
+    const target = window.BASRelease?.getTarget ? window.BASRelease.getTarget() : (window.BASState.connectedMode ? 'phone' : 'download');
+    if (target === 'phone' && window.BASState.connectedMode) return t.btnGenerateApply;
     const generateModule = target === 'download' && document.getElementById('input-gerar-modulo').checked;
     return generateModule ? t.btnGenerateModule : t.btnGenerateDownload;
 }
@@ -59,10 +59,10 @@ function updateOutputIntent() {
     if (!el) return;
     const hasMedia = document.getElementById('video-container').style.display === 'block';
     if (!hasMedia) { el.style.display = 'none'; return; }
-    const t = traducoes[idiomaAtual];
-    const target = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
-    if (target === 'phone' && isConnectedMode) {
-        const historyAvailable = typeof hasModuleFeature !== 'function' || hasModuleFeature('history');
+    const t = window.BASI18n.current();
+    const target = window.BASRelease?.getTarget ? window.BASRelease.getTarget() : (window.BASState.connectedMode ? 'phone' : 'download');
+    if (target === 'phone' && window.BASState.connectedMode) {
+        const historyAvailable = !window.BASApi?.hasFeature || window.BASApi.hasFeature('history');
         el.textContent = historyAvailable ? t.outputIntentPhone : t.outputIntentPhoneSimple;
     }
     else if (document.getElementById('input-gerar-modulo').checked) el.textContent = t.outputIntentModule;
@@ -91,3 +91,11 @@ document.getElementById('confirm-accept').addEventListener('click', () => closeC
 document.getElementById('modal-confirm').addEventListener('click', event => { if (event.target.id === 'modal-confirm') closeConfirmation(false); });
 
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.getElementById('modal-confirm').style.display === 'flex') closeConfirmation(false); });
+
+
+window.BASUX = Object.freeze({
+    showToast,
+    askConfirmation,
+    formatBytes: formatUxBytes,
+    updateOutputIntent
+});

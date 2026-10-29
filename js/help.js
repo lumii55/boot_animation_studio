@@ -10,11 +10,7 @@ const basHelpRuntime = {
 };
 
 function helpText(key, fallback) {
-    try {
-        return traducoes?.[idiomaAtual]?.[key] || fallback;
-    } catch (e) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) || fallback;
 }
 
 function helpElementVisible(element) {
@@ -162,8 +158,8 @@ function clearGuidedTourTarget() {
 
 function prepareGuidedTourStep(step) {
     if (!step) return;
-    if (step.view && typeof window.setWorkspaceView === 'function') window.setWorkspaceView(step.view, { scroll: false, persist: false });
-    if (step.tool && typeof window.setEditTool === 'function') window.setEditTool(step.tool, { scroll: false });
+    if (step.view) window.BASWorkspace?.setView?.(step.view, { scroll: false, persist: false });
+    if (step.tool) window.BASContextual?.setEditTool?.(step.tool, { scroll: false });
 }
 
 function renderGuidedTourStep() {
@@ -240,8 +236,8 @@ function endGuidedTour(restoreFocus = true) {
     const startingState = basHelpRuntime.startingState;
     basHelpRuntime.startingState = null;
     if (startingState) {
-        if (typeof window.setWorkspaceView === 'function') window.setWorkspaceView(startingState.view, { scroll: false, persist: false });
-        if (typeof window.setEditTool === 'function') window.setEditTool(startingState.editTool, { scroll: false });
+        window.BASWorkspace?.setView?.(startingState.view, { scroll: false, persist: false });
+        window.BASContextual?.setEditTool?.(startingState.editTool, { scroll: false });
     }
     basHelpRuntime.steps = [];
     basHelpRuntime.currentStep = 0;
@@ -336,6 +332,7 @@ function bindHelpUi() {
 }
 
 window.addEventListener('DOMContentLoaded', bindHelpUi);
+window.BASHelp = Object.freeze({ syncText: syncHelpText, open: openHelp });
 window.syncHelpText = syncHelpText;
 window.openBasHelp = openHelp;
 window.startBasGuidedTour = startGuidedTour;

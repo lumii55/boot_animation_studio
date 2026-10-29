@@ -18,12 +18,7 @@ function workspaceIsConnected() {
 }
 
 function workspaceText(key, fallback) {
-    try {
-        if (typeof traducoes !== 'undefined' && typeof idiomaAtual !== 'undefined' && traducoes[idiomaAtual] && traducoes[idiomaAtual][key]) {
-            return traducoes[idiomaAtual][key];
-        }
-    } catch (e) {}
-    return fallback;
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function setWorkspaceView(view, options = {}) {
@@ -36,8 +31,8 @@ function setWorkspaceView(view, options = {}) {
         button.classList.toggle('is-active', active);
         button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    if (options.persist !== false && typeof window.projectEngineTouch === 'function') window.projectEngineTouch('workspace-view', { emit: true });
-    if (view === 'edit' && window.BASComposition) requestAnimationFrame(() => BASComposition.open());
+    if (options.persist !== false) window.BASProjectEngine?.touch?.('workspace-view', { emit: true });
+    if (view === 'edit' && window.BASComposition) requestAnimationFrame(() => window.BASComposition.open());
     if (options.scroll !== false) {
         const compact = window.matchMedia('(max-width: 859px)').matches;
         const sourceDock = document.getElementById('source-dock');
@@ -51,7 +46,7 @@ function setWorkspaceView(view, options = {}) {
             const headerOffset = compact ? 72 : 132;
             const y = Math.max(0, top.getBoundingClientRect().top + window.scrollY - headerOffset);
             window.scrollTo({ top: y, behavior: options.instant ? 'auto' : 'smooth' });
-            if (view === 'edit' && typeof ajustarPaddings === 'function') ajustarPaddings();
+            if (view === 'edit') window.BASTimelineLayout?.refreshPadding?.();
         });
     }
 }
@@ -126,6 +121,13 @@ function bindWorkspaceNavigation() {
     window.addEventListener('resize', syncWorkspaceUi, { passive: true });
 }
 
+// The current view remains owned by workspaceUi; consumers see only a live read-only getter.
+const BASWorkspaceFacade = { setView: setWorkspaceView, sync: syncWorkspaceUi };
+Object.defineProperty(BASWorkspaceFacade, 'view', {
+    enumerable: true,
+    get: () => workspaceUi.currentView
+});
+window.BASWorkspace = Object.freeze(BASWorkspaceFacade);
 window.addEventListener('DOMContentLoaded', bindWorkspaceNavigation);
 window.syncWorkspaceUi = syncWorkspaceUi;
 window.setWorkspaceView = setWorkspaceView;

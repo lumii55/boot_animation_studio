@@ -18,11 +18,7 @@ const loadingTipsContexts = {
 };
 
 function loadingTipsTranslation() {
-    try {
-        return traducoes[idiomaAtual] || traducoes.en;
-    } catch (error) {
-        return {};
-    }
+    return window.BASI18n?.current?.() || window.BASI18n?.fallback?.() || {};
 }
 
 function loadingTipsShuffle(values) {
@@ -147,6 +143,10 @@ function bindLoadingTips() {
     sync();
 }
 
+window.BASLoadingTips = Object.freeze({
+    setContext: setLoadingTipContext,
+    syncText: syncLoadingTipText
+});
 window.setLoadingTipContext = setLoadingTipContext;
 window.syncLoadingTipText = syncLoadingTipText;
 window.addEventListener('DOMContentLoaded', bindLoadingTips);

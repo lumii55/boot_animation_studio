@@ -31,12 +31,7 @@ const customProfileRuntime = {
 };
 
 function customProfileText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual] || traducoes.en;
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function customProfileCreateId() {
@@ -63,8 +58,8 @@ function customProfileSanitize(raw) {
     const height = Math.max(1, Math.floor(Number(raw.height) || 1));
     const fps = Math.max(1, Math.min(60, Math.round(Number(raw.fps) || 30)));
     const format = raw.format === 'png' ? 'png' : 'jpeg';
-    const jpegQuality = typeof normalizeJpegExportQuality === 'function'
-        ? normalizeJpegExportQuality(raw.jpegQuality)
+    const jpegQuality = !!window.BASProjectOutput?.normalizeJpegQuality
+        ? window.BASProjectOutput.normalizeJpegQuality(raw.jpegQuality)
         : Math.max(0.55, Math.min(0.95, Number(raw.jpegQuality) || 0.9));
     const framing = raw.framing && ['cover', 'contain', 'stretch'].includes(raw.framing) ? raw.framing : null;
     const manufacturer = raw.manufacturer ? String(raw.manufacturer) : null;
@@ -96,7 +91,7 @@ function customProfileCanWriteStorage(notify = false) {
     if (!customProfileRuntime.storageWriteBlocked) return true;
     if (notify && !customProfileRuntime.storageWarningShown) {
         customProfileRuntime.storageWarningShown = true;
-        if (typeof showToast === 'function') showToast(customProfileText('futureStoredStateWriteBlocked', 'Saved data was created by a newer Boot Animation Studio version. This build will not overwrite it.'), 'info', 4200);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('futureStoredStateWriteBlocked', 'Saved data was created by a newer Boot Animation Studio version. This build will not overwrite it.'), 'info', 4200);
     }
     return false;
 }
@@ -133,20 +128,20 @@ function customProfilePersist() {
         }));
         return true;
     } catch (error) {
-        if (typeof showToast === 'function') showToast(customProfileText('customProfileStorageError', 'Profiles could not be saved in this browser.'), 'error', 3600);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileStorageError', 'Profiles could not be saved in this browser.'), 'error', 3600);
         return false;
     }
 }
 
 function customProfileCurrentOptions() {
-    if (!currentProject) return null;
-    if (typeof outputPresetCurrentOptions === 'function') return outputPresetCurrentOptions();
-    if (typeof getPerformanceOptions === 'function') return getPerformanceOptions();
+    if (!window.BASState.currentProject) return null;
+    if (window.BASOutputPresets?.currentOptions) return window.BASOutputPresets.currentOptions();
+    if (window.BASPerformance?.getOptions) return window.BASPerformance.getOptions();
     return null;
 }
 
 function customProfileDeviceResolution() {
-    if (typeof compatibilityGetDeviceResolution === 'function') return compatibilityGetDeviceResolution();
+    if (window.BASCompatibility?.getDeviceResolution) return window.BASCompatibility.getDeviceResolution();
     return null;
 }
 
@@ -172,7 +167,7 @@ function customProfileSuggestedName(value) {
 
 function customProfileOpenEditor(editorOptions = {}) {
     if (customProfileRuntime.profiles.length >= BAS_CUSTOM_PROFILE_LIMIT) {
-        if (typeof showToast === 'function') showToast(customProfileText('customProfileLimitToast', 'You can save up to 12 custom profiles.'), 'info', 3200);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileLimitToast', 'You can save up to 12 custom profiles.'), 'info', 3200);
         return;
     }
     const options = customProfileCurrentOptions();
@@ -217,13 +212,13 @@ function customProfileSaveCurrent() {
     const includeVariant = !!document.getElementById('custom-profile-include-variant')?.checked;
     const name = customProfileNormalizeName(nameInput?.value);
     if (!name) {
-        if (typeof showToast === 'function') showToast(customProfileText('customProfileNameRequired', 'Enter a profile name.'), 'error', 2600);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileNameRequired', 'Enter a profile name.'), 'error', 2600);
         nameInput?.focus();
         return;
     }
     const duplicate = customProfileRuntime.profiles.some(profile => profile.name.toLowerCase() === name.toLowerCase());
     if (duplicate) {
-        if (typeof showToast === 'function') showToast(customProfileText('customProfileNameDuplicate', 'A profile with this name already exists.'), 'error', 3000);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileNameDuplicate', 'A profile with this name already exists.'), 'error', 3000);
         nameInput?.focus();
         return;
     }
@@ -245,7 +240,7 @@ function customProfileSaveCurrent() {
     customProfilePersist();
     customProfileCloseEditor();
     syncCustomProfilesUi();
-    if (typeof showToast === 'function') showToast(customProfileText('customProfileSavedToast', 'Profile saved: {name}').replace('{name}', name), 'success', 2600);
+    if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileSavedToast', 'Profile saved: {name}').replace('{name}', name), 'success', 2600);
 }
 
 function customProfileResolutionLabel(profile) {
@@ -294,19 +289,19 @@ function customProfileApply(id) {
     if (!profile) return;
     const candidate = customProfileResolve(profile);
     if (!candidate) {
-        if (typeof showToast === 'function') showToast(customProfileText('customProfileDeviceUnavailableToast', 'Connect a device before applying this profile.'), 'info', 3000);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileDeviceUnavailableToast', 'Connect a device before applying this profile.'), 'info', 3000);
         return;
     }
-    if (typeof outputPresetApplyResolvedOptions === 'function') {
-        outputPresetApplyResolvedOptions(candidate, {
+    if (!!window.BASOutputPresets?.applyOptions) {
+        window.BASOutputPresets.applyOptions(candidate, {
             reason: 'custom-profile',
             changeKey: `custom-profile:${profile.id}`,
             qualitySource: 'profile'
         });
     } else return;
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
+    window.BASOutputPresets?.sync?.();
     syncCustomProfilesUi();
-    if (typeof showToast === 'function') showToast(customProfileText('customProfileAppliedToast', 'Profile applied: {name}').replace('{name}', profile.name), 'success', 2600);
+    if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileAppliedToast', 'Profile applied: {name}').replace('{name}', profile.name), 'success', 2600);
 }
 
 function customProfileStartRename(id) {
@@ -330,7 +325,7 @@ function customProfileCommitRename(id) {
     if (!name) return;
     const duplicate = customProfileRuntime.profiles.some(item => item.id !== id && item.name.toLowerCase() === name.toLowerCase());
     if (duplicate) {
-        if (typeof showToast === 'function') showToast(customProfileText('customProfileNameDuplicate', 'A profile with this name already exists.'), 'error', 3000);
+        if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileNameDuplicate', 'A profile with this name already exists.'), 'error', 3000);
         input.focus();
         return;
     }
@@ -346,14 +341,14 @@ async function customProfileDelete(id) {
     const profile = customProfileRuntime.profiles.find(item => item.id === id);
     if (!profile) return;
     const message = customProfileText('customProfileDeleteConfirm', 'Delete “{name}”?').replace('{name}', profile.name);
-    const confirmed = typeof askConfirmation === 'function' ? await askConfirmation(message, true) : true;
+    const confirmed = window.BASUX?.askConfirmation ? await window.BASUX.askConfirmation(message, true) : true;
     if (!confirmed) return;
     customProfileRuntime.profiles = customProfileRuntime.profiles.filter(item => item.id !== id);
     customProfileRuntime.menuId = '';
     customProfileRuntime.renameId = '';
     customProfilePersist();
     renderCustomProfiles();
-    if (typeof showToast === 'function') showToast(customProfileText('customProfileDeletedToast', 'Profile deleted.'), 'info', 2200);
+    if (window.BASUX?.showToast) window.BASUX.showToast(customProfileText('customProfileDeletedToast', 'Profile deleted.'), 'info', 2200);
 }
 
 function customProfileMenuButton(id) {
@@ -544,7 +539,8 @@ window.BASCustomProfiles = Object.freeze({
     getAll: () => customProfileRuntime.profiles.map(profile => ({ ...profile })),
     apply: customProfileApply,
     openEditor: customProfileOpenEditor,
-    sync: syncCustomProfilesUi
+    sync: syncCustomProfilesUi,
+    syncText: syncCustomProfilesText
 });
 window.syncCustomProfilesUi = syncCustomProfilesUi;
 window.syncCustomProfilesText = syncCustomProfilesText;

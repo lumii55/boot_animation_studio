@@ -15,6 +15,13 @@ let advancedEditorTransport = {
     projectRef: null
 };
 
+window.BASParts = Object.freeze({
+    isActive: () => isAdvancedPartsActive(),
+    getParts: () => getAdvancedParts(),
+    syncUi: syncAdvancedPartsUi,
+    renderEditor: renderAdvancedPartsEditor
+});
+
 function getAdvancedParts() {
     return currentProject && Array.isArray(currentProject.advancedParts) ? currentProject.advancedParts : [];
 }
@@ -937,7 +944,7 @@ function renderAdvancedPartsEditor() {
     updateAdvancedHoldHint();
     document.getElementById('advanced-parts-list').innerHTML = selectedPart ? renderAdvancedPartCard(selectedPart, selectedIndex) : '';
     renderAdvancedPartLines();
-    if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+    window.BASSourceLibrary?.render?.();
     if (window.BASSequenceTimeline) BASSequenceTimeline.render();
 }
 

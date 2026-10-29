@@ -30,7 +30,7 @@ function seekFramingReferenceVideo() {
 }
 
 function syncFramingReferenceSource() {
-    const source = playerVideo?.currentSrc || playerVideo?.src || '';
+    const source = window.BASState.playerVideo?.currentSrc || window.BASState.playerVideo?.src || '';
     if (!source) return;
     if (source === framingReferenceSource) return;
     framingReferenceSource = source;
@@ -43,12 +43,7 @@ framingReferenceVideo.addEventListener('loadeddata', renderFramingToolFrame);
 framingReferenceVideo.addEventListener('seeked', renderFramingToolFrame);
 
 function contextualText(key, fallback) {
-    try {
-        if (typeof traducoes !== 'undefined' && typeof idiomaAtual !== 'undefined' && traducoes[idiomaAtual] && traducoes[idiomaAtual][key]) {
-            return traducoes[idiomaAtual][key];
-        }
-    } catch (e) {}
-    return fallback;
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function setOutputTool(tool, options = {}) {
@@ -56,8 +51,8 @@ function setOutputTool(tool, options = {}) {
     if (tool === 'composition' || tool === 'audio') {
         const targetId = tool === 'composition' ? 'composition-editor-section' : 'output-panel-audio';
         contextualUi.outputTool = 'basics';
-        if (typeof setWorkspaceView === 'function') setWorkspaceView('edit', { scroll: false });
-        if (typeof setEditTool === 'function') setEditTool(tool, { scroll: true });
+        window.BASWorkspace?.setView?.('edit', { scroll: false });
+        setEditTool(tool, { scroll: true });
         tool = 'basics';
     }
     if (!allowed.includes(tool)) tool = 'basics';
@@ -76,7 +71,7 @@ function setOutputTool(tool, options = {}) {
         syncFramingToolUi();
         requestAnimationFrame(renderFramingToolFrame);
     }
-    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('output-tool', { emit: true });
+    window.BASProjectEngine?.touch?.('output-tool', { emit: true });
     if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
         document.querySelector('.output-workbench')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -99,7 +94,7 @@ function setEditTool(tool, options = {}) {
         panel.classList.toggle('is-active', active);
         panel.hidden = !active;
     });
-    if (tool === 'composition' && window.BASComposition) window.BASComposition.open();
+    if (tool === 'composition') window.BASComposition?.open?.();
     if (tool === 'audio') syncContextualAudioMode();
     if (options.scroll && window.matchMedia('(max-width: 859px)').matches) {
         requestAnimationFrame(() => document.getElementById('edit-inspector-deck')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -117,19 +112,19 @@ function setAudioRole(role) {
     document.querySelectorAll('.audio-role-card[data-audio-panel]').forEach(panel => {
         panel.classList.toggle('is-active', panel.dataset.audioPanel === role);
     });
-    if (typeof scheduleAudioWaveformRefresh === 'function') scheduleAudioWaveformRefresh(role, 20);
-    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('audio-role', { emit: true });
+    window.BASAudioStudio?.scheduleWaveformRefresh?.(role, 20);
+    window.BASProjectEngine?.touch?.('audio-role', { emit: true });
 }
 
 function getFramingToolSettings() {
-    const width = typeof normalizeOutputDimension === 'function'
-        ? normalizeOutputDimension(document.getElementById('input-largura')?.value, originalW || playerVideo.videoWidth || 1)
-        : Math.max(1, parseInt(document.getElementById('input-largura')?.value) || originalW || playerVideo.videoWidth || 1);
-    const height = typeof normalizeOutputDimension === 'function'
-        ? normalizeOutputDimension(document.getElementById('input-altura')?.value, originalH || playerVideo.videoHeight || 1)
-        : Math.max(1, parseInt(document.getElementById('input-altura')?.value) || originalH || playerVideo.videoHeight || 1);
-    const mode = normalizeFramingMode(document.getElementById('input-enquadramento')?.value || 'cover');
-    const focus = getCurrentFramingFocus();
+    const width = !!window.BASPerformance?.normalizeDimension
+        ? window.BASPerformance.normalizeDimension(document.getElementById('input-largura')?.value, window.BASState.sourceWidth || window.BASState.playerVideo.videoWidth || 1)
+        : Math.max(1, parseInt(document.getElementById('input-largura')?.value) || window.BASState.sourceWidth || window.BASState.playerVideo.videoWidth || 1);
+    const height = !!window.BASPerformance?.normalizeDimension
+        ? window.BASPerformance.normalizeDimension(document.getElementById('input-altura')?.value, window.BASState.sourceHeight || window.BASState.playerVideo.videoHeight || 1)
+        : Math.max(1, parseInt(document.getElementById('input-altura')?.value) || window.BASState.sourceHeight || window.BASState.playerVideo.videoHeight || 1);
+    const mode = window.BASFraming.normalizeMode(document.getElementById('input-enquadramento')?.value || 'cover');
+    const focus = window.BASFraming.getFocus();
     return { width, height, mode, focus };
 }
 
@@ -179,7 +174,7 @@ function renderFramingToolFrame() {
     ctx.fillRect(0, 0, width, height);
     syncFramingReferenceSource();
     if (framingReferenceVideo.readyState >= 2 && framingReferenceVideo.videoWidth) {
-        drawFramedDrawable(ctx, framingReferenceVideo, width, height, settings.mode, settings.focus);
+        window.BASFraming.draw(ctx, framingReferenceVideo, width, height, settings.mode, settings.focus);
     }
 }
 
@@ -189,7 +184,7 @@ function contextualFramingLoop() {
     const visible = contextualUi.outputTool === 'framing' && (!editor || editor.dataset.mobileView === 'settings' || window.matchMedia('(min-width: 860px)').matches);
     if (!visible) return;
     renderFramingToolFrame();
-    if (playerVideo && !playerVideo.paused && !playerVideo.ended) contextualUi.framingFrame = requestAnimationFrame(contextualFramingLoop);
+    if (window.BASState.playerVideo && !window.BASState.playerVideo.paused && !window.BASState.playerVideo.ended) contextualUi.framingFrame = requestAnimationFrame(contextualFramingLoop);
 }
 
 function requestContextualFramingLoop() {
@@ -200,17 +195,17 @@ function requestContextualFramingLoop() {
 function applyFramingToolMode(mode) {
     const select = document.getElementById('input-enquadramento');
     if (!select) return;
-    select.value = normalizeFramingMode(mode);
+    select.value = window.BASFraming.normalizeMode(mode);
     select.dispatchEvent(new Event('change', { bubbles: true }));
     syncFramingToolUi();
     renderFramingToolFrame();
 }
 
 function applyFramingToolZoom(value) {
-    const focus = getCurrentFramingFocus();
-    const nextZoom = normalizeFramingZoomValue(value);
-    setCurrentFramingFocus(focus.x, focus.y, nextZoom);
-    if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
+    const focus = window.BASFraming.getFocus();
+    const nextZoom = window.BASFraming.normalizeZoom(value);
+    window.BASFraming.setFocus(focus.x, focus.y, nextZoom);
+    window.BASTimelineFraming?.applyFocusVisuals?.();
     syncFramingToolUi();
     renderFramingToolFrame();
 }
@@ -221,7 +216,7 @@ function finishFramingToolPan(event) {
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     contextualUi.framingPointerId = null;
     canvas.classList.remove('is-dragging');
-    if (contextualUi.framingMoved && typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    if (contextualUi.framingMoved && !!window.BASPerformance?.scheduleEstimate) window.BASPerformance?.scheduleEstimate?.();
     contextualUi.framingMoved = false;
 }
 
@@ -229,7 +224,7 @@ function syncContextualAudioMode() {
     const note = document.getElementById('advanced-audio-context');
     const simpleToggle = document.getElementById('simple-audio-toggle-wrap');
     const simplePanel = document.getElementById('painel-audio');
-    const advanced = typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive();
+    const advanced = window.BASParts?.isActive?.() ?? false;
     if (note) note.classList.toggle('is-visible', advanced);
     if (advanced) {
         if (simpleToggle) simpleToggle.style.display = 'none';
@@ -291,7 +286,7 @@ function syncContextualToolsText() {
     if (editNav) editNav.setAttribute('aria-label', contextualText('editToolsAria', 'Editor tools'));
     const canvas = document.getElementById('framing-tool-canvas');
     if (canvas) canvas.setAttribute('aria-label', contextualText('contextFramingPreviewAria', 'Framing preview'));
-    if (typeof syncCompositionText === 'function') syncCompositionText();
+    window.BASComposition?.syncText?.();
 }
 
 function bindContextualTools() {
@@ -311,7 +306,7 @@ function bindContextualTools() {
     if (zoom) {
         zoom.addEventListener('input', () => applyFramingToolZoom(zoom.value));
         zoom.addEventListener('change', () => {
-            if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+            if (!!window.BASPerformance?.scheduleEstimate) window.BASPerformance?.scheduleEstimate?.();
         });
     }
     const reference = document.getElementById('framing-reference-slider');
@@ -325,11 +320,11 @@ function bindContextualTools() {
     const reset = document.getElementById('framing-tool-reset');
     if (reset) {
         reset.addEventListener('click', () => {
-            resetCurrentFramingFocus();
-            if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
+            window.BASFraming.resetFocus();
+            window.BASTimelineFraming?.applyFocusVisuals?.();
             syncFramingToolUi();
             renderFramingToolFrame();
-            if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+            if (!!window.BASPerformance?.scheduleEstimate) window.BASPerformance?.scheduleEstimate?.();
         });
     }
     const canvas = document.getElementById('framing-tool-canvas');
@@ -337,7 +332,7 @@ function bindContextualTools() {
     if (canvas && shell) {
         canvas.addEventListener('pointerdown', event => {
             const settings = getFramingToolSettings();
-            if (settings.mode !== 'cover' || !currentProject) return;
+            if (settings.mode !== 'cover' || !window.BASState.currentProject) return;
             contextualUi.framingPointerId = event.pointerId;
             contextualUi.framingStartPoint = { x: event.clientX, y: event.clientY };
             contextualUi.framingStartFocus = settings.focus;
@@ -349,14 +344,14 @@ function bindContextualTools() {
             if (contextualUi.framingPointerId !== event.pointerId) return;
             const dx = event.clientX - contextualUi.framingStartPoint.x;
             const dy = event.clientY - contextualUi.framingStartPoint.y;
-            const sourceWidth = playerVideo.videoWidth || originalW || 1;
-            const sourceHeight = playerVideo.videoHeight || originalH || 1;
-            const metrics = getCoverPreviewMetrics(shell, sourceWidth, sourceHeight, contextualUi.framingStartFocus.zoom);
+            const sourceWidth = window.BASState.playerVideo.videoWidth || window.BASState.sourceWidth || 1;
+            const sourceHeight = window.BASState.playerVideo.videoHeight || window.BASState.sourceHeight || 1;
+            const metrics = window.BASTimelineFraming.getCoverMetrics(shell, sourceWidth, sourceHeight, contextualUi.framingStartFocus.zoom);
             const nextX = metrics.x > 0.5 ? contextualUi.framingStartFocus.x - dx / metrics.x : 0.5;
             const nextY = metrics.y > 0.5 ? contextualUi.framingStartFocus.y - dy / metrics.y : 0.5;
             if (Math.abs(dx) > 1 || Math.abs(dy) > 1) contextualUi.framingMoved = true;
-            setCurrentFramingFocus(nextX, nextY, contextualUi.framingStartFocus.zoom);
-            if (typeof applyFramingFocusVisuals === 'function') applyFramingFocusVisuals();
+            window.BASFraming.setFocus(nextX, nextY, contextualUi.framingStartFocus.zoom);
+            window.BASTimelineFraming?.applyFocusVisuals?.();
             renderFramingToolFrame();
             event.preventDefault();
         });
@@ -376,7 +371,7 @@ function bindContextualTools() {
             renderFramingToolFrame();
         });
     });
-    ['loadedmetadata', 'loadeddata'].forEach(type => playerVideo?.addEventListener(type, () => {
+    ['loadedmetadata', 'loadeddata'].forEach(type => window.BASState.playerVideo?.addEventListener(type, () => {
         if (type === 'loadedmetadata') {
             contextualUi.framingReference = 0.5;
             framingReferenceSource = '';
@@ -397,7 +392,7 @@ function bindContextualTools() {
     const editParts = document.getElementById('btn-audio-open-parts');
     if (editParts) {
         editParts.addEventListener('click', () => {
-            if (typeof setWorkspaceView === 'function') setWorkspaceView('edit');
+            window.BASWorkspace?.setView?.('edit');
             setEditTool('parts', { scroll: true });
         });
     }
@@ -414,6 +409,15 @@ function bindContextualTools() {
     syncContextualAudioMode();
 }
 
+window.BASContextual = Object.freeze({
+    setOutputTool,
+    setEditTool,
+    setAudioRole,
+    syncFramingToolUi,
+    renderFramingToolFrame,
+    syncAudioMode: syncContextualAudioMode,
+    syncText: syncContextualToolsText
+});
 window.addEventListener('DOMContentLoaded', bindContextualTools);
 window.setOutputTool = setOutputTool;
 window.setEditTool = setEditTool;

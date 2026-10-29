@@ -1,12 +1,7 @@
 let buildDeliveryTarget = 'download';
 
 function releaseText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual];
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function rootModulePackagingEnabled() {
@@ -15,8 +10,8 @@ function rootModulePackagingEnabled() {
 
 function getBuildDeliveryTarget() {
     if (rootModulePackagingEnabled()) return 'download';
-    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
-    return isConnectedMode && canControl && buildDeliveryTarget === 'phone' ? 'phone' : 'download';
+    const canControl = window.BASApi?.hasPermission?.('control') ?? true;
+    return window.BASState.connectedMode && canControl && buildDeliveryTarget === 'phone' ? 'phone' : 'download';
 }
 
 function setBuildDeliveryTarget(target, options = {}) {
@@ -25,40 +20,41 @@ function setBuildDeliveryTarget(target, options = {}) {
         syncReleaseUi();
         return;
     }
-    if (target === 'phone' && !isConnectedMode) {
-        if (typeof connectToPhone === 'function') connectToPhone();
+    if (target === 'phone' && !window.BASState.connectedMode) {
+        window.BASApi?.connect?.();
         return;
     }
-    if (target === 'phone' && typeof hasModulePermission === 'function' && !hasModulePermission('control')) {
+    if (target === 'phone' && window.BASApi?.hasPermission?.('control') === false) {
         buildDeliveryTarget = 'download';
         syncReleaseUi();
         return;
     }
     buildDeliveryTarget = target === 'phone' ? 'phone' : 'download';
     syncReleaseUi();
-    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('delivery-target', { emit: true });
-    if (!options.skipButtons && typeof atualizarBotoesELinhas === 'function') atualizarBotoesELinhas();
+    window.BASProjectEngine?.touch?.('delivery-target', { emit: true });
+    if (!options.skipButtons) window.BASTimelineControls?.refreshBuildControls?.();
 }
 
 function releaseSectionSummary() {
     let base;
-    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
-        const parts = typeof getAdvancedParts === 'function' ? getAdvancedParts() : [];
+    if (window.BASParts?.isActive?.()) {
+        const parts = window.BASParts?.getParts?.() ?? [];
         const count = Array.isArray(parts) ? parts.length : 0;
         base = releaseText('releasePartsCount', '{count} parts').replace('{count}', String(count));
     } else {
-        const values = ['m0', 'm1', 'm2', 'm3'].map(key => marcadores[key]);
+        const markers = window.BASState.markers;
+        const values = ['m0', 'm1', 'm2', 'm3'].map(key => markers[key]);
         const valid = values.every(Number.isFinite) && values[0] <= values[1] && values[1] <= values[2] && values[2] <= values[3];
         base = valid ? releaseText('releaseSimpleStructure', '3 sections') : releaseText('releaseStructurePending', 'Waiting for sections');
     }
-    const layers = window.BASComposition ? BASComposition.getLayers().filter(layer => layer.visible !== false).length : 0;
+    const layers = window.BASComposition?.getLayers?.().filter(layer => layer.visible !== false).length ?? 0;
     if (!layers) return base;
     return `${base} · ${releaseText(layers === 1 ? 'releaseLayerCountOne' : 'releaseLayerCount', layers === 1 ? '1 layer' : '{count} layers').replace('{count}', String(layers))}`;
 }
 
 function releaseAudioSummary() {
-    if (typeof isAdvancedPartsActive === 'function' && isAdvancedPartsActive()) {
-        const parts = typeof getAdvancedParts === 'function' ? getAdvancedParts() : [];
+    if (window.BASParts?.isActive?.()) {
+        const parts = window.BASParts?.getParts?.() ?? [];
         const active = Array.isArray(parts) && parts.some(part => part && part.audio && part.audio.mode && part.audio.mode !== 'none');
         return active ? releaseText('releaseAudioOn', 'Enabled') : releaseText('releaseAudioOff', 'Off');
     }
@@ -67,12 +63,10 @@ function releaseAudioSummary() {
 }
 
 function syncReleaseSummary() {
-    const width = typeof normalizeOutputDimension === 'function'
-        ? normalizeOutputDimension(document.getElementById('input-largura')?.value, originalW)
-        : Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || originalW || 1);
-    const height = typeof normalizeOutputDimension === 'function'
-        ? normalizeOutputDimension(document.getElementById('input-altura')?.value, originalH)
-        : Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || originalH || 1);
+    const width = window.BASPerformance?.normalizeDimension?.(document.getElementById('input-largura')?.value, window.BASState.sourceWidth)
+        ?? Math.max(1, parseInt(document.getElementById('input-largura')?.value, 10) || window.BASState.sourceWidth || 1);
+    const height = window.BASPerformance?.normalizeDimension?.(document.getElementById('input-altura')?.value, window.BASState.sourceHeight)
+        ?? Math.max(1, parseInt(document.getElementById('input-altura')?.value, 10) || window.BASState.sourceHeight || 1);
     const fps = Math.min(60, Math.max(1, parseInt(document.getElementById('input-fps')?.value, 10) || 30));
     const resolution = document.getElementById('release-summary-resolution');
     const frameRate = document.getElementById('release-summary-fps');
@@ -97,9 +91,9 @@ function syncReleaseReadiness() {
 }
 
 function syncReleaseDestination() {
-    const connected = isConnectedMode;
+    const connected = window.BASState.connectedMode;
     const modulePackage = rootModulePackagingEnabled();
-    const canControl = typeof hasModulePermission !== 'function' || hasModulePermission('control');
+    const canControl = window.BASApi?.hasPermission?.('control') ?? true;
     const permissionBlocked = connected && !canControl;
     if ((!connected || modulePackage || permissionBlocked) && buildDeliveryTarget === 'phone') buildDeliveryTarget = 'download';
     const activeTarget = getBuildDeliveryTarget();
@@ -131,8 +125,8 @@ function syncReleaseUi() {
     syncReleaseSummary();
     syncReleaseReadiness();
     syncReleaseDestination();
-    if (typeof updateOutputIntent === 'function') updateOutputIntent();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASUX?.updateOutputIntent?.();
+    window.BASCompatibility?.schedule?.();
     if (window.BASModuleTest?.sync) window.BASModuleTest.sync();
 }
 
@@ -142,12 +136,12 @@ function bindReleaseUi() {
     });
     const connect = document.getElementById('btn-build-connect');
     if (connect) connect.addEventListener('click', () => {
-        if (typeof connectToPhone === 'function') connectToPhone();
+        window.BASApi?.connect?.();
     });
     const deviceToggle = document.getElementById('editor-device-toggle');
     if (deviceToggle) deviceToggle.addEventListener('click', () => {
-        if (!isConnectedMode) {
-            if (typeof connectToPhone === 'function') connectToPhone();
+        if (!window.BASState.connectedMode) {
+            window.BASApi?.connect?.();
             return;
         }
         const panel = document.getElementById('connected-state');
@@ -168,6 +162,12 @@ function bindReleaseUi() {
     syncReleaseUi();
 }
 
+window.BASRelease = Object.freeze({
+    getTarget: getBuildDeliveryTarget,
+    setTarget: setBuildDeliveryTarget,
+    sync: syncReleaseUi,
+    summary: syncReleaseSummary
+});
 window.getBuildDeliveryTarget = getBuildDeliveryTarget;
 window.setBuildDeliveryTarget = setBuildDeliveryTarget;
 window.syncReleaseUi = syncReleaseUi;

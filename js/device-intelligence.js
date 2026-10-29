@@ -304,8 +304,8 @@ async function refreshDeviceIntelligence(options = {}) {
             deviceIntelligenceRuntime.loading = false;
             renderDeviceIntelligence();
             if (typeof syncDeviceProfileUi === 'function') syncDeviceProfileUi();
-            if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck(0);
-            if (typeof syncModuleWorkspaceUi === 'function') syncModuleWorkspaceUi();
+            window.BASCompatibility?.schedule?.(0);
+            window.BASModuleWorkspace?.sync?.();
         }
     }
 }

@@ -52,8 +52,8 @@ async function openProjectRestoreSource(manifest, sourceAsset) {
         await abrirZipNoEditor(blob);
     } else if (type === 'gif') {
         await converterGifParaVideo(blob);
-    } else if (type === 'image' && typeof openImageSourceInEditor === 'function') {
-        await openImageSourceInEditor(blob, { sourceName });
+    } else if (type === 'image' && !!window.BASSourceLibrary?.openImage) {
+        await window.BASSourceLibrary.openImage(blob, { sourceName });
     } else if (typeof openVideoSourceInEditor === 'function') {
         openVideoSourceInEditor(blob, { sourceName });
     } else {

@@ -1399,7 +1399,7 @@ function resetAudioExportCompatibility(role) {
     if (els.outputMeta) els.outputMeta.textContent = '—';
     if (els.conversion) els.conversion.textContent = '';
     if (els.warnings) els.warnings.replaceChildren();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 }
 
 function audioExportSourceDescriptor(role, roleState) {
@@ -1453,7 +1453,7 @@ function markAudioExportCompatibilityPending(role) {
     els.card.dataset.state = 'checking';
     audioExportCompatibilityRuntime.results[role] = { role, severity: 'checking', messages: [] };
     if (els.status) els.status.textContent = t.audioExportStatusChecking || 'Checking';
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 }
 
 function markAudioExportCompatibilityUnavailable(role) {
@@ -1477,7 +1477,7 @@ function markAudioExportCompatibilityUnavailable(role) {
         els.warnings.replaceChildren();
         appendAudioExportMessage(els.warnings, 'warning', unavailableMessage);
     }
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 }
 
 function getAudioCompatibilitySilenceCauses(roleState, plan, waveformData) {
@@ -1516,7 +1516,7 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
     els.card.dataset.state = 'checking';
     audioExportCompatibilityRuntime.results[role] = { role, severity: 'checking', messages: [] };
     if (els.status) els.status.textContent = t.audioExportStatusChecking || 'Checking';
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
 
     const signature = audioStudioStateSignature(role, state);
     const data = waveformData || await getAudioWaveformData(role, false);
@@ -1527,7 +1527,7 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
         audioExportCompatibilityRuntime.results[role] = { role, severity: 'warning', messages: [{ kind: 'warning', text: unavailableMessage }], unavailable: true };
         if (els.status) els.status.textContent = t.audioExportStatusWarning || 'Check';
         if (els.outputMeta) els.outputMeta.textContent = unavailableMessage;
-        if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+        window.BASCompatibility?.schedule?.();
         return null;
     }
 
@@ -1633,7 +1633,7 @@ async function renderAudioExportCompatibility(role, waveformData = null) {
     if (els.status) els.status.textContent = statusLabels[severity] || statusLabels.ready;
     const result = { role, severity, source, outputBlob: data.blob, outputBuffer, sourceBuffer, metadata, plan, messages: compatibilityMessages };
     audioExportCompatibilityRuntime.results[role] = result;
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck();
+    window.BASCompatibility?.schedule?.();
     return result;
 }
 
@@ -1669,6 +1669,16 @@ function initializeAudioExportCompatibility() {
         else refreshAudioExportCompatibility(role).catch(() => {});
     });
 }
+
+window.BASAudioStudio = Object.freeze({
+    scheduleWaveformRefresh: (...args) => scheduleAudioWaveformRefresh(...args),
+    notifyMarkersChanged: notifyAudioMarkersChanged,
+    syncControlsText: syncAudioStudioSyncControlsText,
+    syncProcessingText: syncAudioProcessingStudioText,
+    syncExportText: syncAudioExportCompatibilityText,
+    refreshExportCompatibility: refreshAudioExportCompatibility,
+    renderWaveformMarkers: renderAudioWaveformMarkers
+});
 
 function scheduleAudioWaveformRefresh(role, delay = 160) {
     clearTimeout(audioWaveformRuntime.refreshTimers.get(role));

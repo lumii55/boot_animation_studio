@@ -11,12 +11,15 @@ const moduleWorkspaceUi = {
 };
 
 function moduleWorkspaceText(key, fallback) {
-    try {
-        if (typeof traducoes !== 'undefined' && typeof idiomaAtual !== 'undefined' && traducoes[idiomaAtual] && traducoes[idiomaAtual][key]) {
-            return traducoes[idiomaAtual][key];
-        }
-    } catch (error) {}
-    return fallback;
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
+}
+
+function moduleWorkspaceHasFeature(feature) {
+    return window.BASApi?.hasFeature?.(feature) === true;
+}
+
+function moduleWorkspaceHasPermission(required) {
+    return window.BASApi?.hasPermission?.(required) ?? true;
 }
 
 function moduleWorkspaceSections() {
@@ -57,10 +60,10 @@ function syncModuleWorkspaceTabAvailability() {
     const historyTab = document.getElementById('module-workspace-tab-history');
     const testTab = document.getElementById('module-workspace-tab-test');
     const playlistTab = document.getElementById('module-workspace-tab-playlists');
-    const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
-    const activityAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_activity');
-    const testAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('test_staging');
-    const playlistAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('playlists');
+    const historyAvailable = moduleWorkspaceHasFeature('history');
+    const activityAvailable = moduleWorkspaceHasFeature('boot_activity');
+    const testAvailable = moduleWorkspaceHasFeature('test_staging');
+    const playlistAvailable = moduleWorkspaceHasFeature('playlists');
     const historyGroupAvailable = historyAvailable || activityAvailable;
     if (historyTab) {
         historyTab.hidden = !historyGroupAvailable;
@@ -86,20 +89,20 @@ function syncModuleWorkspaceTabAvailability() {
 
 function setModuleWorkspaceTab(tab, options = {}) {
     if (!['overview', 'test', 'playlists', 'history', 'device'].includes(tab)) return;
-    const historyAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('history');
-    const activityAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('boot_activity');
+    const historyAvailable = moduleWorkspaceHasFeature('history');
+    const activityAvailable = moduleWorkspaceHasFeature('boot_activity');
     if (tab === 'history' && !historyAvailable && !activityAvailable) tab = 'overview';
-    if (tab === 'test' && typeof hasModuleFeature === 'function' && !hasModuleFeature('test_staging')) tab = 'overview';
-    if (tab === 'playlists' && typeof hasModuleFeature === 'function' && !hasModuleFeature('playlists')) tab = 'overview';
+    if (tab === 'test' && !moduleWorkspaceHasFeature('test_staging')) tab = 'overview';
+    if (tab === 'playlists' && !moduleWorkspaceHasFeature('playlists')) tab = 'overview';
     moduleWorkspaceUi.currentTab = tab;
     if (tab === 'device' && window.BASDeviceProfile?.setExpanded) window.BASDeviceProfile.setExpanded(true);
     if (tab === 'history') {
-        if (historyAvailable && typeof loadHistory === 'function') loadHistory();
+        if (historyAvailable) window.BASApi?.loadHistory?.();
         if (activityAvailable && window.BASBootActivity?.refresh) window.BASBootActivity.refresh();
     }
     if (tab === 'device') {
-        if (typeof hasModuleFeature === 'function' && hasModuleFeature('module_health') && window.BASHealthCenter?.refresh) window.BASHealthCenter.refresh({ silent: true });
-        if (typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && window.BASTrustCenter?.refresh) window.BASTrustCenter.refresh({ silent: true });
+        if (moduleWorkspaceHasFeature('module_health') && window.BASHealthCenter?.refresh) window.BASHealthCenter.refresh({ silent: true });
+        if (moduleWorkspaceHasFeature('trusted_clients') && window.BASTrustCenter?.refresh) window.BASTrustCenter.refresh({ silent: true });
     }
     if (tab === 'test' && window.BASModuleTest?.refreshStatus) window.BASModuleTest.refreshStatus();
     if (tab === 'playlists' && window.BASPlaylist?.refresh) window.BASPlaylist.refresh();
@@ -121,9 +124,9 @@ function setModuleWorkspaceTab(tab, options = {}) {
     }
     if (tab === 'device') {
         const health = document.getElementById('module-health-center');
-        if (health) health.hidden = !(typeof hasModuleFeature === 'function' && hasModuleFeature('module_health'));
+        if (health) health.hidden = !(moduleWorkspaceHasFeature('module_health'));
         const access = document.getElementById('module-trust-center');
-        const accessAvailable = typeof hasModuleFeature === 'function' && hasModuleFeature('trusted_clients') && (!hasModuleFeature('trust_permissions') || (typeof hasModulePermission === 'function' && hasModulePermission('admin')));
+        const accessAvailable = moduleWorkspaceHasFeature('trusted_clients') && (!moduleWorkspaceHasFeature('trust_permissions') || moduleWorkspaceHasPermission('admin'));
         if (access) access.hidden = !accessAvailable;
     }
     document.querySelectorAll('[data-module-workspace-tab]').forEach(button => {
@@ -192,7 +195,7 @@ function moduleWorkspaceRestorePanel() {
 }
 
 function openModuleWorkspace(options = {}) {
-    if (!isConnectedMode) {
+    if (!window.BASState?.connectedMode) {
         requestModuleWorkspaceConnection();
         return;
     }
@@ -224,21 +227,21 @@ function leaveModuleWorkspaceToStudio() {
     document.body.classList.remove('module-workspace-open');
     document.getElementById('initial-state').style.display = 'none';
     document.getElementById('editor-section').style.display = 'flex';
-    if (isConnectedMode) document.getElementById('connected-state').style.display = 'flex';
+    if (window.BASState?.connectedMode) document.getElementById('connected-state').style.display = 'flex';
     moduleWorkspaceUi.entryContext = 'editor';
     syncModuleWorkspaceText();
-    if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
+    window.BASWorkspace?.sync?.();
     requestAnimationFrame(() => document.getElementById('editor-section')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 
 function requestModuleWorkspaceConnection() {
-    if (isConnectedMode) {
+    if (window.BASState?.connectedMode) {
         const launchVisible = document.getElementById('initial-state')?.style.display !== 'none';
         openModuleWorkspace({ origin: launchVisible ? 'launch' : 'editor' });
         return;
     }
     window.BASModuleWorkspaceConnectionRequested = true;
-    if (typeof connectToPhone === 'function') connectToPhone();
+    window.BASApi?.connect?.();
 }
 
 function cancelModuleWorkspaceConnectionRequest() {
@@ -300,6 +303,19 @@ function bindModuleWorkspace() {
     syncModuleWorkspaceText();
     syncModuleWorkspaceUi();
 }
+
+window.BASModuleWorkspace = Object.freeze({
+    open: openModuleWorkspace,
+    leave: leaveModuleWorkspaceToStudio,
+    requestConnection: requestModuleWorkspaceConnection,
+    cancelConnectionRequest: cancelModuleWorkspaceConnectionRequest,
+    consumeConnectionRequest: consumeModuleWorkspaceConnectionRequest,
+    handleDisconnect: handleModuleWorkspaceDisconnect,
+    isOpen: isModuleWorkspaceOpen,
+    sync: syncModuleWorkspaceUi,
+    syncText: syncModuleWorkspaceText,
+    setTab: setModuleWorkspaceTab
+});
 
 window.openModuleWorkspace = openModuleWorkspace;
 window.leaveModuleWorkspaceToStudio = leaveModuleWorkspaceToStudio;

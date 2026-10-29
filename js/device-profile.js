@@ -30,12 +30,7 @@ const deviceProfileRuntime = {
 };
 
 function deviceProfileText(key, fallback) {
-    try {
-        const table = traducoes[idiomaAtual] || traducoes.en;
-        return table && table[key] ? table[key] : fallback;
-    } catch (error) {
-        return fallback;
-    }
+    return window.BASI18n?.text?.(key, fallback) ?? fallback;
 }
 
 function deviceProfileIntelligence() {
@@ -61,7 +56,7 @@ function deviceProfileModelLabel() {
 }
 
 function deviceProfileLiveResolution() {
-    if (!isConnectedMode) return null;
+    if (!window.BASState.connectedMode) return null;
     // Keep Device Profile upstream of Compatibility. Compatibility may consume the
     // selected device target, so calling it from here creates a recursive dependency.
     const intelligenceResolution = deviceProfileParseResolution(deviceProfileIntelligence()?.system?.resolution);
@@ -143,7 +138,7 @@ function deviceProfileCanWriteStorage(notify = false) {
     if (!deviceProfileRuntime.storageWriteBlocked) return true;
     if (notify && !deviceProfileRuntime.storageWarningShown) {
         deviceProfileRuntime.storageWarningShown = true;
-        if (typeof showToast === 'function') showToast(deviceProfileStorageBlockedMessage(), 'info', 4200);
+        if (window.BASUX?.showToast) window.BASUX.showToast(deviceProfileStorageBlockedMessage(), 'info', 4200);
     }
     return false;
 }
@@ -180,13 +175,13 @@ function deviceProfilePersistSaved() {
         localStorage.setItem(BAS_DEVICE_PROFILE_ACTIVE_KEY, deviceProfileRuntime.activeTarget);
         return true;
     } catch (error) {
-        if (typeof showToast === 'function') showToast(deviceProfileText('deviceTargetStorageError', 'Device profiles could not be saved in this browser.'), 'error', 3200);
+        if (window.BASUX?.showToast) window.BASUX.showToast(deviceProfileText('deviceTargetStorageError', 'Device profiles could not be saved in this browser.'), 'error', 3200);
         return false;
     }
 }
 
 function deviceProfileLiveTarget() {
-    if (!isConnectedMode) return null;
+    if (!window.BASState.connectedMode) return null;
     const resolution = deviceProfileLiveResolution();
     if (!resolution) return null;
     return {
@@ -227,13 +222,13 @@ function deviceProfileSaveLiveTarget() {
     const intelligence = deviceProfileIntelligence();
     const live = deviceProfileLiveTarget();
     if (!live || !intelligence) {
-        if (typeof showToast === 'function') showToast(deviceProfileText('deviceTargetSaveUnavailable', 'Refresh Device Intelligence before saving this device profile.'), 'info', 3000);
+        if (window.BASUX?.showToast) window.BASUX.showToast(deviceProfileText('deviceTargetSaveUnavailable', 'Refresh Device Intelligence before saving this device profile.'), 'info', 3000);
         return null;
     }
     const system = deviceProfileClone(intelligence.system || {}) || {};
     const boot = deviceProfileClone(intelligence.boot || {}) || {};
     const identityKey = deviceProfileIdentityKey(system);
-    const capabilities = deviceProfileCapabilityDefinitions().filter(([feature]) => typeof hasModuleFeature === 'function' && hasModuleFeature(feature)).map(([feature]) => feature);
+    const capabilities = deviceProfileCapabilityDefinitions().filter(([feature]) => window.BASApi?.hasFeature && window.BASApi.hasFeature(feature)).map(([feature]) => feature);
     const now = Date.now();
     const previousTarget = deviceProfileRuntime.activeTarget;
     const existingIndex = deviceProfileRuntime.saved.findIndex(item => item.identityKey === identityKey);
@@ -253,9 +248,9 @@ function deviceProfileSaveLiveTarget() {
     else deviceProfileRuntime.activeTarget = previousTarget === 'live' ? 'live' : deviceProfileRuntime.activeTarget;
     deviceProfilePersistSaved();
     syncDeviceTargetUi();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck(0);
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
-    if (typeof showToast === 'function') showToast(deviceProfileText(existing ? 'deviceTargetUpdatedToast' : 'deviceTargetSavedToast', existing ? 'Device profile updated: {name}' : 'Device profile saved: {name}').replace('{name}', saved.name), 'success', 2600);
+    window.BASCompatibility?.schedule?.(0);
+    window.BASOutputPresets?.sync?.();
+    if (window.BASUX?.showToast) window.BASUX.showToast(deviceProfileText(existing ? 'deviceTargetUpdatedToast' : 'deviceTargetSavedToast', existing ? 'Device profile updated: {name}' : 'Device profile saved: {name}').replace('{name}', saved.name), 'success', 2600);
     return saved;
 }
 
@@ -268,9 +263,9 @@ function deviceProfileDeleteActiveSaved() {
     deviceProfileRuntime.activeTarget = 'live';
     deviceProfilePersistSaved();
     syncDeviceTargetUi();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck(0);
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
-    if (typeof showToast === 'function') showToast(deviceProfileText('deviceTargetDeletedToast', 'Saved device profile deleted.'), 'success', 2200);
+    window.BASCompatibility?.schedule?.(0);
+    window.BASOutputPresets?.sync?.();
+    if (window.BASUX?.showToast) window.BASUX.showToast(deviceProfileText('deviceTargetDeletedToast', 'Saved device profile deleted.'), 'success', 2200);
 }
 
 function deviceProfileSelectTarget(id) {
@@ -279,9 +274,9 @@ function deviceProfileSelectTarget(id) {
     deviceProfileRuntime.activeTarget = value === 'live' || deviceProfileRuntime.saved.some(item => item.id === value) ? value : 'live';
     deviceProfilePersistSaved();
     syncDeviceTargetUi();
-    if (typeof scheduleCompatibilityCheck === 'function') scheduleCompatibilityCheck(0);
-    if (typeof syncOutputPresetsUi === 'function') syncOutputPresetsUi();
-    if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
+    window.BASCompatibility?.schedule?.(0);
+    window.BASOutputPresets?.sync?.();
+    window.BASPerformance?.scheduleEstimate?.();
 }
 
 function syncDeviceTargetUi() {
@@ -327,25 +322,25 @@ function syncDeviceTargetUi() {
 }
 
 function deviceProfileCurrentOutput() {
-    if (typeof outputPresetCurrentOptions === 'function') return outputPresetCurrentOptions();
-    if (typeof getPerformanceOptions === 'function') return getPerformanceOptions();
+    if (window.BASOutputPresets?.currentOptions) return window.BASOutputPresets.currentOptions();
+    if (window.BASPerformance?.getOptions) return window.BASPerformance.getOptions();
     return null;
 }
 
 function deviceProfileModuleVersion() {
-    if (moduleInfo && moduleInfo.module_version) return String(moduleInfo.module_version);
-    if (moduleCompatibilityMode === 'legacy_secure') return deviceProfileText('deviceProfileLegacyValue', 'Legacy');
+    if (window.BASState.moduleInfo && window.BASState.moduleInfo.module_version) return String(window.BASState.moduleInfo.module_version);
+    if (window.BASState.moduleCompatibilityMode === 'legacy_secure') return deviceProfileText('deviceProfileLegacyValue', 'Legacy');
     return deviceProfileText('deviceProfileUnknownValue', 'Unknown');
 }
 
 function deviceProfileApiVersion() {
-    if (Number.isInteger(Number(moduleApiVersion)) && Number(moduleApiVersion) > 0) return String(moduleApiVersion);
-    if (moduleCompatibilityMode === 'legacy_secure') return deviceProfileText('deviceProfileLegacyValue', 'Legacy');
+    if (Number.isInteger(Number(window.BASState.moduleApiVersion)) && Number(window.BASState.moduleApiVersion) > 0) return String(window.BASState.moduleApiVersion);
+    if (window.BASState.moduleCompatibilityMode === 'legacy_secure') return deviceProfileText('deviceProfileLegacyValue', 'Legacy');
     return deviceProfileText('deviceProfileUnknownValue', 'Unknown');
 }
 
 function deviceProfileCompanionVersion() {
-    const code = Number(moduleInfo && moduleInfo.companion_version_code);
+    const code = Number(window.BASState.moduleInfo && window.BASState.moduleInfo.companion_version_code);
     if (Number.isInteger(code) && code > 0) return deviceProfileText('deviceProfileCompanionBuildValue', 'Build {code}').replace('{code}', code);
     return deviceProfileText('deviceProfileUnknownValue', 'Unknown');
 }
@@ -366,7 +361,7 @@ function deviceProfileRenderCapabilities() {
     root.replaceChildren();
     for (const [feature, key, fallback] of deviceProfileCapabilityDefinitions()) {
         const chip = document.createElement('span');
-        const available = isConnectedMode && typeof hasModuleFeature === 'function' && hasModuleFeature(feature);
+        const available = window.BASState.connectedMode && window.BASApi?.hasFeature && window.BASApi.hasFeature(feature);
         chip.className = 'device-profile-capability';
         chip.dataset.state = available ? 'available' : 'unavailable';
         chip.textContent = deviceProfileText(key, fallback);
@@ -411,8 +406,8 @@ function deviceProfileUpdateMatchStatus(resolution) {
     const matches = comparable && Number(current.width) === resolution.width && Number(current.height) === resolution.height;
 
     if (button) {
-        button.disabled = !currentProject || !resolution || matches;
-        button.title = !currentProject
+        button.disabled = !window.BASState.currentProject || !resolution || matches;
+        button.title = !window.BASState.currentProject
             ? deviceProfileText('deviceProfileOutputNoProject', 'Load a project to compare its output with this screen.')
             : !resolution
                 ? deviceProfileText('deviceProfileOutputUnknown', 'The connected device did not report a usable screen resolution.')
@@ -421,8 +416,8 @@ function deviceProfileUpdateMatchStatus(resolution) {
                     : deviceProfileText('deviceProfileMatchOutput', 'Match output');
     }
     if (saveButton) {
-        saveButton.disabled = !currentProject || !resolution;
-        saveButton.title = !currentProject
+        saveButton.disabled = !window.BASState.currentProject || !resolution;
+        saveButton.title = !window.BASState.currentProject
             ? deviceProfileText('deviceProfileOutputNoProject', 'Load a project to compare its output with this screen.')
             : !resolution
                 ? deviceProfileText('deviceProfileOutputUnknown', 'The connected device did not report a usable screen resolution.')
@@ -430,7 +425,7 @@ function deviceProfileUpdateMatchStatus(resolution) {
     }
 
     if (!status) return;
-    if (!isConnectedMode) {
+    if (!window.BASState.connectedMode) {
         status.textContent = deviceProfileText('deviceProfileOutputOffline', 'Connect a phone to compare output resolution.');
         status.dataset.state = 'offline';
     } else if (!resolution) {
@@ -474,7 +469,7 @@ function syncDeviceProfileUi() {
     const online = document.getElementById('device-profile-online');
     if (!root || !online) return;
 
-    const connected = !!isConnectedMode;
+    const connected = !!window.BASState.connectedMode;
     root.dataset.state = connected ? 'connected' : 'offline';
 
     const resolution = deviceProfileLiveResolution();
@@ -510,14 +505,14 @@ function syncDeviceProfileUi() {
 function deviceProfileMatchOutput() {
     const resolution = deviceProfileResolution();
     const current = deviceProfileCurrentOutput();
-    if (!resolution || !current || !currentProject || typeof outputPresetApplyResolvedOptions !== 'function') return;
+    if (!resolution || !current || !window.BASState.currentProject || !window.BASOutputPresets?.applyOptions) return;
     if (Number(current.width) === resolution.width && Number(current.height) === resolution.height) return;
-    outputPresetApplyResolvedOptions({ width: resolution.width, height: resolution.height }, {
+    window.BASOutputPresets.applyOptions({ width: resolution.width, height: resolution.height }, {
         reason: 'device-profile',
         changeKey: 'device-profile:match-output'
     });
     syncDeviceProfileUi();
-    if (typeof showToast === 'function') showToast(deviceProfileText('deviceProfileMatchedToast', 'Output matched to {resolution}.').replace('{resolution}', resolution.label), 'success', 2500);
+    if (window.BASUX?.showToast) window.BASUX.showToast(deviceProfileText('deviceProfileMatchedToast', 'Output matched to {resolution}.').replace('{resolution}', resolution.label), 'success', 2500);
 }
 
 
@@ -549,6 +544,7 @@ function bindDeviceProfile() {
 window.BASDeviceProfile = Object.freeze({
     version: BAS_DEVICE_PROFILE_VERSION,
     sync: syncDeviceProfileUi,
+    syncText: syncDeviceProfileText,
     setExpanded: deviceProfileSetExpanded,
     matchOutput: deviceProfileMatchOutput,
     saveAsProfile: deviceProfileSaveAsProfile,

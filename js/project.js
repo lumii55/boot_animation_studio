@@ -128,17 +128,17 @@ function setCurrentProject(project) {
     marcadores = currentProject ? currentProject.markers : createMarkerState();
     originalW = currentProject ? currentProject.width || 0 : 0;
     originalH = currentProject ? currentProject.height || 0 : 0;
-    if (typeof window.initializeSourceLibraryForProject === 'function') window.initializeSourceLibraryForProject();
-    if (typeof window.initializeMasterSequenceForProject === 'function') window.initializeMasterSequenceForProject();
-    if (typeof window.initializeCompositionForProject === 'function') window.initializeCompositionForProject();
-    if (typeof window.initializeProjectEngineForCurrentProject === 'function') window.initializeProjectEngineForCurrentProject(projectChanged ? 'source' : 'sync');
+    window.BASSourceLibrary?.initializeCurrentProject?.();
+    window.BASMasterSequence?.initializeCurrentProject?.();
+    window.BASComposition?.initializeCurrentProject?.();
+    window.BASProjectEngine?.initializeCurrentProject?.(projectChanged ? 'source' : 'sync');
 }
 
 function resetProjectMarkers() {
     const nextMarkers = createMarkerState();
     if (currentProject) currentProject.markers = nextMarkers;
     marcadores = nextMarkers;
-    if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
+    window.BASAudioStudio?.notifyMarkersChanged?.();
 }
 
 function setPlayerBlob(blob) {
@@ -195,11 +195,11 @@ function syncCurrentProjectWithPlayer() {
             marcadores[key] = value === null ? null : projectTimeToTimelineTime(value);
         });
         currentProject.initialMarkersApplied = true;
-        if (typeof notifyAudioMarkersChanged === 'function') notifyAudioMarkersChanged();
+        window.BASAudioStudio?.notifyMarkersChanged?.();
     }
-    if (typeof window.syncPrimarySourceLibraryMetadata === 'function') window.syncPrimarySourceLibraryMetadata();
+    window.BASSourceLibrary?.syncPrimary?.();
     if (window.BASMasterSequence) BASMasterSequence.ensure();
-    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('source-metadata', { baseline: true, emit: true });
+    window.BASProjectEngine?.touch?.('source-metadata', { baseline: true, emit: true });
 }
 
 function timelineTimeToProjectTime(time) {
@@ -479,13 +479,23 @@ function setCurrentFramingFocus(x, y, zoom = null) {
         y: normalizeFramingFocusValue(y),
         zoom: normalizeFramingZoomValue(zoom === null ? current.zoom : zoom)
     };
-    if (typeof window.projectEngineTouch === 'function') window.projectEngineTouch('framing');
+    window.BASProjectEngine?.touch?.('framing');
     return getCurrentFramingFocus();
 }
 
 function resetCurrentFramingFocus() {
     return setCurrentFramingFocus(0.5, 0.5, 1);
 }
+
+window.BASProjectOutput = Object.freeze({ normalizeJpegQuality: normalizeJpegExportQuality });
+window.BASFraming = Object.freeze({
+    normalizeMode: normalizeFramingMode,
+    normalizeZoom: normalizeFramingZoomValue,
+    getFocus: getCurrentFramingFocus,
+    setFocus: setCurrentFramingFocus,
+    resetFocus: resetCurrentFramingFocus,
+    draw: (...args) => drawFramedDrawable(...args)
+});
 
 function getFramingDrawRect(sourceWidth, sourceHeight, targetWidth, targetHeight, mode, focusX = 0.5, focusY = 0.5, focusZoom = 1) {
     const sw = Math.max(1, sourceWidth || targetWidth || 1);

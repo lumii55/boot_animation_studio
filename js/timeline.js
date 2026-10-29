@@ -702,6 +702,17 @@ function ajustarPaddings() {
     document.getElementById('pad-right').style.minWidth = pad;
     requestAnimationFrame(() => renderTimelineRuler());
 }
+window.BASTimelineLayout = Object.freeze({ refreshPadding: ajustarPaddings });
+window.BASTimelineFraming = Object.freeze({
+    applyFocusVisuals: applyFramingFocusVisuals,
+    getCoverMetrics: getCoverPreviewMetrics,
+    refreshPreview: atualizarPreviewEnquadramento
+});
+window.BASTimelineControls = Object.freeze({
+    refreshBuildControls: atualizarBotoesELinhas,
+    updateTimeReadout: updatePlayerTimeReadout,
+    syncEditorUi: syncTimelineEditorUi
+});
 window.addEventListener('resize', ajustarPaddings);
 
 function showTooltip(e, idBtn) {
@@ -779,8 +790,8 @@ inputVideo.addEventListener('change', async function(evento) {
             return;
         }
         const isImage = arquivo.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(arquivo.name || '');
-        if (isImage && typeof openImageSourceInEditor === 'function') {
-            await openImageSourceInEditor(arquivo);
+        if (isImage && !!window.BASSourceLibrary?.openImage) {
+            await window.BASSourceLibrary.openImage(arquivo);
             return;
         }
         openVideoSourceInEditor(arquivo);
@@ -1122,7 +1133,7 @@ function atualizarBotoesELinhas() {
         renderSimpleSegmentTrack();
         if (typeof updateOutputIntent === 'function') updateOutputIntent();
         if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-        if (typeof applyCompatibilityBuildGate === 'function') applyCompatibilityBuildGate();
+        window.BASCompatibility?.applyBuildGate?.();
         return;
     }
     let tudoMarcado = true;
@@ -1182,7 +1193,7 @@ function atualizarBotoesELinhas() {
     if (typeof syncAudioAdvancedLabels === 'function') ['intro', 'loop', 'final'].forEach(syncAudioAdvancedLabels);
     if (typeof updateOutputIntent === 'function') updateOutputIntent();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
-    if (typeof applyCompatibilityBuildGate === 'function') applyCompatibilityBuildGate();
+    window.BASCompatibility?.applyBuildGate?.();
 }
 
 function atualizarTamanho() {

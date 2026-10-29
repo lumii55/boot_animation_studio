@@ -62,3 +62,27 @@ const importedAudioFiles = { intro: null, loop: null, final: null };
 const importedAudioKinds = { intro: 'none', loop: 'none', final: 'none' };
 const importedAudioNames = { intro: '', loop: '', final: '' };
 let currentPreviewPart = -1;
+
+
+// P14 browser architecture: read-only facade for shared runtime state. Existing classic globals
+// remain available during the incremental migration; consumers should prefer this interface.
+const BASStateFacade = {};
+Object.defineProperties(BASStateFacade, {
+    locale: { enumerable: true, get: () => idiomaAtual },
+    connectedMode: { enumerable: true, get: () => isConnectedMode },
+    sourceWidth: { enumerable: true, get: () => originalW },
+    sourceHeight: { enumerable: true, get: () => originalH },
+    markers: { enumerable: true, get: () => ({ ...marcadores }) },
+    playerVideo: { enumerable: true, get: () => playerVideo },
+    currentProject: { enumerable: true, get: () => currentProject },
+    jpegQuality: { enumerable: true, get: () => jpegExportQuality },
+    moduleInfo: { enumerable: true, get: () => moduleInfo },
+    moduleApiVersion: { enumerable: true, get: () => moduleApiVersion },
+    moduleCompatibilityMode: { enumerable: true, get: () => moduleCompatibilityMode },
+    publicBuildLabel: { enumerable: true, get: () => BAS_PUBLIC_BUILD_LABEL },
+    publicModuleBaseline: { enumerable: true, get: () => BAS_PUBLIC_MODULE_BASELINE }
+});
+Object.assign(BASStateFacade, {
+    setJpegQuality: value => { jpegExportQuality = value; }
+});
+window.BASState = Object.freeze(BASStateFacade);

@@ -193,7 +193,7 @@ function captureProjectEngineContentState() {
 function captureProjectEngineUiState() {
     const playhead = Number(window.BASMasterSequence && BASMasterSequence.isTimelineActive() ? BASMasterSequence.getCurrentTime() : playerVideo && playerVideo.currentTime);
     return {
-        workspaceView: typeof workspaceUi !== 'undefined' && workspaceUi.currentView ? workspaceUi.currentView : 'edit',
+        workspaceView: window.BASWorkspace?.view || 'edit',
         outputTool: typeof contextualUi !== 'undefined' && contextualUi.outputTool ? contextualUi.outputTool : 'basics',
         audioRole: typeof contextualUi !== 'undefined' && contextualUi.audioRole ? contextualUi.audioRole : 'intro',
         deliveryTarget: typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : 'download',
@@ -671,7 +671,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
     if (typeof renderSimpleSegmentTrack === 'function') renderSimpleSegmentTrack();
     const ui = manifest.ui || {};
     if (options.restoreUi !== false) {
-        if (typeof setWorkspaceView === 'function') setWorkspaceView(ui.workspaceView || 'edit', { scroll: false });
+        window.BASWorkspace?.setView?.(ui.workspaceView || 'edit', { scroll: false });
         if (typeof setOutputTool === 'function') setOutputTool(ui.outputTool || 'basics');
         if (typeof setAudioRole === 'function') setAudioRole(ui.audioRole || 'intro');
         if (typeof setBuildDeliveryTarget === 'function') setBuildDeliveryTarget(isConnectedMode && ui.deliveryTarget === 'phone' ? 'phone' : 'download', { skipButtons: true });
@@ -686,7 +686,7 @@ function restoreProjectEngineState(manifest, assetMap = new Map(), options = {})
             else if (playerVideo && Number.isFinite(playerVideo.duration)) playerVideo.currentTime = Math.max(0, Math.min(playerVideo.duration, Number(ui.playhead)));
         }
     }
-    if (typeof syncWorkspaceUi === 'function') syncWorkspaceUi();
+    window.BASWorkspace?.sync?.();
     if (typeof syncJpegQualityControl === 'function') syncJpegQualityControl();
     if (typeof syncReleaseUi === 'function') syncReleaseUi();
     if (typeof schedulePerformanceEstimate === 'function') schedulePerformanceEstimate();
@@ -765,6 +765,7 @@ window.BASProjectEngine = Object.freeze({
     engineVersion: BAS_PROJECT_ENGINE_VERSION,
     schemaVersion: BAS_PROJECT_SCHEMA_VERSION,
     captureManifest: captureProjectManifest,
+    summary: getProjectEngineSummary,
     getAssets: getProjectAssetInventory,
     validateManifest: validateProjectManifest,
     migrateManifest: migrateProjectManifest,
@@ -773,7 +774,9 @@ window.BASProjectEngine = Object.freeze({
     sync: syncProjectEngineState,
     touch: projectEngineTouch,
     markClean: markProjectEngineClean,
-    suspend: withProjectEngineSuspended
+    suspend: withProjectEngineSuspended,
+    initializeCurrentProject: initializeProjectEngineForCurrentProject,
+    syncUi: syncProjectEngineUi
 });
 window.initializeProjectEngineForCurrentProject = initializeProjectEngineForCurrentProject;
 window.projectEngineTouch = projectEngineTouch;

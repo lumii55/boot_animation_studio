@@ -566,6 +566,10 @@ function requestDeviceBuildTest() {
     btnGerar.click();
 }
 
+window.BASExport = Object.freeze({
+    downloadBlob: downloadGeneratedBlob,
+    requestDeviceBuildTest
+});
 window.requestDeviceBuildTest = requestDeviceBuildTest;
 
 btnGerar.addEventListener('click', async () => {
@@ -586,7 +590,7 @@ btnGerar.addEventListener('click', async () => {
     if (estimate && estimate.archiveEntryBudgetExceeded) {
         const message = `This boot animation would create about ${Number(estimate.archiveEntries || 0).toLocaleString()} ZIP entries, above the ${Number(estimate.archiveEntryLimit || 10000).toLocaleString()} entry limit. Reduce FPS or duration before generating.`;
         if (typeof showToast === 'function') showToast(message, 'error', 6200);
-        if (typeof runCompatibilityCheck === 'function') runCompatibilityCheck();
+        window.BASCompatibility?.refresh?.();
         return;
     }
     if (typeof confirmHeavyExport === 'function' && !confirmHeavyExport(estimate)) return;
@@ -627,7 +631,7 @@ btnGerar.addEventListener('click', async () => {
             successText = t.moduleTestStarted || 'Device test started.';
         } else {
             const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
-            if (typeof recordFinishResult === 'function') recordFinishResult(deliveryResult, options);
+            window.BASFinishCenter?.record?.(deliveryResult, options);
             successText = typeof generationSuccessText === 'function' ? generationSuccessText(deliveryResult, t) : 'OK!';
         }
         document.getElementById('texto-progresso').textContent = successText;
