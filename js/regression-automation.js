@@ -395,5 +395,5 @@
             const total=Object.values(state.files).reduce((v,f)=>v+f.size,0);assert(total<300000,'Regression media accidentally too heavy');return `${total} bytes`;
         }});
     }
-    window.BASRegressionAutomation=Object.freeze({version:VERSION,prepare,register:buildTests,status:()=>({running:state.running,stages:structuredClone(state.stages),events:state.lastEvents.slice(-40),errors:state.errors.slice(-20),media:Object.fromEntries(Object.entries(state.files).map(([k,v])=>[k,{name:v.name,bytes:v.size,type:v.type}]))})});
+    window.BASRegressionAutomation=Object.freeze({version:VERSION,prepare,register:buildTests,fixture:kind=>state.files[kind]||null,exportArchive:()=>state.fullExport?.archive||null,status:()=>({running:state.running,stages:structuredClone(state.stages),events:state.lastEvents.slice(-40),errors:state.errors.slice(-20),media:Object.fromEntries(Object.entries(state.files).map(([k,v])=>[k,{name:v.name,bytes:v.size,type:v.type}]))})});
 })();

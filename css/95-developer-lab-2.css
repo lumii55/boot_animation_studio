@@ -82,3 +82,6 @@
   #developer-lab .developer-lab-navigation button{justify-content:center;min-width:0;padding:10px 8px}
   #developer-lab .developer-lab-statusline small{width:100%}
 }
+
+/* Audit coverage is distinct from the passed-test health score. */
+.developer-regression-coverage-note{grid-column:1/-1;padding:10px 12px;font-size:.8rem;line-height:1.45;color:var(--text-muted,var(--text-secondary,#aaa));border:1px solid var(--border-color,#5555);border-radius:10px}

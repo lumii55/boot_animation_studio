@@ -95,6 +95,8 @@
             category: test.category,
             severity: test.severity,
             weight: testWeight(test),
+            mode: test.mode || 'legacy',
+            priority: test.priority || '',
             startedAt: now(),
             durationMs: 0,
             status: 'skip',
@@ -241,7 +243,8 @@
                 <span data-state="warn">${summary.warnings} ${text('regressionWarnings', 'warnings')}</span>
                 <span data-state="fail">${summary.failed} ${text('regressionFailed', 'failed')}</span>
                 <span data-state="skip">${summary.skipped} ${text('regressionSkipped', 'untested')}</span>
-            </div>`;
+            </div>
+            ${report.gap_coverage ? `<div class="developer-regression-coverage-note" role="status">49 audit scenarios · ${report.gap_coverage.passed} PASS · ${report.gap_coverage.warnings} PARTIAL · ${report.gap_coverage.skipped} NOT RUN · ${report.gap_coverage.failed} FAIL. Partial and device-only checks are not proof of complete coverage.</div>` : ''}`;
     }
 
     function categoryLabel(category) {
@@ -295,7 +298,7 @@
             const title = document.createElement('strong');
             title.textContent = item.name;
             const meta = document.createElement('span');
-            meta.textContent = `${categoryLabel(item.category)} · ${item.severity.toUpperCase()} · ${item.durationMs || 0} ms`;
+            meta.textContent = `${categoryLabel(item.category)} · ${item.priority ? item.priority + ' · ' : ''}${item.mode !== 'legacy' ? item.mode.toUpperCase() + ' · ' : ''}${item.severity.toUpperCase()} · ${item.durationMs || 0} ms`;
             const detail = document.createElement('small');
             detail.textContent = item.detail || '';
             label.append(title, meta, detail);
@@ -409,6 +412,15 @@
                 },
                 automated: window.BASRegressionAutomation?.status?.() || null,
                 results: state.results.map(item => ({ ...item }))
+            };
+            report.gap_coverage = {
+                catalogued: 49,
+                executed: report.results.filter(x=>/^r2\.gap\d{2}$/.test(x.id)&&x.status!=='skip').length,
+                passed: report.results.filter(x=>/^r2\.gap\d{2}$/.test(x.id)&&x.status==='pass').length,
+                warnings: report.results.filter(x=>/^r2\.gap\d{2}$/.test(x.id)&&x.status==='warn').length,
+                failed: report.results.filter(x=>/^r2\.gap\d{2}$/.test(x.id)&&x.status==='fail').length,
+                skipped: report.results.filter(x=>/^r2\.gap\d{2}$/.test(x.id)&&x.status==='skip').length,
+                unsupported: report.results.filter(x=>/^r2\.gap\d{2}$/.test(x.id)&&x.status==='skip').map(x=>({id:x.id,reason:x.detail}))
             };
             report.comparison = compareWithPrevious(report);
             state.report = report;
@@ -801,6 +813,7 @@
 
     // Extra tests run against actual files imported into the real Studio.
     window.BASRegressionAutomation?.register?.(register);
+    window.BASRegressionR2?.register?.(register);
 
     function bind() {
         loadHistory();
