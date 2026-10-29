@@ -719,7 +719,29 @@
         const response=await fetch('./service-worker.js',{cache:'no-store'}); const source=await response.text(); const match=source.match(/const\s+BAS_SHELL\s*=\s*(\[[\s\S]*?\]);/); if(!match) throw new Error('BAS_SHELL not found'); const list=JSON.parse(match[1]); let failed=[]; for(const path of list){ try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok)failed.push(`${path}:${r.status}`);}catch(e){failed.push(path);} } if(failed.length) throw new Error(`${failed.length} unreachable: ${failed.slice(0,4).join(', ')}`); return `${list.length}/${list.length} assets reachable`;
     }});
     register({ id: 'pwa.cache-version', name: 'PWA cache version matches release', category: 'pwa', severity: 'normal', run: async () => {
-        const source=await (await fetch('./service-worker.js',{cache:'no-store'})).text(); const cache=source.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)/)?.[1]||''; if(!cache) throw new Error('Cache name missing'); if(cache!=='bas-shell-web-v1') return {status:'warn',detail:`Unexpected cache name ${cache}`}; return cache;
+        const [workerResponse, pageResponse] = await Promise.all([
+            fetch('./service-worker.js', {cache:'no-store'}),
+            fetch('./index.html', {cache:'no-store'})
+        ]);
+        if (!workerResponse.ok || !pageResponse.ok) throw new Error('Unable to check published PWA release');
+        const [worker, html] = await Promise.all([workerResponse.text(), pageResponse.text()]);
+        const cache = worker.match(/const\s+BAS_CACHE\s*=\s*['"]([^'"]+)['"]/)?.[1] || '';
+        if (!/^bas-shell-web-v[1-9]\d*$/.test(cache)) return {status:'warn', detail:`Unexpected cache name ${cache || '(missing)'}`};
+        const shellMatch = worker.match(/const\s+BAS_SHELL\s*=\s*(\[[^\n]+\]);/);
+        if (!shellMatch) throw new Error('PWA shell list unavailable');
+        const shell = JSON.parse(shellMatch[1]);
+        const assets = [
+            ...Array.from(html.matchAll(/<script\b[^>]*\bsrc=['"]([^'"]+)['"]/g), m => m[1]),
+            ...Array.from(html.matchAll(/<link\b[^>]*\b(?:href)=['"]([^'"]+\.(?:css|webmanifest)\?v=[^'"]+)['"]/g), m => m[1])
+        ];
+        const versions = [...new Set(assets.map(src => src.match(/[?&]v=(web-v\d+)/)?.[1]).filter(Boolean))];
+        if (versions.length !== 1 || assets.some(src => !shell.includes('./' + src))) {
+            return {status:'warn', detail:'HTML/SW asset versions or shell entries are inconsistent'};
+        }
+        if (shell.some(src => /[?&]v=web-v\d+/.test(src) && !src.includes(`v=${versions[0]}`))) {
+            return {status:'warn', detail:'PWA shell mixes asset release versions'};
+        }
+        return `${cache} · ${versions[0]} · ${assets.length} assets aligned`;
     }});
 
     // ---- Connected Companion: read-only ----
