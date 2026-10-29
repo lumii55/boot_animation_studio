@@ -510,9 +510,6 @@ function seekAudioStudioPreview(role, value) {
     syncAudioStudioTransportProgress();
 }
 
-async function previewAudioStudioRole(role) {
-    return toggleAudioStudioPreview(role);
-}
 
 
 

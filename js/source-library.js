@@ -919,10 +919,6 @@ async function sourceLibraryEnsureVideoRecord(source, forceRecreate = false) {
     return await sourceLibraryCreateVideoRecord(source);
 }
 
-async function sourceLibraryEnsureVideoElement(source) {
-    const record = await sourceLibraryEnsureVideoRecord(source);
-    return record.video;
-}
 
 async function sourceLibrarySeekVideo(video, time) {
     try {

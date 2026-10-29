@@ -187,10 +187,6 @@ function contextualFramingLoop() {
     if (window.BASState.playerVideo && !window.BASState.playerVideo.paused && !window.BASState.playerVideo.ended) contextualUi.framingFrame = requestAnimationFrame(contextualFramingLoop);
 }
 
-function requestContextualFramingLoop() {
-    if (contextualUi.framingFrame) cancelAnimationFrame(contextualUi.framingFrame);
-    contextualUi.framingFrame = requestAnimationFrame(contextualFramingLoop);
-}
 
 function applyFramingToolMode(mode) {
     const select = document.getElementById('input-enquadramento');

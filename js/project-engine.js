@@ -438,9 +438,6 @@ const BAS_PROJECT_PERSISTENCE_SCHEMA = BASPersistenceSchema.define({
     storage: 'memory/.basproject/autosave'
 });
 
-function cloneProjectManifestForMigration(manifest) {
-    return JSON.parse(JSON.stringify(manifest));
-}
 
 function migrateProjectManifest(manifest) {
     try {

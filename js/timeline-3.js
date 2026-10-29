@@ -64,12 +64,6 @@ function timeline3Duration() {
     return typeof getTimelineDurationExact === 'function' ? getTimelineDurationExact() : 0;
 }
 
-function timeline3TrackWidth() {
-    const filmstrip = document.getElementById('filmstrip');
-    const measured = filmstrip ? filmstrip.offsetWidth : 0;
-    if (measured > 0) return measured;
-    return Math.max(320, Math.ceil(timeline3Duration() * timeline3Runtime.zoom));
-}
 
 function timeline3Percent(time) {
     const duration = timeline3Duration();
@@ -116,23 +110,6 @@ function timeline3SeekFromLane(event, lane) {
     seekTimelineTo(time);
 }
 
-function timeline3SimpleVisualHtml() {
-    const layout = timeline3SimpleLayout();
-    if (!layout.length) return `<div class="timeline3-empty">${timeline3Escape(timeline3Text('timeline3NoMedia', 'No visual media'))}</div>`;
-    return layout.map((item, index) => {
-        const sourceId = item.clip.sourceId;
-        const selected = timeline3Runtime.selectedType === 'clip' && timeline3Runtime.selectedId === item.clip.id;
-        const left = timeline3Percent(item.start);
-        const width = Math.max(0.8, timeline3Percent(item.end) - left);
-        const range = `${timeline3Format(item.sourceIn)} – ${timeline3Format(item.sourceOut)}`;
-        const boundary = index < layout.length - 1 ? `<button class="timeline3-boundary" type="button" data-timeline3-boundary="${timeline3Escape(item.clip.id)}" style="left:calc(${timeline3Percent(item.end)}% - 13px)" aria-label="${timeline3Escape(timeline3Text('timeline3BoundaryAria', 'Clip boundary'))}"><span></span></button>` : '';
-        return `<article class="timeline3-item timeline3-clip${selected ? ' is-selected' : ''}" data-timeline3-type="clip" data-timeline3-id="${timeline3Escape(item.clip.id)}" style="left:${left}%;width:${width}%;--track-hue:${timeline3VisualHue(sourceId)}">
-            <button class="timeline3-trim timeline3-trim-start" data-timeline3-trim="start" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimStart', 'Trim clip start'))}"></button>
-            <div class="timeline3-item-copy"><strong>${timeline3Escape(timeline3SourceName(sourceId))}</strong><small>${timeline3Escape(range)}</small></div>
-            <button class="timeline3-trim timeline3-trim-end" data-timeline3-trim="end" type="button" aria-label="${timeline3Escape(timeline3Text('timeline3TrimEnd', 'Trim clip end'))}"></button>
-        </article>${boundary}`;
-    }).join('');
-}
 
 function timeline3AdvancedVisualHtml() {
     const layout = timeline3AdvancedLayout();

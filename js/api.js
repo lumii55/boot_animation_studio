@@ -100,78 +100,8 @@ async function discoverLocalIPv4s(timeout = 1200) {
     return Array.from(found);
 }
 
-async function discoveryPlan() {
-    const exactIps = [];
-    const subnets = [];
-    const addIp = ip => {
-        if (!isPrivateIPv4(ip) || exactIps.includes(ip)) return;
-        exactIps.push(ip);
-        const subnet = subnetFromIPv4(ip);
-        if (subnet && !subnets.includes(subnet)) subnets.push(subnet);
-    };
-    const addSubnet = subnet => {
-        if (subnet && !subnets.includes(subnet)) subnets.push(subnet);
-    };
 
-    addIp(rememberedPhoneIp());
-    addIp(currentPhoneIp());
 
-    const localIps = await discoverLocalIPv4s();
-    localIps.forEach(ip => addSubnet(subnetFromIPv4(ip)));
-
-    const input = document.getElementById('input-ip');
-    if (input) {
-        const value = input.value.trim();
-        addIp(value);
-        const prefixMatch = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.$/.exec(value);
-        if (prefixMatch) {
-            const parts = prefixMatch.slice(1).map(Number);
-            if (parts.every(part => part >= 0 && part <= 255)) addSubnet(parts.join('.'));
-        }
-    }
-
-    [
-        '192.168.0', '192.168.1', '192.168.15', '192.168.2', '10.0.0', '192.168.3'
-    ].forEach(addSubnet);
-
-    return { exactIps, subnets };
-}
-
-function discoveryHostOrder(exactIps, subnet) {
-    const preferred = [];
-    const seen = new Set();
-    for (const ip of exactIps) {
-        if (subnetFromIPv4(ip) !== subnet) continue;
-        const host = Number(ip.split('.')[3]);
-        if (host >= 1 && host <= 254 && !seen.has(host)) {
-            seen.add(host);
-            preferred.push(host);
-        }
-    }
-    for (let host = 100; host <= 199; host++) {
-        if (!seen.has(host)) preferred.push(host);
-    }
-    for (let host = 2; host <= 99; host++) {
-        if (!seen.has(host)) preferred.push(host);
-    }
-    for (let host = 200; host <= 254; host++) {
-        if (!seen.has(host)) preferred.push(host);
-    }
-    if (!seen.has(1)) preferred.push(1);
-    return preferred;
-}
-
-async function scanDiscoverySubnet(subnet, exactIps, checker, generationCheck, chunkSize = 24) {
-    const hosts = discoveryHostOrder(exactIps, subnet);
-    for (let start = 0; start < hosts.length; start += chunkSize) {
-        if (generationCheck && !generationCheck()) return null;
-        const batch = hosts.slice(start, start + chunkSize);
-        const results = await Promise.all(batch.map(host => checker(`${subnet}.${host}`)));
-        const found = results.find(Boolean);
-        if (found) return found;
-    }
-    return null;
-}
 
 
 const MODULE_ACCESS_RANK = Object.freeze({ view: 0, control: 1, manage: 2, admin: 3 });
@@ -741,22 +671,6 @@ function fecharModalRede(cancelConnectionIntent = false) {
     if (cancelConnectionIntent && typeof cancelModuleWorkspaceConnectionRequest === 'function') cancelModuleWorkspaceConnectionRequest();
 }
 
-async function checkIP(ip) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2200); 
-    try {
-        const res = await localNetworkFetch(`http://${ip}:4040/ping`, { signal: controller.signal });
-        if (res.ok) {
-            const data = await res.json();
-            if (data.status) return ip;
-        }
-    } catch (e) {
-        return null;
-    } finally {
-        clearTimeout(timeoutId);
-    }
-    return null;
-}
 
 function startManualMode() {
     window.BASLiveSync?.stop?.();
