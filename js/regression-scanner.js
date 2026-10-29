@@ -1,7 +1,7 @@
 (function() {
     'use strict';
 
-    const VERSION = 1;
+    const VERSION = 2;
     const RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Web app';
     const HISTORY_KEY = 'bas.developer.regression.history.v1';
     const HISTORY_LIMIT = 5;
@@ -11,12 +11,15 @@
     const CATEGORY_ORDER = ['runtime', 'compatibility', 'project', 'media', 'sequence', 'composition', 'output', 'persistence', 'ui', 'pwa', 'companion'];
 
     const registry = [];
+    window.addEventListener('bas:regression-progress',()=>renderAutomationEvents());
     const state = {
         running: false,
         results: [],
         report: null,
         history: [],
         selectedCategory: 'all',
+        search: '',
+        statusFilter: 'all',
         lastError: ''
     };
 
@@ -205,6 +208,20 @@
         return text('regressionHealthCritical', 'Critical');
     }
 
+    function renderAutomationEvents() {
+        const host=byId('developer-regression-monitor-log');if(!host)return;
+        const events=window.BASRegressionAutomation?.status?.().events||[];
+        host.replaceChildren();
+        if(!events.length){host.textContent='Scan preparation not started.';return;}
+        for(const item of events.slice(-30)){
+            const row=document.createElement('div');row.className='developer-regression-monitor-event';
+            row.dataset.kind=String(item.kind||'step');
+            const stamp=document.createElement('time');stamp.textContent=(item.at||'').slice(11,19);
+            const detail=document.createElement('span');detail.textContent=String(item.detail||'').slice(0,220);
+            row.append(stamp,detail);host.appendChild(row);
+        }
+    }
+
     function renderSummary() {
         const report = state.report;
         const root = byId('developer-regression-summary');
@@ -265,7 +282,7 @@
         const root = byId('developer-regression-results');
         if (!root) return;
         root.innerHTML = '';
-        const rows = state.results.filter(item => state.selectedCategory === 'all' || item.category === state.selectedCategory);
+        const rows = state.results.filter(item => (state.selectedCategory === 'all' || item.category === state.selectedCategory) && (state.statusFilter === 'all' || item.status === state.statusFilter) && (!state.search || `${item.name} ${item.id} ${item.detail}`.toLowerCase().includes(state.search)));
         if (!rows.length) {
             root.innerHTML = `<div class="developer-lab-empty">${state.running ? text('regressionRunning', 'Scanning…') : text('regressionNoResults', 'No scan results yet.')}</div>`;
             return;
@@ -329,22 +346,30 @@
         });
     }
 
-    function render() { renderSummary(); renderCategories(); renderResults(); renderComparison(); renderHistory(); syncText(); }
+    function render() { renderAutomationEvents(); renderSummary(); renderCategories(); renderResults(); renderComparison(); renderHistory(); syncText(); }
 
     function syncText() {
         const set = (id, key, fallback) => { const el = byId(id); if (el) el.textContent = text(key, fallback); };
         set('developer-regression-title', 'regressionTitle', 'Full Regression Scanner');
-        set('developer-regression-desc', 'regressionDesc', 'Deep, read-only validation across editor owners, persistence, UI wiring, PWA and connected Companion read paths.');
+        set('developer-regression-desc', 'regressionDesc', 'Automatic real Studio tests: MP4, GIF, WAV, composition, project packages, ZIP output, and connected Companion read paths.');
         set('developer-regression-run', state.running ? 'regressionRunning' : 'regressionRun', state.running ? 'Scanning…' : 'Run Full BAS Scan');
         set('developer-regression-copy', 'regressionCopy', 'Copy report');
         set('developer-regression-clear-history', 'regressionClearHistory', 'Clear scan history');
         set('developer-regression-comparison-title', 'regressionComparisonTitle', 'Changes since previous scan');
         set('developer-regression-history-title', 'regressionHistoryTitle', 'Recent local scans');
         const button = byId('developer-regression-run'); if (button) button.disabled = state.running;
+        const progress = byId('developer-regression-progress');
+        if (progress) { progress.max = Math.max(1, registry.length); progress.value = Math.min(registry.length, state.results.length); }
+        const progressText = byId('developer-regression-progress-label');
+        if(progressText && !state.running) progressText.textContent = `${state.results.length}/${registry.length} tests · ${state.report ? 'finished' : 'ready'}`;
     }
 
     async function run(options = {}) {
         if (state.running) return state.report;
+        if (!options.silent && !byId('developer-regression-destructive-ack')?.checked) {
+            window.BASDeveloperLab?.notify?.('First confirm that the scan may replace your current Studio project. Save anything important.', 'warning');
+            return null;
+        }
         state.running = true;
         state.results = [];
         state.report = null;
@@ -353,11 +378,19 @@
         loadHistory();
         render();
         const startedAt = now();
-        const ctx = context();
+        let ctx = null;
         try {
+            if(options.automated !== false && window.BASRegressionAutomation) {
+                await window.BASRegressionAutomation.prepare();
+            }
+            ctx = context();
             for (const test of registry) {
                 const result = await runOne(test, ctx);
                 state.results.push(result);
+                const bar = byId('developer-regression-progress');
+                if(bar) {bar.max=registry.length; bar.value=state.results.length;}
+                const label=byId('developer-regression-progress-label');
+                if(label) label.textContent=`${state.results.length}/${registry.length} · ${test.name}`;
                 renderResults();
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
@@ -374,6 +407,7 @@
                     api_version: typeof moduleApiVersion !== 'undefined' ? moduleApiVersion : null,
                     capability_count: ctx.features.length
                 },
+                automated: window.BASRegressionAutomation?.status?.() || null,
                 results: state.results.map(item => ({ ...item }))
             };
             report.comparison = compareWithPrevious(report);
@@ -765,11 +799,17 @@
     register({ id: 'companion.health', name: 'Module Health read path', category: 'companion', severity: 'critical', requires:()=>connected()&&hasFeature('module_health')?'':'Health unavailable', run:async()=>{ const d=await jsonEndpoint('/health/status','module_health'); if(!d||typeof d!=='object')throw new Error('Health payload invalid'); return String(d.overall||'available'); }});
     register({ id: 'companion.test-status', name: 'Device Test Lab read path', category: 'companion', severity: 'normal', requires:()=>connected()&&hasFeature('test_staging')?'':'Device Test unavailable', run:async()=>{ const d=await jsonEndpoint('/test/status','test_staging'); if(!d||typeof d!=='object')throw new Error('Test status invalid'); return d.has_staged?'staged':'clear'; }});
 
+    // Extra tests run against actual files imported into the real Studio.
+    window.BASRegressionAutomation?.register?.(register);
+
     function bind() {
         loadHistory();
         byId('developer-regression-run')?.addEventListener('click', () => run().catch(error => window.BASDeveloperLab?.notify?.(safeString(error?.message||error), 'error')));
         byId('developer-regression-copy')?.addEventListener('click', copyReport);
         byId('developer-regression-clear-history')?.addEventListener('click', clearHistory);
+        byId('developer-regression-search')?.addEventListener('input', event => { state.search=String(event.target.value||'').toLowerCase().trim(); renderResults(); });
+        byId('developer-regression-status-filter')?.addEventListener('change', event => { state.statusFilter=String(event.target.value||'all'); renderResults(); });
+        window.addEventListener('bas:regression-progress', event => { const label=byId('developer-regression-progress-label'); if(label) label.textContent=`Preparing: ${event.detail?.stage||'...'}`; });
         window.addEventListener('bas:languagechange', render);
         render();
     }

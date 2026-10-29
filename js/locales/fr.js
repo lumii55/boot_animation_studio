@@ -19,7 +19,7 @@
         "extendedNeedAck": "Confirmez d’abord l’avertissement.",
         "extendedComplete": "Scan étendu terminé",
         "regressionTitle": "Scanner Complet de Régression",
-        "regressionDesc": "Validation approfondie en lecture seule de l’éditeur, de la persistance, du câblage UI, de la PWA et des chemins de lecture Companion.",
+        "regressionDesc": "Tests automatiques dans le véritable Studio : MP4, GIF, WAV, compositions, export ZIP, projets, PWA et contrôles en lecture seule du Companion. Le scan remplace le projet actuel.",
         "regressionRun": "Lancer le scan BAS complet",
         "regressionRunning": "Analyse…",
         "regressionCopy": "Copier le rapport",

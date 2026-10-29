@@ -19,7 +19,7 @@
         "extendedNeedAck": "请先确认警告。",
         "extendedComplete": "扩展扫描完成",
         "regressionTitle": "完整回归扫描器",
-        "regressionDesc": "对编辑器、持久化、UI 连接、PWA 和已连接 Companion 的只读路径进行深度验证。",
+        "regressionDesc": "使用真实 Studio 的自动端到端测试：MP4、GIF、WAV、合成、ZIP 导出、项目、PWA 和只读 Companion 检查。扫描会替换当前编辑项目。",
         "regressionRun": "运行完整 BAS 扫描",
         "regressionRunning": "正在扫描…",
         "regressionCopy": "复制报告",

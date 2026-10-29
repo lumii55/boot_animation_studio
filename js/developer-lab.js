@@ -1,5 +1,5 @@
 (function() {
-    const BAS_DEVELOPER_LAB_VERSION = 3;
+    const BAS_DEVELOPER_LAB_VERSION = 4;
     const BAS_DEVELOPER_RELEASE = typeof BAS_PUBLIC_BUILD_LABEL === 'string' ? BAS_PUBLIC_BUILD_LABEL : 'Web app';
     const BAS_DEVELOPER_TAP_TARGET = 7;
     const BAS_DEVELOPER_TAP_WINDOW_MS = 4200;
@@ -776,12 +776,28 @@
         else console.log(`[BAS Developer Lab] ${message}`);
     }
 
+    function selectLabArea(area) {
+        const root=byId('developer-lab');
+        if(!root || !['scanner','monitor','device','tools'].includes(area)) return;
+        root.dataset.labArea=area;
+        root.querySelectorAll('[data-lab-tab]').forEach(button=>{
+            const active=button.dataset.labTab===area;
+            button.setAttribute('aria-pressed',String(active));
+        });
+        root.querySelectorAll('[data-lab-area]').forEach(section=>{
+            section.hidden=section.dataset.labArea!==area;
+        });
+        const scroll=root.querySelector('.developer-lab-scroll');
+        if(scroll) scroll.scrollTop=0;
+    }
+
     function open() {
         if (!state.enabled) enable();
         const root = byId('developer-lab');
         if (!root) return;
         state.open = true;
         root.hidden = false;
+        selectLabArea(root.dataset.labArea || 'scanner');
         root.setAttribute('aria-hidden', 'false');
         document.body.classList.add('developer-lab-open');
         refresh();
@@ -851,6 +867,7 @@
         byId('txt-titulo')?.addEventListener('click', registerDeveloperTap);
         byId('developer-lab-launcher')?.addEventListener('click', open);
         byId('developer-lab-close')?.addEventListener('click', close);
+        byId('developer-lab-navigation')?.addEventListener('click',event=>{ const tab=event.target.closest('[data-lab-tab]');if(tab) selectLabArea(tab.dataset.labTab); });
         byId('developer-lab-refresh')?.addEventListener('click', () => refresh());
         byId('developer-lab-disable')?.addEventListener('click', disable);
         byId('developer-lab-test-info')?.addEventListener('click', () => testInfo().catch(() => {}));
@@ -912,6 +929,7 @@
         disable,
         open,
         close,
+        selectLabArea,
         refresh,
         runSmokeChecks,
         snapshot: sanitizedSnapshot,

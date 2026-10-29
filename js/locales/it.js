@@ -19,7 +19,7 @@
         "extendedNeedAck": "Conferma prima l’avviso.",
         "extendedComplete": "Scansione estesa completata",
         "regressionTitle": "Scanner Completo delle Regressioni",
-        "regressionDesc": "Validazione approfondita e in sola lettura di editor, persistenza, collegamenti UI, PWA e percorsi di lettura del Companion.",
+        "regressionDesc": "Test automatici nello Studio reale: MP4, GIF, WAV, composizioni, esportazioni ZIP, progetti, PWA e verifiche di sola lettura del Companion. La scansione sostituisce il progetto corrente.",
         "regressionRun": "Esegui scansione BAS completa",
         "regressionRunning": "Scansione…",
         "regressionCopy": "Copia rapporto",

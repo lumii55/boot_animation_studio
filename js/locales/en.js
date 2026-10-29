@@ -19,7 +19,7 @@
         "extendedNeedAck": "Acknowledge the warning first.",
         "extendedComplete": "Extended scan complete",
         "regressionTitle": "Full Regression Scanner",
-        "regressionDesc": "Deep, read-only validation across editor owners, persistence, UI wiring, PWA and connected Companion read paths.",
+        "regressionDesc": "Automatic end-to-end tests in the real Studio: MP4, GIF, WAV, compositions, ZIP exports, projects, PWA and read-only connected Companion checks. This scan replaces the current editor project.",
         "regressionRun": "Run Full BAS Scan",
         "regressionRunning": "Scanning…",
         "regressionCopy": "Copy report",

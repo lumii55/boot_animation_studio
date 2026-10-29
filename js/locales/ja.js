@@ -19,7 +19,7 @@
         "extendedNeedAck": "先に警告を確認してください。",
         "extendedComplete": "拡張スキャン完了",
         "regressionTitle": "完全回帰スキャナー",
-        "regressionDesc": "エディター、永続化、UI 配線、PWA、接続中 Companion の読み取り経路を読み取り専用で詳細検証します。",
+        "regressionDesc": "実際の Studio を使う自動テスト：MP4、GIF、WAV、コンポジション、ZIP 書き出し、プロジェクト、PWA、Companion の読み取り検査。現在の編集プロジェクトは置き換わります。",
         "regressionRun": "BAS 完全スキャンを実行",
         "regressionRunning": "スキャン中…",
         "regressionCopy": "レポートをコピー",
