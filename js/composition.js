@@ -39,6 +39,39 @@ function compositionClamp(value, min, max, fallback = min) {
 const BAS_COMPOSITION_MOTION_KEYS = ['x', 'y', 'scale', 'rotation', 'opacity'];
 const BAS_COMPOSITION_EASINGS = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
+// Normalized keyframes are read once per preview/export frame. Memoize by *content*,
+// not array identity: UI controls and legacy callers may mutate frames in place.
+// Weak keys avoid retaining layers after a project is closed.
+const compositionKeyframeMemo = new WeakMap();
+const BAS_COMPOSITION_MEMO_LAYER_FIELDS = ['start', 'end', 'x', 'y', 'scale', 'rotation', 'opacity'];
+const BAS_COMPOSITION_MEMO_FRAME_FIELDS = ['id', 'time', 'x', 'y', 'scale', 'rotation', 'opacity', 'easing'];
+
+function compositionKeyframesUnchanged(layer, memo) {
+    const frames = layer.keyframes;
+    if (!memo || memo.frames !== frames || memo.values.length !== frames.length) return false;
+    for (let j = 0; j < BAS_COMPOSITION_MEMO_LAYER_FIELDS.length; j++) {
+        if (!Object.is(memo.layerValues[j], layer[BAS_COMPOSITION_MEMO_LAYER_FIELDS[j]])) return false;
+    }
+    for (let i = 0; i < frames.length; i++) {
+        const frame = frames[i];
+        const stored = memo.values[i];
+        if (!frame || !stored) return false;
+        for (let j = 0; j < BAS_COMPOSITION_MEMO_FRAME_FIELDS.length; j++) {
+            if (!Object.is(stored[j], frame[BAS_COMPOSITION_MEMO_FRAME_FIELDS[j]])) return false;
+        }
+    }
+    return true;
+}
+
+function compositionRememberKeyframes(layer) {
+    compositionKeyframeMemo.set(layer, {
+        frames: layer.keyframes,
+        layerValues: BAS_COMPOSITION_MEMO_LAYER_FIELDS.map(field => layer[field]),
+        values: layer.keyframes.map(frame => BAS_COMPOSITION_MEMO_FRAME_FIELDS.map(field => frame[field]))
+    });
+}
+
+
 function compositionMotionSnapshot(layer) {
     return {
         x: compositionClamp(layer && layer.x, 0, 1, 0.5),
@@ -64,6 +97,7 @@ function normalizeCompositionKeyframe(keyframe, index, start, end, fallback) {
 
 function compositionNormalizeKeyframes(layer) {
     if (!layer) return [];
+    if (Array.isArray(layer.keyframes) && compositionKeyframesUnchanged(layer, compositionKeyframeMemo.get(layer))) return layer.keyframes;
     const fallback = compositionMotionSnapshot(layer);
     const start = Math.max(0, Number(layer.start) || 0);
     const end = Math.max(start + 0.001, Number(layer.end) || start + 0.001);
@@ -76,6 +110,7 @@ function compositionNormalizeKeyframes(layer) {
         else merged.push(item);
     });
     layer.keyframes = merged;
+    compositionRememberKeyframes(layer);
     return layer.keyframes;
 }
 
@@ -107,10 +142,19 @@ function compositionResolvedTransform(layer, time) {
         if (first.time <= origin + 0.0005) return compositionMotionSnapshot(first);
         return compositionInterpolateMotion(base, first, (current - origin) / Math.max(0.0005, first.time - origin), first.easing);
     }
-    for (let index = 1; index < keyframes.length; index++) {
-        const next = keyframes[index];
-        const previous = keyframes[index - 1];
-        if (current <= next.time) return compositionInterpolateMotion(previous, next, (current - previous.time) / Math.max(0.0005, next.time - previous.time), next.easing);
+    // Keyframes are normalized/sorted. Binary search avoids scanning all frames
+    // on every preview tick, even when a layer has dozens of keyframes.
+    let low = 1;
+    let high = keyframes.length - 1;
+    while (low <= high) {
+        const middle = (low + high) >>> 1;
+        if (current <= keyframes[middle].time) high = middle - 1;
+        else low = middle + 1;
+    }
+    if (low < keyframes.length) {
+        const next = keyframes[low];
+        const previous = keyframes[low - 1];
+        return compositionInterpolateMotion(previous, next, (current - previous.time) / Math.max(0.0005, next.time - previous.time), next.easing);
     }
     return compositionMotionSnapshot(keyframes[keyframes.length - 1]);
 }
@@ -569,8 +613,9 @@ function renderCompositionLayerList() {
     const layers = getCompositionLayers();
     list.innerHTML = '';
     empty.hidden = layers.length > 0;
-    [...layers].reverse().forEach(layer => {
-        const index = layers.findIndex(item => item.id === layer.id);
+    const fragment = document.createDocumentFragment();
+    for (let index = layers.length - 1; index >= 0; index--) {
+        const layer = layers[index];
         const card = document.createElement('div');
         card.className = `composition-layer-card${layer.id === compositionRuntime.selectedId ? ' is-selected' : ''}${layer.visible === false ? ' is-hidden' : ''}`;
         card.dataset.layerId = layer.id;
@@ -611,8 +656,9 @@ function renderCompositionLayerList() {
         down.textContent = '↓';
         actions.append(visible, up, down);
         card.append(main, actions);
-        list.append(card);
-    });
+        fragment.append(card);
+    }
+    list.append(fragment);
 }
 
 function compositionSetField(id, value) {

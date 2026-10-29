@@ -332,27 +332,15 @@ async function sourceLibraryLoadVideoMetadata(blob) {
 
 async function sourceLibraryLoadImageMetadata(blob) {
     if (window.createImageBitmap) {
-        let abandoned = false;
         try {
-            const bitmapPromise = createImageBitmap(blob).then(bitmap => {
-                if (abandoned) {
-                    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
-                    throw new Error('Image decode timed out');
-                }
-                return bitmap;
-            });
-            const bitmap = await Promise.race([
-                bitmapPromise,
-                new Promise((_, reject) => setTimeout(() => {
-                    abandoned = true;
-                    reject(new Error('Image decode timed out'));
-                }, 5000))
-            ]);
-            const result = { width: bitmap.width || 0, height: bitmap.height || 0 };
-            if (typeof bitmap.close === 'function') bitmap.close();
-            return result;
-        } catch (error) {
-            abandoned = true;
+            const bitmap = await createTimedImageBitmap(blob, 5000, 'Image decode timed out');
+            try {
+                return { width: bitmap.width || 0, height: bitmap.height || 0 };
+            } finally {
+                if (typeof bitmap.close === 'function') bitmap.close();
+            }
+        } catch (_) {
+            // Preserve the prior Image fallback for unsupported bitmap decoders.
         }
     }
     return await new Promise((resolve, reject) => {

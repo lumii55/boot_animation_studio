@@ -12,7 +12,8 @@ const timeline3Runtime = {
     pinchDistance: 0,
     pinchZoom: 84,
     zoomUserSet: false,
-    keyframeDrag: null
+    keyframeDrag: null,
+    audioWaveformFrame: 0
 };
 
 function timeline3Text(key, fallback) {
@@ -295,7 +296,12 @@ function timeline3Render() {
     stack.style.width = `${width}px`;
     tracks.style.width = `${width}px`;
     if (zoom) zoom.value = String(Math.round(timeline3Runtime.zoom));
-    if (typeof renderTimelineAudioWaveforms === 'function') requestAnimationFrame(() => renderTimelineAudioWaveforms());
+    if (typeof renderTimelineAudioWaveforms === 'function' && !timeline3Runtime.audioWaveformFrame) {
+        timeline3Runtime.audioWaveformFrame = requestAnimationFrame(() => {
+            timeline3Runtime.audioWaveformFrame = 0;
+            renderTimelineAudioWaveforms();
+        });
+    }
 }
 
 function timeline3ApplyZoom() {

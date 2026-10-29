@@ -388,26 +388,42 @@ function releaseExportCanvas() {
     canvasInvisivel.height = 1;
 }
 
+// Clear the timeout on success/error. The old Promise.race left one live
+// timeout per decoded frame for three seconds during long exports.
+async function createTimedImageBitmap(blob, timeoutMs, timeoutMessage) {
+    let timer = 0;
+    let abandoned = false;
+    const bitmapPromise = Promise.resolve().then(() => createImageBitmap(blob)).then(bitmap => {
+        if (abandoned) {
+            if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+            throw new Error(timeoutMessage);
+        }
+        return bitmap;
+    });
+    try {
+        return await Promise.race([
+            bitmapPromise,
+            new Promise((_, reject) => {
+                timer = setTimeout(() => {
+                    abandoned = true;
+                    reject(new Error(timeoutMessage));
+                }, timeoutMs);
+            })
+        ]);
+    } catch (error) {
+        abandoned = true;
+        throw error;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function blobToDrawable(blob) {
     if (window.createImageBitmap) {
-        let abandoned = false;
         try {
-            const bitmapPromise = createImageBitmap(blob).then(bitmap => {
-                if (abandoned) {
-                    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
-                    throw new Error('Frame decode timed out');
-                }
-                return bitmap;
-            });
-            return await Promise.race([
-                bitmapPromise,
-                new Promise((_, reject) => setTimeout(() => {
-                    abandoned = true;
-                    reject(new Error('Frame decode timed out'));
-                }, 3000))
-            ]);
-        } catch (e) {
-            abandoned = true;
+            return await createTimedImageBitmap(blob, 3000, 'Frame decode timed out');
+        } catch (_) {
+            // Fall back to the HTMLImageElement decoder on unsupported codecs.
         }
     }
 

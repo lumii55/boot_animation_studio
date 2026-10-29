@@ -1,11 +1,11 @@
 /* BAS P14.5: compatibility entrypoint. The site loads css/*.css directly, in the same order. */
-@import url("./css/00-foundations-and-classic-ui.css?v=web-v6");
-@import url("./css/10-editor-workflow.css?v=web-v6");
-@import url("./css/20-modern-workflow.css?v=web-v6");
-@import url("./css/30-source-library-and-sequence.css?v=web-v6");
-@import url("./css/40-composition-and-timeline.css?v=web-v6");
-@import url("./css/50-editor-audio.css?v=web-v6");
-@import url("./css/60-compatibility-and-profiles.css?v=web-v6");
-@import url("./css/70-guidance-and-accessibility.css?v=web-v6");
-@import url("./css/80-module-workspace.css?v=web-v6");
-@import url("./css/90-device-security-and-diagnostics.css?v=web-v6");
+@import url("./css/00-foundations-and-classic-ui.css?v=web-v7");
+@import url("./css/10-editor-workflow.css?v=web-v7");
+@import url("./css/20-modern-workflow.css?v=web-v7");
+@import url("./css/30-source-library-and-sequence.css?v=web-v7");
+@import url("./css/40-composition-and-timeline.css?v=web-v7");
+@import url("./css/50-editor-audio.css?v=web-v7");
+@import url("./css/60-compatibility-and-profiles.css?v=web-v7");
+@import url("./css/70-guidance-and-accessibility.css?v=web-v7");
+@import url("./css/80-module-workspace.css?v=web-v7");
+@import url("./css/90-device-security-and-diagnostics.css?v=web-v7");
