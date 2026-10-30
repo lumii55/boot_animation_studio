@@ -4,6 +4,12 @@ const BAS_PROJECT_FILE_FORMAT = 'boot-animation-studio-project-package';
 const BAS_PROJECT_FILE_RELEASE = window.BASState?.publicBuildLabel || 'Web app';
 const BAS_PROJECT_FILE_METADATA_LIMIT = 2 * 1024 * 1024;
 const BAS_PROJECT_FILE_MAX_ASSETS = 2048;
+// Independent ceilings apply before extraction; SHA-256 alone does not stop ZIP bombs.
+// 4 GiB preserves large legitimate video projects while rejecting unbounded archives.
+const BAS_PROJECT_FILE_MAX_ARCHIVE_BYTES = 4 * 1024 * 1024 * 1024;
+const BAS_PROJECT_FILE_MAX_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
+const BAS_PROJECT_FILE_MAX_COMPRESSION_RATIO = 400;
+
 const BAS_PROJECT_FILE_CONTAINER_MIGRATIONS = Object.freeze({});
 
 const BAS_PROJECT_FILE_PERSISTENCE_SCHEMA = BASPersistenceSchema.define({
@@ -348,6 +354,39 @@ function migrateBasProjectContainer(container) {
     }
 }
 
+function projectFileAuditArchive(zip) {
+    const invalid = () => new Error(projectFileText('projectFileIntegrityFailed', 'Project-file integrity verification failed.'));
+    if (!zip || !zip.files || typeof zip.files !== 'object') throw invalid();
+    const entries = Object.values(zip.files);
+    if (entries.length > BAS_PROJECT_FILE_MAX_ASSETS + 4) throw invalid();
+    const seen = new Set();
+    let totalUncompressed = 0;
+    for (const entry of entries) {
+        if (!entry || typeof entry.name !== 'string') throw invalid();
+        // JSZip normalizes unsafe names. Reject even a name that was sanitized by JSZip.
+        const rawName = entry.unsafeOriginalName || entry.name;
+        const normalized = entry.dir ? entry.name.replace(/\/$/, '') : entry.name;
+        if (!projectFilePathIsSafe(normalized) ||
+            !projectFilePathIsSafe(String(rawName).replace(/\/$/, '')) ||
+            String(rawName) !== entry.name || seen.has(entry.name)) throw invalid();
+        seen.add(entry.name);
+        if (entry.dir) {
+            if (entry.name !== 'assets/' && entry.name !== 'project/') throw invalid();
+            continue;
+        }
+        if (entry.name !== 'basproject.json' && entry.name !== 'project/manifest.json' &&
+            !entry.name.startsWith('assets/')) throw invalid();
+        const size = Number(entry._data?.uncompressedSize);
+        const compressed = Number(entry._data?.compressedSize);
+        if (!Number.isSafeInteger(size) || size < 0 || !Number.isSafeInteger(compressed) || compressed < 0) throw invalid();
+        if ((entry.name === 'basproject.json' || entry.name === 'project/manifest.json') &&
+            size > BAS_PROJECT_FILE_METADATA_LIMIT) throw invalid();
+        totalUncompressed += size;
+        if (totalUncompressed > BAS_PROJECT_FILE_MAX_UNCOMPRESSED_BYTES ||
+            (size > 1024 * 1024 && (compressed === 0 || size / compressed > BAS_PROJECT_FILE_MAX_COMPRESSION_RATIO))) throw invalid();
+    }
+}
+
 async function projectFileReadMetadataEntry(zip, path, errorKey, fallback) {
     const entry = zip.file(path);
     if (!entry || entry.dir) throw new Error(projectFileText(errorKey, fallback));
@@ -383,6 +422,7 @@ function projectFileRequiredAssetKeys(manifest) {
 
 async function readLoadedBasProjectPackage(zip) {
     if (!zip || typeof zip.file !== 'function') throw new Error(projectFileText('projectFileInvalidContainer', 'This is not a valid Boot Animation Studio project file.'));
+    projectFileAuditArchive(zip);
     const containerText = await projectFileReadMetadataEntry(zip, 'basproject.json', 'projectFileMetadataMissing', 'Project metadata is missing.');
     const originalContainer = parseProjectFileJson(containerText, 'projectFileInvalidContainer', 'This is not a valid Boot Animation Studio project file.');
     const container = migrateBasProjectContainer(originalContainer);
@@ -452,6 +492,7 @@ async function readLoadedBasProjectPackage(zip) {
 async function readBasProjectPackage(blob) {
     if (typeof JSZip === 'undefined') throw new Error(projectFileText('projectFileZipUnavailable', 'Project files are unavailable because JSZip did not load.'));
     if (!(blob instanceof Blob)) throw new Error(projectFileText('projectFileInvalidContainer', 'This is not a valid Boot Animation Studio project file.'));
+    if (blob.size > BAS_PROJECT_FILE_MAX_ARCHIVE_BYTES) throw new Error(projectFileText('projectFileIntegrityFailed', 'Project-file integrity verification failed.'));
     let zip;
     try {
         zip = await JSZip.loadAsync(blob);

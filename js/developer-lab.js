@@ -34,6 +34,16 @@
         }
     }
 
+    function redactDiagnosticText(value, limit = 500) {
+        return String(value ?? '')
+            .replace(/\b(Bearer\s+)[A-Za-z0-9._~+\/-]+/gi, '$1[REDACTED]')
+            .replace(/\b((?:token|password|passwd|secret|api[_-]?key|authorization|client[_-]?secret|x-boot-creator-token)\s*[:=]\s*)[^\s&;,'"}]+/gi, '$1[REDACTED]')
+            .replace(/([?&](?:token|key|secret|password|session|auth)=)[^&#\s]+/gi, '$1[REDACTED]')
+            .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '[LOCAL-IP]')
+            .replace(/(?:file:\/\/\/|content:\/\/|\/storage\/emulated\/|\/sdcard\/)[^\s"'<>]*/gi, '[LOCAL-FILE]')
+            .slice(0, limit);
+    }
+
     function recordRuntimeError(kind, value, meta = {}) {
         const rawMessage = value?.message || value || 'Unknown runtime error';
         const source = String(meta.source || '').split('?')[0].slice(-180);
@@ -685,15 +695,15 @@
                 indexeddb: Boolean(globalThis.indexedDB),
                 viewport: { width: window.innerWidth, height: window.innerHeight, dpr: Number(window.devicePixelRatio || 1) },
                 visibility: document.visibilityState || null,
-                recent_errors: state.runtimeErrors.slice(-20).map(item => ({ ...item })),
+                recent_errors: state.runtimeErrors.slice(-20).map(item => ({ ...item, message: redactDiagnosticText(item.message), source: redactDiagnosticText(item.source, 180) })),
                 lifecycle: {
                     bound: Boolean(lifecycle.bound),
                     running: Boolean(lifecycle.running),
                     resumes: Number(lifecycle.resumes) || 0,
                     live_resumes: Number(lifecycle.liveResumes) || 0,
                     legacy_refreshes: Number(lifecycle.legacyRefreshes) || 0,
-                    last_reason: String(lifecycle.lastReason || '').slice(0, 80),
-                    last_error: String(lifecycle.lastError || '').slice(0, 180)
+                    last_reason: redactDiagnosticText(lifecycle.lastReason, 80),
+                    last_error: redactDiagnosticText(lifecycle.lastError, 180)
                 }
             },
             module: {
@@ -720,9 +730,9 @@
                 events: Number(live.events) || 0,
                 refreshes: Number(live.refreshes) || 0,
                 refresh_errors: Number(live.refreshErrors) || 0,
-                pause_reason: String(live.pauseReason || '').slice(0, 80),
+                pause_reason: redactDiagnosticText(live.pauseReason, 80),
                 last_resume_at: Number(live.lastResumeAt) || 0,
-                last_error: String(live.lastError || '').slice(0, 220),
+                last_error: redactDiagnosticText(live.lastError, 220),
                 debug: {
                     delay_ms: Number(live.debug?.delayMs) || 0,
                     drop_next_event: Boolean(live.debug?.dropNextEvent),
@@ -735,7 +745,7 @@
                     kind: String(item.kind || ''),
                     domain: String(item.domain || ''),
                     revision: Number.isFinite(Number(item.revision)) ? Number(item.revision) : null,
-                    reason: String(item.reason || '').slice(0, 80)
+                    reason: redactDiagnosticText(item.reason, 80)
                 }))
             },
             coordination: {
@@ -754,7 +764,7 @@
                 autosave,
                 history
             },
-            smoke_checks: state.smoke.map(check => ({ name: check.name, status: check.status, detail: check.detail.slice(0, 220) })),
+            smoke_checks: state.smoke.map(check => ({ name: check.name, status: check.status, detail: redactDiagnosticText(check.detail, 220) })),
             regression_scan: window.BASRegressionScanner?.report?.()?.summary || null,
             extended_device_scan: window.BASExtendedDeviceScan?.report?.()?.summary || null
         };

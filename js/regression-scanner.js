@@ -344,7 +344,10 @@
         state.history.forEach(item => {
             const row = document.createElement('div'); row.className = 'developer-regression-history-row';
             const stamp = new Date(item.generated_at).toLocaleString();
-            row.innerHTML = `<span>${stamp}</span><strong>${item.score}/100</strong><small>${item.coverage}%</small>`;
+            const date = document.createElement('span'); date.textContent = stamp;
+            const score = document.createElement('strong'); score.textContent = `${Number(item.score) || 0}/100`;
+            const coverage = document.createElement('small'); coverage.textContent = `${Number(item.coverage) || 0}%`;
+            row.append(date, score, coverage);
             root.appendChild(row);
         });
     }

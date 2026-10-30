@@ -16,15 +16,18 @@ function subnetFromIPv4(ip) {
 }
 
 function localNetworkFetch(url, options = {}) {
+    // Applies also to pre-session identity/challenge calls that do not use apiFetch.
+    // A LAN device must not redirect a request to another origin or receive cookies.
+    const safe = { ...options, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' };
     try {
         const parsed = new URL(url, window.location.href);
         const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
         const loopback = hostname === 'localhost' || hostname === '::1' || hostname.startsWith('127.');
-        if (loopback) return fetch(url, options);
+        if (loopback) return fetch(url, safe);
     } catch (error) {
-        return fetch(url, options);
+        return fetch(url, safe);
     }
-    return fetch(url, { targetAddressSpace: 'local', ...options });
+    return fetch(url, { targetAddressSpace: 'local', ...safe });
 }
 
 function rememberPhoneIp(ip) {
@@ -233,8 +236,22 @@ function apiTimeoutSignal(path, options = {}) {
     return controller.signal;
 }
 
+function apiValidateRequestTarget(base, path) {
+    if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') ||
+        /[\\\u0000-\u001f\u007f#]/.test(path)) throw new TypeError('Invalid Companion API path');
+    const url = new URL(String(base || ''));
+    const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    if (url.protocol !== 'http:' || url.username || url.password ||
+        !(isPrivateIPv4(host) || host === 'localhost' || host === '127.0.0.1' || host === '::1')) {
+        throw new TypeError('Invalid Companion API host');
+    }
+    return url.origin + path;
+}
+
 function apiFetch(path, options = {}) {
     const { timeoutMs: _timeoutOverride, ...fetchOptions } = options;
+    // Validate before attaching credentials, including for malformed dynamic paths.
+    const target = apiValidateRequestTarget(IP_LOCAL, path);
     const headers = new Headers(fetchOptions.headers || {});
     if (sessionToken) headers.set('X-Boot-Creator-Token', sessionToken);
     // P13.9B trust identity headers are capability-gated. The last public pre-P13
@@ -245,7 +262,7 @@ function apiFetch(path, options = {}) {
     const deviceSignal = window.BASMultiDevice?.activeSignal?.();
     const timeoutSignal = apiTimeoutSignal(path, options);
     const signal = mergeAbortSignals(fetchOptions.signal, timeoutSignal, deviceSignal);
-    return localNetworkFetch(IP_LOCAL + path, { ...fetchOptions, headers, ...(signal ? { signal } : {}) }).then(response => {
+    return localNetworkFetch(target, { ...fetchOptions, headers, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', ...(signal ? { signal } : {}) }).then(response => {
         if (response.status === 409 && hasModuleFeature('operation_coordination')) {
             response.clone().json().then(data => {
                 if (data?.status === 'busy' && data.operation) window.BASPresence?.handleBusy?.(data.operation);

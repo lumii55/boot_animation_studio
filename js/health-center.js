@@ -43,6 +43,10 @@ function healthEscape(value) {
     return String(value ?? '').replace(/[&<>\"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[char]));
 }
 
+function healthSafeState(state) {
+    return state === 'error' || state === 'warn' ? state : 'ok';
+}
+
 function healthStateLabel(state) {
     if (state === 'error') return healthText('healthStateError', 'Problem');
     if (state === 'warn') return healthText('healthStateWarning', 'Attention');
@@ -117,7 +121,7 @@ function renderHealthCenter() {
         checks.innerHTML = (data.checks || []).map(check => {
             const copy = healthCheckCopy(check);
             const detail = healthDetail(check);
-            return `<article class="health-check health-${check.state || 'ok'}"><div class="health-check-main"><span class="health-state-dot" aria-hidden="true"></span><div><strong>${healthEscape(copy.title)}</strong><p>${healthEscape(copy.description)}</p>${detail ? `<small>${healthEscape(detail)}</small>` : ''}</div></div><span class="health-state-label">${healthStateLabel(check.state)}</span></article>`;
+            return `<article class="health-check health-${healthSafeState(check.state)}"><div class="health-check-main"><span class="health-state-dot" aria-hidden="true"></span><div><strong>${healthEscape(copy.title)}</strong><p>${healthEscape(copy.description)}</p>${detail ? `<small>${healthEscape(detail)}</small>` : ''}</div></div><span class="health-state-label">${healthStateLabel(check.state)}</span></article>`;
         }).join('');
     }
     if (storage) {
