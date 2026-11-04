@@ -91,3 +91,11 @@ Run `node --test tests/community-preview.test.cjs`; then test the manual toggle,
 P15.3 files live in the community-api directory. All mutating HTTP methods remain locked; public listing is also disabled by default. Localhost gallery at http://127.0.0.1:8088/ remains unchanged and has no API connection.
 
 P15.3 loopback adapter: community-api/dev-server.mjs provides a Node.js localhost-only HTTP bridge to the identical Worker read-only handler and real local SQLite migration; tests/local-server.test.mjs exercises API over HTTP with private-key redaction. No remote services or paid features enabled.
+
+## P15.4 login and profile editing — local development (2026-11-04)
+
+- Guarded GitHub OAuth PKCE S256 backend with one-time state, cookie binding, test-only provider mocks, 7-day HttpOnly hashed sessions, CSRF/Origin-checked profile writes and logout, private beta allowlist and rate limiting.
+- Added `0002_auth.sql` tables for OAuth transactions, sessions and hashed attempt buckets. Account identity is linked by GitHub immutable user ID, never guessed from a handle or display name.
+- Community sign-in button is temporarily **My Profile · Demo**: a local-only account/profile editor for username, display name, bio and preset banner/avatar theme, with escaped text and no account creation or data transmission.
+- **Explicitly pending and NOT complete:** real GitHub app credentials, real hosted D1, same-site HTTPS domain topology, tested registered redirect URI, privacy/consent checks, image uploads, server-to-frontend session integration. Until a deployment is authorized, all real sign-ins remain disabled.
+- Existing public BAS editor, Companion and standard gallery experience are untouched apart from the demo profile entry point.

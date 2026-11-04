@@ -1,0 +1,185 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createLocalServer, databaseBinding } from '../dev-server.mjs';
+import { handleAuth, authConfigured } from '../src/auth.mjs';
+import worker from '../src/index.mjs';
+
+const API='http://127.0.0.1:8788';
+const SITE='http://127.0.0.1:8088';
+const mockFetch=async (url,options) => {
+  if (url==='https://github.com/login/oauth/access_token') {
+    assert.equal(options.method,'POST');
+    assert.equal(options.body.get('code_verifier')?.length,43);
+    assert.equal(options.body.get('redirect_uri'),API+'/v1/auth/github/callback');
+    assert.equal(options.body.get('client_secret'),'FAKE_ONLY_TEST_OAUTH_SECRET_123');
+    return new Response(JSON.stringify({access_token:'FAKE_EPHEMERAL_TOKEN',token_type:'bearer'}),{status:200});
+  }
+  if (url==='https://api.github.com/user') {
+    assert.equal(options.headers.Authorization,'Bearer FAKE_EPHEMERAL_TOKEN');
+    return new Response(JSON.stringify({id:12345,login:'test-moon',name:'Moonlight Creator'}),{status:200});
+  }
+  throw Error('Unexpected network request: '+url);
+};
+function environment(instance,overrides={}){
+  return {
+    DB:databaseBinding(instance.database),AUTH_ENABLED:'true',AUTH_DEPLOYMENT_APPROVED:'true',
+    AUTH_API_ORIGIN:API,AUTH_SITE_ORIGIN:SITE,
+    GITHUB_CLIENT_ID:'Iv1_FAKE_TEST_ONLY',GITHUB_CLIENT_SECRET:'FAKE_ONLY_TEST_OAUTH_SECRET_123',
+    AUTH_PEPPER:'PEPPER_FOR_TESTING_ONLY_0123456789abcdefghij',
+    AUTH_SESSION_SECRET:'SESSION_KEY_FOR_TESTING_ONLY_0123456789abcdefghij',
+    AUTH_BETA_GITHUB_IDS:'12345',AUTH_PUBLIC_SIGNUP_APPROVED:'false',
+    ...overrides
+  };
+}
+function req(path,method='GET',header={},body){
+  return new Request(API+path,{method,headers:header,body});
+}
+async function call(request,env,providerFetch=mockFetch){
+  return handleAuth(request,env,new URL(request.url),providerFetch);
+}
+function cookieFrom(res,name){
+  const values=res.headers.getSetCookie();
+  const pair=values.find(v=>v.startsWith(name+'='));
+  return pair ? pair.split(';')[0] : null;
+}
+async function boot(t){
+  const inst=createLocalServer({memory:true});
+  t.after(()=>inst.database.close());
+  return inst;
+}
+async function start(env,ip='192.0.2.1'){
+  const res=await call(req('/v1/auth/github/start','GET',{'CF-Connecting-IP':ip}),env);
+  assert.equal(res.status,302);
+  const link=new URL(res.headers.get('Location'));
+  assert.equal(link.origin,'https://github.com');
+  assert.equal(link.searchParams.get('code_challenge_method'),'S256');
+  assert.equal(link.searchParams.get('scope'),'read:user');
+  assert.equal(link.searchParams.get('code_challenge')?.length,43);
+  const c=cookieFrom(res,'__Host-bas_oauth');
+  assert.ok(c);
+  assert.match(res.headers.get('set-cookie'),/HttpOnly/);
+  assert.match(res.headers.get('set-cookie'),/SameSite=Lax/);
+  assert.match(res.headers.get('set-cookie'),/Secure/);
+  return {state:link.searchParams.get('state'),binder:c,challenge:link.searchParams.get('code_challenge')};
+}
+async function callback(env,startData,headers={}){
+  return call(req('/v1/auth/github/callback?state='+startData.state+'&code=FAKE_AUTHORIZATION_CODE','GET',{
+    Cookie:startData.binder,...headers
+  }),env);
+}
+test('auth disabled by default; configuration and site topology must be complete',async t=>{
+  const inst=await boot(t);
+  assert.equal(authConfigured({...environment(inst),AUTH_ENABLED:'false'}),false);
+  assert.equal(authConfigured({...environment(inst),GITHUB_CLIENT_SECRET:''}),false);
+  assert.equal(authConfigured({...environment(inst),AUTH_SITE_ORIGIN:'https://lumii55.github.io',AUTH_API_ORIGIN:'https://sample.workers.dev'}),false);
+  const disabled=await call(req('/v1/auth/me'),environment(inst,{AUTH_ENABLED:'false'}));
+  assert.equal(disabled.status,503);
+  const publicWorker=await worker.fetch(req('/v1/uploads','POST'),environment(inst));
+  assert.equal(publicWorker.status,403);
+});
+test('GitHub OAuth start uses state, PKCE, confidential cookies and rate limits',async t=>{
+  const inst=await boot(t),env=environment(inst);
+  const first=await start(env);
+  const q=inst.database.prepare('SELECT pkce_verifier FROM oauth_flows').get();
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(q.pkce_verifier));
+  const challenge=Buffer.from(digest).toString('base64url');
+  assert.equal(challenge,first.challenge);
+  const next=await start(env); assert.notEqual(first.state,next.state);
+  for(let n=2;n<8;n++) await start(env);
+  const last=await call(req('/v1/auth/github/start','GET',{'CF-Connecting-IP':'192.0.2.1'}),env);
+  assert.equal(last.status,429);
+  assert.equal((await last.json()).error,'too_many_attempts');
+  const other=await start(env,'192.0.2.2');
+  assert.ok(other.state);
+});
+test('wrong OAuth state/cookie cannot authenticate, while valid callback is one-time',async t=>{
+  const inst=await boot(t),env=environment(inst);
+  const begin=await start(env);
+  const invalid=await call(req('/v1/auth/github/callback?state='+begin.state+'&code=x','GET',{
+    Cookie:'__Host-bas_oauth=1234567890123456789012345678901234567890123'
+  }),env);
+  assert.equal(invalid.status,400);
+  const authenticated=await callback(env,begin);
+  assert.equal(authenticated.status,302);
+  const session=cookieFrom(authenticated,'__Host-bas_session');
+  assert.ok(session);
+  assert.equal(authenticated.headers.get('Location'),SITE+'/#bas-community');
+  const replay=await callback(env,begin);
+  assert.equal(replay.status,400);
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM community_users').get().n,1);
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM account_identities').get().n,1);
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM auth_sessions').get().n,1);
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM oauth_flows').get().n,0);
+});
+test('beta allowlist blocks a valid GitHub identity until approved',async t=>{
+  const inst=await boot(t),env=environment(inst,{AUTH_BETA_GITHUB_IDS:'67890'});
+  const begin=await start(env);
+  const res=await callback(env,begin);
+  assert.equal(res.status,403);
+  assert.equal((await res.json()).error,'beta_not_allowed');
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM community_users').get().n,0);
+});
+test('profile updates require session, correct origin and CSRF, then enforce bounds',async t=>{
+  const inst=await boot(t),env=environment(inst);
+  const begin=await start(env);
+  const accepted=await callback(env,begin);
+  const session=cookieFrom(accepted,'__Host-bas_session');
+  const authHeader={Cookie:session,Origin:SITE};
+  const r=await call(req('/v1/auth/me','GET',authHeader),env);
+  assert.equal(r.status,200);
+  const result=await r.json();
+  assert.equal(result.user.handle,'test_moon');
+  assert.ok(/^[a-f0-9]{64}$/.test(result.csrf));
+  assert.equal(r.headers.get('access-control-allow-origin'),SITE);
+  assert.equal(r.headers.get('access-control-allow-credentials'),'true');
+  const badOrigin=await call(req('/v1/auth/profile','PATCH',{
+    Cookie:session,Origin:'https://attacker.example','X-CSRF-Token':result.csrf,'Content-Type':'application/json'
+  },JSON.stringify({handle:'safe_x',display_name:'Okay',bio:'Hello'})),env);
+  assert.equal(badOrigin.status,403);
+  const noCsrf=await call(req('/v1/auth/profile','PATCH',{
+    ...authHeader,'Content-Type':'application/json'
+  },JSON.stringify({handle:'safe_x',display_name:'Okay',bio:'Hello'})),env);
+  assert.equal(noCsrf.status,403);
+  const headers={...authHeader,'X-CSRF-Token':result.csrf,'Content-Type':'application/json'};
+  const invalid=await call(req('/v1/auth/profile','PATCH',headers,JSON.stringify({
+    handle:'safe_x',display_name:'<script>alert(1)</script>',bio:''
+  })),env);
+  assert.equal(invalid.status,400);
+  const huge=await call(req('/v1/auth/profile','PATCH',headers,JSON.stringify({
+    handle:'safe_x',display_name:'Okay',bio:'x'.repeat(4000)
+  })),env);
+  assert.equal(huge.status,400);
+  const updated=await call(req('/v1/auth/profile','PATCH',headers,JSON.stringify({
+    handle:'moon_bloom',display_name:'Lua 🌙',bio:'Meu cantinho de animações!'
+  })),env);
+  assert.equal(updated.status,200);
+  const data=await updated.json();
+  assert.equal(data.user.display_name,'Lua 🌙');
+  assert.equal(data.user.handle,'moon_bloom');
+  assert.equal(data.user.bio,'Meu cantinho de animações!');
+  assert.equal(JSON.stringify(data).includes('AUTH_PEPPER'),false);
+  const invalidNext=await call(req('/v1/auth/profile','PATCH',headers,JSON.stringify({
+    handle:'x',display_name:'Okay',bio:''
+  })),env);
+  assert.equal(invalidNext.status,400);
+});
+test('logout revokes server session and requires CSRF',async t=>{
+  const inst=await boot(t),env=environment(inst);
+  const begin=await start(env),login=await callback(env,begin);
+  const session=cookieFrom(login,'__Host-bas_session');
+  const info=await(await call(req('/v1/auth/me','GET',{Cookie:session}),env)).json();
+  const forged=await call(req('/v1/auth/logout','POST',{Cookie:session,Origin:SITE}),env);
+  assert.equal(forged.status,403);
+  const logout=await call(req('/v1/auth/logout','POST',{Cookie:session,Origin:SITE,'X-CSRF-Token':info.csrf}),env);
+  assert.equal(logout.status,200);
+  assert.match(logout.headers.get('set-cookie'),/Max-Age=0/);
+  const me=await call(req('/v1/auth/me','GET',{Cookie:session}),env);
+  assert.equal(me.status,401);
+});
+test('existing verified GitHub identity is reused, never linked by handle',async t=>{
+  const inst=await boot(t),env=environment(inst);
+  const a=await start(env);await callback(env,a);
+  const b=await start(env);await callback(env,b);
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM community_users').get().n,1);
+  assert.equal(inst.database.prepare('SELECT count(*) as n FROM account_identities').get().n,1);
+});

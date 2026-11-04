@@ -442,3 +442,45 @@ body.bas-community-open{overflow:hidden}
   .bas-c-profile-bio{margin-top:10px}
   .bas-c-profile-bottom{align-items:flex-start;flex-direction:column}
 }
+
+
+/* P15.4: account/profile layout sandbox, entirely local and behind Developer Lab. */
+.bas-c-account-modal{width:min(940px,100%)}
+.bas-c-account-modal>h2{color:#f6f2ff;font-size:clamp(23px,3vw,30px);margin:0 0 7px;letter-spacing:-.025em}
+.bas-c-account-intro{color:#b5bdd5;font-size:12px;line-height:1.6;margin:0 0 18px;max-width:710px}
+.bas-c-account-columns{display:grid;grid-template-columns:minmax(0,.93fr) minmax(0,1.1fr);gap:18px;align-items:start}
+#bas-c-account-form{min-width:0;display:grid;gap:8px}
+#bas-c-account-form label{font-size:11px;color:#d0c3ee;font-weight:700;margin-top:6px}
+#bas-c-account-form input,#bas-c-account-form textarea,#bas-c-account-form select{
+  width:100%;padding:10px 12px;border:1px solid rgba(166,156,228,.25);border-radius:10px;
+  background:#20243a;color:#f4efff;font:inherit;font-size:12px;line-height:1.5;min-height:42px
+}
+#bas-c-account-form textarea{min-height:95px;resize:vertical}
+#bas-c-account-form select{appearance:auto}
+.bas-c-account-save{margin-top:13px;justify-self:start}
+.bas-c-account-status{font-size:10px;line-height:1.5;color:#9fdfd5;margin:4px 0}
+.bas-c-account-mock{min-width:0}
+.bas-c-account-mock>.bas-c-kicker{display:block;margin:5px 0 10px}
+.bas-c-account-mock .bas-c-profile-cover{height:140px}
+.bas-c-account-mock .bas-c-profile-content{padding:0 14px 15px}
+.bas-c-account-mock .bas-c-profile-top{margin-top:-28px}
+.bas-c-account-mock .bas-c-profile-avatar{width:68px;height:68px;border-width:3px;border-radius:19px}
+.bas-c-account-mock .bas-c-profile-nameblock{padding-top:24px}
+.bas-c-account-mock .bas-c-profile-nameblock h3{margin:0 0 2px;font-size:17px;color:#f7f2ff;overflow-wrap:anywhere}
+.bas-c-account-mock .bas-c-profile-bio{margin-top:14px}
+.bas-c-account-mock .bas-c-profile-bio p{font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;min-height:22px}
+.bas-c-account-disclaimer{margin-top:9px;color:#a6b2ca;font-size:10px;line-height:1.55}
+@media (max-width:750px){
+ .bas-c-account-columns{grid-template-columns:1fr}
+ .bas-c-account-modal{max-height:98%}
+ .bas-c-account-mock{margin-top:7px}
+ .bas-c-account-mock .bas-c-profile-top{margin-top:-28px}
+ .bas-c-account-mock .bas-c-profile-cover{height:113px}
+ .bas-c-account-mock .bas-c-profile-avatar{width:65px;height:65px}
+}
+@media (max-width:420px){
+ .bas-c-account-mock .bas-c-profile-nameblock{padding-top:23px}
+ .bas-c-account-mock .bas-c-profile-top{display:flex}
+ .bas-c-account-mock .bas-c-profile-identity{align-items:flex-end}
+ .bas-c-account-modal{padding:13px}
+}

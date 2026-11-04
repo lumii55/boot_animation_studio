@@ -160,6 +160,45 @@ test('creator profiles remain localized and direct navigation works',()=>{
     assert.match(profile,/Creator animations/);
 });
 
+
+test('profile editor is a clearly labeled local demo and preserves original gallery',()=>{
+    const h=harness();
+    h.enable();h.window.BASCommunityPreview.open();
+    assert.match(h.element('bas-c-grid').innerHTML,/Lunar Dreams/);
+    h.click('signin');
+    const view=h.element('bas-c-modal-host').innerHTML;
+    assert.match(view,/Personalize seu perfil/);
+    assert.match(view,/Prévia local, sem login real/);
+    assert.match(view,/id="bas-c-account-form"/);
+    assert.match(view,/name="display_name"/);
+    assert.match(view,/id="bas-c-account-theme"/);
+    assert.match(view,/PERFIL FICTÍCIO/);
+    assert.equal(script.includes('fetch('),false);
+});
+test('draft profile saves only in memory and invalid HTML is never accepted',()=>{
+    const h=harness();
+    h.enable();h.window.BASCommunityPreview.open();
+    h.click('signin');
+    const layer=h.element('bas-community-preview');
+    layer.emit('input',{target:{id:'bas-c-account-handle',value:'mochi_test'}});
+    layer.emit('input',{target:{id:'bas-c-account-name',value:'Mochi 🌸'}});
+    layer.emit('input',{target:{id:'bas-c-account-bio',value:'Bio de exemplo.'}});
+    layer.emit('change',{target:{id:'bas-c-account-theme',value:'sakura'}});
+    assert.equal(h.window.BASCommunityPreview.state().profilePreview.handle,'creator_demo');
+    let prevented=false;
+    layer.emit('submit',{target:{id:'bas-c-account-form'},preventDefault(){prevented=true;}});
+    assert.equal(prevented,true);
+    const data=h.window.BASCommunityPreview.state().profilePreview;
+    assert.equal(data.handle,'mochi_test');
+    assert.equal(data.display_name,'Mochi 🌸');
+    assert.equal(data.theme,'sakura');
+    assert.equal(h.data.has('bas.profile'),false);
+    layer.emit('input',{target:{id:'bas-c-account-name',value:'<svg/onload=alert(1)>'}});
+    layer.emit('submit',{target:{id:'bas-c-account-form'},preventDefault(){}});
+    assert.equal(h.window.BASCommunityPreview.state().profilePreview.display_name,'Mochi 🌸');
+    assert.match(h.element('bas-c-account-status').textContent,/Confira os campos/);
+});
+
 test('publishing paths are presented but no upload occurs',()=>{
     const h=harness();
     h.enable();h.window.BASCommunityPreview.open();
@@ -191,7 +230,7 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-b2/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-b2/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-c1/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-c1/);
     assert.match(html,/id="bas-community-feature-toggle"/);
 });

@@ -13,7 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const HOST = '127.0.0.1';
 const DEFAULT_PORT = 8788;
 
-function databaseBinding(database) {
+export function databaseBinding(database) {
   return {
     prepare(sql) {
       const stmt = database.prepare(sql);
@@ -21,10 +21,23 @@ function databaseBinding(database) {
         bind(...params) {
           return {
             async all() { return { results: stmt.all(...params) }; },
-            async first() { return stmt.get(...params) ?? null; }
+            async first() { return stmt.get(...params) ?? null; },
+            async run() { return stmt.run(...params); }
           };
         }
       };
+    },
+    async batch(statements) {
+      database.exec('BEGIN IMMEDIATE');
+      try {
+        const results = [];
+        for (const statement of statements) results.push(await statement.run());
+        database.exec('COMMIT');
+        return results;
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
     }
   };
 }
@@ -36,6 +49,7 @@ export function createLocalServer(options = {}) {
   const database = new DatabaseSync(dbPath);
   database.exec('PRAGMA foreign_keys=ON;');
   database.exec(readFileSync(join(here, 'migrations', '0001_initial.sql'), 'utf8'));
+  database.exec(readFileSync(join(here, 'migrations', '0002_auth.sql'), 'utf8'));
   const env = {
     DB: databaseBinding(database),
     // Always disabled unless a developer deliberately opts in for local testing.
@@ -57,7 +71,10 @@ export function createLocalServer(options = {}) {
         headers: req.headers
       });
       const answer = await worker.fetch(request, env);
-      res.writeHead(answer.status, Object.fromEntries(answer.headers));
+      const outbound = Object.fromEntries(answer.headers);
+      const multipleCookies = answer.headers.getSetCookie?.();
+      if (multipleCookies?.length) outbound['set-cookie'] = multipleCookies;
+      res.writeHead(answer.status, outbound);
       res.end(Buffer.from(await answer.arrayBuffer()));
     } catch (_) {
       res.writeHead(500, {

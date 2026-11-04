@@ -53,3 +53,30 @@ Local read-only health endpoint: http://127.0.0.1:8788/v1/health
 Local catalog defaults to disabled. With BAS_LOCAL_CATALOG_ENABLED=1, approved-only catalog reads may be tested against the local SQLite DB; writes are still always locked.
 The API binds exclusively to 127.0.0.1, port 8788. It initializes .local/community.sqlite from the D1 migration. This database is git-ignored and is never sent to Cloudflare.
 The development adapter is not a substitute for real authentication, moderation, ZIP scanning or rate limiting. Do not expose its port through a Tunnel or publish it.
+
+## P15.4: guarded account foundation (no real login enabled)
+
+The account code is in `src/auth.mjs` and `migrations/0002_auth.sql`; tests in `tests/auth.test.mjs`. This is a backend implementation and a **local frontend demo editor**, not a running OAuth installation. The account UI never sends data while in demo mode.
+
+### Authentication model
+- GitHub OAuth web authorization code flow with **PKCE S256**, one-time 10-minute state stored as a hash, and a separate HttpOnly OAuth binding cookie.
+- Minimal requested `read:user` scope; immutable GitHub numeric subject is HMAC-hashed before storing as account identity. No GitHub tokens or email are stored.
+- Random 256-bit session identifiers; only SHA-256 session hashes stored in D1; `__Host-` Secure HttpOnly SameSite=Lax cookies. Session expiry 7 days and explicit server revocation.
+- Sensitive profile writes require both an exact `Origin` match and a derived CSRF token, plus body size, input type and field-length checks.
+- Eight sign-in starts maximum per HMAC-hashed IP per 15-minute window. The rate table requires cleanup before wider scale.
+- **Private beta allowlist:** `AUTH_BETA_GITHUB_IDS` is required to contain explicitly approved GitHub numeric user IDs; without it, a new user is rejected. Never commit the list if it could expose private testers. Public signup remains disabled unless separately approved.
+- Only `/v1/auth/profile` (PATCH) and `/v1/auth/logout` (POST) can change account information, and only once every activation gate and valid session are satisfied. ZIP uploads, moderation and private downloads remain forbidden.
+- A logged-in user can change display name, handle and text bio; original media upload (avatar/banner) remains blocked until P15.5 media safety and private storage review.
+
+### Deployment blockers — do NOT bypass
+1. Create/register a GitHub OAuth App and review its privacy/data handling and callback. The OAuth App client secret must be stored only as a Cloudflare encrypted Worker secret, **never in GitHub or the JavaScript frontend**.
+2. Choose a genuine same-site HTTPS topology for website + API (e.g. `https://bas.example.com` + `https://api.example.com`). Current `github.io` + `workers.dev` is cross-site, and Lax session cookies will not work for the static site's API fetch; auth guards deliberately reject this topology.
+3. Create a staging D1 binding with migrations 0001 and 0002, then set secret `GITHUB_CLIENT_ID` (non-secret ID may also be a regular var), `GITHUB_CLIENT_SECRET`, `AUTH_PEPPER`, `AUTH_SESSION_SECRET`, and private beta list `AUTH_BETA_GITHUB_IDS`.
+4. Set `AUTH_API_ORIGIN`, `AUTH_SITE_ORIGIN` and the two **independent** flags `AUTH_ENABLED=true` and `AUTH_DEPLOYMENT_APPROVED=true` only after operator approval and external audits. Until then the routes respond HTTP 503.
+5. OAuth must be tested with a registered *staging* callback and consent before accepting real users. Do not use fake OAuth credentials to imply a real account was created.
+
+The UI at http://127.0.0.1:8088/ has a separate **My Profile · Demo** editor with synthetic avatar and banner presets. Fields are kept in JS memory only, not browser storage or Cloudflare, and reset when the page reloads.
+
+### Tests
+
+Run `node --test tests/*.test.mjs` and `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p test_schema.py` from `community-api`. The OAuth tests simulate GitHub responses and never contact the real provider.

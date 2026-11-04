@@ -100,6 +100,13 @@
     wrongType:'Selecione um arquivo .zip.', fileReady:'Nenhum dado foi enviado ao servidor.',
     comingSoon:'Disponível em uma próxima etapa da P15.', close:'Fechar',
     login:'Entrar', accountSoon:'Contas ainda não estão disponíveis nesta prévia.',
+    demoAccountBtn:'Meu perfil · demo', demoAccountTitle:'Personalize seu perfil', demoAccountNote:'Prévia local, sem login real. As alterações ficam apenas nesta aba até você recarregar a página.',
+    demoHandle:'Nome de usuário',demoName:'Nome de exibição',demoBio:'Biografia',demoTheme:'Estilo do banner',
+    demoSave:'Salvar prévia',demoSaved:'Prévia atualizada nesta sessão!',demoInvalid:'Confira os campos: @usuário de 3 a 32 caracteres (letras, números e _), nome até 80 e bio até 500.',
+    demoAvatarNote:'Foto e banner ilustrativos. Upload de imagens estará disponível depois que o armazenamento privado for configurado.',
+    demoLoginNote:'Login GitHub com PKCE preparado no backend, mas desligado até configurarmos um domínio e credenciais seguras.',
+    demoMine:'Seu perfil de exemplo',demoThemeMoon:'Lunar',demoThemeNeon:'Neon',demoThemeSakura:'Sakura',demoThemeAurora:'Aurora',
+
     demoComment1:'Esse estilo ficaria lindo com um boot mais lento! ✨',
     demoComment2:'Adorei essa combinação de cores!',
     shareSoon:'Publicação e compartilhamento estarão disponíveis em uma etapa futura.',
@@ -146,6 +153,13 @@
     wrongType:'Please choose a .zip file.', fileReady:'Nothing has been sent to a server.',
     comingSoon:'Coming in a later P15 milestone.', close:'Close',
     login:'Sign in', accountSoon:'Accounts are not available in this preview.',
+    demoAccountBtn:'My profile · demo', demoAccountTitle:'Customize your profile', demoAccountNote:'Local preview, not a real sign-in. Changes remain only in this tab until you reload.',
+    demoHandle:'Username',demoName:'Display name',demoBio:'Bio',demoTheme:'Banner style',
+    demoSave:'Save preview',demoSaved:'Preview updated for this session!',demoInvalid:'Check the fields: username 3–32 letters, numbers or _, name up to 80, bio up to 500.',
+    demoAvatarNote:'Illustrated avatar and banner. Image uploads will be available after private storage is configured.',
+    demoLoginNote:'GitHub OAuth with PKCE is prepared in the backend, but disabled until we configure secure credentials and domains.',
+    demoMine:'Your demo profile',demoThemeMoon:'Lunar',demoThemeNeon:'Neon',demoThemeSakura:'Sakura',demoThemeAurora:'Aurora',
+
     demoComment1:'This would look lovely with a slower boot! ✨',
     demoComment2:'Love this color palette!',
     shareSoon:'Publishing and sharing will be available in a future milestone.',
@@ -159,7 +173,9 @@
   };
   const state = {
     route:'explore', cat:'all', sort:'latest', search:'', modal:null,
-    favorite:new Set(), liked:new Set(), followed:new Set(), creator:null, zipState:null
+    favorite:new Set(), liked:new Set(), followed:new Set(), creator:null, zipState:null,
+    demoProfile:{handle:'creator_demo',display_name:'Meu cantinho',bio:'Animando cada inicialização com carinho. ✧',theme:'moon'},
+    profileDraft:null, profileSaved:false
   };
   let inMemory = false, lastFocus = null, bound = false, previousTitle = null;
   const byId = id => document.getElementById(id);
@@ -214,7 +230,7 @@
       '<div class="bas-c-side-nav" aria-label="'+safe(tr('menu'))+'">'+navButton('explore','explore','⌕')+navButton('saved','saved','♡')+navButton('creators','creators','♧')+'</div>'+
       '<div class="bas-c-side-bottom"><span class="bas-c-side-flower">✧</span><b>'+safe(tr('local'))+'</b><p>'+safe(tr('localDesc'))+'</p></div></aside>'+
       '<div class="bas-c-stage"><header class="bas-c-topbar"><span class="bas-c-breadcrumb"><span class="bas-c-brand-mini">✦</span> BAS <span class="bas-c-slash">/</span> '+safe(tr('community'))+'</span>'+
-      '<span class="bas-c-topbadge">'+safe(tr('beta'))+'</span><div class="bas-c-topactions"><button type="button" class="bas-c-signin" data-c-action="signin">'+safe(tr('login'))+'</button>'+
+      '<span class="bas-c-topbadge">'+safe(tr('beta'))+'</span><div class="bas-c-topactions"><button type="button" class="bas-c-signin" data-c-action="signin">'+safe(tr('demoAccountBtn'))+'</button>'+
       '<button type="button" class="bas-c-close" id="bas-community-close" data-c-action="close" aria-label="'+safe(tr('close'))+'">×</button></div></header>'+
       '<div class="bas-c-mobile-nav" aria-label="'+safe(tr('menu'))+'">'+navButton('explore','explore','⌕')+navButton('saved','saved','♡')+navButton('creators','creators','♧')+'</div>'+
       '<main class="bas-c-scroll" id="bas-c-main"><div id="bas-c-view"></div><div class="bas-c-footnote">✧ BAS Community · '+safe(tr('previewNote'))+'</div></main></div>'+
@@ -367,6 +383,93 @@
       '<small>'+safe(tr('zipHint'))+'</small><p class="bas-c-zip-result" id="bas-c-zip-result" aria-live="polite"></p></div>'+
       '<div class="bas-c-upload-option"><span>▣</span><strong>'+safe(tr('fromDevice'))+'</strong><p>'+safe(tr('deviceText'))+'</p><small>'+safe(tr('comingSoon'))+'</small></div></div></section></div>';
   }
+
+  /* No identity is created by this UI. It is a local interactive profile design tool. */
+  function demoAccount() {
+    const d=state.profileDraft||state.demoProfile;
+    const avatarByTheme={moon:'Moonlit',neon:'Vanta',sakura:'Hanami',aurora:'Northlight'};
+    const avatar=avatarByTheme[d.theme]||'Moonlit';
+    const sign='✦';
+    const choices=['moon','neon','sakura','aurora'].map(theme =>
+      '<option value="'+theme+'"'+(theme===d.theme?' selected':'')+'>'+safe(tr('demoTheme'+theme[0].toUpperCase()+theme.slice(1)))+'</option>'
+    ).join('');
+    return '<div class="bas-c-modal-backdrop" data-c-action="dismiss"><section role="dialog" aria-modal="true" aria-labelledby="bas-c-demo-title" class="bas-c-modal bas-c-account-modal">'+
+      '<div class="bas-c-modal-top"><span class="bas-c-kicker">'+safe(tr('beta'))+' · '+safe(tr('profileDemo'))+'</span>'+
+      '<button type="button" class="bas-c-roundclose" data-c-action="dismiss" aria-label="'+safe(tr('close'))+'">×</button></div>'+
+      '<h2 id="bas-c-demo-title">'+safe(tr('demoAccountTitle'))+'</h2><p class="bas-c-account-intro">'+safe(tr('demoAccountNote'))+'</p>'+
+      '<div class="bas-c-account-columns"><form id="bas-c-account-form" novalidate>'+
+      '<label for="bas-c-account-handle">'+safe(tr('demoHandle'))+'</label>'+
+      '<input id="bas-c-account-handle" name="handle" type="text" minlength="3" maxlength="32" autocomplete="off" spellcheck="false" value="'+safe(d.handle)+'">'+
+      '<label for="bas-c-account-name">'+safe(tr('demoName'))+'</label>'+
+      '<input id="bas-c-account-name" name="display_name" type="text" maxlength="80" autocomplete="off" value="'+safe(d.display_name)+'">'+
+      '<label for="bas-c-account-bio">'+safe(tr('demoBio'))+'</label>'+
+      '<textarea id="bas-c-account-bio" name="bio" maxlength="500" rows="4">'+safe(d.bio)+'</textarea>'+
+      '<label for="bas-c-account-theme">'+safe(tr('demoTheme'))+'</label>'+
+      '<select id="bas-c-account-theme" name="theme">'+choices+'</select>'+
+      '<button class="bas-c-button bas-c-button--bright bas-c-account-save" type="submit">'+safe(tr('demoSave'))+'</button>'+
+      '<p class="bas-c-account-status" id="bas-c-account-status" role="status" aria-live="polite">'+
+      (state.profileSaved?safe(tr('demoSaved')):safe(tr('demoLoginNote')))+'</p></form>'+
+      '<div class="bas-c-account-mock"><span class="bas-c-kicker">'+safe(tr('demoMine'))+'</span>'+
+      '<div class="bas-c-profile" id="bas-c-account-card" data-theme="'+safe(d.theme)+'">'+
+      '<div class="bas-c-profile-cover" aria-label="'+safe(tr('coverPicture'))+'"><span class="bas-c-profile-cover__orb">✧</span>'+
+      '<span class="bas-c-profile-demo">'+safe(tr('profileDemo'))+'</span></div>'+
+      '<div class="bas-c-profile-content"><div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
+      '<img class="bas-c-profile-avatar" id="bas-c-account-avatar" src="'+creatorAvatar(avatar)+'" alt="'+safe(tr('profilePicture'))+'" width="88" height="88">'+
+      '<div class="bas-c-profile-nameblock"><h3 id="bas-c-account-display">'+safe(d.display_name)+'</h3>'+
+      '<span id="bas-c-account-user">@'+safe(d.handle)+'</span></div></div></div>'+
+      '<div class="bas-c-profile-bio"><strong>'+safe(tr('profileBio'))+'</strong><p id="bas-c-account-preview-bio">'+safe(d.bio)+'</p></div>'+
+      '</div></div><p class="bas-c-account-disclaimer">'+safe(tr('demoAvatarNote'))+'</p></div></div></section></div>';
+  }
+  function validateDraft(d) {
+    return d && typeof d.handle==='string' && /^[A-Za-z0-9_]{3,32}$/.test(d.handle) &&
+      typeof d.display_name==='string' && d.display_name.trim().length>0 &&
+      [...d.display_name.trim()].length<=80 && !/[<>\x00-\x1f\x7f]/.test(d.display_name) &&
+      typeof d.bio==='string' && [...d.bio].length<=500 &&
+      !/[<>\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(d.bio) &&
+      ['moon','neon','sakura','aurora'].includes(d.theme);
+  }
+  function demoInput(event) {
+    if (state.modal?.type!=='account') return false;
+    const target=event.target;
+    const fields={
+      'bas-c-account-handle':['handle','bas-c-account-user'],
+      'bas-c-account-name':['display_name','bas-c-account-display'],
+      'bas-c-account-bio':['bio','bas-c-account-preview-bio']
+    };
+    if (target?.id==='bas-c-account-theme') {
+      if(!['moon','neon','sakura','aurora'].includes(target.value))return true;
+      state.profileDraft={...(state.profileDraft||state.demoProfile),theme:target.value};
+      const card=byId('bas-c-account-card');
+      if(card)card.setAttribute('data-theme',target.value);
+      const av=byId('bas-c-account-avatar');
+      const avatars={moon:'Moonlit',neon:'Vanta',sakura:'Hanami',aurora:'Northlight'};
+      if(av)av.setAttribute('src',creatorAvatar(avatars[target.value]));
+      return true;
+    }
+    const field=fields[target?.id];
+    if(!field)return false;
+    state.profileDraft={...(state.profileDraft||state.demoProfile),[field[0]]:target.value};
+    const visual=byId(field[1]);
+    if(visual) visual.textContent=field[0]==='handle'?'@'+target.value:target.value;
+    const status=byId('bas-c-account-status');
+    if(status)status.textContent=tr('demoLoginNote');
+    return true;
+  }
+  function onSubmit(event) {
+    if(event.target?.id!=='bas-c-account-form'||state.modal?.type!=='account')return;
+    event.preventDefault();
+    const draft=state.profileDraft||state.demoProfile;
+    const status=byId('bas-c-account-status');
+    if(!validateDraft(draft)) {
+      if(status)status.textContent=tr('demoInvalid');
+      return;
+    }
+    state.demoProfile={...draft,display_name:draft.display_name.trim(),bio:draft.bio.trim()};
+    state.profileDraft={...state.demoProfile};
+    state.profileSaved=true;
+    if(status)status.textContent=tr('demoSaved');
+  }
+
   function notice() {
     return '<div class="bas-c-modal-backdrop" data-c-action="dismiss"><section class="bas-c-modal bas-c-notice" role="dialog" aria-modal="true" aria-labelledby="bas-c-notice-title">'+
       '<div class="bas-c-modal-top"><span class="bas-c-kicker">'+safe(tr('beta'))+'</span><button type="button" class="bas-c-roundclose" data-c-action="dismiss" aria-label="'+safe(tr('close'))+'">×</button></div>'+
@@ -381,6 +484,7 @@
       const item=SHOWCASE.find(x=>x.id===state.modal.id);
       contents=item?detail(item):'';
     } else if (state.modal.type==='upload') contents=upload();
+    else if (state.modal.type==='account') contents=demoAccount();
     else contents=notice();
     host.innerHTML=contents;
     const closer=host.querySelector?.('.bas-c-roundclose');
@@ -460,7 +564,7 @@
     if (action==='close') { close(); return; }
     if (action==='detail') { openModal('detail',id); return; }
     if (action==='upload') { openModal('upload'); return; }
-    if (action==='signin') { openModal('signin'); return; }
+    if (action==='signin') { state.profileDraft={...state.demoProfile}; openModal('account'); return; }
     if (action==='creator') {
       const item=SHOWCASE.find(x=>x.id===id);
       if (item) navigate('creator',item.author);
@@ -495,12 +599,14 @@
     }
   }
   function onInput(event) {
+    if (demoInput(event)) return;
     if (event.target?.id==='bas-c-search') {
       state.search=event.target.value;
       updateCards();
     }
   }
   function onChange(event) {
+    if (demoInput(event)) return;
     const t=event.target;
     if (t?.id==='bas-c-sort') {state.sort=t.value;updateCards();}
     if (t?.id==='bas-c-zip-input') {
@@ -525,6 +631,7 @@
     byId('bas-community-preview')?.addEventListener('click',handler);
     byId('bas-community-preview')?.addEventListener('input',onInput);
     byId('bas-community-preview')?.addEventListener('change',onChange);
+    byId('bas-community-preview')?.addEventListener('submit',onSubmit);
     document.addEventListener('keydown',ev=>{
       const layer=byId('bas-community-preview');
       if(!layer||layer.hidden)return;
@@ -543,7 +650,7 @@
   }
   window.BASCommunityPreview=Object.freeze({
     version:2,enabled,open,close,sync,
-    state:()=>({optedIn:flag(),available:enabled(),open:!!byId('bas-community-preview')&&!byId('bas-community-preview').hidden,route:state.route,showcaseCount:SHOWCASE.length})
+    state:()=>({optedIn:flag(),available:enabled(),open:!!byId('bas-community-preview')&&!byId('bas-community-preview').hidden,route:state.route,showcaseCount:SHOWCASE.length,profilePreview:{...state.demoProfile}})
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
   else bind();

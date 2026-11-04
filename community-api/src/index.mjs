@@ -1,8 +1,9 @@
+import { handleAuth, authConfigured } from './auth.mjs';
 /* BAS Community P15.3: read-only Worker API.
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
  * Never return R2 object keys, tokens, internal author IDs or pending submissions.
  */
-const API_VERSION = 'p15.3';
+const API_VERSION = 'p15.4';
 const MAX_PAGE_SIZE = 24;
 const MAX_OFFSET = 5000;
 const SORTS = Object.freeze({
@@ -135,18 +136,20 @@ export default {
   async fetch(request, env) {
     const origin = allowedOrigin(request.headers.get('Origin'), env);
     const method = request.method.toUpperCase();
-    if (method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: headers(origin) });
-    }
     const head = method === 'HEAD';
-    // No route that changes state is implemented in P15.3, even with env misconfiguration.
-    if (method !== 'GET' && !head) return error('mutations_locked', 403, origin);
     let url;
     try { url = new URL(request.url); }
     catch (_) { return error('invalid_url', 400, origin, head); }
+    // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
+    // Even when enabled, upload, moderation and all other mutation routes remain locked.
+    if (url.pathname.startsWith('/v1/auth/')) return handleAuth(request, env, url);
+    if (method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: headers(origin) });
+    }
+    if (method !== 'GET' && !head) return error('mutations_locked', 403, origin);
     if (url.pathname === '/v1/health') {
       return json({ service: 'bas-community', version: API_VERSION,
-        mode: 'read_only', catalog_available: catalogReady(env),
+        mode: authConfigured(env) ? 'accounts_enabled' : 'read_only', catalog_available: catalogReady(env),
         uploads_enabled: false, moderation_enabled: false }, 200, origin, head);
     }
     if (url.pathname === '/v1/catalog') return listCatalog(url, env, origin, head);

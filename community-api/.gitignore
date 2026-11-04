@@ -8,3 +8,5 @@ wrangler.jsonc
 *.sqlite
 *.sqlite3
 .local/
+__pycache__/
+*.pyc
