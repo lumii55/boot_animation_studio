@@ -838,6 +838,7 @@
         const launcher = byId('developer-lab-launcher');
         if (launcher) launcher.hidden = false;
         document.body.dataset.developerMode = 'true';
+        window.dispatchEvent(new Event('bas:developer-mode-changed'));
         if (!options.silent) toast(text('developerLabEnabledToast', 'Developer Lab enabled for this page session.'), 'success');
         if (options.open !== false) open();
     }
@@ -847,6 +848,7 @@
         close();
         state.enabled = false;
         document.body.removeAttribute('data-developer-mode');
+        window.dispatchEvent(new Event('bas:developer-mode-changed'));
         const launcher = byId('developer-lab-launcher');
         if (launcher) launcher.hidden = true;
         state.smoke = [];

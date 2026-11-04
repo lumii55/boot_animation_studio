@@ -19,6 +19,7 @@
 <link href="css/80-module-workspace.css?v=web-v9" rel="stylesheet"/>
 <link href="css/90-device-security-and-diagnostics.css?v=web-v9" rel="stylesheet"/>
 <link rel="stylesheet" href="css/95-developer-lab-2.css?v=web-v9">
+<link rel="stylesheet" href="css/96-community-preview.css?v=p15-a1">
 <script src="vendor/jszip.min.js?v=web-v9"></script>
 <script src="vendor/gifuct.min.js?v=web-v9"></script>
 <meta content="#070b12" name="theme-color"/>
@@ -39,7 +40,7 @@
 </div>
 <button class="advanced-time-cancel" id="advanced-time-cancel" type="button">Cancel</button>
 </div>
-<div class="container"><header class="studio-header"><div class="brand-lockup"><div aria-hidden="true" class="brand-mark"><span></span></div><div class="brand-copy"><h1 id="txt-titulo">Boot Animation Studio</h1><p id="txt-subtitulo">Create, edit or apply a boot animation file!</p></div></div><div class="header-tools"><button aria-label="Install app" class="studio-install-button" hidden="" id="pwa-install-button" title="Install app" type="button"><span aria-hidden="true" class="pwa-install-glyph"></span></button><button aria-haspopup="dialog" class="studio-help-button" id="studio-help-button" type="button"><span aria-hidden="true" class="studio-help-glyph">?</span><span id="studio-help-button-label">Help</span></button><button class="developer-lab-launcher" hidden="" id="developer-lab-launcher" type="button">DEV</button><div class="topo-idioma">
+<div class="container"><header class="studio-header"><div class="brand-lockup"><div aria-hidden="true" class="brand-mark"><span></span></div><div class="brand-copy"><h1 id="txt-titulo">Boot Animation Studio</h1><p id="txt-subtitulo">Create, edit or apply a boot animation file!</p></div></div><div class="header-tools"><button aria-label="Install app" class="studio-install-button" hidden="" id="pwa-install-button" title="Install app" type="button"><span aria-hidden="true" class="pwa-install-glyph"></span></button><button class="bas-community-launcher" type="button" id="bas-community-launcher" hidden aria-haspopup="dialog" aria-controls="bas-community-preview">✦ Community</button><button aria-haspopup="dialog" class="studio-help-button" id="studio-help-button" type="button"><span aria-hidden="true" class="studio-help-glyph">?</span><span id="studio-help-button-label">Help</span></button><button class="developer-lab-launcher" hidden="" id="developer-lab-launcher" type="button">DEV</button><div class="topo-idioma">
 <span></span>
 <select aria-label="Language" id="select-idioma" onchange="mudarIdioma(this.value)">
 <option value="en">English (US)</option>
@@ -338,6 +339,20 @@
 <section class="developer-lab-section" data-lab-area="monitor"><div class="developer-lab-section-head"><div><h3 id="developer-lab-runtime-title">Environment / Runtime</h3><p id="developer-lab-runtime-desc">Safe browser, PWA and storage facts for this page session.</p></div></div><div class="developer-lab-facts" id="developer-lab-runtime-grid"></div></section>
 <section class="developer-lab-section" data-lab-area="device"><div class="developer-lab-section-head"><div><h3 id="developer-lab-module-title">Module Connection</h3><p id="developer-lab-module-desc">Current bridge path, authorization state and advertised capabilities.</p></div><div class="developer-lab-actions"><button id="developer-lab-test-info" type="button">Test /info</button><button id="developer-lab-test-ping" type="button">Test /ping</button><button id="developer-lab-rediscover" type="button">Force rediscovery</button><button id="developer-lab-reconnect" type="button">Reconnect session</button></div></div><div class="developer-lab-facts" id="developer-lab-module-grid"></div><div class="developer-lab-subpanel"><div class="developer-lab-subpanel-head"><strong id="developer-lab-capabilities-title">Advertised capabilities</strong><button id="developer-lab-copy-capabilities" type="button">Copy capabilities</button></div><div class="developer-lab-capabilities" id="developer-lab-capabilities"></div></div></section>
 <section class="developer-lab-section" data-lab-area="device"><div class="developer-lab-section-head"><div><h3 id="developer-lab-live-title">Live Sync Inspector</h3><p id="developer-lab-live-desc">Stream health, revisions and recent invalidation/refresh activity.</p></div></div><div class="developer-lab-facts" id="developer-lab-live-grid"></div><div class="developer-lab-live-layout"><div class="developer-lab-subpanel"><strong id="developer-lab-revisions-title">Domain revisions</strong><div class="developer-lab-revisions" id="developer-lab-revisions"></div></div><div class="developer-lab-subpanel developer-lab-events-panel"><div class="developer-lab-subpanel-head"><strong id="developer-lab-events-title">Recent live events</strong><button id="developer-lab-clear-events" type="button">Clear event list</button></div><div class="developer-lab-events" id="developer-lab-events"></div></div></div></section>
+
+<section class="developer-lab-section bas-community-lab-section" data-lab-area="tools" id="bas-community-devtools">
+  <div class="developer-lab-section-head"><div><h3 data-community-copy="labTitle">BAS Community — P15</h3>
+  <p data-community-copy="labDesc">Experimental gallery, available through Developer Lab only. No online services are active.</p></div></div>
+  <label class="bas-community-toggle" for="bas-community-feature-toggle">
+    <input id="bas-community-feature-toggle" type="checkbox"/>
+    <span data-community-copy="labToggle">Show the Community preview in this browser</span>
+  </label>
+  <div class="bas-community-lab-actions">
+    <button id="bas-community-preview-open" type="button" disabled data-community-copy="labOpen">Open gallery preview</button>
+    <small id="bas-community-status" aria-live="polite">Hidden by default</small>
+  </div>
+  <p data-community-copy="labSecurity" class="bas-community-hint">This is a local UI preference, not authorization. Publishing and moderation are unavailable until their server-side controls are ready.</p>
+</section>
 <section class="developer-lab-section developer-lab-fault" data-lab-area="tools"><div class="developer-lab-section-head"><div><h3 id="developer-lab-fault-title">Fault Injection</h3><p id="developer-lab-fault-desc">Developer-only, session-ephemeral test hooks. Reloading clears them.</p></div></div><div class="developer-lab-fault-grid"><label class="developer-lab-check-control"><input id="developer-lab-drop-next" type="checkbox"/><span id="developer-lab-drop-next-label">Drop the next live domain event</span></label><label><span id="developer-lab-delay-label">Artificial event delay</span><select id="developer-lab-delay"><option value="0">0 ms</option><option value="250">250 ms</option><option value="1000">1000 ms</option><option value="3000">3000 ms</option></select></label><label><span id="developer-lab-stale-label">Stale revision domain</span><select id="developer-lab-stale-domain"><option value="playlist">playlist</option><option value="rotation">rotation</option><option value="queue">queue</option><option value="history">history</option><option value="activity">activity</option><option value="health">health</option><option value="trust">trust</option><option value="sessions">sessions</option><option value="audit">audit</option><option value="presence">presence</option><option value="operation">operation</option><option value="test">test</option><option value="device">device</option><option value="animation">animation</option></select></label></div><div class="developer-lab-actions"><button id="developer-lab-force-reconnect" type="button">Force stream reconnect</button><button id="developer-lab-run-stale" type="button">Run stale-revision test</button><button id="developer-lab-reset-faults" type="button">Reset fault injection</button></div><p class="developer-lab-fault-status" id="developer-lab-fault-status"></p></section>
 <section class="developer-lab-section" data-lab-area="monitor"><div class="developer-lab-section-head"><div><h3 id="developer-lab-editor-title">Editor / Runtime Diagnostics</h3><p id="developer-lab-editor-desc">Read-only metadata from existing canonical owners; no parallel project state.</p></div></div><div class="developer-lab-facts" id="developer-lab-editor-grid"></div></section>
 <section class="developer-lab-section" data-lab-area="tools"><div class="developer-lab-section-head"><div><h3 id="developer-lab-checks-title">Regression Smoke Checks</h3><p id="developer-lab-checks-desc">Safe checks only. These do not apply, restore, rescan or mutate the phone.</p></div><button id="developer-lab-run-checks" type="button">Run checks</button></div><div class="developer-lab-checks" id="developer-lab-checks"></div></section>
@@ -354,6 +369,24 @@
 </div>
 <footer class="developer-lab-footer"><span>Boot Animation Studio · Web app</span><button class="is-danger" id="developer-lab-disable" type="button">Disable developer mode</button></footer>
 </div></div>
+
+<div id="bas-community-preview" class="bas-community-overlay" role="presentation" hidden aria-hidden="true">
+  <section class="bas-community-dialog" role="dialog" aria-modal="true" aria-labelledby="bas-community-title" aria-describedby="bas-community-description">
+    <header class="bas-community-head"><div><span class="bas-community-eyebrow">BAS · P15</span><h2 id="bas-community-title" data-community-copy="pageTitle">Community</h2></div><button type="button" id="bas-community-close" aria-label="Close preview">×</button></header>
+    <div class="bas-community-body">
+      <span class="bas-community-badge" data-community-copy="badge">EXPERIMENTAL PREVIEW</span>
+      <h3 data-community-copy="intro">A home for boot animations.</h3>
+      <p id="bas-community-description" data-community-copy="description">Discover, publish and share boot animations. This is only an experimental interface; no online functions are active yet.</p>
+      <div class="bas-community-paths">
+        <article><span aria-hidden="true">✦</span><strong data-community-copy="editor">Publish from editor</strong><p data-community-copy="editorDesc">After exporting an animation.</p></article>
+        <article><span aria-hidden="true">↥</span><strong data-community-copy="zip">Upload an existing ZIP</strong><p data-community-copy="zipDesc">Validate an existing bootanimation.zip.</p></article>
+        <article><span aria-hidden="true">▣</span><strong data-community-copy="phone">Share from connected phone</strong><p data-community-copy="phoneDesc">Preview the installed animation first.</p></article>
+      </div>
+      <div class="bas-community-empty"><strong data-community-copy="empty">Nothing published here yet</strong><p data-community-copy="emptyDesc">Gallery, accounts, uploads, comments and moderation arrive in later P15 steps.</p></div>
+    </div>
+    <footer class="bas-community-foot" data-community-copy="footer">Local UI preview only · No uploads, accounts or payments.</footer>
+  </section>
+</div>
 <div aria-live="polite" class="toast-container" id="toast-container"></div>
 <div class="modal-overlay" id="loading-overlay">
 <div aria-busy="true" aria-labelledby="txt-loading-timeline" aria-live="polite" class="modal-box loading-box" role="status">
@@ -435,6 +468,7 @@
 <script src="js/project-file.js?v=web-v9"></script>
 <script src="js/pwa.js?v=web-v9"></script>
 <script src="js/developer-lab.js?v=web-v9"></script>
+<script src="js/community-preview.js?v=p15-a1"></script>
 <script src="js/regression-automation.js?v=web-v9"></script>
 <script src="js/regression-coverage-r2.js?v=web-v9"></script>
 <script src="js/regression-scanner.js?v=web-v9"></script>
