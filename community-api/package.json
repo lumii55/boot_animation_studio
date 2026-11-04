@@ -1,7 +1,7 @@
 {
   "name": "bas-community-api",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "description": "BAS Community P15.6 guarded private publication pipeline",
   "engines": {

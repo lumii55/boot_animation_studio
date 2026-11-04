@@ -74,3 +74,11 @@ No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-communi
 - Na nova versão, login poderá usar uma única origem HTTPS site+API, inclusive um hostname Worker, reduzindo a necessidade de domínio próprio. Não foi publicado e OAuth ainda não está ativado.
 - A P15.6 continua EM DESENVOLVIMENTO: faltam autenticação real (GitHub OAuth App e credenciais), uploads privados autorizados, armazenamento permanente de foto/banner com processamento seguro, pareamento Companion, recuperação/custo R2 e testes de lançamento.
 - Controles PUBLISH_ENABLED, PUBLISH_STAGING_APPROVED, STORAGE_ENABLED, UPLOAD_ENABLED seguem desativados. Nenhum Worker ou ZIP foi publicado e o bucket R2 real não recebeu objetos.
+
+## Continuação P15.6 — mídia persistente de perfis preparada (2026-11-04)
+
+- Criadas rotas autenticadas privadas para trocar e ler avatar/banner de uma conta, com `Origin` e CSRF, validação no servidor, recodificação segura via binding Cloudflare Images Free, e armazenamento privado no R2.
+- Cotas diárias, mensais e globais; trocas com ledger de espaço persistente. Uma rotina de recuperação não acessível via HTTP tenta apagar arquivos órfãos e libera a reserva apenas após confirmação de exclusão no R2.
+- Migração 0005 aplicada no D1 real: 17 tabelas, 20 triggers, 43 índices, nenhuma conta, nenhuma mídia e 0 bytes utilizados ou reservados.
+- Testes cumulativos da P15 no Termux: 61 JS backend + 33 SQLite + 17 frontend = **111/111**. Apenas R2 e Cloudflare Images fictícios nos testes; nenhum arquivo de usuário enviado ao R2 verdadeiro.
+- Backend de mídia continua **desativado por padrão**. P15.6 só será concluída com OAuth real/contas reais, frontend conectado às rotas de imagem/publicação, pareamento Companion autenticado, manutenção/recuperação operacional e testes privados na Cloudflare. Ainda não iniciar P15.7.

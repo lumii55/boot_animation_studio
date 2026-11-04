@@ -1,3 +1,4 @@
+import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
 import { handleAuth, authConfigured } from './auth.mjs';
 /* BAS Community P15.3: read-only Worker API.
@@ -145,6 +146,7 @@ export default {
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
     if (url.pathname.startsWith('/v1/auth/')) return handleAuth(request, env, url);
     if (url.pathname.startsWith('/v1/publishing')) return handlePublishing(request, env, url);
+    if (url.pathname.startsWith('/v1/profile-media/')) return handleProfileMedia(request, env, url);
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: headers(origin) });
     }

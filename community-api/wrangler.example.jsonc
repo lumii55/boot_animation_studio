@@ -14,7 +14,9 @@
     "UPLOAD_ENABLED": "false",
     "STORAGE_ENABLED": "false",
     "PUBLISH_ENABLED": "false",
-    "PUBLISH_STAGING_APPROVED": "false"
+    "PUBLISH_STAGING_APPROVED": "false",
+    "MEDIA_ENABLED": "false",
+    "MEDIA_STAGING_APPROVED": "false"
   },
   "d1_databases": [
     {
@@ -29,5 +31,8 @@
       "binding": "PRIVATE_UPLOADS",
       "bucket_name": "replace-only-in-private-staging-config"
     }
-  ]
+  ],
+  "images": {
+    "binding": "IMAGES"
+  }
 }
