@@ -8,9 +8,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test tests/api.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "test:db": "python3 -m unittest discover -s tests -p test_schema.py",
-    "start:local": "wrangler dev --config wrangler.jsonc --local"
+    "start:local": "node dev-server.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

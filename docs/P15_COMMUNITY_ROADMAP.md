@@ -89,3 +89,5 @@ Run `node --test tests/community-preview.test.cjs`; then test the manual toggle,
 **Zero-spend rule:** no new paid Cloudflare subscription, R2 enablement, billing setting or live upload route without explicit user authorization. A free D1 allocation or staging-only resource is not an excuse to accidentally expose unfinished code. The repository is public; source code may be inspected regardless of the frontend flag.
 
 P15.3 files live in the community-api directory. All mutating HTTP methods remain locked; public listing is also disabled by default. Localhost gallery at http://127.0.0.1:8088/ remains unchanged and has no API connection.
+
+P15.3 loopback adapter: community-api/dev-server.mjs provides a Node.js localhost-only HTTP bridge to the identical Worker read-only handler and real local SQLite migration; tests/local-server.test.mjs exercises API over HTTP with private-key redaction. No remote services or paid features enabled.

@@ -42,3 +42,14 @@ P15.8-10: moderator dashboard, Discord verification and idempotency, comment/rep
 P15.11-14: social features, privacy, performance, rollback and launch gates.
 
 The website at http://127.0.0.1:8088/ still shows the interactive demo gallery; its JavaScript does not contact this API. Code presence alone is not a release or a deployment.
+
+## Termux localhost API adapter (P15.3)
+
+Node.js LTS is installed in Termux for safe local tests. The adapter is a local development tool and does not enable public Cloudflare routes.
+
+From community-api/, run: node --test tests/*.test.mjs
+Run locally: node dev-server.mjs
+Local read-only health endpoint: http://127.0.0.1:8788/v1/health
+Local catalog defaults to disabled. With BAS_LOCAL_CATALOG_ENABLED=1, approved-only catalog reads may be tested against the local SQLite DB; writes are still always locked.
+The API binds exclusively to 127.0.0.1, port 8788. It initializes .local/community.sqlite from the D1 migration. This database is git-ignored and is never sent to Cloudflare.
+The development adapter is not a substitute for real authentication, moderation, ZIP scanning or rate limiting. Do not expose its port through a Tunnel or publish it.
