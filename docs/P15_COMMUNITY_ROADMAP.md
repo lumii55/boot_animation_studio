@@ -61,3 +61,10 @@ Run `node --test tests/community-preview.test.cjs`; then test the manual toggle,
 - The Developer Lab opt-in remains mandatory; ordinary site visitors see no Community navigation.
 - Regression tests cover experimental gating, gallery interaction, upload chooser, and non-communication with external services.
 - **Still pending:** real accounts, uploads, downloads, ZIP validation, moderation, Discord bot, persistence and social backend.
+
+## P15.B creator profile layout (2026-11-04)
+
+- Clicking a creator now opens a complete **fictional public profile** instead of only showing a username-filtered catalog: themed banner, illustrated profile image, display name, handle, editable-in-the-future bio fields, member-since label, sample follower/creation/like counts, a locally interactive Follow button, and the creator's animations below.
+- Profile artwork and avatars are bundled vector/CSS demo assets generated locally; no photos are uploaded and no social data is transmitted. Creator directory thumbnails use the same fictional illustrated avatars.
+- This is a **UI design only**. Future real profile photo and banner uploads must be consent-driven, authenticated, file size/type/EXIF-stripped and moderated or reportable; bios and image metadata need safe text handling. Authenticated follow relationships are not implemented yet.
+- All other gallery layout and the original BAS editor remain unchanged.

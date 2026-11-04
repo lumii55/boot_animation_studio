@@ -13,6 +13,58 @@
     {id:'aurora', name:'Aurora Bloom', author:'Northlight', genre:'nature', res:'1440 × 3200', fps:30, mb:'11.3 MB',likes:153, downloads:760, date:2, art:'aurora', symbol:'✧', desc:'A flowing ribbon of northern lights in a midnight landscape.'},
     {id:'circuit', name:'Cyber Circuit', author:'ByteDust', genre:'neon', res:'1080 × 2400', fps:60, mb:'7.4 MB',likes:139, downloads:684, date:1, art:'circuit', symbol:'⌘', desc:'Futuristic circuitry coming to life with a vivid blue glow.'}
   ];
+  /* All profile information below is fictional, local prototype data. */
+  const PROFILES = {
+    Moonlit: {
+      display:'Moonlit Studio', theme:'moon', icon:'☾', followers:128, joinedPt:'agosto de 2026', joinedEn:'August 2026',
+      bioPt:'Coleciono luas, estrelas e animações que deixam a inicialização mais aconchegante. ✧',
+      bioEn:'Collecting moons, stars and soft animations to make every boot feel a little cozier. ✧',
+      hair:'#39255e', skin:'#f3c6ab', shirt:'#8166d9', background:'#9a7eee'
+    },
+    Vanta: {
+      display:'Vanta.exe', theme:'neon', icon:'◎', followers:83, joinedPt:'julho de 2026', joinedEn:'July 2026',
+      bioPt:'Brilho neon, sintetizadores e tecnologia futurista. Se pisca, eu provavelmente gosto.',
+      bioEn:'Neon lights, synthesizers and futuristic tech. If it glows, I probably love it.',
+      hair:'#131d43', skin:'#b98f79', shirt:'#1c7f9e', background:'#3caed1'
+    },
+    PixelMochi: {
+      display:'PixelMochi', theme:'pixel', icon:'▦', followers:214, joinedPt:'junho de 2026', joinedEn:'June 2026',
+      bioPt:'Uma pixel artist que transforma pequenos quadradinhos em grandes ideias. ☀',
+      bioEn:'A pixel artist turning tiny squares into big, colorful ideas. ☀',
+      hair:'#583047', skin:'#f4cba0', shirt:'#d98191', background:'#ffcc91'
+    },
+    Glasswave: {
+      display:'Glasswave', theme:'glass', icon:'◈', followers:65, joinedPt:'setembro de 2026', joinedEn:'September 2026',
+      bioPt:'Gosto de transparências, curvas suaves e animações minimalistas com personalidade.',
+      bioEn:'Exploring translucency, soft shapes and minimal animations with personality.',
+      hair:'#2f516d', skin:'#d9b8a9', shirt:'#56bbc4', background:'#96dce9'
+    },
+    Hanami: {
+      display:'Hanami', theme:'sakura', icon:'✿', followers:173, joinedPt:'maio de 2026', joinedEn:'May 2026',
+      bioPt:'Flores de cerejeira, tardes tranquilas e pequenos detalhes cheios de cor. 🌸',
+      bioEn:'Cherry blossoms, quiet afternoons and little details filled with color. 🌸',
+      hair:'#77405b', skin:'#f1c5b2', shirt:'#d78ea6', background:'#f5b9cf'
+    },
+    Nullspace: {
+      display:'Nullspace', theme:'orbit', icon:'◌', followers:97, joinedPt:'abril de 2026', joinedEn:'April 2026',
+      bioPt:'Menos distrações, mais significado. Espaço, órbitas e movimentos limpos.',
+      bioEn:'Less noise, more meaning. Space, orbit paths and clean motion.',
+      hair:'#303b55', skin:'#bb9e90', shirt:'#747fa4', background:'#8099bf'
+    },
+    Northlight: {
+      display:'Northlight', theme:'aurora', icon:'✧', followers:116, joinedPt:'agosto de 2026', joinedEn:'August 2026',
+      bioPt:'Inspirada pelo céu noturno, pelas auroras e por tudo que parece magia de verdade.',
+      bioEn:'Inspired by night skies, auroras and everything that feels like real magic.',
+      hair:'#2b5b61', skin:'#e6bfa9', shirt:'#4baf93', background:'#79cfc1'
+    },
+    ByteDust: {
+      display:'ByteDust', theme:'circuit', icon:'⌘', followers:74, joinedPt:'outubro de 2026', joinedEn:'October 2026',
+      bioPt:'Circuitos, jogos e um pouquinho de caos digital. Construindo futuros pixel por pixel.',
+      bioEn:'Circuits, games and a little digital chaos. Building futures one pixel at a time.',
+      hair:'#344267', skin:'#c4998b', shirt:'#446cb7', background:'#7ea6ed'
+    }
+  };
+
   const PT = {
     community:'Comunidade', beta:'PRÉVIA P15', explore:'Explorar', saved:'Favoritos', creators:'Criadores',
     local:'Prévia local', localDesc:'Esta galeria é uma demonstração interativa. Nenhuma animação foi publicada ou enviada.',
@@ -33,6 +85,12 @@
     favoriteEmpty:'Ainda não há favoritos', favoriteEmptyDesc:'Toque no coração de uma animação para guardá-la aqui nesta prévia.',
     creatorsTitle:'Conheça os criadores', creatorsDesc:'Perfis fictícios para testar a navegação. Perfis reais dependerão de contas.',
     creatorAnimations:'animação de exemplo', creatorAnimationPlural:'animações de exemplo',
+    profileDemo:'PERFIL FICTÍCIO', profilePicture:'Foto ilustrativa de perfil', coverPicture:'Banner ilustrativo do perfil',
+    profileCreations:'Criações', profileFollowers:'Seguidores', profileLikes:'Curtidas recebidas', profileBio:'Sobre',
+    profileJoined:'Na comunidade desde', profileFollow:'Seguir criador', profileFollowing:'Seguindo',
+    profileWorksTitle:'Animações do criador', profileWorksDesc:'Todas as criações de demonstração deste perfil.',
+    profileBack:'Todos os criadores', profileFollowNote:'O botão Seguir funciona apenas nesta prévia, sem conta ou notificações.',
+
     uploadTitle:'Como você quer publicar?', uploadDesc:'Três formas de compartilhar sua animação. Nenhum arquivo será enviado nesta prévia.',
     fromEditor:'Pelo editor', editorText:'Publicar assim que terminar e exportar uma animação no Studio.',
     fromZip:'Enviar arquivo ZIP', zipText:'Selecionar um bootanimation.zip que você já possui.',
@@ -73,6 +131,12 @@
     favoriteEmpty:'No favorites yet', favoriteEmptyDesc:'Tap a heart on a sample to save it here.',
     creatorsTitle:'Meet the creators', creatorsDesc:'Fictional profiles to test navigation. Real profiles will require accounts.',
     creatorAnimations:'sample animation', creatorAnimationPlural:'sample animations',
+    profileDemo:'FICTIONAL PROFILE', profilePicture:'Illustrated profile picture', coverPicture:'Illustrated profile banner',
+    profileCreations:'Creations', profileFollowers:'Followers', profileLikes:'Likes received', profileBio:'About',
+    profileJoined:'Part of the community since', profileFollow:'Follow creator', profileFollowing:'Following',
+    profileWorksTitle:'Creator animations', profileWorksDesc:'All sample creations by this creator.',
+    profileBack:'All creators', profileFollowNote:'Following works only in this preview, without accounts or notifications.',
+
     uploadTitle:'How would you like to publish?', uploadDesc:'Three ways to share your animation. No files will be uploaded in this preview.',
     fromEditor:'From the editor', editorText:'Publish after exporting your animation in Studio.',
     fromZip:'Upload ZIP file', zipText:'Choose an existing bootanimation.zip.',
@@ -95,7 +159,7 @@
   };
   const state = {
     route:'explore', cat:'all', sort:'latest', search:'', modal:null,
-    favorite:new Set(), liked:new Set(), creator:null, zipState:null
+    favorite:new Set(), liked:new Set(), followed:new Set(), creator:null, zipState:null
   };
   let inMemory = false, lastFocus = null, bound = false, previousTitle = null;
   const byId = id => document.getElementById(id);
@@ -171,14 +235,70 @@
   }
   function galleryHead() {
     return '<div class="bas-c-sectionhead" id="bas-c-gallery-start"><div><span class="bas-c-kicker">'+safe(tr('samples'))+'</span><h2>'+
-      safe(state.route==='saved'?tr('favoritesTitle'):state.route==='creator'?('@'+state.creator):tr('featured'))+'</h2>'+
-      '<p>'+safe(state.route==='saved'?tr('favoritesDesc'):state.route==='creator'?tr('creatorsDesc'):tr('featuredDesc'))+'</p></div>'+
+      safe(state.route==='saved'?tr('favoritesTitle'):state.route==='creator'?tr('profileWorksTitle'):tr('featured'))+'</h2>'+
+      '<p>'+safe(state.route==='saved'?tr('favoritesDesc'):state.route==='creator'?tr('profileWorksDesc'):tr('featuredDesc'))+'</p></div>'+
       '<button type="button" class="bas-c-button bas-c-button--small" data-c-action="upload">＋ '+safe(tr('publish'))+'</button></div>'+
       '<div class="bas-c-controls"><label class="bas-c-search"><span aria-hidden="true">⌕</span><input id="bas-c-search" type="search" autocomplete="off" placeholder="'+safe(tr('search'))+'" value="'+safe(state.search)+'" aria-label="'+safe(tr('search'))+'"></label>'+
       '<label class="bas-c-sort"><select id="bas-c-sort" aria-label="Sort"><option value="latest" '+(state.sort==='latest'?'selected':'')+'>'+safe(tr('latest'))+'</option><option value="popular" '+(state.sort==='popular'?'selected':'')+'>'+safe(tr('popular'))+'</option><option value="top" '+(state.sort==='top'?'selected':'')+'>'+safe(tr('top'))+'</option></select></label></div>'+
       categories()+'<div class="bas-c-results-meta"><span id="bas-c-count"></span><span>● '+safe(tr('status'))+'</span></div>'+
       '<div id="bas-c-grid" class="bas-c-grid"></div>';
   }
+  /* Stand-in illustrated avatars: self-contained SVG images, no external network or user photos. */
+  function creatorAvatar(author) {
+    const profile = PROFILES[author] || PROFILES.Moonlit;
+    const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img">'+
+      '<defs><linearGradient id="shade" x1="0" y1="0" x2="1" y2="1">'+
+      '<stop stop-color="'+profile.background+'"/><stop offset="1" stop-color="#27243e"/></linearGradient></defs>'+
+      '<rect width="160" height="160" rx="35" fill="url(#shade)"/>'+
+      '<circle cx="115" cy="35" r="29" fill="#fff" opacity=".09"/>'+
+      '<ellipse cx="80" cy="162" rx="64" ry="59" fill="'+profile.shirt+'"/>'+
+      '<ellipse cx="80" cy="76" rx="40" ry="50" fill="'+profile.hair+'"/>'+
+      '<path d="M50 69Q52 34 80 34Q109 35 111 68L108 101Q97 120 80 120Q61 120 52 103Z" fill="'+profile.skin+'"/>'+
+      '<path d="M47 73Q33 29 71 25Q108 15 119 57Q109 52 104 47Q76 67 50 61Z" fill="'+profile.hair+'"/>'+
+      '<ellipse cx="65" cy="80" rx="3" ry="3.4" fill="#40364d"/><ellipse cx="94" cy="80" rx="3" ry="3.4" fill="#40364d"/>'+
+      '<path d="M72 99Q80 105 89 99" stroke="#9e686f" stroke-width="2.5" stroke-linecap="round" fill="none"/>'+
+      '<path d="M72 140Q80 146 88 140" stroke="#fff" opacity=".54" stroke-width="2" fill="none"/>'+
+      '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(source);
+  }
+
+  function creatorProfile(author) {
+    const profile = PROFILES[author];
+    if (!profile) return '<section class="bas-c-plainhead"><h1 id="bas-c-page-title">'+safe(tr('creatorsTitle'))+'</h1></section>';
+    const language = typeof idiomaAtual === 'string' ? idiomaAtual : (document.documentElement.lang || 'en');
+    const works = SHOWCASE.filter(item => item.author === author);
+    const followers = profile.followers + (state.followed.has(author) ? 1 : 0);
+    const totalLikes = works.reduce((sum,item) => sum + item.likes + (state.liked.has(item.id)?1:0), 0);
+    const followed = state.followed.has(author);
+    return '<section class="bas-c-profile" data-theme="'+safe(profile.theme)+'">'+
+      '<div class="bas-c-profile-cover" role="img" aria-label="'+safe(tr('coverPicture'))+'">'+
+        '<span class="bas-c-profile-cover__orb" aria-hidden="true">'+safe(profile.icon)+'</span>'+
+        '<span class="bas-c-profile-cover__spark" aria-hidden="true">✦</span>'+
+        '<span class="bas-c-profile-cover__spark bas-c-profile-cover__spark--small" aria-hidden="true">✧</span>'+
+        '<span class="bas-c-profile-demo">'+safe(tr('profileDemo'))+'</span>'+
+      '</div>'+
+      '<div class="bas-c-profile-content">'+
+        '<div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
+          '<img class="bas-c-profile-avatar" src="'+creatorAvatar(author)+'" alt="'+safe(tr('profilePicture'))+' @'+safe(author)+'" width="98" height="98" draggable="false">'+
+          '<div class="bas-c-profile-nameblock"><h1 id="bas-c-page-title">'+safe(profile.display)+'</h1>'+
+            '<span>@'+safe(author)+'</span></div></div>'+
+          '<button type="button" class="bas-c-profile-follow '+(followed?'is-following':'')+'" data-c-action="follow" data-author="'+safe(author)+'" aria-pressed="'+String(followed)+'">'+
+            (followed?'✓ ':'＋ ')+safe(tr(followed?'profileFollowing':'profileFollow'))+'</button>'+
+        '</div>'+
+        '<div class="bas-c-profile-bio"><strong>'+safe(tr('profileBio'))+'</strong><p>'+
+          safe(language==='pt'?profile.bioPt:profile.bioEn)+'</p>'+
+          '<span class="bas-c-profile-joined">✧ '+safe(tr('profileJoined'))+' '+safe(language==='pt'?profile.joinedPt:profile.joinedEn)+'</span></div>'+
+        '<div class="bas-c-profile-stats">'+
+          '<div><strong>'+works.length+'</strong><span>'+safe(tr('profileCreations'))+'</span></div>'+
+          '<div><strong>'+followers+'</strong><span>'+safe(tr('profileFollowers'))+'</span></div>'+
+          '<div><strong>'+totalLikes+'</strong><span>'+safe(tr('profileLikes'))+'</span></div>'+
+        '</div>'+
+        '<div class="bas-c-profile-bottom"><span>✧ '+safe(tr('profileFollowNote'))+'</span>'+
+          '<button type="button" data-c-action="navigate" data-route="creators">← '+safe(tr('profileBack'))+'</button></div>'+
+      '</div>'+
+    '</section>';
+  }
+
   function creatorsView() {
     const unique = Array.from(new Set(SHOWCASE.map(a=>a.author))).sort();
     return '<section class="bas-c-plainhead"><span class="bas-c-kicker">'+safe(tr('samples'))+'</span>'+
@@ -186,7 +306,7 @@
       '<div class="bas-c-creators">'+unique.map((author,index)=>{
         const records=SHOWCASE.filter(x=>x.author===author);
         const record=records[0];return '<button type="button" class="bas-c-creator-tile" data-c-action="creator" data-id="'+record.id+'">'+
-          '<span class="bas-c-creator-avatar" style="--avatar-index:'+index+'">'+safe(author.charAt(0))+'</span><strong>@'+safe(author)+'</strong>'+
+          '<img class="bas-c-creator-avatar" src="'+creatorAvatar(author)+'" width="46" height="46" loading="lazy" alt="'+safe(tr('profilePicture'))+' @'+safe(author)+'"><strong>@'+safe(author)+'</strong>'+
           '<small>'+records.length+' '+safe(tr(records.length===1?'creatorAnimations':'creatorAnimationPlural'))+'</small><span class="bas-c-tilearrow">↗</span></button>';
       }).join('')+'</div>';
   }
@@ -194,7 +314,7 @@
     const target=byId('bas-c-view');
     if (!target) return;
     if (state.route==='creators') target.innerHTML=creatorsView();
-    else target.innerHTML=(state.route==='explore'?hero():state.route==='saved'?'<section class="bas-c-plainhead"><span class="bas-c-kicker">'+safe(tr('samples'))+'</span><h1 id="bas-c-page-title">'+safe(tr('favoritesTitle'))+'</h1><p>'+safe(tr('favoritesDesc'))+'</p></section>':state.route==='creator'?'<section class="bas-c-plainhead"><span class="bas-c-kicker">'+safe(tr('samples'))+'</span><h1 id="bas-c-page-title">@'+safe(state.creator)+'</h1><p>'+safe(tr('creatorsDesc'))+'</p></section>':'')+galleryHead();
+    else target.innerHTML=(state.route==='explore'?hero():state.route==='saved'?'<section class="bas-c-plainhead"><span class="bas-c-kicker">'+safe(tr('samples'))+'</span><h1 id="bas-c-page-title">'+safe(tr('favoritesTitle'))+'</h1><p>'+safe(tr('favoritesDesc'))+'</p></section>':state.route==='creator'?creatorProfile(state.creator):'')+galleryHead();
     updateCards();
     const area=byId('bas-community-preview');
     if (area) {
@@ -347,6 +467,13 @@
       return;
     }
     if (action==='navigate') { navigate(element.dataset.route); return; }
+    if (action==='follow') {
+      const author=element.dataset.author;
+      if (!PROFILES[author] || state.route!=='creator' || state.creator!==author) return;
+      if (state.followed.has(author)) state.followed.delete(author);
+      else state.followed.add(author);
+      renderView(); return;
+    }
     if (action==='scroll-gallery') { byId('bas-c-gallery-start')?.scrollIntoView?.({behavior:'smooth',block:'start'}); return; }
     if (action==='category') {
       state.cat=element.dataset.cat;

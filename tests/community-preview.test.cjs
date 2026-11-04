@@ -7,12 +7,12 @@ const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 const script = fs.readFileSync(path.join(root, 'js/community-preview.js'), 'utf8');
 
-function harness(saved) {
+function harness(saved, language = 'pt') {
     let developer = false;
     const data = new Map(saved ? [['bas.community.preview.v1',saved]] : []);
     const elements = new Map(), windows = new Map(), docs = new Map();
     const document = {
-        readyState: 'complete', activeElement: null, documentElement: {lang:'pt'},
+        readyState: 'complete', activeElement: null, documentElement: {lang:language},
         body: {classList: {add(){}, remove(){}}},
         getElementById: element,
         querySelectorAll: () => [],
@@ -110,6 +110,56 @@ test('detail, session favorite and creator route render',()=>{
     assert.match(h.element('bas-c-view').innerHTML,/bas-c-page-title/);
 });
 
+
+test('creator has banner, illustrated portrait, bio, join date and statistics',()=>{
+    const h=harness();
+    h.enable();h.window.BASCommunityPreview.open();
+    h.click('creator',{id:'lunar'});
+    const profile=h.element('bas-c-view').innerHTML;
+    assert.match(profile,/bas-c-profile-cover/);
+    assert.match(profile,/bas-c-profile-avatar/);
+    assert.match(profile,/data:image\/svg\+xml/);
+    assert.match(profile,/Moonlit Studio/);
+    assert.match(profile,/Coleciono luas/);
+    assert.match(profile,/Na comunidade desde agosto de 2026/);
+    assert.match(profile,/Seguir criador/);
+    assert.match(profile,/profileFollowers|Seguidores/);
+    assert.match(profile,/Animações do criador/);
+    assert.match(h.element('bas-c-grid').innerHTML,/Lunar Dreams/);
+    assert.doesNotMatch(h.element('bas-c-grid').innerHTML,/Neon Pulse/);
+});
+
+test('following and unfollowing a creator is local and temporary',()=>{
+    const h=harness();
+    h.enable();h.window.BASCommunityPreview.open();
+    h.click('creator',{id:'lunar'});
+    const before=h.element('bas-c-view').innerHTML;
+    assert.match(before,/>128<\/strong><span>Seguidores/);
+    h.click('follow',{author:'Moonlit'});
+    const followed=h.element('bas-c-view').innerHTML;
+    assert.match(followed,/✓ Seguindo/);
+    assert.match(followed,/>129<\/strong><span>Seguidores/);
+    h.click('follow',{author:'Moonlit'});
+    const unfollowed=h.element('bas-c-view').innerHTML;
+    assert.match(unfollowed,/Seguir criador/);
+    assert.match(unfollowed,/>128<\/strong><span>Seguidores/);
+    assert.equal(h.data.has('bas.community.followers'),false);
+});
+
+test('creator profiles remain localized and direct navigation works',()=>{
+    const h=harness(null,'en');
+    h.enable();h.window.BASCommunityPreview.open();
+    h.click('navigate',{route:'creators'});
+    const directory=h.element('bas-c-view').innerHTML;
+    assert.match(directory,/data:image\/svg\+xml/);
+    h.click('creator',{id:'sakura'});
+    const profile=h.element('bas-c-view').innerHTML;
+    assert.match(profile,/Cherry blossoms/);
+    assert.match(profile,/Follow creator/);
+    assert.match(profile,/Part of the community since May 2026/);
+    assert.match(profile,/Creator animations/);
+});
+
 test('publishing paths are presented but no upload occurs',()=>{
     const h=harness();
     h.enable();h.window.BASCommunityPreview.open();
@@ -141,7 +191,7 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-b1/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-b1/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-b2/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-b2/);
     assert.match(html,/id="bas-community-feature-toggle"/);
 });
