@@ -44,10 +44,12 @@ function multiDeviceNormalizeBaseUrl(value) {
     try {
         const raw = String(value || '').trim();
         const url = new URL(raw.includes('://') ? raw : `http://${raw}:4040`);
+        if (!url.port) url.port = url.protocol === 'https:' ? '4041' : '4040';
         const host = url.hostname.replace(/^\[|\]$/g, '');
         if (!isPrivateIPv4(host) && host !== '127.0.0.1' && host !== 'localhost') return '';
-        url.protocol = 'http:';
-        url.port = url.port || '4040';
+        if (!((url.protocol === 'http:' && url.port === '4040') ||
+              (url.protocol === 'https:' && url.port === '4041'))) return '';
+        if (url.username || url.password) return '';
         url.pathname = '';
         url.search = '';
         url.hash = '';
@@ -152,6 +154,14 @@ function multiDevicePersist() {
     }
 }
 
+// TLS is an explicit trust choice. Discovery and state snapshots may update IPs,
+// but must never silently convert a verified secure bridge to plaintext.
+function multiDeviceRetainSecureTransport(previous, proposed) {
+    if (!previous?.startsWith('https://') || !proposed?.startsWith('http://')) return proposed;
+    const ip = multiDeviceIpFromBase(proposed);
+    return ip ? `https://${ip}:4041` : previous;
+}
+
 function multiDeviceUpsert(candidate) {
     if (!candidate) return null;
     const baseUrl = multiDeviceNormalizeBaseUrl(candidate.baseUrl || candidate.ip || '');
@@ -183,7 +193,10 @@ function multiDeviceUpsert(candidate) {
         };
         multiDeviceRuntime.devices.set(id, device);
     }
-    device.baseUrl = baseUrl;
+    // Once this device uses verified HTTPS, an insecure discovery sweep must
+    // never silently downgrade it to plaintext. A new IP preserves HTTPS,
+    // deliberately requiring the user to verify any replacement certificate.
+    device.baseUrl = multiDeviceRetainSecureTransport(device.baseUrl, baseUrl);
     device.ip = ip;
     device.stableIdentity = id.startsWith('bc_');
     device.lastSeen = Date.now();
@@ -207,7 +220,8 @@ function multiDeviceCurrent() {
 function multiDeviceCaptureGlobals() {
     const current = multiDeviceCurrent();
     if (!current) return;
-    current.baseUrl = multiDeviceNormalizeBaseUrl(IP_LOCAL) || current.baseUrl;
+    current.baseUrl = multiDeviceRetainSecureTransport(current.baseUrl,
+        multiDeviceNormalizeBaseUrl(IP_LOCAL) || current.baseUrl);
     current.ip = multiDeviceIpFromBase(current.baseUrl) || current.ip;
     current.token = String(sessionToken || '');
     current.connected = Boolean(isConnectedMode && current.token);
@@ -599,9 +613,18 @@ async function multiDeviceConnectRecord(id) {
     return true;
 }
 
-async function multiDeviceConnectIP(ip) {
-    const probe = await multiDeviceProbeIP(ip, 1800);
-    const device = probe || multiDeviceUpsert({ baseUrl: `http://${ip}:4040`, info: null });
+async function multiDeviceConnectIP(rawAddress) {
+    const input = String(rawAddress || '').trim();
+    if (input.startsWith('https://')) {
+        // Explicit, opt-in secure transport. Browser certificate validation is
+        // mandatory; never retry this address over HTTP when trust fails.
+        const baseUrl = multiDeviceNormalizeBaseUrl(input);
+        if (!baseUrl) return false;
+        const device = multiDeviceUpsert({ baseUrl, info: null });
+        return device ? multiDeviceConnectRecord(device.id) : false;
+    }
+    const probe = await multiDeviceProbeIP(input, 1800);
+    const device = probe || multiDeviceUpsert({ baseUrl: `http://${input}:4040`, info: null });
     if (!device) return false;
     return multiDeviceConnectRecord(device.id);
 }

@@ -241,7 +241,8 @@ function apiValidateRequestTarget(base, path) {
         /[\\\u0000-\u001f\u007f#]/.test(path)) throw new TypeError('Invalid Companion API path');
     const url = new URL(String(base || ''));
     const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-    if (url.protocol !== 'http:' || url.username || url.password ||
+    if (!((url.protocol === 'http:' && url.port === '4040') || (url.protocol === 'https:' && url.port === '4041')) ||
+        url.username || url.password ||
         !(isPrivateIPv4(host) || host === 'localhost' || host === '127.0.0.1' || host === '::1')) {
         throw new TypeError('Invalid Companion API host');
     }
@@ -678,7 +679,7 @@ async function conectarPorIp() {
         return;
     }
     sessionToken = '';
-    IP_LOCAL = `http://${ip}:4040`;
+    IP_LOCAL = ip.startsWith('https://') ? new URL(apiValidateRequestTarget(ip, '/info')).origin : `http://${ip}:4040`;
     fecharModalRede();
     await tentaConexao();
 }

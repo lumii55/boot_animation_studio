@@ -289,7 +289,8 @@
 <div class="multi-device-list" id="multi-device-list"><div class="multi-device-empty">No Companion Modules found yet.</div></div>
 </section>
 <div class="network-divider"><span id="lbl-network-other">Manual connection</span></div>
-<input aria-label="Device IP address" class="network-ip-input" id="input-ip" type="text" value="192.168.0."/>
+<input aria-label="Device IP or verified HTTPS Companion address" class="network-ip-input" id="input-ip" type="text" value="192.168.0."/>
+<p class="network-desc" style="font-size:.82rem;margin:.4rem 0">Optional HTTPS: enter <code>https://PHONE-IP:4041</code> only after verifying the certificate fingerprint on the phone's local Companion WebUI. An HTTPS failure never switches automatically to HTTP.</p>
 <div class="network-actions">
 <button class="btn-upload" id="btn-connect-ip" onclick="conectarPorIp()"> Connect by IP</button>
 </div>
