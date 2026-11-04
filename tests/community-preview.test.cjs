@@ -34,6 +34,10 @@ function harness(saved, language = 'pt', media = null) {
                 emit:(name,event)=>callbacks.get(name)?.(event),
                 setAttribute(k,v){this.attrs[k]=v;}, getAttribute(k){return this.attrs[k];},
                 querySelectorAll:()=>[], querySelector:()=>null,
+                style:{},clientWidth:320,clientHeight:320,
+                getBoundingClientRect(){return {width:this.id==='bas-c-crop-stage'?320:320,height:this.id==='bas-c-crop-stage'?320:320};},
+                contains(target){return target===this||target?.id==='bas-c-crop-image';},
+                setPointerCapture(){},
                 removeAttribute(k){delete this.attrs[k];},
                 focus(){document.activeElement=this;}, scrollIntoView(){}
             };
@@ -222,7 +226,7 @@ test('photo controls support both avatar and banner but never upload',()=>{
     assert.equal(script.includes('fetch('),false);
     assert.equal(script.includes('FormData('),false);
 });
-test('avatar and banner photos are converted locally, kept in memory, and revoked',async()=>{
+test('crop editor offers zoom, dragging and apply for both local image types',async()=>{
     const media={serial:0,created:[],revoked:[]};
     const h=harness(null,'pt',media);
     h.enable();h.window.BASCommunityPreview.open();h.click('signin');
@@ -231,20 +235,62 @@ test('avatar and banner photos are converted locally, kept in memory, and revoke
     const file={type:'image/png',size:150000,slice:()=>({arrayBuffer:async()=>pngHeader.buffer})};
     layer.emit('change',{target:{id:'bas-c-avatar-file',files:[file]}});
     await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(h.window.BASCommunityPreview.state().cropEditing,'avatar');
+    assert.equal(h.window.BASCommunityPreview.state().customPhotos.avatar,false);
+    assert.match(h.element('bas-c-crop-host').innerHTML,/Ajustar imagem/);
+    assert.match(h.element('bas-c-crop-host').innerHTML,/id="bas-c-crop-zoom"/);
+    assert.match(h.element('bas-c-crop-host').innerHTML,/bas-c-crop-stage--avatar/);
+    layer.emit('input',{target:{id:'bas-c-crop-zoom',value:'190'}});
+    assert.equal(h.window.BASCommunityPreview.state().cropZoom,1.9);
+    const stage=h.element('bas-c-crop-stage');
+    const original=h.element('bas-c-crop-image').style.transform;
+    layer.emit('pointerdown',{pointerId:1,clientX:120,clientY:140,target:stage,isPrimary:true,button:0,preventDefault(){}});
+    layer.emit('pointermove',{pointerId:1,clientX:160,clientY:120});
+    layer.emit('pointerup',{pointerId:1});
+    assert.notEqual(h.element('bas-c-crop-image').style.transform,original);
+    h.click('crop-apply');
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(h.window.BASCommunityPreview.state().cropEditing,null);
     assert.equal(h.window.BASCommunityPreview.state().customPhotos.avatar,true);
-    assert.equal(h.element('bas-c-account-avatar').attrs.src,'blob:bas-test-1');
+    assert.equal(h.element('bas-c-account-avatar').attrs.src,'blob:bas-test-2');
+    assert.deepEqual(media.revoked,['blob:bas-test-1']);
     layer.emit('change',{target:{id:'bas-c-banner-file',files:[file]}});
     await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(h.window.BASCommunityPreview.state().cropEditing,'banner');
+    assert.match(h.element('bas-c-crop-host').innerHTML,/bas-c-crop-stage--banner/);
+    h.click('crop-apply');
+    await new Promise(resolve=>setImmediate(resolve));
     assert.equal(h.window.BASCommunityPreview.state().customPhotos.banner,true);
-    assert.equal(h.element('bas-c-account-banner-image').attrs.src,'blob:bas-test-2');
+    assert.equal(h.element('bas-c-account-banner-image').attrs.src,'blob:bas-test-4');
     assert.equal(h.data.has('avatar'),false);
     assert.equal(h.data.has('banner'),false);
     h.click('remove-photo',{photo:'avatar'});
     assert.equal(h.window.BASCommunityPreview.state().customPhotos.avatar,false);
-    assert.deepEqual(media.revoked,['blob:bas-test-1']);
+    assert.ok(media.revoked.includes('blob:bas-test-2'));
     h.windows.get('pagehide')?.();
     assert.equal(h.window.BASCommunityPreview.state().customPhotos.banner,false);
-    assert.deepEqual(media.revoked,['blob:bas-test-1','blob:bas-test-2']);
+    assert.ok(media.revoked.includes('blob:bas-test-4'));
+});
+test('canceling a crop leaves the previously chosen photo intact',async()=>{
+    const media={serial:0,created:[],revoked:[]};
+    const h=harness(null,'pt',media);
+    h.enable();h.window.BASCommunityPreview.open();h.click('signin');
+    const layer=h.element('bas-community-preview');
+    const pngHeader=Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82]);
+    const file={type:'image/png',size:1000,slice:()=>({arrayBuffer:async()=>pngHeader.buffer})};
+    layer.emit('change',{target:{id:'bas-c-avatar-file',files:[file]}});
+    await new Promise(resolve=>setImmediate(resolve));
+    h.click('crop-apply');
+    await new Promise(resolve=>setImmediate(resolve));
+    const existing=h.element('bas-c-account-avatar').attrs.src;
+    layer.emit('change',{target:{id:'bas-c-avatar-file',files:[file]}});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(h.window.BASCommunityPreview.state().cropEditing,'avatar');
+    h.click('crop-cancel');
+    assert.equal(h.window.BASCommunityPreview.state().cropEditing,null);
+    assert.equal(h.element('bas-c-account-avatar').attrs.src,existing);
+    assert.equal(h.window.BASCommunityPreview.state().customPhotos.avatar,true);
+    assert.ok(media.revoked.includes('blob:bas-test-3'));
 });
 test('photo validation rejects large files and forged file types before decoding',async()=>{
     const h=harness();
@@ -289,7 +335,7 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-d1/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-d1/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-d2/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-d2/);
     assert.match(html,/id="bas-community-feature-toggle"/);
 });

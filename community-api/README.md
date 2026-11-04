@@ -1,6 +1,6 @@
 # BAS Community — P15.3 secure API foundation
 
-Status: implemented and testable offline, NOT deployed. The Cloudflare account currently has no D1 databases; R2 returns HTTP 403 asking to enable R2 in the Cloudflare Dashboard. Never enable R2 or billing automatically.
+Status: code tested locally; **private D1 staging database now provisioned at Cloudflare**, with migrations 0001, 0002 and 0003 applied. No Worker or file uploads deployed. R2 returns HTTP 403 asking to enable its subscription in the dashboard; do not activate R2 or billing automatically.
 
 ## Contents
 
@@ -95,3 +95,15 @@ Tests: tests/zip-preflight.test.mjs and tests/test_upload_policy.py cover safety
 
 Run from community-api: node --test tests/*.test.mjs
 Run database tests: PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_*.py'
+
+## Cloudflare D1 staging created (2026-11-04)
+
+The real Cloudflare database named **bas-community-staging** now exists on the account's D1 free allocation. Three schema migrations were applied via the Cloudflare D1 REST API and verified remotely: **11 tables, 10 triggers, 27 indices, zero users and zero reserved/used storage bytes**. This database is private and has **no deployed Worker or public endpoint**. It is not the local SQLite database.
+
+On the user's Moto G75, an ignored `community-api/wrangler.jsonc` file contains the actual D1 staging UUID; it has permissions 0600 and is not committed to GitHub. The public `wrangler.example.jsonc` retains an invalid placeholder UUID. Keep this separation: no real user data, secrets or working deployment config in the public repository.
+
+**Migration ledger warning:** the Cloudflare schema was applied directly via REST, not through `wrangler d1 migrations apply --remote`. Do not assume Wrangler's migration tracking is synchronized or blindly rerun migrations. Inspect remote schema and reconcile migration ledger before making further schema changes.
+
+**R2 is NOT enabled.** Cloudflare's official onboarding requires an R2 subscription checkout, even though Standard storage includes a free monthly allowance. Usage above the allowance can be billed. Before enabling, the owner must independently review the checkout and explicitly approve any payment method or recurring/usage-based costs. No paid plan, bucket or billing settings were changed.
+
+**P15.5 local image crop refinement:** after choosing profile/banner JPG, PNG or WebP, users can reposition the original image by dragging, adjust zoom from 100% to 350%, recenter, cancel, and only then save a bounded WebP preview on a local canvas. Avatar output is 512×512; banner 1280×480. The source object URL is revoked after confirmation/cancel; source images stay in the browser and are not uploaded. This is not persistent profile storage or a production media-processing service.

@@ -73,9 +73,9 @@ Run `node --test tests/community-preview.test.cjs`; then test the manual toggle,
 
 - **P15.1 — DONE**: Hidden Developer Lab feature flag and local Community UI foundation.
 - **P15.2 — DONE as visual prototype**: Responsive gallery, search, mock animation details, illustrated creator profile pages with banner/avatar/bio, local demo favorites/following.
-- **P15.3 — IN PROGRESS**: Worker API, D1 schema, private R2 readiness, fail-closed permissions, staging-only configuration, budget constraints and tests. No Cloudflare deployment yet; R2 activation requires separate approval.
-- **P15.4 — NEXT**: Account provider decision, OAuth with PKCE/state, secure sessions, real creator profiles and privacy controls.
-- **P15.5**: Private file staging, ZIP hardening, previews, atomic storage quotas, uploads.
+- **P15.3 — STAGING DATABASE READY**: Worker API and D1 schema; private D1 `bas-community-staging` provisioned on Cloudflare's free allocation with all 3 migrations. Worker not deployed; R2 activation still requires separate billing/owner approval.
+- **P15.4 — LOCAL CODE + TESTS DONE**: guarded GitHub OAuth PKCE, test sessions, local profile editor; real OAuth/provider credentials, HTTPS domains and public users still blocked.
+- **P15.5 — PARTIAL**: offline ZIP validation and atomic quota schema tested, plus drag-to-crop/zoom local avatar and banner; R2 storage, real uploads, server media validation and moderation still blocked.
 - **P15.6**: Publishing from editor, existing ZIP and connected Companion; editable projects and author reuse rights.
 - **P15.7**: Public approved-only gallery, downloads, revisions and editor integration.
 - **P15.8**: Moderator dashboard, approval queue, authorization and audit trails.
@@ -106,3 +106,11 @@ P15.3 loopback adapter: community-api/dev-server.mjs provides a Node.js localhos
 - Node-only staging ZIP verifier checks compressed/uncompressed size, file names and paths, encrypted/ZIP64/symlink/malicious overlap, CRC, basic desc.txt, frame image signatures and ratio limits.
 - Atomic SQLite/D1 upload reservation triggers budget guardrails. Still no public upload endpoint and R2 remains disabled.
 - P15.5 is PREPARATORY: production uploading and storing user profile media require authorized R2 access, full image decode, stronger preview validation, authentication and moderation.
+
+## Cloudflare actual staging + crop interaction (2026-11-04)
+
+- Created a **private Cloudflare D1 staging database** using the Free allocation; successfully applied migrations 0001, 0002, 0003. Remote verification: 11 tables, 10 triggers, 27 indices, 0 user accounts. No production connection, Worker deployment, uploaded binaries or published endpoint.
+- Real D1 database UUID is stored only in Termux under ignored `community-api/wrangler.jsonc` mode 0600; public example continues to use a placeholder. Remote migrations were applied via REST API (Wrangler migration ledger may need reconciliation).
+- R2 is **not activated**. Cloudflare currently requires an R2 subscription checkout, with free included usage but potential billing above quota. Owner must approve checkout/payment terms before proceeding; no silent activation.
+- Both profile-avatar and profile-banner selection now open a **mobile-friendly image-crop dialog**. Users can drag the image, adjust zoom from 100–350%, recenter, cancel without overwriting their old photo, and confirm the recrop to a temporary browser-only WebP object URL. Source photos are never transmitted.
+- Public BAS main remains untouched and all real upload routes remain disabled.
