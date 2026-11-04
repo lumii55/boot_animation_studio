@@ -1,116 +1,66 @@
-# P15 — BAS Community
+# BAS Community — P15
 
-Development status: **P15.3 backend scaffold prepared**, not deployed. P15.1 Developer Lab preview and P15.2 interactive gallery/creator profiles are implemented as local demos. There are still no live accounts, uploads, public releases, paid services or Discord integrations.
+> Roadmap consolidado em 2026-11-04: **9 etapas no total**, P15.1–P15.9, substituindo o plano antigo de 14 etapas. Fonte única de verdade para o trabalho futuro. Os marcos históricos P15.1–P15.5 não serão renumerados.
 
-## Non-negotiable project rules
+## Estado atual
 
-- All community features are free for users. Core editor, browsing, downloading and applying never require a community account.
-- Publishing and commenting require an account. Follow/likes/favorites/ratings are tied to authenticated identity when syncing between devices.
-- Until owner approval for launch, Community is hidden by default. The Developer Lab's **Tools & Logs** checkbox controls a per-browser display preference. The site also requires Developer Lab to be active in that session. This local state is *not* access control.
-- All privileged API functions will fail closed server-side until authorized in staging. Production release requires deliberate enablement.
-- Keep existing BAS editor and v1.4 Companion compatible. Do not change module code unless compatibility testing proves it necessary.
-- Default to **US$0/month** while prototyping. Do not enable paid Cloudflare plans/products without explicit permission. Server-enforced uploads/space limits, telemetry and safe automatic upload suspension are required before any public operations. Billing alerts alone are not a hard spending cap.
-- Minimize revisions: build, test and review a complete stage before committing, rather than scattering tiny unrelated fixes.
+- **P15.1–P15.2 — protótipos de interface prontos:** Developer Lab oculto, galeria de demonstração, busca, filtros, detalhes, perfis ilustrados e opções de publicação simuladas.
+- **P15.3 — fundação de API e banco pronta para staging:** Cloudflare D1 `bas-community-staging` criado de verdade, com migrações 0001–0003 aplicadas via API. Worker ainda não publicado; catálogo desligado.
+- **P15.4 — autenticação preparada, não ativada:** GitHub OAuth com PKCE, sessões e proteção CSRF testados localmente; ainda faltam aplicativo OAuth real, credenciais, topologia HTTPS compatível e autorização para abrir contas.
+- **P15.5 — preparação parcial:** validação de ZIP e cotas implementadas/testadas localmente; seletor e recorte de fotos/banners no navegador. **R2 já foi ativado pela proprietária** e o bucket privado `bas-community-staging` (classe Standard) foi criado. O binding `PRIVATE_UPLOADS` está no `wrangler.jsonc` privado do Termux, não no repositório. **Não há uploads reais, Worker público nem imagens persistidas.**
+- **Próxima etapa: P15.6.** Os quatro próximos marcos são grandes entregas integradas, não pequenas revisões. A implementação ainda exige integração, segurança e aceite antes do lançamento.
 
-## Planned work, in order, all within P15
+## Novo roadmap — apenas 4 etapas restantes
 
-### A — Foundation
-- Developer Lab toggle, isolated Community UI shell, localization and accessibility.
-- Initial regression coverage ensuring disabled-by-default and no effect on editor, Companion, or public v1.4.
-- Later: design D1 schemas, API contracts, staging-only infrastructure and authentication provider after reviewing options/costs with owner.
+### P15.6 — Contas reais + publicação integral (privado)
 
-### B — Gallery and publishing
-- Explore/search/category, rich previews, metadata, public creator profiles and free downloads.
-- Three publishing entry points: immediately after editor export; choose an existing bootanimation.zip; pull the currently installed animation from an authorized connected Companion, with preview and affirmative upload confirmation.
-- Optional editable project uploads with author permissions; original credit/license metadata.
-- Quarantine ZIPs; enforce file/entry count, decompression ratio, mime/format, structure and path checks; review generated previews safely.
-- Every new or revised ZIP enters moderation; a new revision never silently overwrites a publicly approved release.
-- Explicit consent before apply/install; old module remains supported.
+**Um fluxo completo, não login e upload separados.**
+- Finalizar autenticação real, perfis persistentes e personalização de avatar/banner com processamento seguro de imagens no servidor; credenciais e configuração HTTPS somente após autorização.
+- Integrar D1 + R2 privado com quotas rígidas por usuário e globais, reservas atômicas, verificação do consumo real e mecanismos para suspender uploads antes de excedentes; não depender de alertas de faturamento.
+- Publicar por três caminhos equivalentes: (1) diretamente após edição/exportação no BAS, (2) `bootanimation.zip` existente, (3) Companion conectado, com autorização explícita do dispositivo e compatibilidade preservada.
+- Validar conteúdo do ZIP, limites de expansão, estrutura, formatos e prévias; colocar arquivos em **quarentena privada**, com versionamento e atribuição/licença do autor. Suportar projeto editável quando o autor autorizar.
+- Entrega aceita somente com contas e arquivos de teste em staging; **nenhum upload ou objeto fica público**.
 
-### C — Community governance
-- Account-only plaintext comments; no HTML/images/GIFs/attachments/clickable links. Sanitized display, posting limits, abuse detection and reports.
-- Moderation dashboard: latest uploads, pending and rejected, reported content, appeals/history, author and audit records.
-- Discord bot: DM new queue entries/reports with description, preview, metadata and actions to approve/reject/hide/keep; link to a **moderator-authenticated download route**, not a permanent public ZIP URL. Verify Discord interaction signatures and allowlist moderator Discord IDs. All decisions transactionally idempotent in backend. Provide fallback dashboard if DM delivery fails.
-- Reports, abuse prevention, takedown processes and retention/privacy policy.
+### P15.7 — Moderação integrada + catálogo real (privado até aprovação)
 
-### D — Social extras (still P15)
-- Likes, synced favorites, ratings, rankings, follow creators, social notifications and spam protections.
-- Build after the main gallery is stable; do not defer to a new numbered phase.
+**A publicação só aparece após revisão.**
+- Painel administrativo para fila, aprovação, rejeição, ocultação, denúncias, recursos, registros e auditoria de decisões; autenticação robusta e verificação de permissões no servidor.
+- Bot Discord para avisos por DM e ações de moderação, validação da assinatura das interações, IDs de moderadores autorizados, ações idempotentes e acesso privado temporário a ZIPs; painel serve de alternativa se o bot falhar.
+- Galeria conectada a registros reais **aprovados**, com busca, filtros, perfis dos criadores, downloads gratuitos, revisões e integração com o editor e Companion.
+- Alterações de uma animação aprovada voltam à moderação sem substituir silenciosamente a versão pública anterior.
+- Continuação do beta sem abrir a comunidade indiscriminadamente; o acesso público ainda depende da P15.9.
 
-### E — Release validation
-- Browser/mobile/PWA smoke testing, ZIP safety and permission/security checks, staging restore/backup tests, no inadvertent billing, analytics/privacy review.
-- Confirm compatibility with public v1.4 and current development Companion.
-- P14 two-device HTTPS acceptance remains a separate postponed verification (do not force a Quest test during headache).
-- Owner explicitly authorizes Community's public release; only then expose navigation to all.
+### P15.8 — Recursos sociais completos + proteção antiabuso
 
-## How to try the first shell on this branch
+**Tudo integrado na mesma etapa.**
+- Comentários de texto puro (sem HTML, mídia e anexos), denúncias e revisão de conteúdo.
+- Curtidas, favoritos sincronizados, avaliação 1–5 estrelas, seguidores, notificações e classificação/rankings/descoberta.
+- Controles de spam e abuso, limites de postagem, opções de privacidade e recursos de moderação também para comentários e perfis.
+- Navegação e downloads permanecem gratuitos e sem login; contas exigidas apenas para publicar e participar das ações sociais.
 
-Enable the existing Developer Lab (7 taps on the BAS title). Open **Tools & Logs**; check **Show the Community preview**; click **Open gallery preview**. The new header Community button is visible only while Developer Lab is active and the local preference is enabled. Leaving Developer Lab disabled hides it even if an old opt-in is saved.
+### P15.9 — Auditoria integral + lançamento
 
-No upload, authentication, moderation, Discord or payment actions exist in this first shell. Do not mistake the mock gallery for an operating public platform.
+- Revisões de segurança e de permissões, testes reais no Android e navegadores/PWA, compatibilidade com o BAS público e Companion, restauração/backup/rollback, acessibilidade e desempenho.
+- Auditoria D1/R2, reconciliação das migrações aplicadas por REST com o controle do Wrangler, privacidade, direitos autorais e custos.
+- Conferir limite de consumo de storage **e de operações R2**: franquia gratuita não é uma garantia de cobrança zero. Se não houver segurança de custos, manter funcionalidades limitadas ou desabilitadas.
+- Somente após todos os testes e **aprovação explícita da proprietária** liberar a BAS Community ao público.
 
-## Test
+## Regras permanentes
 
-Run `node --test tests/community-preview.test.cjs`; then test the manual toggle, close/Escape, Portuguese localization, mobile layout and editor regression in a browser before merge.
+- Tudo que for compartilhado passa por moderação antes de aparecer publicamente.
+- Nenhum arquivo ZIP, dado de perfil ou conteúdo não aprovado deve ter URL pública direta. O bucket R2 continua privado, sem `r2.dev` nem domínio público.
+- Login não é obrigatório para explorar, baixar ou aplicar. Recursos sociais sincronizados e publicação usam conta.
+- Não colocar credenciais, IDs internos sensíveis, tokens ou dados pessoais no repositório público. Manter staging e produção isolados.
+- O editor BAS e o Companion existentes devem continuar compatíveis; não alterar o módulo sem necessidade técnica validada e autorização apropriada.
+- R2 Standard inclui franquia gratuita, mas a conta pode ser cobrada por uso excedente. **Não abrir consumo de terceiros nem remover limites sem consentimento**, e não prometer bloqueio financeiro absoluto sem mecanismo verificado.
+- Manter o Developer Lab como porta de entrada da prévia. Ele é controle visual, nunca autorização de servidor.
+- Preferir **uma entrega/commit por etapa grande**, com implementação e testes completos; correções adicionais somente quando justificadas.
 
-## P15.B preview UI update (2026-11-04)
+## Testes e prévia
 
-- Upgraded the former empty gallery shell to a responsive, accessible interactive mock gallery with eight clearly labeled **fictional** CSS-art animations.
-- Live local-only search, genre filters, sort order, creator directory, detail view, sample plaintext comments, session-only likes and favorites, and three publishing-path previews.
-- Choosing an existing ZIP displays filename and size locally only; no ZIP contents are transferred, no server requests or accounts are created. Download and apply actions are visibly disabled until an authorized backend exists.
-- The Developer Lab opt-in remains mandatory; ordinary site visitors see no Community navigation.
-- Regression tests cover experimental gating, gallery interaction, upload chooser, and non-communication with external services.
-- **Still pending:** real accounts, uploads, downloads, ZIP validation, moderation, Discord bot, persistence and social backend.
+No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-community-foundation`:
+- Galeria: `http://127.0.0.1:8088/` (Developer Lab: 7 toques no título BAS → Tools & Logs → ativar Community).
+- API local: `http://127.0.0.1:8788/v1/health`, somente leitura, uploads e autenticação desativados.
+- Testes: `node --test tests/community-preview.test.cjs`; em `community-api`, `node --test tests/*.test.mjs` e `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_*.py'`.
 
-## P15.B creator profile layout (2026-11-04)
-
-- Clicking a creator now opens a complete **fictional public profile** instead of only showing a username-filtered catalog: themed banner, illustrated profile image, display name, handle, editable-in-the-future bio fields, member-since label, sample follower/creation/like counts, a locally interactive Follow button, and the creator's animations below.
-- Profile artwork and avatars are bundled vector/CSS demo assets generated locally; no photos are uploaded and no social data is transmitted. Creator directory thumbnails use the same fictional illustrated avatars.
-- This is a **UI design only**. Future real profile photo and banner uploads must be consent-driven, authenticated, file size/type/EXIF-stripped and moderated or reportable; bios and image metadata need safe text handling. Authenticated follow relationships are not implemented yet.
-- All other gallery layout and the original BAS editor remain unchanged.
-
-## Official 14-milestone development contract (agreed 2026-11-04)
-
-- **P15.1 — DONE**: Hidden Developer Lab feature flag and local Community UI foundation.
-- **P15.2 — DONE as visual prototype**: Responsive gallery, search, mock animation details, illustrated creator profile pages with banner/avatar/bio, local demo favorites/following.
-- **P15.3 — STAGING DATABASE READY**: Worker API and D1 schema; private D1 `bas-community-staging` provisioned on Cloudflare's free allocation with all 3 migrations. Worker not deployed; R2 activation still requires separate billing/owner approval.
-- **P15.4 — LOCAL CODE + TESTS DONE**: guarded GitHub OAuth PKCE, test sessions, local profile editor; real OAuth/provider credentials, HTTPS domains and public users still blocked.
-- **P15.5 — PARTIAL**: offline ZIP validation and atomic quota schema tested, plus drag-to-crop/zoom local avatar and banner; R2 storage, real uploads, server media validation and moderation still blocked.
-- **P15.6**: Publishing from editor, existing ZIP and connected Companion; editable projects and author reuse rights.
-- **P15.7**: Public approved-only gallery, downloads, revisions and editor integration.
-- **P15.8**: Moderator dashboard, approval queue, authorization and audit trails.
-- **P15.9**: Discord bot DM moderation, private authenticated ZIP download and signature-verified interaction handlers.
-- **P15.10**: Text comments, reporting and abuse prevention.
-- **P15.11**: Likes, synced favorites and ratings.
-- **P15.12**: Following creators and notifications.
-- **P15.13**: Rankings, curated discovery and recommendations.
-- **P15.14**: Security, accessibility, compatibility, costs, backup/rollback, audit and owner's public release approval.
-
-**Zero-spend rule:** no new paid Cloudflare subscription, R2 enablement, billing setting or live upload route without explicit user authorization. A free D1 allocation or staging-only resource is not an excuse to accidentally expose unfinished code. The repository is public; source code may be inspected regardless of the frontend flag.
-
-P15.3 files live in the community-api directory. All mutating HTTP methods remain locked; public listing is also disabled by default. Localhost gallery at http://127.0.0.1:8088/ remains unchanged and has no API connection.
-
-P15.3 loopback adapter: community-api/dev-server.mjs provides a Node.js localhost-only HTTP bridge to the identical Worker read-only handler and real local SQLite migration; tests/local-server.test.mjs exercises API over HTTP with private-key redaction. No remote services or paid features enabled.
-
-## P15.4 login and profile editing — local development (2026-11-04)
-
-- Guarded GitHub OAuth PKCE S256 backend with one-time state, cookie binding, test-only provider mocks, 7-day HttpOnly hashed sessions, CSRF/Origin-checked profile writes and logout, private beta allowlist and rate limiting.
-- Added `0002_auth.sql` tables for OAuth transactions, sessions and hashed attempt buckets. Account identity is linked by GitHub immutable user ID, never guessed from a handle or display name.
-- Community sign-in button is temporarily **My Profile · Demo**: a local-only account/profile editor for username, display name, bio and preset banner/avatar theme, with escaped text and no account creation or data transmission.
-- **Explicitly pending and NOT complete:** real GitHub app credentials, real hosted D1, same-site HTTPS domain topology, tested registered redirect URI, privacy/consent checks, image uploads, server-to-frontend session integration. Until a deployment is authorized, all real sign-ins remain disabled.
-- Existing public BAS editor, Companion and standard gallery experience are untouched apart from the demo profile entry point.
-
-## P15.5 — guarded ZIP preflight and local customizable photos
-
-- Local-only profile avatar and banner selection supports JPG/PNG/WebP; browser resizes and crops to temporary object URLs, no sending or persistence. Image URL revoked on replacement/pagehide.
-- Node-only staging ZIP verifier checks compressed/uncompressed size, file names and paths, encrypted/ZIP64/symlink/malicious overlap, CRC, basic desc.txt, frame image signatures and ratio limits.
-- Atomic SQLite/D1 upload reservation triggers budget guardrails. Still no public upload endpoint and R2 remains disabled.
-- P15.5 is PREPARATORY: production uploading and storing user profile media require authorized R2 access, full image decode, stronger preview validation, authentication and moderation.
-
-## Cloudflare actual staging + crop interaction (2026-11-04)
-
-- Created a **private Cloudflare D1 staging database** using the Free allocation; successfully applied migrations 0001, 0002, 0003. Remote verification: 11 tables, 10 triggers, 27 indices, 0 user accounts. No production connection, Worker deployment, uploaded binaries or published endpoint.
-- Real D1 database UUID is stored only in Termux under ignored `community-api/wrangler.jsonc` mode 0600; public example continues to use a placeholder. Remote migrations were applied via REST API (Wrangler migration ledger may need reconciliation).
-- R2 is **not activated**. Cloudflare currently requires an R2 subscription checkout, with free included usage but potential billing above quota. Owner must approve checkout/payment terms before proceeding; no silent activation.
-- Both profile-avatar and profile-banner selection now open a **mobile-friendly image-crop dialog**. Users can drag the image, adjust zoom from 100–350%, recenter, cancel without overwriting their old photo, and confirm the recrop to a temporary browser-only WebP object URL. Source photos are never transmitted.
-- Public BAS main remains untouched and all real upload routes remain disabled.
+**Importante:** P15.1–P15.5 são histórico de progresso, não declarações de prontidão para lançamento. O R2 foi configurado, mas nenhum fluxo real de publicação foi liberado.
