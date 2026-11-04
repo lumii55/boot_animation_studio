@@ -158,6 +158,9 @@ function multiDevicePersist() {
 // but must never silently convert a verified secure bridge to plaintext.
 function multiDeviceRetainSecureTransport(previous, proposed) {
     if (!previous?.startsWith('https://') || !proposed?.startsWith('http://')) return proposed;
+    // A local HTTP address is only allowed after a successful loopback /info
+    // probe. Never invent an HTTPS localhost URL from an unverified candidate.
+    if (proposed === 'http://127.0.0.1:4040') return previous;
     const ip = multiDeviceIpFromBase(proposed);
     return ip ? `https://${ip}:4041` : previous;
 }
@@ -193,11 +196,15 @@ function multiDeviceUpsert(candidate) {
         };
         multiDeviceRuntime.devices.set(id, device);
     }
-    // Once this device uses verified HTTPS, an insecure discovery sweep must
-    // never silently downgrade it to plaintext. A new IP preserves HTTPS,
-    // deliberately requiring the user to verify any replacement certificate.
-    device.baseUrl = multiDeviceRetainSecureTransport(device.baseUrl, baseUrl);
-    device.ip = ip;
+    // A successful /info response from 127.0.0.1 proves this is the
+    // Companion on the current device, not a LAN discovery downgrade.
+    // Keep HTTPS pinned for all other discoveries; local loopback can use the
+    // dedicated HTTP-only-on-device listener, regardless of a stored HTTPS URL.
+    const verifiedLoopback = candidate.verifiedLoopback === true &&
+        baseUrl === 'http://127.0.0.1:4040' &&
+        info && Number.isInteger(Number(info.api_version));
+    device.baseUrl = verifiedLoopback ? baseUrl : multiDeviceRetainSecureTransport(device.baseUrl, baseUrl);
+    device.ip = multiDeviceIpFromBase(device.baseUrl);
     device.stableIdentity = id.startsWith('bc_');
     device.lastSeen = Date.now();
     if (info) {
@@ -248,7 +255,13 @@ function multiDeviceActiveSignal() {
 
 function multiDeviceApplyRecord(device) {
     if (!device) return;
+    // Switching the active route must not let a snapshot of the old globals
+    // overwrite a newly verified loopback route for this same bridge ID.
+    const selectedBaseUrl = device.baseUrl;
+    const selectedIp = device.ip;
     multiDeviceCaptureGlobals();
+    device.baseUrl = selectedBaseUrl;
+    device.ip = selectedIp;
     multiDeviceRotateRequestScope();
     multiDeviceRuntime.activeId = device.id;
     IP_LOCAL = device.baseUrl;
@@ -270,7 +283,9 @@ function multiDeviceApplyRecord(device) {
 
 function multiDevicePrepareBase(baseUrl, info = null) {
     const normalized = multiDeviceNormalizeBaseUrl(baseUrl);
-    const device = multiDeviceUpsert({ baseUrl: normalized, info });
+    // This path is reached only after a successful loopback /info probe.
+    const device = multiDeviceUpsert({ baseUrl: normalized, info,
+        verifiedLoopback: normalized === 'http://127.0.0.1:4040' });
     if (!device) return null;
     multiDeviceApplyRecord(device);
     return device;
@@ -378,7 +393,8 @@ async function multiDeviceProbeIP(ip, timeout = 850) {
         if (response.ok) {
             const info = await response.json().catch(() => null);
             if (info && Number.isInteger(Number(info.api_version))) {
-                const device = multiDeviceUpsert({ baseUrl, info });
+                const device = multiDeviceUpsert({ baseUrl, info,
+                    verifiedLoopback: ip === '127.0.0.1' });
                 return device ? { ...device, token: device.token } : null;
             }
         }
@@ -469,6 +485,11 @@ async function multiDeviceScan(options = {}) {
 
     const exactSet = new Set(exact);
     const found = [];
+    // Always offer the on-device Companion, even when all LAN probes fail.
+    // The loopback route remains usable on this phone after remote HTTP was
+    // intentionally removed in P14.12.
+    const onDevice = await multiDeviceProbeIP('127.0.0.1', 1100);
+    if (onDevice) found.push(onDevice);
     for (const ip of exact) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
         const device = await multiDeviceProbeIP(ip, 1100);
