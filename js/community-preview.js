@@ -91,12 +91,20 @@
     profileWorksTitle:'Animações do criador', profileWorksDesc:'Todas as criações de demonstração deste perfil.',
     profileBack:'Todos os criadores', profileFollowNote:'O botão Seguir funciona apenas nesta prévia, sem conta ou notificações.',
 
+    publishPrep:'Rascunho de publicação · prévia',publishName:'Título da animação',publishLicense:'Licença',
+    publishConsent:'Tenho o direito de compartilhar esta animação',publishCheck:'Conferir rascunho',
+    publishReady:'Rascunho conferido. A publicação real depende de login e aprovação, e ainda está desligada.',
+    publishNeed:'Adicione um título (3–100 caracteres), confirme os direitos e, para ZIP, escolha um arquivo válido.',
+    publishEditorNote:'O editor usará o arquivo exportado quando a conexão for habilitada.',
+    publishCompanionNote:'A publicação pelo Companion exigirá pareamento seguro e confirmação no dispositivo.',
+    publishZipNote:'Escolha um bootanimation.zip de até 20 MB.',publishDemoNote:'Nenhum dado será enviado neste teste.',
+    publishChoose:'Selecionar',
     uploadTitle:'Como você quer publicar?', uploadDesc:'Três formas de compartilhar sua animação. Nenhum arquivo será enviado nesta prévia.',
     fromEditor:'Pelo editor', editorText:'Publicar assim que terminar e exportar uma animação no Studio.',
     fromZip:'Enviar arquivo ZIP', zipText:'Selecionar um bootanimation.zip que você já possui.',
     fromDevice:'Do celular conectado', deviceText:'Selecionar a animação aplicada, com sua autorização.',
     chooseZip:'Escolher ZIP local', zipHint:'Apenas conferência local do nome e tamanho. Nenhum upload acontece.',
-    selectedFile:'Arquivo selecionado (somente local)', overLimit:'Para esta prévia, escolha um ZIP de até 25 MB.',
+    selectedFile:'Arquivo selecionado (somente local)', overLimit:'Para esta prévia, escolha um ZIP de até 20 MB.',
     wrongType:'Selecione um arquivo .zip.', fileReady:'Nenhum dado foi enviado ao servidor.',
     comingSoon:'Disponível em uma próxima etapa da P15.', close:'Fechar',
     login:'Entrar', accountSoon:'Contas ainda não estão disponíveis nesta prévia.',
@@ -156,12 +164,20 @@
     profileWorksTitle:'Creator animations', profileWorksDesc:'All sample creations by this creator.',
     profileBack:'All creators', profileFollowNote:'Following works only in this preview, without accounts or notifications.',
 
+    publishPrep:'Publication draft · preview',publishName:'Animation title',publishLicense:'License',
+    publishConsent:'I have permission to share this animation',publishCheck:'Check draft',
+    publishReady:'Draft checked. Actual publishing needs sign-in and approval and is still disabled.',
+    publishNeed:'Add a title (3–100 chars), confirm rights and, for ZIP, choose a valid file.',
+    publishEditorNote:'The editor will provide the exported animation when this connection is enabled.',
+    publishCompanionNote:'Companion publishing will require secure pairing and explicit device confirmation.',
+    publishZipNote:'Select a bootanimation.zip up to 20 MB.',publishDemoNote:'Nothing will be uploaded during this test.',
+    publishChoose:'Select',
     uploadTitle:'How would you like to publish?', uploadDesc:'Three ways to share your animation. No files will be uploaded in this preview.',
     fromEditor:'From the editor', editorText:'Publish after exporting your animation in Studio.',
     fromZip:'Upload ZIP file', zipText:'Choose an existing bootanimation.zip.',
     fromDevice:'From connected phone', deviceText:'Choose the installed animation with your permission.',
     chooseZip:'Choose local ZIP', zipHint:'Local filename and size check only. No uploading.',
-    selectedFile:'Selected file (local only)', overLimit:'For this preview, choose a ZIP under 25 MB.',
+    selectedFile:'Selected file (local only)', overLimit:'For this preview, choose a ZIP under 20 MB.',
     wrongType:'Please choose a .zip file.', fileReady:'Nothing has been sent to a server.',
     comingSoon:'Coming in a later P15 milestone.', close:'Close',
     login:'Sign in', accountSoon:'Accounts are not available in this preview.',
@@ -199,7 +215,7 @@
     route:'explore', cat:'all', sort:'latest', search:'', modal:null,
     favorite:new Set(), liked:new Set(), followed:new Set(), creator:null, zipState:null,
     demoProfile:{handle:'creator_demo',display_name:'Meu cantinho',bio:'Animando cada inicialização com carinho. ✧',theme:'moon'},
-    profileDraft:null, profileSaved:false,photoUrls:{avatar:null,banner:null},imageJob:{avatar:0,banner:0},crop:null
+    profileDraft:null, profileSaved:false,photoUrls:{avatar:null,banner:null},imageJob:{avatar:0,banner:0},crop:null,publishDraft:{source:'zip',title:'',license:'CC-BY-4.0',rights:false,filename:null,size:0,ready:false}
   };
   let inMemory = false, lastFocus = null, bound = false, previousTitle = null;
   const byId = id => document.getElementById(id);
@@ -397,15 +413,34 @@
       '</div></div></div></section></div>';
   }
   function upload() {
+    const d=state.publishDraft;
+    const sources=[['editor','✦','fromEditor','editorText'],['zip','⇧','fromZip','zipText'],['companion','▣','fromDevice','deviceText']];
+    const cards=sources.map(([key,symbol,label,description])=>
+      '<div class="bas-c-upload-option'+(key===d.source?' is-selected':'')+'"><span>'+symbol+'</span>'+
+      '<strong>'+safe(tr(label))+'</strong><p>'+safe(tr(description))+'</p>'+
+      '<button type="button" class="bas-c-publish-source" data-c-action="publish-source" data-source="'+key+
+      '" aria-pressed="'+String(key===d.source)+'">'+safe(tr('publishChoose'))+'</button>'+
+      (key==='zip'?'<label class="bas-c-file-label" for="bas-c-zip-input">'+safe(tr('chooseZip'))+'</label>'+
+       '<input type="file" id="bas-c-zip-input" accept=".zip,application/zip" hidden>'+
+       '<small>'+safe(tr('zipHint'))+'</small>'+
+       '<p class="bas-c-zip-result" id="bas-c-zip-result" aria-live="polite">'+
+       (d.filename?safe(tr('selectedFile')+': '+d.filename):'')+'</p>':'')+
+      '</div>').join('');
+    const note=d.source==='editor'?'publishEditorNote':d.source==='companion'?'publishCompanionNote':'publishZipNote';
     return '<div class="bas-c-modal-backdrop" data-c-action="dismiss"><section role="dialog" aria-modal="true" aria-labelledby="bas-c-upload-title" class="bas-c-modal bas-c-upload">'+
-      '<div class="bas-c-modal-top"><span class="bas-c-kicker">'+safe(tr('beta'))+'</span><button type="button" class="bas-c-roundclose" data-c-action="dismiss" aria-label="'+safe(tr('close'))+'">×</button></div>'+
+      '<div class="bas-c-modal-top"><span class="bas-c-kicker">'+safe(tr('beta'))+' · P15.6</span><button type="button" class="bas-c-roundclose" data-c-action="dismiss" aria-label="'+safe(tr('close'))+'">×</button></div>'+
       '<h2 id="bas-c-upload-title">'+safe(tr('uploadTitle'))+'</h2><p>'+safe(tr('uploadDesc'))+'</p>'+
-      '<div class="bas-c-upload-options">'+
-      '<div class="bas-c-upload-option"><span>✦</span><strong>'+safe(tr('fromEditor'))+'</strong><p>'+safe(tr('editorText'))+'</p><small>'+safe(tr('comingSoon'))+'</small></div>'+
-      '<div class="bas-c-upload-option bas-c-upload-option--zip"><span>⇧</span><strong>'+safe(tr('fromZip'))+'</strong><p>'+safe(tr('zipText'))+'</p>'+
-      '<label class="bas-c-file-label" for="bas-c-zip-input">'+safe(tr('chooseZip'))+'</label><input type="file" id="bas-c-zip-input" accept=".zip,application/zip" hidden>'+
-      '<small>'+safe(tr('zipHint'))+'</small><p class="bas-c-zip-result" id="bas-c-zip-result" aria-live="polite"></p></div>'+
-      '<div class="bas-c-upload-option"><span>▣</span><strong>'+safe(tr('fromDevice'))+'</strong><p>'+safe(tr('deviceText'))+'</p><small>'+safe(tr('comingSoon'))+'</small></div></div></section></div>';
+      '<div class="bas-c-upload-options">'+cards+'</div>'+
+      '<div class="bas-c-publish-draft"><strong>'+safe(tr('publishPrep'))+'</strong><p>'+safe(tr(note))+'</p>'+
+      '<div class="bas-c-publish-fields"><label for="bas-c-publish-title">'+safe(tr('publishName'))+
+      '<input id="bas-c-publish-title" type="text" maxlength="100" autocomplete="off" value="'+safe(d.title)+'"></label>'+
+      '<label for="bas-c-publish-license">'+safe(tr('publishLicense'))+
+      '<select id="bas-c-publish-license">'+['CC0-1.0','CC-BY-4.0','CC-BY-SA-4.0','all-rights-reserved'].map(k=>
+      '<option value="'+k+'"'+(d.license===k?' selected':'')+'>'+safe(k)+'</option>').join('')+'</select></label></div>'+
+      '<label class="bas-c-publish-rights"><input type="checkbox" id="bas-c-publish-rights"'+(d.rights?' checked':'')+'> '+safe(tr('publishConsent'))+'</label>'+
+      '<div class="bas-c-publish-footer"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="publish-check">'+safe(tr('publishCheck'))+'</button>'+
+      '<p id="bas-c-publish-status" aria-live="polite">'+safe(tr(d.ready?'publishReady':'publishDemoNote'))+'</p></div>'+
+      '</div></section></div>';
   }
 
   /* No identity is created by this UI. It is a local interactive profile design tool. */
@@ -791,6 +826,23 @@
     if (action==='close') { close(); return; }
     if (action==='detail') { openModal('detail',id); return; }
     if (action==='upload') { openModal('upload'); return; }
+    if(action==='publish-source' && state.modal?.type==='upload'){
+      const value=element.dataset.source;
+      if(['editor','zip','companion'].includes(value)){
+        state.publishDraft.source=value;
+        state.publishDraft.ready=false;
+        modalRender();
+      }
+      return;
+    }
+    if(action==='publish-check' && state.modal?.type==='upload'){
+      const d=state.publishDraft;
+      d.ready=d.rights && d.title.trim().length>=3 && d.title.trim().length<=100 &&
+        !/[<>\x00-\x1f]/.test(d.title) && (d.source!=='zip'||(d.filename&&d.size>0&&d.size<=20*1024*1024));
+      const status=byId('bas-c-publish-status');
+      if(status)status.textContent=tr(d.ready?'publishReady':'publishNeed');
+      return;
+    }
     if (action==='signin') { state.profileDraft={...state.demoProfile}; openModal('account'); return; }
     if (action==='remove-photo' && state.modal?.type==='account') { clearLocalPhoto(element.dataset.photo); return; }
     if (action==='creator') {
@@ -827,6 +879,9 @@
     }
   }
   function onInput(event) {
+    if(event.target?.id==='bas-c-publish-title'&&state.modal?.type==='upload'){
+      state.publishDraft.title=String(event.target.value);state.publishDraft.ready=false;return;
+    }
     if (event.target?.id==='bas-c-crop-zoom'&&state.crop) {setCropZoom(event.target.value);return;}
     if (demoInput(event)) return;
     if (event.target?.id==='bas-c-search') {
@@ -835,6 +890,14 @@
     }
   }
   function onChange(event) {
+    if(state.modal?.type==='upload'){
+      if(event.target?.id==='bas-c-publish-rights'){
+        state.publishDraft.rights=Boolean(event.target.checked);state.publishDraft.ready=false;return;
+      }
+      if(event.target?.id==='bas-c-publish-license'){
+        state.publishDraft.license=String(event.target.value);state.publishDraft.ready=false;return;
+      }
+    }
     if (demoInput(event)) return;
     const t=event.target;
     if(state.modal?.type==='account' && (t?.id==='bas-c-avatar-file'||t?.id==='bas-c-banner-file')){
@@ -845,8 +908,10 @@
       const file=t.files?.[0];
       const output=byId('bas-c-zip-result');
       if(!file||!output)return;
-      const valid=/\.zip$/i.test(file.name) && file.size<=25*1024*1024 && file.size>0;
-      const note=!/\.zip$/i.test(file.name)?tr('wrongType'):file.size>25*1024*1024?tr('overLimit'):tr('fileReady');
+      const valid=/\.zip$/i.test(file.name) && file.size<=20*1024*1024 && file.size>0;
+      const note=!/\.zip$/i.test(file.name)?tr('wrongType'):file.size>20*1024*1024?tr('overLimit'):tr('fileReady');
+      state.publishDraft.filename=valid?file.name:null;
+      state.publishDraft.size=valid?file.size:0;state.publishDraft.ready=false;
       output.textContent=tr('selectedFile')+': '+file.name+' · '+(file.size/1024/1024).toFixed(2)+' MB. '+note;
       output.classList.toggle('is-error',!valid);
     }
@@ -897,7 +962,7 @@
   }
   window.BASCommunityPreview=Object.freeze({
     version:2,enabled,open,close,sync,
-    state:()=>({optedIn:flag(),available:enabled(),open:!!byId('bas-community-preview')&&!byId('bas-community-preview').hidden,route:state.route,showcaseCount:SHOWCASE.length,profilePreview:{...state.demoProfile},customPhotos:{avatar:Boolean(state.photoUrls.avatar),banner:Boolean(state.photoUrls.banner)},cropEditing:state.crop?.kind||null,cropZoom:state.crop?.zoom||null})
+    state:()=>({optedIn:flag(),available:enabled(),open:!!byId('bas-community-preview')&&!byId('bas-community-preview').hidden,route:state.route,showcaseCount:SHOWCASE.length,profilePreview:{...state.demoProfile},customPhotos:{avatar:Boolean(state.photoUrls.avatar),banner:Boolean(state.photoUrls.banner)},cropEditing:state.crop?.kind||null,cropZoom:state.crop?.zoom||null,publishingPreview:{...state.publishDraft}})
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
   else bind();

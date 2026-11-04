@@ -323,6 +323,36 @@ test('publishing paths are presented but no upload occurs',()=>{
     assert.equal(script.includes('FormData('),false);
 });
 
+
+test('P15.6 publishing preview prepares all three paths without sending data',()=>{
+    const h=harness();
+    h.enable();h.window.BASCommunityPreview.open();h.click('upload');
+    assert.equal(h.window.BASCommunityPreview.state().publishingPreview.source,'zip');
+    assert.match(h.element('bas-c-modal-host').innerHTML,/id="bas-c-publish-title"/);
+    assert.match(h.element('bas-c-modal-host').innerHTML,/id="bas-c-publish-rights"/);
+    assert.match(h.element('bas-c-modal-host').innerHTML,/Nenhum arquivo será enviado/);
+    h.click('publish-source',{source:'editor'});
+    assert.equal(h.window.BASCommunityPreview.state().publishingPreview.source,'editor');
+    assert.match(h.element('bas-c-modal-host').innerHTML,/arquivo exportado/);
+    const layer=h.element('bas-community-preview');
+    layer.emit('input',{target:{id:'bas-c-publish-title',value:'Minha Animação de Testes'}});
+    layer.emit('change',{target:{id:'bas-c-publish-rights',checked:true}});
+    h.click('publish-check');
+    assert.match(h.element('bas-c-publish-status').textContent,/Rascunho conferido/);
+    assert.equal(h.window.BASCommunityPreview.state().publishingPreview.ready,true);
+    h.click('publish-source',{source:'companion'});
+    assert.equal(h.window.BASCommunityPreview.state().publishingPreview.source,'companion');
+    assert.match(h.element('bas-c-modal-host').innerHTML,/pareamento seguro/);
+    h.click('publish-source',{source:'zip'});
+    h.element('bas-community-preview').emit('change',{
+        target:{id:'bas-c-zip-input',files:[{name:'test-boot.zip',size:800_000}]}
+    });
+    h.click('publish-check');
+    assert.match(h.element('bas-c-publish-status').textContent,/Rascunho conferido/);
+    assert.equal(script.includes('fetch('),false);
+    assert.equal(script.includes('XMLHttpRequest'),false);
+});
+
 test('disabling developer mode closes preview immediately',()=>{
     const h=harness();
     h.enable();h.window.BASCommunityPreview.open();
@@ -335,7 +365,7 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-d2/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-d2/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-e1/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-e1/);
     assert.match(html,/id="bas-community-feature-toggle"/);
 });

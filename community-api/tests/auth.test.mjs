@@ -72,6 +72,7 @@ test('auth disabled by default; configuration and site topology must be complete
   assert.equal(authConfigured({...environment(inst),AUTH_ENABLED:'false'}),false);
   assert.equal(authConfigured({...environment(inst),GITHUB_CLIENT_SECRET:''}),false);
   assert.equal(authConfigured({...environment(inst),AUTH_SITE_ORIGIN:'https://lumii55.github.io',AUTH_API_ORIGIN:'https://sample.workers.dev'}),false);
+  assert.equal(authConfigured({...environment(inst),AUTH_SITE_ORIGIN:'https://bas-preview.workers.dev',AUTH_API_ORIGIN:'https://bas-preview.workers.dev'}),true);
   const disabled=await call(req('/v1/auth/me'),environment(inst,{AUTH_ENABLED:'false'}));
   assert.equal(disabled.status,503);
   const publicWorker=await worker.fetch(req('/v1/uploads','POST'),environment(inst));

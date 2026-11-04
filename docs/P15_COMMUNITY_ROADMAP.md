@@ -8,7 +8,7 @@
 - **P15.3 — fundação de API e banco pronta para staging:** Cloudflare D1 `bas-community-staging` criado de verdade, com migrações 0001–0003 aplicadas via API. Worker ainda não publicado; catálogo desligado.
 - **P15.4 — autenticação preparada, não ativada:** GitHub OAuth com PKCE, sessões e proteção CSRF testados localmente; ainda faltam aplicativo OAuth real, credenciais, topologia HTTPS compatível e autorização para abrir contas.
 - **P15.5 — preparação parcial:** validação de ZIP e cotas implementadas/testadas localmente; seletor e recorte de fotos/banners no navegador. **R2 já foi ativado pela proprietária** e o bucket privado `bas-community-staging` (classe Standard) foi criado. O binding `PRIVATE_UPLOADS` está no `wrangler.jsonc` privado do Termux, não no repositório. **Não há uploads reais, Worker público nem imagens persistidas.**
-- **Próxima etapa: P15.6.** Os quatro próximos marcos são grandes entregas integradas, não pequenas revisões. A implementação ainda exige integração, segurança e aceite antes do lançamento.
+- **P15.6 — EM DESENVOLVIMENTO:** interface de publicação unificada, APIs autenticadas de rascunho e envio em quarentena privada implementadas/testadas localmente, mas sem login real ou uploads ativados. Pareamento Companion, mídias de perfil persistentes, infraestrutura pública segura e reconciliação R2 ainda pendentes.
 
 ## Novo roadmap — apenas 4 etapas restantes
 
@@ -64,3 +64,13 @@ No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-communi
 - Testes: `node --test tests/community-preview.test.cjs`; em `community-api`, `node --test tests/*.test.mjs` e `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_*.py'`.
 
 **Importante:** P15.1–P15.5 são histórico de progresso, não declarações de prontidão para lançamento. O R2 foi configurado, mas nenhum fluxo real de publicação foi liberado.
+
+## P15.6 — Motor integrado de publicações (2026-11-04)
+
+- Criada API de rascunhos autenticados, idempotência, autorização, CSRF, checagem de direitos, controle de cotas, verificação estrita do ZIP, escrita somente em quarentena R2 e evento na fila de aprovação.
+- Publicação via editor e arquivo ZIP compartilham o mesmo motor. Companion aparece como caminho na prévia, mas o servidor bloqueia até implementar pareamento real e autorização explícita do dispositivo.
+- Migração D1 0004 aplicada no staging real via REST. Banco verificado com 14 tabelas, 13 triggers, 36 índices e zero contas/publicações/bytes.
+- Interface da galeria permite escolher as três origens e preparar rascunho demonstrativo com título/licença/direitos sem qualquer chamada de rede.
+- Na nova versão, login poderá usar uma única origem HTTPS site+API, inclusive um hostname Worker, reduzindo a necessidade de domínio próprio. Não foi publicado e OAuth ainda não está ativado.
+- A P15.6 continua EM DESENVOLVIMENTO: faltam autenticação real (GitHub OAuth App e credenciais), uploads privados autorizados, armazenamento permanente de foto/banner com processamento seguro, pareamento Companion, recuperação/custo R2 e testes de lançamento.
+- Controles PUBLISH_ENABLED, PUBLISH_STAGING_APPROVED, STORAGE_ENABLED, UPLOAD_ENABLED seguem desativados. Nenhum Worker ou ZIP foi publicado e o bucket R2 real não recebeu objetos.

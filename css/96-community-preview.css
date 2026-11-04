@@ -557,3 +557,28 @@ body.bas-community-open{overflow:hidden}
   .bas-c-crop-actions-right .bas-c-button{flex:1;white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){.bas-c-crop-stage img{will-change:auto}}
+
+
+/* P15.6 — preview of the unified three-source publishing workflow. */
+.bas-c-upload-option.is-selected{border-color:rgba(184,154,255,.76);background:rgba(166,125,247,.12)}
+.bas-c-publish-source{display:inline-flex;align-items:center;justify-content:center;
+  min-height:30px;margin-top:5px;padding:5px 9px;border-radius:9px;
+  font-size:10px!important;font-weight:700!important;color:#e1d6fc!important;
+  border:1px solid rgba(190,168,251,.29);background:rgba(168,142,247,.09)}
+.bas-c-publish-source[aria-pressed="true"]{background:rgba(184,158,245,.24);color:#faf8ff!important}
+.bas-c-publish-draft{margin-top:17px;border-top:1px solid rgba(165,147,220,.22);padding:16px 2px 2px}
+.bas-c-publish-draft>strong{font-size:13px;color:#f1e9ff}
+.bas-c-publish-draft>p{font-size:11px;color:#b6c0d9;line-height:1.5;margin:6px 0 12px}
+.bas-c-publish-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.74fr);gap:11px}
+.bas-c-publish-fields label{font-size:11px;color:#d2c8ec;font-weight:700;display:grid;gap:7px}
+.bas-c-publish-fields input,.bas-c-publish-fields select{width:100%;min-width:0;
+  background:#1b2134;border:1px solid rgba(191,172,241,.25);color:#f4f0ff;
+  border-radius:9px;font:inherit;font-size:12px;padding:9px 10px;min-height:39px}
+.bas-c-publish-rights{display:flex;gap:9px;margin-top:13px;align-items:flex-start;
+  font-size:11px;color:#ccc2e4;line-height:1.5}
+.bas-c-publish-rights input{accent-color:#ae8eff;margin:2px 0 0}
+.bas-c-publish-footer{display:flex;align-items:center;gap:13px;margin-top:13px}
+.bas-c-publish-footer p{font-size:10px;color:#a6e0d1;line-height:1.5;margin:0}
+.bas-c-upload{max-height:min(92dvh,800px);overflow-y:auto}
+@media(max-width:750px){.bas-c-publish-fields{grid-template-columns:1fr}.bas-c-publish-footer{align-items:flex-start;flex-direction:column}
+  .bas-c-upload{max-height:95dvh}.bas-c-upload-options{gap:6px}}

@@ -1,9 +1,9 @@
 {
   "name": "bas-community-api",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
-  "description": "BAS Community P15.3 staging API",
+  "description": "BAS Community P15.6 guarded private publication pipeline",
   "engines": {
     "node": ">=20"
   },

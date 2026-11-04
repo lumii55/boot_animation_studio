@@ -12,7 +12,9 @@
     "AUTH_DEPLOYMENT_APPROVED": "false",
     "AUTH_PUBLIC_SIGNUP_APPROVED": "false",
     "UPLOAD_ENABLED": "false",
-    "STORAGE_ENABLED": "false"
+    "STORAGE_ENABLED": "false",
+    "PUBLISH_ENABLED": "false",
+    "PUBLISH_STAGING_APPROVED": "false"
   },
   "d1_databases": [
     {
@@ -20,6 +22,12 @@
       "database_name": "bas-community-staging",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PRIVATE_UPLOADS",
+      "bucket_name": "replace-only-in-private-staging-config"
     }
   ]
 }

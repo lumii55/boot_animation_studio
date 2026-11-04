@@ -107,3 +107,37 @@ On the user's Moto G75, an ignored `community-api/wrangler.jsonc` file contains 
 **R2 is NOT enabled.** Cloudflare's official onboarding requires an R2 subscription checkout, even though Standard storage includes a free monthly allowance. Usage above the allowance can be billed. Before enabling, the owner must independently review the checkout and explicitly approve any payment method or recurring/usage-based costs. No paid plan, bucket or billing settings were changed.
 
 **P15.5 local image crop refinement:** after choosing profile/banner JPG, PNG or WebP, users can reposition the original image by dragging, adjust zoom from 100% to 350%, recenter, cancel, and only then save a bounded WebP preview on a local canvas. Avatar output is 512×512; banner 1280×480. The source object URL is revoked after confirmation/cancel; source images stay in the browser and are not uploaded. This is not persistent profile storage or a production media-processing service.
+
+## P15.6 — Private publishing flow (tested offline; NOT DEPLOYED)
+
+The new files are src/publishing.mjs, src/worker-zip.mjs, migrations/0004_publishing.sql, tests/publishing.test.mjs and tests/test_publishing_schema.py.
+The real Cloudflare D1 staging database has migration 0004 applied via REST and now contains 14 tables, 13 triggers, 36 indices and ZERO users/uploads/reserved bytes.
+The actual R2 bucket remains private and EMPTY (no upload has been performed during these tests).
+
+### Fail-closed publishing gates
+
+The publishing API returns HTTP 503 unless ALL are explicitly enabled: PUBLISH_ENABLED=true, PUBLISH_STAGING_APPROVED=true, STORAGE_ENABLED=true, UPLOAD_ENABLED=true, and PUBLIC_CATALOG_ENABLED is not true.
+Additionally it requires a complete real AUTH_ENABLED + AUTH_DEPLOYMENT_APPROVED OAuth configuration, verified session, exact Origin, CSRF proof, D1 0001-0004 and a private R2 bucket with PRIVATE_UPLOADS binding.
+Every flag in the public example and the private Termux configuration remains FALSE. Do not enable before an operator-approved private staging acceptance test.
+
+### Endpoint contract (future private beta)
+
+- POST /v1/publishing/drafts : authenticated JSON for title, description, source, license, filename, exact byte count, rights confirmation and Idempotency-Key. Creates a D1 draft and 15-minute byte reservation transactionally.
+- PUT /v1/publishing/drafts/:id/zip : same author + session + CSRF; receives application/zip bytes and validates ZIP before private R2 quarantine write. Creates an unapproved version and moderation event. Does not publish.
+- POST /v1/publishing/drafts/:id/cancel : cancels an untouched draft and releases its quota.
+- GET /v1/publishing/drafts : lists safe metadata belonging to the authenticated author only. Never returns private R2 keys.
+- Editor export and existing ZIP share the same backend validation. Companion is blocked until real authenticated device pairing and explicit user permission exist; a checkbox is not proof of pairing.
+
+### ZIP validation and cost controls
+
+Archive admission: <=20 MiB ZIP, <=4 MiB per entry, <=64 MiB expanded total, <=480 entries/450 frames, max 80:1 entry compression ratio. Rejects traversal, duplicate names, symlinks, special files, ZIP64, encryption, data descriptors, unsupported extra fields and hidden data. Server uses bounded deflate-raw, CRC32, SHA256, image signatures and desc.txt structure.
+Admission is NOT malware scanning or a complete image decoder. No ZIP or image can become public until moderation and safe media processing are reviewed.
+Database quota reservations use the 8 GiB global ceiling plus per-user limits, and the app has a 10,000-operations/month R2 Class A counter. These limits DO NOT track the entire Cloudflare account and cannot guarantee zero charges. Before real traffic: cleanup of expired reservations, orphaned object reconciliation, image decoding, cost review and abuse controls.
+
+### Accounts and front end
+
+The GitHub OAuth implementation now permits a single exact HTTPS origin for site+API, avoiding a domain purchase solely for cookies. Cross-site GitHub Pages + workers.dev remains rejected. A real GitHub OAuth App, secure secrets, registered callback, consent/privacy and reviewed staging deployment are still required.
+The gallery's three-path publishing selector and title/license/rights editor are LOCAL UI previews only; the browser still makes zero network requests. Profile photo/banner storage remains a preview and must be connected to secure authenticated server media processing later in P15.6.
+
+Tests: cd community-api && node --test tests/*.test.mjs && PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_*.py'; also node --test tests/community-preview.test.cjs from the repository root.
+These tests use real local SQLite but a FAKE in-memory R2 adapter and fake OAuth identities; no real R2 put, remote OAuth call or public Worker deploy has occurred.

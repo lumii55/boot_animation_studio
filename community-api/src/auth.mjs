@@ -29,6 +29,8 @@ function checkedTopology(env) {
   const api = urlOrigin(env.AUTH_API_ORIGIN);
   const site = urlOrigin(env.AUTH_SITE_ORIGIN);
   if (!api || !site) return false;
+  // A single HTTPS origin is best: __Host- cookies stay first-party, even on workers.dev.
+  if (api.origin === site.origin && api.protocol === 'https:') return true;
   if (api.origin.startsWith('http://127.0.0.1') && site.origin.startsWith('http://127.0.0.1')) return true;
   if (api.protocol !== 'https:' || site.protocol !== 'https:') return false;
   const aparts = api.hostname.split('.'), sparts = site.hostname.split('.');
@@ -157,6 +159,18 @@ async function validateSession(request,env) {
   ).bind(hash,now()).first();
   return user?{user,token,hash,csrf:await hmac(env.AUTH_SESSION_SECRET,'csrf:'+token)}:null;
 }
+/* Only server-verified account identities can create private publications.
+ * Enforces a valid session, exact same-site Origin and its CSRF proof.
+ * Do not expose the session token or internal hashed credentials to handlers. */
+export async function verifyPublisher(request, env) {
+  if (!authConfigured(env)) return null;
+  if (request.headers.get('Origin') !== env.AUTH_SITE_ORIGIN) return null;
+  const current = await validateSession(request,env);
+  if (!current) return null;
+  if (!constantEquals(request.headers.get('X-CSRF-Token'),current.csrf)) return null;
+  return { userId: current.user.id, handle: current.user.handle };
+}
+
 async function recordLoginAttempt(request,env) {
   const ip=request.headers.get('CF-Connecting-IP')||'unknown';
   const windowStart=Math.floor(now()/900)*900;

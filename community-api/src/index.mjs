@@ -1,9 +1,10 @@
+import { handlePublishing, publishingReady } from './publishing.mjs';
 import { handleAuth, authConfigured } from './auth.mjs';
 /* BAS Community P15.3: read-only Worker API.
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
  * Never return R2 object keys, tokens, internal author IDs or pending submissions.
  */
-const API_VERSION = 'p15.5';
+const API_VERSION = 'p15.6';
 const MAX_PAGE_SIZE = 24;
 const MAX_OFFSET = 5000;
 const SORTS = Object.freeze({
@@ -143,6 +144,7 @@ export default {
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
     if (url.pathname.startsWith('/v1/auth/')) return handleAuth(request, env, url);
+    if (url.pathname.startsWith('/v1/publishing')) return handlePublishing(request, env, url);
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: headers(origin) });
     }
@@ -150,7 +152,7 @@ export default {
     if (url.pathname === '/v1/health') {
       return json({ service: 'bas-community', version: API_VERSION,
         mode: authConfigured(env) ? 'accounts_enabled' : 'read_only', catalog_available: catalogReady(env),
-        uploads_enabled: false, moderation_enabled: false }, 200, origin, head);
+        uploads_enabled: publishingReady(env), moderation_enabled: false }, 200, origin, head);
     }
     if (url.pathname === '/v1/catalog') return listCatalog(url, env, origin, head);
     const animationPath = /^\/v1\/animations\/([^/]+)$/.exec(url.pathname);
