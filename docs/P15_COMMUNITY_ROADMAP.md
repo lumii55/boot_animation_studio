@@ -52,3 +52,12 @@ No upload, authentication, moderation, Discord or payment actions exist in this 
 ## Test
 
 Run `node --test tests/community-preview.test.cjs`; then test the manual toggle, close/Escape, Portuguese localization, mobile layout and editor regression in a browser before merge.
+
+## P15.B preview UI update (2026-11-04)
+
+- Upgraded the former empty gallery shell to a responsive, accessible interactive mock gallery with eight clearly labeled **fictional** CSS-art animations.
+- Live local-only search, genre filters, sort order, creator directory, detail view, sample plaintext comments, session-only likes and favorites, and three publishing-path previews.
+- Choosing an existing ZIP displays filename and size locally only; no ZIP contents are transferred, no server requests or accounts are created. Download and apply actions are visibly disabled until an authorized backend exists.
+- The Developer Lab opt-in remains mandatory; ordinary site visitors see no Community navigation.
+- Regression tests cover experimental gating, gallery interaction, upload chooser, and non-communication with external services.
+- **Still pending:** real accounts, uploads, downloads, ZIP validation, moderation, Discord bot, persistence and social backend.
