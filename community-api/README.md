@@ -80,3 +80,18 @@ The UI at http://127.0.0.1:8088/ has a separate **My Profile · Demo** editor wi
 ### Tests
 
 Run `node --test tests/*.test.mjs` and `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p test_schema.py` from `community-api`. The OAuth tests simulate GitHub responses and never contact the real provider.
+
+## P15.5: private upload readiness, not yet receiving uploaded ZIPs
+
+This milestone adds src/zip-preflight.mjs (Node-only offline ZIP verifier) plus migrations/0003_upload_reservations.sql to enforce atomic budget reservations in D1/SQLite.
+Tests: tests/zip-preflight.test.mjs and tests/test_upload_policy.py cover safety policies, CRC integrity, over-compression and quota enforcement.
+
+- Admissible archives: at most 20 MiB ZIP, up to 800 entries/750 frames, only desc.txt and partN/ images, no symlinks, traversal, duplicate filenames, ZIP64, encryption, descriptors or unindexed bytes.
+- Data is decompressed with bounded Node zlib and checked for CRC, declared size and file signatures. Basic desc.txt dimensions, FPS and part references are validated. This is NOT complete malicious media scanning.
+- This staging library is NOT imported into the Cloudflare Worker and does NOT expose uploads. A production pipeline still requires image decoding, safe previews, compatibility tests and moderation.
+- D1 triggers enforce global 8 GiB budget, max 3 outstanding reservations per user and max 8 requests per day. Atomic status changes release or commit reserved bytes. Deleting files from R2 must have an audited reconciliation flow not present yet.
+- No R2 bucket, paid service, payment method, Cloudflare deployment or remote data was created.
+- Local profile photo and banner choices accept JPG/PNG/WebP. They are cropped and resized in the browser to image object URLs only (not persisted or transmitted), with source EXIF omitted on canvas export.
+
+Run from community-api: node --test tests/*.test.mjs
+Run database tests: PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_*.py'

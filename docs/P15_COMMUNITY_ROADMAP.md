@@ -99,3 +99,10 @@ P15.3 loopback adapter: community-api/dev-server.mjs provides a Node.js localhos
 - Community sign-in button is temporarily **My Profile · Demo**: a local-only account/profile editor for username, display name, bio and preset banner/avatar theme, with escaped text and no account creation or data transmission.
 - **Explicitly pending and NOT complete:** real GitHub app credentials, real hosted D1, same-site HTTPS domain topology, tested registered redirect URI, privacy/consent checks, image uploads, server-to-frontend session integration. Until a deployment is authorized, all real sign-ins remain disabled.
 - Existing public BAS editor, Companion and standard gallery experience are untouched apart from the demo profile entry point.
+
+## P15.5 — guarded ZIP preflight and local customizable photos
+
+- Local-only profile avatar and banner selection supports JPG/PNG/WebP; browser resizes and crops to temporary object URLs, no sending or persistence. Image URL revoked on replacement/pagehide.
+- Node-only staging ZIP verifier checks compressed/uncompressed size, file names and paths, encrypted/ZIP64/symlink/malicious overlap, CRC, basic desc.txt, frame image signatures and ratio limits.
+- Atomic SQLite/D1 upload reservation triggers budget guardrails. Still no public upload endpoint and R2 remains disabled.
+- P15.5 is PREPARATORY: production uploading and storing user profile media require authorized R2 access, full image decode, stronger preview validation, authentication and moderation.

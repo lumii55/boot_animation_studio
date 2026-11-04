@@ -50,6 +50,7 @@ export function createLocalServer(options = {}) {
   database.exec('PRAGMA foreign_keys=ON;');
   database.exec(readFileSync(join(here, 'migrations', '0001_initial.sql'), 'utf8'));
   database.exec(readFileSync(join(here, 'migrations', '0002_auth.sql'), 'utf8'));
+  database.exec(readFileSync(join(here, 'migrations', '0003_upload_reservations.sql'), 'utf8'));
   const env = {
     DB: databaseBinding(database),
     // Always disabled unless a developer deliberately opts in for local testing.

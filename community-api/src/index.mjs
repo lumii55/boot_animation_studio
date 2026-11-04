@@ -3,7 +3,7 @@ import { handleAuth, authConfigured } from './auth.mjs';
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
  * Never return R2 object keys, tokens, internal author IDs or pending submissions.
  */
-const API_VERSION = 'p15.4';
+const API_VERSION = 'p15.5';
 const MAX_PAGE_SIZE = 24;
 const MAX_OFFSET = 5000;
 const SORTS = Object.freeze({

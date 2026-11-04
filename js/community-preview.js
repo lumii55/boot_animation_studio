@@ -100,6 +100,14 @@
     wrongType:'Selecione um arquivo .zip.', fileReady:'Nenhum dado foi enviado ao servidor.',
     comingSoon:'Disponível em uma próxima etapa da P15.', close:'Fechar',
     login:'Entrar', accountSoon:'Contas ainda não estão disponíveis nesta prévia.',
+    demoAvatarPhoto:'Escolher foto de perfil',demoBannerPhoto:'Escolher foto de banner',
+    demoRemoveAvatar:'Remover foto',demoRemoveBanner:'Remover banner',
+    demoImageHint:'JPG, PNG ou WebP. Foto até 4 MB; banner até 8 MB. Cortados e reduzidos no navegador.',
+    demoImageWorking:'Preparando imagem com segurança...',demoImageUpdated:'Imagem aplicada somente nesta página, sem upload.',
+    demoImageInvalid:'Imagem inválida ou grande demais. Escolha JPG, PNG ou WebP dentro dos limites.',
+    demoImageDecodeFail:'Não consegui abrir esta imagem. Tente outra foto.',
+    demoAvatarAlt:'Foto personalizada de perfil (prévia local)',
+    demoBannerAlt:'Banner personalizado (prévia local)',
     demoAccountBtn:'Meu perfil · demo', demoAccountTitle:'Personalize seu perfil', demoAccountNote:'Prévia local, sem login real. As alterações ficam apenas nesta aba até você recarregar a página.',
     demoHandle:'Nome de usuário',demoName:'Nome de exibição',demoBio:'Biografia',demoTheme:'Estilo do banner',
     demoSave:'Salvar prévia',demoSaved:'Prévia atualizada nesta sessão!',demoInvalid:'Confira os campos: @usuário de 3 a 32 caracteres (letras, números e _), nome até 80 e bio até 500.',
@@ -153,6 +161,14 @@
     wrongType:'Please choose a .zip file.', fileReady:'Nothing has been sent to a server.',
     comingSoon:'Coming in a later P15 milestone.', close:'Close',
     login:'Sign in', accountSoon:'Accounts are not available in this preview.',
+    demoAvatarPhoto:'Choose profile photo',demoBannerPhoto:'Choose banner photo',
+    demoRemoveAvatar:'Remove photo',demoRemoveBanner:'Remove banner',
+    demoImageHint:'JPG, PNG or WebP. Avatar up to 4 MB; banner up to 8 MB. Cropped and resized in your browser.',
+    demoImageWorking:'Processing your image safely...',demoImageUpdated:'Image applied only to this page. Nothing uploaded.',
+    demoImageInvalid:'Invalid or oversized image. Choose JPG, PNG or WebP within the limits.',
+    demoImageDecodeFail:'Could not read this photo. Try another image.',
+    demoAvatarAlt:'Custom profile photo (local preview)',
+    demoBannerAlt:'Custom banner photo (local preview)',
     demoAccountBtn:'My profile · demo', demoAccountTitle:'Customize your profile', demoAccountNote:'Local preview, not a real sign-in. Changes remain only in this tab until you reload.',
     demoHandle:'Username',demoName:'Display name',demoBio:'Bio',demoTheme:'Banner style',
     demoSave:'Save preview',demoSaved:'Preview updated for this session!',demoInvalid:'Check the fields: username 3–32 letters, numbers or _, name up to 80, bio up to 500.',
@@ -175,7 +191,7 @@
     route:'explore', cat:'all', sort:'latest', search:'', modal:null,
     favorite:new Set(), liked:new Set(), followed:new Set(), creator:null, zipState:null,
     demoProfile:{handle:'creator_demo',display_name:'Meu cantinho',bio:'Animando cada inicialização com carinho. ✧',theme:'moon'},
-    profileDraft:null, profileSaved:false
+    profileDraft:null, profileSaved:false,photoUrls:{avatar:null,banner:null},imageJob:{avatar:0,banner:0}
   };
   let inMemory = false, lastFocus = null, bound = false, previousTitle = null;
   const byId = id => document.getElementById(id);
@@ -389,7 +405,7 @@
     const d=state.profileDraft||state.demoProfile;
     const avatarByTheme={moon:'Moonlit',neon:'Vanta',sakura:'Hanami',aurora:'Northlight'};
     const avatar=avatarByTheme[d.theme]||'Moonlit';
-    const sign='✦';
+    const photo=state.photoUrls;
     const choices=['moon','neon','sakura','aurora'].map(theme =>
       '<option value="'+theme+'"'+(theme===d.theme?' selected':'')+'>'+safe(tr('demoTheme'+theme[0].toUpperCase()+theme.slice(1)))+'</option>'
     ).join('');
@@ -406,20 +422,105 @@
       '<textarea id="bas-c-account-bio" name="bio" maxlength="500" rows="4">'+safe(d.bio)+'</textarea>'+
       '<label for="bas-c-account-theme">'+safe(tr('demoTheme'))+'</label>'+
       '<select id="bas-c-account-theme" name="theme">'+choices+'</select>'+
-      '<button class="bas-c-button bas-c-button--bright bas-c-account-save" type="submit">'+safe(tr('demoSave'))+'</button>'+
+      '<div class="bas-c-photo-inputs"><div><label class="bas-c-photo-pick" for="bas-c-avatar-file">✿ '+safe(tr('demoAvatarPhoto'))+'</label>'+
+      '<input id="bas-c-avatar-file" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">'+
+      '<button type="button" id="bas-c-account-remove-avatar" class="bas-c-photo-remove" data-c-action="remove-photo" data-photo="avatar" '+(photo.avatar?'':'disabled')+'>'+safe(tr('demoRemoveAvatar'))+'</button></div>'+
+      '<div><label class="bas-c-photo-pick" for="bas-c-banner-file">▧ '+safe(tr('demoBannerPhoto'))+'</label>'+
+      '<input id="bas-c-banner-file" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">'+
+      '<button type="button" id="bas-c-account-remove-banner" class="bas-c-photo-remove" data-c-action="remove-photo" data-photo="banner" '+(photo.banner?'':'disabled')+'>'+safe(tr('demoRemoveBanner'))+'</button></div></div>'+
+      '<p class="bas-c-photo-hint">'+safe(tr('demoImageHint'))+'</p>'+'<button class="bas-c-button bas-c-button--bright bas-c-account-save" type="submit">'+safe(tr('demoSave'))+'</button>'+
       '<p class="bas-c-account-status" id="bas-c-account-status" role="status" aria-live="polite">'+
       (state.profileSaved?safe(tr('demoSaved')):safe(tr('demoLoginNote')))+'</p></form>'+
       '<div class="bas-c-account-mock"><span class="bas-c-kicker">'+safe(tr('demoMine'))+'</span>'+
       '<div class="bas-c-profile" id="bas-c-account-card" data-theme="'+safe(d.theme)+'">'+
-      '<div class="bas-c-profile-cover" aria-label="'+safe(tr('coverPicture'))+'"><span class="bas-c-profile-cover__orb">✧</span>'+
+      '<div class="bas-c-profile-cover '+(photo.banner?'bas-c-has-photo':'')+'" aria-label="'+safe(tr('coverPicture'))+'">'+
+      '<img id="bas-c-account-banner-image" class="bas-c-account-cover-image" src="'+(photo.banner?safe(photo.banner):'')+'" '+(photo.banner?'':'hidden ')+'alt="'+safe(tr('demoBannerAlt'))+'">'+
+      '<span class="bas-c-profile-cover__orb">✧</span>'+
       '<span class="bas-c-profile-demo">'+safe(tr('profileDemo'))+'</span></div>'+
       '<div class="bas-c-profile-content"><div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
-      '<img class="bas-c-profile-avatar" id="bas-c-account-avatar" src="'+creatorAvatar(avatar)+'" alt="'+safe(tr('profilePicture'))+'" width="88" height="88">'+
+      '<img class="bas-c-profile-avatar" id="bas-c-account-avatar" src="'+(photo.avatar?safe(photo.avatar):creatorAvatar(avatar))+'" alt="'+safe(photo.avatar?tr('demoAvatarAlt'):tr('profilePicture'))+'" width="88" height="88">'+
       '<div class="bas-c-profile-nameblock"><h3 id="bas-c-account-display">'+safe(d.display_name)+'</h3>'+
       '<span id="bas-c-account-user">@'+safe(d.handle)+'</span></div></div></div>'+
       '<div class="bas-c-profile-bio"><strong>'+safe(tr('profileBio'))+'</strong><p id="bas-c-account-preview-bio">'+safe(d.bio)+'</p></div>'+
       '</div></div><p class="bas-c-account-disclaimer">'+safe(tr('demoAvatarNote'))+'</p></div></div></section></div>';
   }
+
+  /* Browser-only photo previews. Never transmit, persist or keep original EXIF.
+   * After validation, canvas exports a resized JPEG/WebP without source metadata.
+   * These object URLs live in memory and are revoked on replacement/reset/page unload. */
+  const IMAGE_LIMITS=Object.freeze({avatar:4*1024*1024,banner:8*1024*1024});
+  const IMAGE_TARGETS=Object.freeze({avatar:[512,512],banner:[1280,480]});
+  function imageMagic(bytes) {
+    if(bytes.length<12)return false;
+    if(bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';
+    if(bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';
+    if(String.fromCharCode(...bytes.slice(0,4))==='RIFF' && String.fromCharCode(...bytes.slice(8,12))==='WEBP')return 'image/webp';
+    return false;
+  }
+  function photoStatus(key) {
+    const el=byId('bas-c-account-status');
+    if(el)el.textContent=tr(key);
+  }
+  function disposeUrl(kind) {
+    const old=state.photoUrls[kind];
+    state.photoUrls[kind]=null;
+    if(old&&typeof URL!=='undefined'&&typeof URL.revokeObjectURL==='function')URL.revokeObjectURL(old);
+  }
+  function setLocalPhoto(kind,url) {
+    disposeUrl(kind);
+    state.photoUrls[kind]=url;
+    const cover=byId('bas-c-account-banner-image');
+    const avatar=byId('bas-c-account-avatar');
+    const card=byId('bas-c-account-card');
+    if(kind==='avatar' && avatar)avatar.setAttribute('src',url||creatorAvatar(({moon:'Moonlit',neon:'Vanta',sakura:'Hanami',aurora:'Northlight'})[(state.profileDraft||state.demoProfile).theme]));
+    if(kind==='banner' && cover){cover.hidden=!url;if(url)cover.setAttribute('src',url);else cover.removeAttribute('src');}
+    const box=card?.querySelector('.bas-c-profile-cover');
+    if(kind==='banner'&&box)box.classList.toggle('bas-c-has-photo',Boolean(url));
+    const btn=byId(kind==='avatar'?'bas-c-account-remove-avatar':'bas-c-account-remove-banner');
+    if(btn)btn.disabled=!url;
+  }
+  async function photoChosen(file,kind) {
+    if(!file||!IMAGE_TARGETS[kind]||!enabled())return;
+    const job=++state.imageJob[kind];
+    const validType=['image/jpeg','image/png','image/webp'].includes(file.type);
+    if(!validType||!file.size||file.size>IMAGE_LIMITS[kind]){
+      photoStatus('demoImageInvalid');return;
+    }
+    photoStatus('demoImageWorking');
+    let bitmap=null;
+    try {
+      const buf=new Uint8Array(await file.slice(0,16).arrayBuffer());
+      if(imageMagic(buf)!==file.type)throw Error('invalid_media_magic');
+      if(typeof createImageBitmap!=='function')throw Error('image_decode_unavailable');
+      bitmap=await createImageBitmap(file);
+      if(!bitmap.width||!bitmap.height||bitmap.width>10000||bitmap.height>10000||bitmap.width*bitmap.height>32000000)throw Error('invalid_dimensions');
+      const [tw,th]=IMAGE_TARGETS[kind];
+      const canvas=document.createElement('canvas');
+      canvas.width=tw;canvas.height=th;
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw Error('canvas_unavailable');
+      const ratio=Math.max(tw/bitmap.width,th/bitmap.height);
+      const w=bitmap.width*ratio,h=bitmap.height*ratio;
+      ctx.drawImage(bitmap,(tw-w)/2,(th-h)/2,w,h);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.82));
+      if(!blob||blob.size>2*1024*1024)throw Error('image_convert_failed');
+      if(job!==state.imageJob[kind]||!enabled())return;
+      const url=URL.createObjectURL(blob);
+      setLocalPhoto(kind,url);
+      photoStatus('demoImageUpdated');
+    }catch(_) {
+      if(job===state.imageJob[kind])photoStatus('demoImageDecodeFail');
+    }finally{if(bitmap?.close)bitmap.close();}
+  }
+  function clearLocalPhoto(kind) {
+    if(!IMAGE_TARGETS[kind])return;
+    ++state.imageJob[kind];
+    setLocalPhoto(kind,null);
+    const input=byId(kind==='avatar'?'bas-c-avatar-file':'bas-c-banner-file');
+    if(input)input.value='';
+    photoStatus('demoImageUpdated');
+  }
+
   function validateDraft(d) {
     return d && typeof d.handle==='string' && /^[A-Za-z0-9_]{3,32}$/.test(d.handle) &&
       typeof d.display_name==='string' && d.display_name.trim().length>0 &&
@@ -443,7 +544,7 @@
       if(card)card.setAttribute('data-theme',target.value);
       const av=byId('bas-c-account-avatar');
       const avatars={moon:'Moonlit',neon:'Vanta',sakura:'Hanami',aurora:'Northlight'};
-      if(av)av.setAttribute('src',creatorAvatar(avatars[target.value]));
+      if(av)av.setAttribute('src',state.photoUrls.avatar||creatorAvatar(avatars[target.value]));
       return true;
     }
     const field=fields[target?.id];
@@ -565,6 +666,7 @@
     if (action==='detail') { openModal('detail',id); return; }
     if (action==='upload') { openModal('upload'); return; }
     if (action==='signin') { state.profileDraft={...state.demoProfile}; openModal('account'); return; }
+    if (action==='remove-photo' && state.modal?.type==='account') { clearLocalPhoto(element.dataset.photo); return; }
     if (action==='creator') {
       const item=SHOWCASE.find(x=>x.id===id);
       if (item) navigate('creator',item.author);
@@ -608,6 +710,9 @@
   function onChange(event) {
     if (demoInput(event)) return;
     const t=event.target;
+    if(state.modal?.type==='account' && (t?.id==='bas-c-avatar-file'||t?.id==='bas-c-banner-file')){
+      void photoChosen(t.files?.[0],t.id==='bas-c-avatar-file'?'avatar':'banner');return;
+    }
     if (t?.id==='bas-c-sort') {state.sort=t.value;updateCards();}
     if (t?.id==='bas-c-zip-input') {
       const file=t.files?.[0];
@@ -646,11 +751,12 @@
     });
     window.addEventListener('bas:developer-mode-changed',sync);
     window.addEventListener('bas:languagechange',sync);
+    window.addEventListener('pagehide',()=>{disposeUrl('avatar');disposeUrl('banner');});
     sync();
   }
   window.BASCommunityPreview=Object.freeze({
     version:2,enabled,open,close,sync,
-    state:()=>({optedIn:flag(),available:enabled(),open:!!byId('bas-community-preview')&&!byId('bas-community-preview').hidden,route:state.route,showcaseCount:SHOWCASE.length,profilePreview:{...state.demoProfile}})
+    state:()=>({optedIn:flag(),available:enabled(),open:!!byId('bas-community-preview')&&!byId('bas-community-preview').hidden,route:state.route,showcaseCount:SHOWCASE.length,profilePreview:{...state.demoProfile},customPhotos:{avatar:Boolean(state.photoUrls.avatar),banner:Boolean(state.photoUrls.banner)}})
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
   else bind();
