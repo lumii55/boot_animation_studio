@@ -1,6 +1,6 @@
 # P15 — BAS Community
 
-Development status: **P15.A experimental foundation**. This branch intentionally contains only the hidden gallery preview, the Developer Lab switch, and regression tests. It has no active backend, accounts, publication, billing, or Discord integration.
+Development status: **P15.3 backend scaffold prepared**, not deployed. P15.1 Developer Lab preview and P15.2 interactive gallery/creator profiles are implemented as local demos. There are still no live accounts, uploads, public releases, paid services or Discord integrations.
 
 ## Non-negotiable project rules
 
@@ -68,3 +68,24 @@ Run `node --test tests/community-preview.test.cjs`; then test the manual toggle,
 - Profile artwork and avatars are bundled vector/CSS demo assets generated locally; no photos are uploaded and no social data is transmitted. Creator directory thumbnails use the same fictional illustrated avatars.
 - This is a **UI design only**. Future real profile photo and banner uploads must be consent-driven, authenticated, file size/type/EXIF-stripped and moderated or reportable; bios and image metadata need safe text handling. Authenticated follow relationships are not implemented yet.
 - All other gallery layout and the original BAS editor remain unchanged.
+
+## Official 14-milestone development contract (agreed 2026-11-04)
+
+- **P15.1 — DONE**: Hidden Developer Lab feature flag and local Community UI foundation.
+- **P15.2 — DONE as visual prototype**: Responsive gallery, search, mock animation details, illustrated creator profile pages with banner/avatar/bio, local demo favorites/following.
+- **P15.3 — IN PROGRESS**: Worker API, D1 schema, private R2 readiness, fail-closed permissions, staging-only configuration, budget constraints and tests. No Cloudflare deployment yet; R2 activation requires separate approval.
+- **P15.4 — NEXT**: Account provider decision, OAuth with PKCE/state, secure sessions, real creator profiles and privacy controls.
+- **P15.5**: Private file staging, ZIP hardening, previews, atomic storage quotas, uploads.
+- **P15.6**: Publishing from editor, existing ZIP and connected Companion; editable projects and author reuse rights.
+- **P15.7**: Public approved-only gallery, downloads, revisions and editor integration.
+- **P15.8**: Moderator dashboard, approval queue, authorization and audit trails.
+- **P15.9**: Discord bot DM moderation, private authenticated ZIP download and signature-verified interaction handlers.
+- **P15.10**: Text comments, reporting and abuse prevention.
+- **P15.11**: Likes, synced favorites and ratings.
+- **P15.12**: Following creators and notifications.
+- **P15.13**: Rankings, curated discovery and recommendations.
+- **P15.14**: Security, accessibility, compatibility, costs, backup/rollback, audit and owner's public release approval.
+
+**Zero-spend rule:** no new paid Cloudflare subscription, R2 enablement, billing setting or live upload route without explicit user authorization. A free D1 allocation or staging-only resource is not an excuse to accidentally expose unfinished code. The repository is public; source code may be inspected regardless of the frontend flag.
+
+P15.3 files live in the community-api directory. All mutating HTTP methods remain locked; public listing is also disabled by default. Localhost gallery at http://127.0.0.1:8088/ remains unchanged and has no API connection.
