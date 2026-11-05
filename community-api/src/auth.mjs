@@ -146,7 +146,7 @@ function displayName(value,fallback) {
     ? trimmed : fallback;
 }
 function pickUser(row) {
-  return {handle:row.handle,display_name:row.display_name,bio:row.bio??'',created_at:row.created_at};
+  return {handle:row.handle,display_name:row.display_name,bio:row.bio??'',created_at:row.created_at,avatar_public:row.avatar_public===1};
 }
 function safeHandle(value) {
   return typeof value==='string'&&/^[A-Za-z0-9_]{3,32}$/.test(value);
@@ -187,7 +187,7 @@ async function validateSession(request,env) {
   if(!token)return null;
   const hash=await sha256('session:'+token);
   const user=await env.DB.prepare(
-    "SELECT u.id, u.handle, u.display_name, u.bio, u.created_at, s.expires_at, s.client_kind "+
+    "SELECT u.id, u.handle, u.display_name, u.bio, u.created_at, u.avatar_public, s.expires_at, s.client_kind "+
     "FROM auth_sessions s JOIN community_users u ON u.id=s.user_id "+
     "WHERE s.session_hash=? AND s.expires_at>? AND u.status='active' LIMIT 1"
   ).bind(hash,now()).first();
@@ -447,7 +447,7 @@ async function profileUpdate(request,env) {
   try{
     const result=await env.DB.prepare(
       "UPDATE community_users SET handle=?,display_name=?,bio=?,updated_at=unixepoch() "+
-      "WHERE id=? AND status='active' RETURNING id,handle,display_name,bio,created_at"
+      "WHERE id=? AND status='active' RETURNING id,handle,display_name,bio,created_at,avatar_public"
     ).bind(profile.handle,profile.display_name,profile.bio,session.user.id).first();
     if(!result)return fail(request,env,'account_unavailable',403);
     return response(request,env,{user:pickUser(result)},200);

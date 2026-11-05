@@ -138,6 +138,14 @@ Object.assign(SOCIAL_TEXT.de,{commentBusy:'Wird gesendet…',shareReady:'Bereit 
 Object.assign(SOCIAL_TEXT.it,{commentBusy:'Invio…',shareReady:'Pronto da condividere!',shareBeta:'Il collegamento della beta locale funziona solo su questo dispositivo fino al lancio pubblico.',remixWorking:'Importazione in Studio…',remixAttribution:'Remix basato su',remixRights:'Per pubblicare un remix rispetta la licenza e i crediti originali.',noOwnerFollow:'Il tuo post',back:'Torna alla galleria',sendError:'Impossibile completare l’azione.',remixDisabled:'Solo download · remix non consentito'});
 Object.assign(SOCIAL_TEXT.ja,{commentBusy:'送信中…',shareReady:'共有の準備ができました！',shareBeta:'ローカルβのリンクは正式公開までこの端末だけで動作します。',remixWorking:'Studioへ読み込み中…',remixAttribution:'元の作品',remixRights:'リミックスを投稿する際は元のライセンスとクレジットを守ってください。',noOwnerFollow:'自分の投稿',back:'ギャラリーに戻る',sendError:'操作に失敗しました。',remixDisabled:'ダウンロードのみ・リミックス不可'});
 Object.assign(SOCIAL_TEXT.zh,{commentBusy:'发送中…',shareReady:'已准备分享！',shareBeta:'本地测试链接在公开发布前仅能在此设备使用。',remixWorking:'正在导入 Studio…',remixAttribution:'改编自',remixRights:'发布改编作品时须遵守原始许可证并注明出处。',noOwnerFollow:'你的帖子',back:'返回图库',sendError:'操作失败。',remixDisabled:'仅限下载 · 不允许改编'});
+SOCIAL_TEXT.pt.publicAvatarConsent='Mostrar minha foto publicamente no perfil e nos comentários';
+SOCIAL_TEXT.en.publicAvatarConsent='Show my profile photo publicly in profiles and comments';
+SOCIAL_TEXT.es.publicAvatarConsent='Mostrar mi foto públicamente en perfiles y comentarios';
+SOCIAL_TEXT.fr.publicAvatarConsent='Afficher ma photo publiquement sur les profils et commentaires';
+SOCIAL_TEXT.de.publicAvatarConsent='Mein Profilbild öffentlich in Profilen und Kommentaren zeigen';
+SOCIAL_TEXT.it.publicAvatarConsent='Mostrare pubblicamente la foto nel profilo e nei commenti';
+SOCIAL_TEXT.ja.publicAvatarConsent='プロフィールやコメントに自分の写真を公開する';
+SOCIAL_TEXT.zh.publicAvatarConsent='在个人主页和评论中公开显示我的头像';
 const st=k=>SOCIAL_TEXT[language()]?.[k]||SOCIAL_TEXT.en[k]||k;
 const state={route:'explore',items:[],query:'',sort:'newest',loading:false,
  status:'',busy:false,selected:null,file:null,source:'zip',title:'',summary:'',
@@ -236,9 +244,15 @@ function galleryView(){
   '<div class="bas-c-grid">'+(state.items.length?state.items.map(realCard).join(''):
    '<p class="bas-c-noresults">'+safe(tr('empty'))+'</p>')+'</div>';
 }
-function creatorAvatar(creator){
+function avatarSource(creator){
+ const handle=creator?.handle;
+ if(!handle||!/^[A-Za-z0-9_]{3,32}$/.test(handle))return null;
  const self=user();
- const src=self&&creator.handle===self.handle?state.remotePictures.avatar:null;
+ if(self?.handle===handle&&state.remotePictures.avatar)return state.remotePictures.avatar;
+ return (creator.avatar_public===true||creator.avatar_public===1)?api().apiOrigin+'/v1/social/avatars/'+encodeURIComponent(handle):null;
+}
+function creatorAvatar(creator){
+ const src=avatarSource(creator);
  return src?'<img class="bas-live-creator-avatar" alt="" src="'+safe(src)+'">':
   '<span class="bas-live-creator-avatar" aria-hidden="true">'+safe(creator.display_name?.charAt(0)||'✧')+'</span>';
 }
@@ -260,7 +274,7 @@ function creatorView(){
  return '<section class="bas-c-profile" data-theme="moon"><div class="bas-c-profile-cover">'+
   (user()&&creator.handle===user().handle&&state.remotePictures.banner?'<img class="bas-c-account-cover-image" alt="" src="'+safe(state.remotePictures.banner)+'">':'<span class="bas-c-profile-cover__orb">✧</span>')+'</div>'+
   '<div class="bas-c-profile-content"><div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
-  creatorAvatar(creator)+
+  creatorAvatar({...creator,avatar_public:state.creatorSocial?.avatar_public??creator.avatar_public})+
   '<div class="bas-c-profile-nameblock"><h1 id="bas-c-page-title">'+safe(creator.display_name||creator.handle)+'</h1>'+
   '<span>@'+safe(creator.handle)+'</span></div></div>'+
   (!logged()||user()?.handle!==creator.handle?'<button type="button" class="bas-c-button bas-c-button--bright" data-c-action="follow" data-handle="'+safe(creator.handle)+'" aria-pressed="'+Boolean(state.creatorSocial?.following)+'">'+safe(state.creatorSocial?.following?st('following'):st('follow'))+'</button>':'')+
@@ -317,6 +331,7 @@ function editProfile(){
    '<label>Handle<input name="handle" minlength="3" maxlength="32" required pattern="[A-Za-z0-9_]{3,32}" value="'+safe(draft.handle)+'"></label>'+
    '<label>'+safe(tr('name'))+'<input name="display_name" maxlength="80" required value="'+safe(draft.display_name)+'"></label>'+
    '<label>'+safe(tr('bio'))+'<textarea name="bio" maxlength="500" rows="4">'+safe(draft.bio||'')+'</textarea></label>'+
+    '<label class="bas-social-avatar-consent"><input type="checkbox" name="avatar_public"'+(draft.avatar_public?' checked':'')+'> '+safe(st('publicAvatarConsent'))+'</label>'+
    '<div class="bas-live-actions"><button type="submit" class="bas-c-button bas-c-button--bright">'+safe(tr('save'))+'</button>'+
     '<button type="button" class="bas-c-button" data-c-action="go-profile">'+safe(tr('cancel'))+'</button></div>'+
   '</form>'+
@@ -346,7 +361,8 @@ function detailSocialComments(item){
   (data===null?'<p class="bas-live-hint">'+safe(st('loading'))+'</p>':
    comments.length?'<div class="bas-social-comment-list">'+comments.map(c=>
     '<article class="bas-social-comment" data-comment="'+safe(c.id)+'">'+
-    '<span class="bas-social-comment-avatar" aria-hidden="true">'+safe(c.display_name?.charAt(0)||'✧')+'</span>'+
+    (avatarSource(c)?'<img class="bas-social-comment-avatar bas-social-comment-photo" src="'+safe(avatarSource(c))+'" alt="" loading="lazy" referrerpolicy="no-referrer">':
+      '<span class="bas-social-comment-avatar" aria-hidden="true">'+safe(c.display_name?.charAt(0)||'✧')+'</span>')+
     '<div class="bas-social-comment-content"><div class="bas-social-comment-meta"><strong>@'+safe(c.handle)+'</strong><time datetime="'+new Date(Number(c.created_at)*1000).toISOString()+'">'+
     safe(new Date(Number(c.created_at)*1000).toLocaleDateString(language()))+'</time></div>'+
     '<p>'+safe(c.content)+'</p><div class="bas-social-comment-actions">'+
@@ -364,7 +380,7 @@ function detailsView(){
  const self=logged()&&user()?.handle===item.handle;
  const stats=state.social||{};
  const canRemix=item.license!=='all-rights-reserved'&&stats.can_remix!==false;
- const creatorAvatarMarkup=creatorAvatar({handle:item.handle,display_name:item.display_name||item.handle});
+ const creatorAvatarMarkup=creatorAvatar({handle:item.handle,display_name:item.display_name||item.handle,avatar_public:stats.creator_avatar_public});
  return '<article class="bas-social-publication">'+
   '<header class="bas-social-heading"><span class="bas-c-kicker">✦ BAS COMMUNITY</span>'+
    '<h1 id="bas-c-page-title">'+safe(item.title)+'</h1>'+
@@ -379,7 +395,7 @@ function detailsView(){
     '<div class="bas-social-tags">'+(item.tags||[]).map(x=>'<span>#'+safe(x)+'</span>').join('')+'</div>'+
     (item.remix_of?'<p class="bas-social-provenance">↝ '+safe(st('remixOriginal'))+' <button type="button" data-c-action="detail" data-id="'+safe(item.remix_of.id)+'">'+safe(item.remix_of.title)+' · @'+safe(item.remix_of.handle)+'</button></p>':'')+
     '<div class="bas-social-specs"><span>'+safe(item.license)+'</span><span>'+safe(item.width)+' × '+safe(item.height)+'</span><span>'+safe(item.fps)+' fps</span></div>'+
-   '</section>'+detailSocialComments(item)+'</div>'+
+   '</section>'+
   '<aside class="bas-social-sidebar"><section class="bas-social-creator-card"><span class="bas-c-kicker">'+safe(st('creator'))+'</span>'+
    '<div class="bas-social-authorline">'+creatorAvatarMarkup+
     '<div><strong>'+safe(item.display_name||item.handle)+'</strong><span>@'+safe(item.handle)+'</span></div></div>'+
@@ -396,7 +412,7 @@ function detailsView(){
     (mine&&!mine.edit_id?'<button type="button" class="bas-c-button" data-c-action="edit-animation" data-id="'+safe(item.id)+'">✎ '+safe(st('editPost'))+'</button>':'')+
     (mine?'<button type="button" class="bas-c-button bas-live-danger" data-c-action="remove-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerRemove'))+'</button>':
      '<button type="button" class="bas-c-button" data-c-action="report" data-id="'+safe(item.id)+'">⚑ '+safe(tr('report'))+'</button>')+
-    '</section></aside></div></article>'+statusHTML();
+    '</section></aside>'+detailSocialComments(item)+'</div></div></article>'+statusHTML();
 }
 function uploadView(){
  if(!logged())return welcome();
@@ -855,6 +871,7 @@ async function saveProfile(form){
  state.busy=true;
  try{
   await api().profile(payload);
+  await api().setAvatarVisibility(fields.get('avatar_public')==='on');
   state.status=tr('profileSaved');
   go('profile');
  }catch(e){state.status=e.message;render();}

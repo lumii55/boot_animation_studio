@@ -342,3 +342,12 @@ aba Criadores real e elimina pop-ups do navegador na Community.
 159/159 testes locais. Worker staging
 4a8d9367-6d73-43cc-8aec-7de8c181de2c.
 BAS original e main preservados; teste real de upload ainda pendente.
+
+
+## 2026-11-05 — P15.7: visibilidade de ações, avatares e fundação Discord DM
+
+- Reordenados os botões de baixar/seguir/remix/denunciar para antes da seção de comentários.
+- Fotos de autores e comentários respeitam `avatar_public` opt-in, sem tornar imagens antigas públicas por padrão. Migração `0012_avatar_visibility.sql`.
+- Fundação de bot **privado por DM** com validação de assinatura Ed25519, IDs restritos, outbox durável, botões e modalidades de decisão, consumo R2 privado. Migração `0013_discord_admin_queue.sql`.
+- `DISCORD_ADMIN_BOT_ENABLED` permanece **false**, credenciais Discord ausentes e GIF verdadeiro ainda não gerado; não afirmar bot pronto/operacional. Especificação e instruções: `docs/P15_7_DISCORD_DM_BOT_FOUNDATION_2026_11_05.md`.
+- P15.8: manter backlog de refinamentos sociais, avaliações e notificações; denunciantes e status de seguidores já têm implementação em P15.7 beta, sujeitos a testes reais.

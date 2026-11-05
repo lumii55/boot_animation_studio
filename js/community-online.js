@@ -324,6 +324,12 @@ async function updateMedia(kind,image){
  await media(kind);
  return res;
 }
+async function setAvatarVisibility(visible){
+ if(typeof visible!=='boolean')throw Error('Preferência inválida.');
+ const result=await request('/v1/social/me/avatar-visibility',{method:'PUT',data:{visible}});
+ if(user)user={...user,avatar_public:result.avatar_public};
+ return result;
+}
 function publicState(){
  return Object.freeze({authenticated:Boolean(token&&user),user:user?{...user}:null,
   hasSession:Boolean(token),error:lastError});
@@ -331,7 +337,7 @@ function publicState(){
 window.BASCommunityOnline=Object.freeze({
  available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
  state:publicState,refresh,profile:updateProfile,gallery,creators,report,
- publish:publishArchive,drafts,download,approvedZip,media,updateMedia,normalizeTags,
+ publish:publishArchive,drafts,download,approvedZip,media,updateMedia,setAvatarVisibility,normalizeTags,
  socialAnimation,socialCreator,animationDetail,likeAnimation,followCreator,addComment,likeComment,reportComment,
  ownedAnimations,proposeRevision,cancelRevision,withdrawAnimation
 });

@@ -95,9 +95,9 @@ test('anonymous creator page keeps a follow call-to-action but mutations need lo
 test('social CSS and PWA shell include new resources',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
- assert.match(html,/css\/97-community-social\.css\?v=p15-social-01/);
- assert.match(html,/js\/community-live\.js\?v=p15-social-01/);
- assert.match(sw,/css\/97-community-social\.css\?v=p15-social-01/);
+ assert.match(html,/css\/97-community-social\.css\?v=p15-7-bot-foundation-01/);
+ assert.match(html,/js\/community-live\.js\?v=p15-7-bot-foundation-01/);
+ assert.match(sw,/css\/97-community-social\.css\?v=p15-7-bot-foundation-01/);
  assert.match(sw,/bas-shell-web-v16/);
 });
 test('approved Remix downloads original ZIP into original Studio and keeps provenance for export',async()=>{
@@ -116,4 +116,18 @@ test('approved Remix downloads original ZIP into original Studio and keeps prove
  assert.match(script,/remix_of:state\.remix\.id/);
  h.click('remix',ID);
  assert.match(h.node('bas-c-modal-host').innerHTML,/Abrir esta animação no editor/);
+});
+test('primary download/follow/report actions appear before growing comment timeline',async()=>{
+ const h=make();h.window.BASCommunityLive.mount();await flush();h.click('detail',ID);await flush();
+ const html=h.node('bas-c-view').innerHTML;
+ for(const value of ['data-c-action="download"','data-c-action="follow"','data-c-action="report"']){
+  assert.ok(html.indexOf(value)>0,`${value} present`);
+  assert.ok(html.indexOf(value)<html.indexOf('class="bas-social-comments"'),`${value} is above comments`);
+ }
+});
+test('avatar photos are not shown for accounts without explicit public opt-in',async()=>{
+ const h=make();h.window.BASCommunityLive.mount();await flush();h.click('detail',ID);await flush();
+ const html=h.node('bas-c-view').innerHTML;
+ assert.match(html,/<span class="bas-social-comment-avatar"/);
+ assert.doesNotMatch(html,/bas-social-comment-photo/);
 });

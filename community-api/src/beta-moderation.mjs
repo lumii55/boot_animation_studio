@@ -297,3 +297,40 @@ export async function handleModeration(req,env,url,user){
  if(path==='moderation/discord/dispatch'&&req.method==='POST')return notifyDiscord(env);
  return fail(404,'not_found');
 }
+
+/* INTERNAL only. Never expose these helpers as generic routes. The Discord caller
+ * must first verify Ed25519 and the explicit Discord owner DM allowlist.
+ */
+export async function botQueue(env){
+ const r=await queue(env);
+ return r.ok?await r.json():null;
+}
+export function botReadPendingZip(env,animationId,editId=null){
+ return pendingDownload(env,animationId,editId);
+}
+export async function botModerateAction(env,kind,id,action,reason=''){
+ const moderators=String(env.MODERATOR_USER_IDS||'').split(',').map(x=>x.trim()).filter(Boolean);
+ if(env.MODERATION_STAGING_APPROVED!=='true'||moderators.length!==1||!ID.test(id))return fail(403,'moderator_required');
+ const user={userId:moderators[0]};
+ if(typeof reason!=='string'||reason.length>500||action==='reject'&&reason.trim().length<5)
+  return fail(400,'invalid_reason');
+ const method='POST',headers={'Content-Type':'application/json'};
+ const create=(route,payload)=>new Request('https://bas.internal/'+route,{method,headers,body:JSON.stringify(payload)});
+ if(kind==='publication'||kind==='revision'){
+  if(!['approve','reject'].includes(action))return fail(400,'invalid_decision');
+  const animationId=kind==='revision'?(await env.DB.prepare('SELECT animation_id FROM owner_revisions WHERE id=?').bind(id).first())?.animation_id:id;
+  if(!animationId||!ID.test(animationId))return fail(404,'not_found');
+  return decide(create('decision',{action,reason}),env,user,animationId);
+ }
+ if(kind==='post_report'){
+  if(action==='dismiss')return settleReport(create('report',{action:'dismiss',reason}),env,user,id);
+  if(action==='hide'){
+   const report=await env.DB.prepare("SELECT animation_id FROM community_reports WHERE id=? AND status='open'").bind(id).first();
+   if(!report)return fail(409,'report_not_open');
+   return decide(create('decision',{action:'hide',reason}),env,user,report.animation_id);
+  }
+ }
+ if(kind==='comment_report'&&['hide','dismiss'].includes(action))
+  return moderateComment(create('comment',{action,reason}),env,user,id);
+ return fail(400,'invalid_decision');
+}

@@ -97,7 +97,7 @@ test('mobile Community entry is on original home screen, not site header',()=>{
 
 test('Community preview preserves private media for other creators',()=>{
  const source=fs.readFileSync(path.join(root,'js/community-live.js'),'utf8');
- assert.match(source,/creator\.handle===self\.handle/);
+ assert.match(source,/self\?\.handle===handle/);
  assert.match(source,/state\.remotePictures\.avatar/);
  assert.doesNotMatch(source,/creator-private\/|PRIVATE_UPLOADS|\.object_key/);
  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');

@@ -143,3 +143,29 @@ test('remix must use an approved license and preserve ShareAlike',async t=>{
  x.db.prepare("UPDATE animation_rights SET license='all-rights-reserved',allows_remix=0 WHERE animation_id=?").run(A);
  assert.equal((await makeRequest(url,'guest',{'Idempotency-Key':'SOCIAL_REMIX_2_123456789'})).status,403);
 });
+test('avatar is private by default and only public after explicit authenticated opt-in',async t=>{
+ const x=await make(t);
+ x.db.prepare("INSERT INTO creator_media(id,owner_id,kind,object_key,status) VALUES(?,?,?,'creator-private/u1/avatar/0123456789abcdef0123456789abcdef.webp','processing')")
+  .run('d'.repeat(32),'u1','avatar');
+ x.db.prepare("UPDATE creator_media SET status='active',size_bytes=? WHERE id=?").run(88,'d'.repeat(32));
+ x.db.prepare("INSERT INTO creator_media_current(user_id,kind,media_id) VALUES(?,?,?)")
+  .run('u1','avatar','d'.repeat(32));
+ const bytes=Buffer.from('RIFF0123WEBP '+'x'.repeat(100));
+ x.env.PRIVATE_UPLOADS={get:async()=>({size:bytes.length,body:new Blob([bytes]).stream()})};
+ let status=await x.req('/v1/social/avatars/an_approved','GET',undefined,'guest',{anonymous:true});
+ assert.equal(status.status,404);
+ const url='/v1/social/me/avatar-visibility';
+ assert.equal((await x.req(url,'PUT',{visible:true},'owner')).status,200);
+ assert.equal(x.db.prepare('SELECT avatar_public FROM community_users WHERE id=?').get('u1').avatar_public,1);
+ const social=await x.req('/v1/social/animations/'+A);
+ assert.equal(social.data.creator_avatar_public,true);
+ const headers={Origin:SITE};
+ const raw=await worker.fetch(new Request(API+'/v1/social/avatars/an_approved',{headers}),x.env);
+ assert.equal(raw.status,200);
+ assert.equal(raw.headers.get('content-type'),'image/webp');
+ assert.equal((await raw.arrayBuffer()).byteLength,bytes.length);
+ assert.equal((await x.req(url,'PUT',{visible:false},'owner')).status,200);
+ assert.equal((await x.req('/v1/social/avatars/an_approved','GET',undefined,'guest',{anonymous:true})).status,404);
+ assert.equal((await x.req(url,'PUT',{visible:'yes'},'owner')).status,400);
+ assert.equal((await x.req(url,'PUT',{visible:true},'guest',{anonymous:true})).status,403);
+});

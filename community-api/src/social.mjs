@@ -31,7 +31,7 @@ function plain(value,min,max){
 }
 async function published(env,id){
  if(!ID.test(id))return null;
- return read(env,'SELECT a.id,a.owner_id,a.title,u.handle,u.display_name,r.license,r.allows_remix '+
+ return read(env,'SELECT a.id,a.owner_id,a.title,u.handle,u.display_name,u.avatar_public,r.license,r.allows_remix '+
   'FROM animations a JOIN community_users u ON u.id=a.owner_id '+
   'JOIN animation_versions v ON v.id=a.published_version_id '+
   'JOIN animation_rights r ON r.animation_id=a.id '+
@@ -52,7 +52,7 @@ async function readAnimation(req,env,id,url){
  const uid=me?.userId||'';
  try{
   const [comments,summary,liked,following]=await Promise.all([
-   rows(env,'SELECT c.id,c.content,c.created_at,u.handle,u.display_name, '+
+   rows(env,'SELECT c.id,c.content,c.created_at,u.handle,u.display_name,u.avatar_public, '+
     '(SELECT COUNT(*) FROM comment_likes l WHERE l.comment_id=c.id) AS likes, '+
     '(SELECT COUNT(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) AS liked '+
     'FROM community_comments c JOIN community_users u ON u.id=c.author_id '+
@@ -66,7 +66,7 @@ async function readAnimation(req,env,id,url){
   ]);
   return send(200,{animation_id:id,likes:Number(summary?.likes||0),comments_count:Number(summary?.comments||0),
    followers:Number(summary?.followers||0),liked:Boolean(liked),following:Boolean(following),
-   can_remix:Boolean(post.allows_remix&&post.license!=='all-rights-reserved'),
+   can_remix:Boolean(post.allows_remix&&post.license!=='all-rights-reserved'),creator_avatar_public:post.avatar_public===1,
    comments:comments.slice(0,20).map(c=>({...c,likes:Number(c.likes||0),liked:Boolean(c.liked)})),
    next_offset:comments.length>20?offset+20:null});
  }catch(_){return fail(503,'social_unavailable');}
@@ -75,13 +75,13 @@ async function readCreator(req,env,handle){
  if(!HANDLE.test(handle))return fail(404,'not_found');
  const me=await viewer(req,env);
  try{
-  const person=await read(env,'SELECT u.id,u.handle,u.display_name,u.bio FROM community_users u '+
+  const person=await read(env,'SELECT u.id,u.handle,u.display_name,u.bio,u.avatar_public FROM community_users u '+
    "WHERE u.handle=? AND u.status='active' AND EXISTS (SELECT 1 FROM animations a WHERE a.owner_id=u.id AND a.status='published')",handle);
   if(!person)return fail(404,'not_found');
   const followers=await read(env,'SELECT COUNT(*) AS n FROM creator_follows WHERE creator_id=?',person.id);
   const following=me?await read(env,'SELECT 1 AS n FROM creator_follows WHERE creator_id=? AND follower_id=?',person.id,me.userId):null;
   return send(200,{handle:person.handle,display_name:person.display_name,bio:person.bio,
-   followers:Number(followers?.n||0),following:Boolean(following)});
+   followers:Number(followers?.n||0),following:Boolean(following),avatar_public:person.avatar_public===1});
  }catch(_){return fail(503,'social_unavailable');}
 }
 async function setAnimationLike(env,id,userId,enabled){
@@ -147,12 +147,45 @@ async function reportComment(req,env,commentId,userId){
   return send(201,{report_id:id,status:'open'});
  }catch(_){return fail(409,'report_duplicate_or_limited');}
 }
+async function readPublicAvatar(env,handle){
+ if(!HANDLE.test(handle)||typeof env.PRIVATE_UPLOADS?.get!=='function')return fail(404,'not_found');
+ try{
+  const row=await read(env,'SELECT m.object_key,m.size_bytes FROM community_users u '+
+   'JOIN creator_media_current c ON c.user_id=u.id AND c.kind=\'avatar\' '+
+   'JOIN creator_media m ON m.id=c.media_id AND m.status=\'active\' '+
+   "WHERE u.handle=? AND u.status='active' AND u.avatar_public=1 LIMIT 1",handle);
+  if(!row||row.size_bytes<1||row.size_bytes>524288)return fail(404,'not_found');
+  const month=new Date().toISOString().slice(0,7);
+  const budget=await read(env,'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,0,1) '+
+   'ON CONFLICT(month) DO UPDATE SET class_b=class_b+1,updated_at=unixepoch() '+
+   'WHERE class_b<5000 RETURNING class_b',month);
+  if(!budget)return fail(429,'media_limit_reached');
+  const object=await env.PRIVATE_UPLOADS.get(row.object_key);
+  if(!object||object.size>524288||object.size<1)return fail(503,'media_unavailable');
+  return new Response(object.body,{status:200,headers:{
+   'Content-Type':'image/webp','Cache-Control':'private, max-age=120',
+   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
+   'Content-Security-Policy':"default-src 'none'"}});
+ }catch(_){return fail(503,'media_unavailable');}
+}
+async function setAvatarVisibility(request,env,userId){
+ const data=await jsonBody(request,64);
+ if(!data||Object.keys(data).length!==1||typeof data.visible!=='boolean')
+  return fail(400,'invalid_visibility');
+ try{
+  const row=await read(env,'UPDATE community_users SET avatar_public=?,updated_at=unixepoch() '+
+   "WHERE id=? AND status='active' RETURNING avatar_public",data.visible?1:0,userId);
+  return row?send(200,{avatar_public:row.avatar_public===1}):fail(403,'not_authorized');
+ }catch(_){return fail(503,'media_unavailable');}
+}
 export async function handleSocial(request,env,url){
  if(!url.pathname.startsWith('/v1/social/'))return null;
  if(!live(env)||url.origin!==env.AUTH_API_ORIGIN)return fail(404,'not_found');
  const path=url.pathname.slice('/v1/social/'.length),method=request.method;
  try{
   if(method==='GET'){
+   const avatar=/^avatars\/([A-Za-z0-9_]{3,32})$/.exec(path);
+   if(avatar)return readPublicAvatar(env,avatar[1]);
    const a=/^animations\/([a-f0-9]{32})$/.exec(path);
    if(a)return readAnimation(request,env,a[1],url);
    const c=/^creators\/([A-Za-z0-9_]{3,32})$/.exec(path);
@@ -160,7 +193,8 @@ export async function handleSocial(request,env,url){
   }
   const user=await verifyPublisher(request,env);
   if(!user||user.clientKind!=='bas')return fail(403,'not_authorized');
-  const a=/^animations\/([a-f0-9]{32})\/like$/.exec(path);
+  if(path==='me/avatar-visibility'&&method==='PUT')return setAvatarVisibility(request,env,user.userId);
+   const a=/^animations\/([a-f0-9]{32})\/like$/.exec(path);
   if(a&&(method==='PUT'||method==='DELETE'))return setAnimationLike(env,a[1],user.userId,method==='PUT');
   const f=/^creators\/([A-Za-z0-9_]{3,32})\/follow$/.exec(path);
   if(f&&(method==='PUT'||method==='DELETE'))return setFollow(env,f[1],user.userId,method==='PUT');

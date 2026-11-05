@@ -1,3 +1,4 @@
+import {discordInteractions,dispatchAdminDMs} from './discord-admin-bot.mjs';
 import { handleSocial } from './social.mjs';
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
@@ -150,7 +151,7 @@ function localCORS(request,env,answer){
   return new Response(answer.body,{status:answer.status,headers});
 }
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = allowedOrigin(request.headers.get('Origin'), env);
     const method = request.method.toUpperCase();
     const head = method === 'HEAD';
@@ -165,7 +166,8 @@ export default {
     // are rendered by Cloudflare. The original BAS owns all UI locally.
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
-    if (url.pathname.startsWith('/v1/auth/')) return localCORS(request,env,await handleAuth(request, env, url));
+    if (url.pathname==='/v1/discord/interactions')return discordInteractions(request,env,ctx);
+     if (url.pathname.startsWith('/v1/auth/')) return localCORS(request,env,await handleAuth(request, env, url));
     if (url.pathname.startsWith('/v1/social/')) return localCORS(request,env,await handleSocial(request,env,url));
     if (url.pathname.startsWith('/v1/publishing/animations') || url.pathname.startsWith('/v1/publishing/revisions/'))
       return localCORS(request,env,await handleOwnerAnimations(request,env,url));
@@ -185,5 +187,8 @@ export default {
     const animationPath = /^\/v1\/animations\/([^/]+)$/.exec(url.pathname);
     if (animationPath) return getAnimation(animationPath[1], env, origin, head);
     return error('not_found', 404, origin, head);
+  },
+  async scheduled(_event,env,ctx){
+    if(env.DISCORD_ADMIN_BOT_ENABLED==='true'&&ctx?.waitUntil)ctx.waitUntil(dispatchAdminDMs(env));
   }
 };

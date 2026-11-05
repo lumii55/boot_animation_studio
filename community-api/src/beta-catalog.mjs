@@ -65,11 +65,11 @@ async function list(url,env){
 async function creators(env){
  try{
   const rows=(await env.DB.prepare(
-   'SELECT u.handle,u.display_name,COUNT(*) AS animation_count '+
+   'SELECT u.handle,u.display_name,u.avatar_public,COUNT(*) AS animation_count '+
    'FROM animations a JOIN community_users u ON u.id=a.owner_id '+
    'JOIN animation_versions v ON v.id=a.published_version_id '+
    "WHERE a.status='published' AND v.status='approved' AND u.status='active' "+
-   'GROUP BY u.id,u.handle,u.display_name ORDER BY animation_count DESC,u.handle ASC LIMIT 60'
+   'GROUP BY u.id,u.handle,u.display_name,u.avatar_public ORDER BY animation_count DESC,u.handle ASC LIMIT 60'
   ).bind().all()).results||[];
   return result(200,{creators:rows});
  }catch(_){return err(503,'creators_unavailable');}
