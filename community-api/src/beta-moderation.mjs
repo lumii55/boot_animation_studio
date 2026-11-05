@@ -1,4 +1,4 @@
-/* P15.7 moderator actions: account-gated, audited, deny-by-default. */
+/* P15.7 private admin actions: ADMIN-scoped login, server RBAC, audited. */
 const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store, private',
   'Content-Security-Policy':"default-src 'none'",'X-Content-Type-Options':'nosniff'};
 const send=(status,body)=>new Response(JSON.stringify(body),{status,headers:H});
@@ -16,8 +16,11 @@ async function body(req){
   return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
  }catch(_){return null;}
 }
-function isModerator(env,user){
+function isModerator(env,user,request){
  if(env.MODERATION_STAGING_APPROVED!=='true'||!user)return false;
+ if(env.ADMIN_PANEL_SEPARATED==='true' &&
+    (user.clientKind!=='admin'||request.headers.get('Origin')!==env.BAS_ADMIN_ORIGIN ||
+     env.BAS_ADMIN_CLIENT_ENABLED!=='true'))return false;
  const ids=String(env.MODERATOR_USER_IDS||'').split(',').map(v=>v.trim()).filter(Boolean);
  return ids.length>0&&ids.includes(user.userId);
 }
@@ -137,6 +140,34 @@ async function settleReport(req,env,user,id){
   return send(200,{report_id:id,status:data.action==='dismiss'?'dismissed':'resolved'});
  }catch(_){return fail(503,'moderation_unavailable');}
 }
+async function pendingDownload(env,id){
+ if(!ID.test(id)||env.STAGING_DOWNLOADS_APPROVED!=='true'||
+    typeof env.PRIVATE_UPLOADS?.get!=='function')return fail(404,'not_found');
+ try{
+  const row=await env.DB.prepare(
+   "SELECT v.object_key,v.size_bytes FROM animations a "+
+   "JOIN publication_drafts d ON d.animation_id=a.id "+
+   "JOIN animation_versions v ON v.id=d.version_id "+
+   "WHERE a.id=? AND a.status='pending' AND "+
+   "d.status='pending_review' AND v.status='pending' LIMIT 1"
+  ).bind(id).first();
+  if(!row||row.size_bytes>20*1024*1024)return fail(404,'not_found');
+  const month=new Date().toISOString().slice(0,7);
+  const reserved=await env.DB.prepare(
+   'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,0,1) '+
+   'ON CONFLICT(month) DO UPDATE SET class_b=class_b+1,updated_at=unixepoch() '+
+   'WHERE class_b<5000 RETURNING class_b'
+  ).bind(month).first();
+  if(!reserved)return fail(429,'download_limit_reached');
+  const zip=await env.PRIVATE_UPLOADS.get(row.object_key);
+  if(!zip?.body)return fail(503,'archive_unavailable');
+  return new Response(zip.body,{status:200,headers:{
+   'Content-Type':'application/zip','Cache-Control':'no-store, private',
+   'Content-Disposition':'attachment; filename="bootanimation-review.zip"',
+   'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'"
+  }});
+ }catch(_){return fail(503,'archive_unavailable');}
+}
 async function notifyDiscord(){
  // Legacy text-only webhook dispatch has been permanently disabled.
  // The requested bot must use signed Discord Interactions, a private admin
@@ -146,8 +177,10 @@ async function notifyDiscord(){
 export async function handleModeration(req,env,url,user){
  const path=url.pathname.slice('/v1/beta/'.length);
  if(path==='reports'&&req.method==='POST')return report(req,env,user);
- if(!isModerator(env,user))return fail(403,'moderator_required');
+ if(!isModerator(env,user,req))return fail(403,'moderator_required');
  if(path==='moderation/queue'&&req.method==='GET')return queue(env);
+ if(/^moderation\/pending\/[a-f0-9]{32}\/zip$/.test(path)&&req.method==='GET')
+   return pendingDownload(env,path.split('/')[2]);
  if(path.startsWith('moderation/decision/')&&req.method==='POST')
   return decide(req,env,user,path.slice('moderation/decision/'.length));
  if(path.startsWith('moderation/reports/')&&req.method==='POST')

@@ -82,3 +82,43 @@ test('original BAS alone owns user-facing Community HTML; backend exposes API on
  assert.doesNotMatch(onlineSource,/\/beta\/licenses|\/beta\/app\.js/);
  assert.ok(onlineSource.includes('/v1/auth/github/start'));
 });
+test('anonymous guest sees approved animations inside BAS without a login',async()=>{
+ const f=fixture(false);
+ f.window.BASCommunityLive.mount();
+ await new Promise(resolve=>setImmediate(resolve));
+ const html=f.get('bas-c-view').innerHTML;
+ assert.ok(html.includes('Relaxante &lt;img'),html.slice(0,600));
+ assert.ok(html.includes('one piece'));
+ assert.ok(html.includes('Entrar com GitHub'));
+ assert.ok(!html.includes('moderation-action'));
+});
+test('shipped BAS frontend contains no privileged administrator dashboard or admin token',()=>{
+ const native=fs.readFileSync(path.join(ROOT,'js/community-live.js'),'utf8');
+ assert.ok(!native.includes('moderation/decision/'));
+ assert.ok(!native.includes('moderation/queue'));
+ assert.ok(!native.includes('moderation/reports/'));
+ const browser=fs.readFileSync(path.join(ROOT,'js/community-online.js'),'utf8');
+ assert.ok(!browser.includes('moderation/decision/'));
+ assert.ok(!browser.includes('moderation/queue'));
+ assert.ok(!browser.includes('moderation/reports/'));
+ assert.match(browser,/authenticated:false/,'guest endpoints do not require a token');
+ assert.match(browser,/bas\.community\.return_after_oauth\.v1/);
+});
+test('guest sees apply-to-phone only when Companion grants direct upload/control',async()=>{
+ const f=fixture(false);
+ f.window.BASApi={
+  hasFeature:feature=>feature==='direct_upload',
+  hasPermission:permission=>permission==='control',
+  ensureFeature:()=>true
+ };
+ f.window.BASCommunityLive.mount();
+ await new Promise(resolve=>setImmediate(resolve));
+ const selected={dataset:{cAction:'detail',id:'a'.repeat(32)}};
+ f.window.BASCommunityLive.handle({target:{closest:()=>selected}});
+ const ready=f.get('bas-c-view').innerHTML;
+ assert.match(ready,/Aplicar no celular/);
+ assert.match(ready,/Baixar ZIP/);
+ f.window.BASApi.hasPermission=()=>false;
+ f.window.BASCommunityLive.render();
+ assert.doesNotMatch(f.get('bas-c-view').innerHTML,/Aplicar no celular/);
+});

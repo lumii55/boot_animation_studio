@@ -56,6 +56,7 @@ async function start(env,ip='192.0.2.1'){
   assert.equal(link.origin,'https://github.com');
   assert.equal(link.searchParams.get('code_challenge_method'),'S256');
   assert.equal(link.searchParams.get('scope'),'read:user');
+  assert.equal(link.searchParams.get('prompt'),'select_account');
   assert.equal(link.searchParams.get('code_challenge')?.length,43);
   const c=cookieFrom(res,'__Host-bas_oauth');
   assert.ok(c);
@@ -363,4 +364,61 @@ test('BAS local login cannot redirect OAuth to unapproved sites or fake challeng
  await testCase('http://localhost:8088/');
  await testCase('http://127.0.0.1:8088/','invalid');
  assert.equal(inst.database.prepare('SELECT count(*) n FROM oauth_flows').get().n,0);
+});
+
+test('private administrator OAuth grant creates admin-scoped session only for server-allowed owner',async t=>{
+ const instance=await boot(t);
+ const adminSite='http://127.0.0.1:8090';
+ const env=environment(instance,{
+  AUTH_SITE_ORIGIN:API,
+  ADMIN_PANEL_SEPARATED:'true',
+  BAS_ADMIN_CLIENT_ENABLED:'true',
+  BAS_ADMIN_ORIGIN:adminSite,
+  MODERATION_STAGING_APPROVED:'true',
+  MODERATOR_USER_IDS:''
+ });
+ // First establish an existing verified owner account in D1.
+ const previous=await start(env);
+ await callback(env,previous);
+ const owner=instance.database.prepare("SELECT id FROM community_users LIMIT 1").get().id;
+ const verifier=Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+ const challenge=Buffer.from(await crypto.subtle.digest('SHA-256',
+  new TextEncoder().encode(verifier))).toString('base64url');
+ const path='/v1/auth/github/start?mode=bas-local&return_to='+
+  encodeURIComponent(adminSite+'/')+'&challenge='+challenge;
+ let r=await call(req(path),env);
+ assert.equal(r.status,302);
+ const state=new URL(r.headers.get('location')).searchParams.get('state');
+ const binder=cookieFrom(r,'__Host-bas_oauth');
+ // Fails closed even for valid GitHub identity until owner approved.
+ r=await call(req('/v1/auth/github/callback?state='+state+'&code=VALID_TEST','GET',{
+  Cookie:binder}),env);
+ assert.equal(r.status,403);
+ assert.equal((await r.json()).error,'admin_access_denied');
+ assert.equal(instance.database.prepare("SELECT COUNT(*) n FROM oauth_local_grants").get().n,0);
+ env.MODERATOR_USER_IDS=owner;
+ r=await call(req(path),env);
+ assert.equal(r.status,302);
+ const state2=new URL(r.headers.get('location')).searchParams.get('state');
+ const cookie2=cookieFrom(r,'__Host-bas_oauth');
+ r=await call(req('/v1/auth/github/callback?state='+state2+'&code=VALID_TEST','GET',
+  {Cookie:cookie2}),env);
+ assert.equal(r.status,302);
+ const grant=new URL(r.headers.get('location')).hash.split('=')[1];
+ r=await worker.fetch(req('/v1/auth/local/exchange','POST',{
+  Origin:adminSite,'Content-Type':'application/json'
+ },JSON.stringify({grant,verifier})),env);
+ assert.equal(r.status,200,await r.clone().text());
+ const adminToken=(await r.json()).access_token;
+ const hash=await crypto.subtle.digest('SHA-256',
+  new TextEncoder().encode('session:'+adminToken));
+ const hex=Buffer.from(hash).toString('hex');
+ assert.equal(instance.database.prepare('SELECT client_kind FROM auth_sessions WHERE session_hash=?').get(hex).client_kind,'admin');
+ r=await worker.fetch(req('/v1/auth/me','GET',{Origin:adminSite,Authorization:'Bearer '+adminToken}),env);
+ assert.equal(r.status,200);
+ env.BAS_LOCAL_CLIENT_ENABLED='true';
+ env.BAS_LOCAL_ORIGINS='http://127.0.0.1:8088';
+ r=await worker.fetch(req('/v1/auth/me','GET',{
+  Origin:'http://127.0.0.1:8088',Authorization:'Bearer '+adminToken}),env);
+ assert.equal(r.status,401);
 });

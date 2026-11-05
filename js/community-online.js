@@ -11,6 +11,7 @@
 const API='https://bas-community-staging.caiolive1000.workers.dev';
 const MODE='bas-local';
 const AUTH_KEY='bas.community.pkce.v1';
+const RETURN_KEY='bas.community.return_after_oauth.v1';
 const DB_NAME='bas.community.session.v1';
 const trusted=(location.origin==='http://127.0.0.1:8088'&&location.pathname==='/')||
  (location.origin==='https://lumii55.github.io'&&
@@ -101,16 +102,26 @@ async function refresh(){
  if(!info.user||!info.csrf)throw Error('Sessão inválida.');
  user=info.user;csrf=info.csrf;
  event('bas:community-auth',{user});
- try{
-  const r=await request('/v1/beta/moderation/queue');
-  moderator=Array.isArray(r.pending);
- }catch(_){moderator=false;}
+ moderator=false; // Admin panel is a separate, non-BAS application.
  return user;
 }
+function restoreOriginalCommunity(){
+ if(!user||sessionStorage.getItem(RETURN_KEY)!=='profile')return false;
+ const open=window.BASCommunityPreview?.open;
+ const live=window.BASCommunityLive;
+ if(typeof open!=='function'||!live?.active())return false;
+ if(!open())return false;
+ live.showProfile?.();
+ sessionStorage.removeItem(RETURN_KEY);
+ return true;
+}
+window.addEventListener('load',()=>{void init().then(()=>restoreOriginalCommunity());});
+window.addEventListener('pageshow',()=>{if(user)restoreOriginalCommunity();});
 async function beginLogin(){
  if(!trusted||!crypto?.subtle)throw Error('BAS precisa de um navegador local seguro.');
  const verifier=randomToken(),challenge=await digest(verifier);
  sessionStorage.setItem(AUTH_KEY,verifier);
+ sessionStorage.setItem(RETURN_KEY,'profile');
  const url=new URL(API+'/v1/auth/github/start');
  url.searchParams.set('mode',MODE);
  url.searchParams.set('return_to',returnTo());
@@ -142,11 +153,14 @@ async function init(){
    try{
     await exchangeGrant(fragment.slice('#bas-community-auth='.length));
     event('bas:community-login-success');
-  }catch(e){lastError=e.message;token=null;await save(null);event('bas:community-error',{error:lastError});}
+    restoreOriginalCommunity();
+  }catch(e){lastError=e.message;token=null;await save(null);sessionStorage.removeItem(RETURN_KEY);event('bas:community-error',{error:lastError});}
   }else{
    token=await load();
    if(token)try{await refresh();}catch(e){lastError=e.message;token=null;await save(null);}
   }
+  if(user&&sessionStorage.getItem(RETURN_KEY)==='profile')
+   restoreOriginalCommunity();
   return Boolean(user);
  })();
  return initPromise;
@@ -154,6 +168,7 @@ async function init(){
 async function logout(){
  if(token&&csrf)try{await request('/v1/auth/logout',{method:'POST',data:{}});}catch(_){}
  token=null;csrf=null;user=null;moderator=false;
+ sessionStorage.removeItem(RETURN_KEY);
  for(const key of ['avatar','banner']){
   if(pictures[key])URL.revokeObjectURL(pictures[key]);pictures[key]=null;
  }
@@ -178,19 +193,7 @@ function normalizeTags(value){
 }
 async function gallery(search='',offset=0,sort='newest'){
  const q=new URLSearchParams({q:String(search).slice(0,80),offset:String(offset),limit:'12',sort});
- return request('/v1/beta/catalog?'+q.toString());
-}
-async function queue(){const data=await request('/v1/beta/moderation/queue');return data;}
-async function decide(id,action,reason){
- if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
- if(!['approve','reject','hide','restore'].includes(action))throw Error('Ação inválida.');
- return request('/v1/beta/moderation/decision/'+id,{method:'POST',data:{action,reason}});
-}
-async function dismissReport(id,reason){
- if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
- return request('/v1/beta/moderation/reports/'+id,{
-  method:'POST',data:{action:'dismiss',reason}
- });
+ return request('/v1/beta/catalog?'+q.toString(),{authenticated:false});
 }
 async function report(id,reason){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
@@ -225,11 +228,15 @@ async function publishArchive(file,meta){
 async function drafts(){
  return request('/v1/publishing/drafts');
 }
-async function download(id){
+async function approvedZip(id){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
- const res=await request('/v1/beta/downloads/'+id,{raw:true});
+ const res=await request('/v1/beta/downloads/'+id,{raw:true,authenticated:false});
  const blob=await res.blob();
  if(blob.size<1||blob.size>20*1024*1024)throw Error('ZIP inválido.');
+ return blob;
+}
+async function download(id){
+ const blob=await approvedZip(id);
  const address=URL.createObjectURL(blob);
  try{
   const a=document.createElement('a');a.href=address;a.download='bootanimation.zip';
@@ -257,12 +264,12 @@ async function updateMedia(kind,image){
 }
 function publicState(){
  return Object.freeze({authenticated:Boolean(token&&user),user:user?{...user}:null,
-  moderator,hasSession:Boolean(token),error:lastError});
+  hasSession:Boolean(token),error:lastError});
 }
 window.BASCommunityOnline=Object.freeze({
  available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
- state:publicState,refresh,profile:updateProfile,gallery,queue,decide,report,
- publish:publishArchive,drafts,download,media,updateMedia,normalizeTags,dismissReport
+ state:publicState,refresh,profile:updateProfile,gallery,report,
+ publish:publishArchive,drafts,download,approvedZip,media,updateMedia,normalizeTags
 });
 window.addEventListener('DOMContentLoaded',()=>{void init();});
 })();

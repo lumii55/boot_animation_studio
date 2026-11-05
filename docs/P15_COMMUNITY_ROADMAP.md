@@ -298,3 +298,24 @@ Estas mudancas sao parte da entrega UNICA da P15.7 (moderacao + galeria real + D
   still need direct validation before P15.7 acceptance.
 
 Local-first regression totals: **141/141** (22 BAS frontend, 86 Worker API, 33 SQLite).
+
+## P15.7 — correções de login, convidados e painel privado (2026-11-05)
+
+Detalhamento canônico em docs/P15_7_GUEST_ACCOUNTS_PRIVATE_ADMIN.md.
+A revisão P15.7 deve incluir:
+- Reabrir Meu perfil na Community após login GitHub, sem segundo clique.
+- Account picker oficial GitHub por prompt=select_account.
+- Explorar, baixar e aplicar animação aprovada via Companion sem conta.
+- Denunciar, publicar e futuras ações sociais exigem conta.
+- Painel admin fora do BAS, localhost 8090, com sessão distinta,
+  RBAC no Worker e migração D1 0009, sem HTML administrativo no BAS.
+- Não abrir registro público, main ou webhook Discord legado.
+
+### Aceite técnico desta correção P15.7
+
+148/148 testes locais aprovados (25 frontend, 90 API e 33 SQLite).
+Worker 9abba123-c5c0-4003-a657-292c62b5b0d1 ativo; 0009 aplicada.
+A API guest devolve HTTP 200 sem login com 0 itens aprovados
+no staging atualmente; a fila do moderador devolve 403 sem token ADM.
+OAuth envia prompt=select_account; BAS e admin separados nos
+ports localhost 8088 e 8090. Aceite humano ainda pendente.

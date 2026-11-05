@@ -58,17 +58,28 @@ export function trustedBASOrigin(origin,env){
   const allowed=String(env.BAS_LOCAL_ORIGINS||'').split(',').map(v=>v.trim()).filter(Boolean);
   return allowed.includes(origin);
 }
+export function trustedAdminOrigin(origin,env){
+  return env?.ADMIN_PANEL_SEPARATED==='true' &&
+    env?.BAS_ADMIN_CLIENT_ENABLED==='true' &&
+    origin==='http://127.0.0.1:8090' &&
+    env.BAS_ADMIN_ORIGIN===origin;
+}
+function adminAccountAllowed(env,userId){
+  const allowed=String(env.MODERATOR_USER_IDS||'').split(',').map(x=>x.trim()).filter(Boolean);
+  return env.MODERATION_STAGING_APPROVED==='true' && allowed.includes(userId);
+}
 function localReturnTo(url,env){
-  if(typeof url!=='string'||url.length>200||!LOCAL_URLS.has(url))return null;
+  if(typeof url!=='string'||url.length>200)return null;
+  if(!LOCAL_URLS.has(url)&&url!=='http://127.0.0.1:8090/')return null;
   const parsed=new URL(url);
-  return trustedBASOrigin(parsed.origin,env)?parsed:null;
+  return (trustedBASOrigin(parsed.origin,env)||trustedAdminOrigin(parsed.origin,env))?parsed:null;
 }
 export function allowedBASOrigin(origin,env){
-  return origin===env.AUTH_SITE_ORIGIN||trustedBASOrigin(origin,env);
+  return origin===env.AUTH_SITE_ORIGIN||trustedBASOrigin(origin,env)||trustedAdminOrigin(origin,env);
 }
 function bearerToken(request,env){
   const origin=request.headers.get('Origin');
-  if(!trustedBASOrigin(origin,env))return null;
+  if(!trustedBASOrigin(origin,env)&&!trustedAdminOrigin(origin,env))return null;
   const raw=request.headers.get('Authorization')||'';
   const match=/^Bearer ([A-Za-z0-9_-]{43})$/.exec(raw);
   return match?.[1]||null;
@@ -176,11 +187,17 @@ async function validateSession(request,env) {
   if(!token)return null;
   const hash=await sha256('session:'+token);
   const user=await env.DB.prepare(
-    "SELECT u.id, u.handle, u.display_name, u.bio, u.created_at, s.expires_at "+
+    "SELECT u.id, u.handle, u.display_name, u.bio, u.created_at, s.expires_at, s.client_kind "+
     "FROM auth_sessions s JOIN community_users u ON u.id=s.user_id "+
     "WHERE s.session_hash=? AND s.expires_at>? AND u.status='active' LIMIT 1"
   ).bind(hash,now()).first();
-  return user?{user,token,hash,csrf:await hmac(env.AUTH_SESSION_SECRET,'csrf:'+token)}:null;
+  if(!user)return null;
+  if(bearerToken(request,env)){
+    const origin=request.headers.get('Origin');
+    const expectedKind=trustedAdminOrigin(origin,env)?'admin':'bas';
+    if(user.client_kind!==expectedKind)return null;
+  }
+  return {user,token,hash,csrf:await hmac(env.AUTH_SESSION_SECRET,'csrf:'+token)};
 }
 /* Only server-verified account identities can create private publications.
  * Enforces a valid session, exact same-site Origin and its CSRF proof.
@@ -191,7 +208,7 @@ export async function verifyPublisher(request, env) {
   const current = await validateSession(request,env);
   if (!current) return null;
   if (!constantEquals(request.headers.get('X-CSRF-Token'),current.csrf)) return null;
-  return { userId: current.user.id, handle: current.user.handle };
+  return { userId: current.user.id, handle: current.user.handle, clientKind:current.user.client_kind };
 }
 
 /* Private avatar/banner GET is read-only: browsers do not send Origin on
@@ -200,7 +217,7 @@ export async function verifyPublisher(request, env) {
 export async function verifyPrivateProfileReader(request,env){
   if(!authConfigured(env))return null;
   const session=await validateSession(request,env);
-  return session?{userId:session.user.id,handle:session.user.handle}:null;
+  return session?{userId:session.user.id,handle:session.user.handle,clientKind:session.user.client_kind}:null;
 }
 
 async function recordLoginAttempt(request,env) {
@@ -240,6 +257,8 @@ async function loginStart(request,env) {
   url.searchParams.set('redirect_uri',redirect);
   url.searchParams.set('state',state);
   url.searchParams.set('scope','read:user');
+  // GitHub's supported native account picker (no fake BAS credential form).
+  url.searchParams.set('prompt','select_account');
   url.searchParams.set('code_challenge',challenge);
   url.searchParams.set('code_challenge_method','S256');
   return response(request,env,null,302,{
@@ -360,6 +379,8 @@ async function loginCallback(request,env,url,providerFetch) {
   const user=await upsertIdentity(env,profile);
   if(!user)return fail(request,env,'account_unavailable',403,gone);
   if(row.local_origin){
+    if(trustedAdminOrigin(row.local_origin,env) && !adminAccountAllowed(env,user.id))
+      return fail(request,env,'admin_access_denied',403,gone);
     const full=row.local_origin+row.local_return_path;
     if(!localReturnTo(full,env)||!/^[A-Za-z0-9_-]{43}$/.test(row.local_challenge||''))
       return fail(request,env,'local_redirect_not_allowed',403,gone);
@@ -386,7 +407,8 @@ async function loginCallback(request,env,url,providerFetch) {
 }
 async function localExchange(request,env){
   const origin=request.headers.get('Origin');
-  if(!trustedBASOrigin(origin,env))return fail(request,env,'local_origin_forbidden',403);
+  if(!trustedBASOrigin(origin,env)&&!trustedAdminOrigin(origin,env))
+    return fail(request,env,'local_origin_forbidden',403);
   const body=await jsonBody(request,1024);
   if(!body||Object.keys(body).some(k=>!['grant','verifier'].includes(k))||
      !/^[A-Za-z0-9_-]{43}$/.test(body.grant||'')||
@@ -401,10 +423,13 @@ async function localExchange(request,env){
   ).bind(await sha256('local-grant:'+body.grant),now()).first();
   if(!row||row.local_origin!==origin||!constantEquals(row.verifier_challenge,challenge))
     return fail(request,env,'invalid_local_grant',403);
+  const kind=trustedAdminOrigin(origin,env)?'admin':'bas';
+  if(kind==='admin'&&!adminAccountAllowed(env,row.user_id))
+    return fail(request,env,'admin_access_denied',403);
   const token=randomToken();
   await env.DB.prepare(
-    'INSERT INTO auth_sessions(session_hash,user_id,expires_at) VALUES(?,?,?)'
-  ).bind(await sha256('session:'+token),row.user_id,now()+SESSION_TTL).run();
+    'INSERT INTO auth_sessions(session_hash,user_id,expires_at,client_kind) VALUES(?,?,?,?)'
+  ).bind(await sha256('session:'+token),row.user_id,now()+SESSION_TTL,kind).run();
   return response(request,env,{access_token:token,token_type:'Bearer',expires_in:SESSION_TTL},200);
 }
 async function me(request,env) {

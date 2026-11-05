@@ -331,3 +331,24 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
   or Discord text webhook. User Chrome E2E remains pending.
 
 Local-first regression totals: **141/141** (22 BAS frontend, 86 Worker API, 33 SQLite).
+
+## P15.7 — anonymous approved reads and separated owner administration
+
+See docs/P15_7_GUEST_ACCOUNTS_PRIVATE_ADMIN.md for the current contract.
+COMMUNITY_GUEST_READ_ENABLED separately allows anonymous GET of approved
+beta catalog, metadata and ZIP only. Publishing and reports require a BAS
+session. GitHub OAuth uses official prompt=select_account.
+ADMIN_PANEL_SEPARATED, BAS_ADMIN_CLIENT_ENABLED, BAS_ADMIN_ORIGIN and a
+client_kind=admin session isolate the moderation API to a private local
+site. Migration 0009 must run before deployment. No admin HTML is
+included in the public BAS repository.
+
+### Atualização da implantação no beta privado
+
+Versão Worker 9abba123-c5c0-4003-a657-292c62b5b0d1,
+rollback 7e4c043c-974c-47af-8b52-2ea4b005f3e5,
+migration 0009 aplicada. Foram confirmados 148 testes locais
+(25 frontend, 90 API, 33 SQLite). GET catálogo privado de aprovados
+agora aceita visitantes; houve 0 itens aprovados no smoke real.
+A interface ADM fica em localhost 8090 fora do BAS; não hospedar
+no Worker público nem no Git do BAS.

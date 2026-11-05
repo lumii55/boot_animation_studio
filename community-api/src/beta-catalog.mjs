@@ -94,10 +94,15 @@ export async function handleBetaCatalog(req,env,url){
  if(!url.pathname.startsWith('/v1/beta/'))return null;
  if(!betaCatalogReady(env)||url.origin!==env.AUTH_API_ORIGIN)
   return err(404,'not_found');
- const user=req.method==='GET'?await verifyPrivateProfileReader(req,env):
-  await verifyPublisher(req,env);
- if(!user)return err(403,'not_authorized');
  const path=url.pathname.slice('/v1/beta/'.length);
+ // Public read-only access is intentionally separate from public signup:
+ // ONLY approved + published versions are visible; mutations remain gated.
+ const guestRead=env.COMMUNITY_GUEST_READ_ENABLED==='true'&&req.method==='GET'&&
+   (path==='catalog'||/^animations\/[a-f0-9]{32}$/.test(path)||
+    /^downloads\/[a-f0-9]{32}$/.test(path));
+ const user=guestRead?null:(req.method==='GET'?await verifyPrivateProfileReader(req,env):
+   await verifyPublisher(req,env));
+ if(!guestRead&&!user)return err(403,'not_authorized');
  if(req.method==='GET'&&path==='catalog')return list(url,env);
  if(req.method==='GET'&&/^animations\/[a-f0-9]{32}$/.test(path))
   return detail(path.split('/')[1],env);

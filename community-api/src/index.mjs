@@ -1,7 +1,7 @@
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
-import { handleAuth, authConfigured, trustedBASOrigin } from './auth.mjs';
+import { handleAuth, authConfigured, trustedBASOrigin, trustedAdminOrigin } from './auth.mjs';
 /* BAS Community P15.3: read-only Worker API.
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
  * Never return R2 object keys, tokens, internal author IDs or pending submissions.
@@ -137,7 +137,7 @@ async function getAnimation(id, env, origin, head) {
 
 function localCORS(request,env,answer){
   const origin=request.headers.get('Origin');
-  if(!trustedBASOrigin(origin,env))return answer;
+  if(!trustedBASOrigin(origin,env)&&!trustedAdminOrigin(origin,env))return answer;
   const headers=new Headers(answer.headers);
   headers.set('Access-Control-Allow-Origin',origin);
   headers.set('Access-Control-Allow-Methods','GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS');
@@ -156,7 +156,7 @@ export default {
     try { url = new URL(request.url); }
     catch (_) { return error('invalid_url', 400, origin, head); }
     if(method==='OPTIONS' && url.pathname.startsWith('/v1/') &&
-       trustedBASOrigin(request.headers.get('Origin'),env)){
+       (trustedBASOrigin(request.headers.get('Origin'),env)||trustedAdminOrigin(request.headers.get('Origin'),env))){
       return localCORS(request,env,new Response(null,{status:204}));
     }
     // Backend-only by design: no profile, gallery, editor or license pages

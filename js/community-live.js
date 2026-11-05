@@ -17,7 +17,7 @@ const language=()=>{
 const PT={explore:'Explorar animações',ready:'Animações aprovadas',empty:'Ainda não há animações aprovadas neste beta.',
  search:'Busque pelo título ou por tags',upload:'Publicar animação',profile:'Meu perfil',manage:'Moderação',
  signin:'Entrar com GitHub',signout:'Sair',edit:'Editar perfil',save:'Salvar perfil',
- needLogin:'Entre com GitHub para acessar as publicações privadas.',view:'Ver detalhes',
+ needLogin:'Explore e baixe animações livremente. Entre para publicar, comentar ou denunciar.',view:'Ver detalhes',
  post:'Enviar para revisão privada',zip:'Escolher arquivo ZIP',title:'Título',
  desc:'Descrição',tags:'Tags',tagTip:'Espaços ficam na tag; vírgulas separam tags diferentes.',
  add:'+ Adicionar',license:'Licença',licenseHelp:'? Não sabe qual escolher?',
@@ -30,7 +30,7 @@ const PT={explore:'Explorar animações',ready:'Animações aprovadas',empty:'Ai
 const EN={explore:'Explore animations',ready:'Approved animations',empty:'No approved animations in this private beta yet.',
  search:'Search titles or tags',upload:'Publish an animation',profile:'My profile',manage:'Moderation',
  signin:'Sign in with GitHub',signout:'Sign out',edit:'Edit profile',save:'Save profile',
- needLogin:'Sign in with GitHub to access private beta posts.',view:'View details',
+ needLogin:'Browse and download freely. Sign in to publish, comment or report.',view:'View details',
  post:'Submit for private review',zip:'Choose a ZIP file',title:'Title',
  desc:'Description',tags:'Tags',tagTip:'Spaces stay within one tag; commas separate multiple tags.',
  add:'+ Add',license:'License',licenseHelp:'? Not sure which license?',
@@ -59,8 +59,7 @@ function chrome(){
   nav.textContent='♙ '+tr('profile');nav.dataset.route='profile';nav.hidden=!logged();
  }
  for(const nav of root.querySelectorAll('[data-route="creators"]')){
-  nav.textContent='⚑ '+tr('manage');nav.dataset.route='moderation';
-  nav.hidden=!api()?.state()?.moderator;
+  nav.hidden=true; // admin is not shipped in the public BAS
  }
  const badge=root.querySelector('.bas-c-topbadge');
  if(badge)badge.textContent='BAS · BETA';
@@ -75,7 +74,6 @@ function go(route){
  const modal=$('bas-c-modal-host');if(modal)modal.replaceChildren();
  render();
  if(route==='explore')void fetchGallery();
- if(route==='moderation')void fetchModeration();
  if(route==='profile'){void fetchPictures();void fetchDrafts();}
 }
 function statusHTML(){return state.status?'<p class="bas-live-status" role="status">'+safe(state.status)+'</p>':'';}
@@ -112,8 +110,8 @@ function galleryView(){
   '<option value="popular"'+(state.sort==='popular'?' selected':'')+'>Popular</option></select></label></div>'+
   statusHTML()+
   '<div class="bas-c-results-meta">'+safe(state.loading?'…':state.items.length)+' '+safe(tr('ready'))+'</div>'+
-  '<div class="bas-c-grid">'+(logged()?(state.items.length?state.items.map(realCard).join(''):
-   '<p class="bas-c-noresults">'+safe(tr('empty'))+'</p>'):'<p>'+safe(tr('needLogin'))+'</p>')+'</div>';
+  '<div class="bas-c-grid">'+(state.items.length?state.items.map(realCard).join(''):
+   '<p class="bas-c-noresults">'+safe(tr('empty'))+'</p>')+'</div>';
 }
 function profileView(){
  const person=user();
@@ -162,6 +160,12 @@ function editProfile(){
    '<p class="bas-live-hint">A imagem é processada e redimensionada privadamente no servidor.</p>'+
   '</div>'+statusHTML();
 }
+function moduleCanApply(){
+ const bridge=window.BASApi;
+ return Boolean(bridge?.hasFeature?.('direct_upload') &&
+   bridge?.hasPermission?.('control') &&
+   (typeof isConnectedMode==='undefined'||isConnectedMode===true));
+}
 function detailsView(){
  const item=state.selected;
  if(!item)return galleryView();
@@ -171,31 +175,10 @@ function detailsView(){
    '<p>'+safe((item.tags||[]).map(x=>'#'+x).join(' · '))+'</p>'+
    '<p>'+safe(item.license)+' · '+safe(item.fps)+' fps · '+safe(item.width)+'×'+safe(item.height)+'</p>'+
    '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="download" data-id="'+safe(item.id)+'">'+safe(tr('download'))+'</button>'+
+    (moduleCanApply()?'<button type="button" class="bas-c-button" data-c-action="apply-module" data-id="'+safe(item.id)+'">'+
+     (language()==='pt'?'Aplicar no celular':'Apply to phone')+'</button>':'')+
     '<button type="button" class="bas-c-button" data-c-action="report" data-id="'+safe(item.id)+'">'+safe(tr('report'))+'</button>'+
     '<button type="button" class="bas-c-button" data-c-action="back-gallery">'+safe(tr('cancel'))+'</button></div></div>'+statusHTML();
-}
-function moderatorView(){
- const queue=state.moderation;
- const submitted=Array.isArray(queue?.pending)?queue.pending:[];
- const reports=Array.isArray(queue?.reports)?queue.reports:[];
- const cards=submitted.map(item=>'<article class="bas-c-card bas-live-admin-item">'+
-  '<div class="bas-c-card__content"><span class="bas-c-kicker">'+safe(tr('pending'))+'</span>'+
-   '<h3>'+safe(item.title)+'</h3><p>@'+safe(item.handle)+'</p><p>'+safe(item.summary||'')+'</p>'+
-   '<div class="bas-live-actions"><button class="bas-c-button bas-c-button--bright" data-c-action="moderation-action" data-id="'+safe(item.id)+'" data-decision="approve">'+safe(tr('approve'))+'</button>'+
-    '<button class="bas-c-button" data-c-action="moderation-action" data-id="'+safe(item.id)+'" data-decision="reject">'+safe(tr('reject'))+'</button></div></div></article>').join('');
- const complaints=reports.map(item=>'<article class="bas-c-card bas-live-admin-item">'+
-  '<div class="bas-c-card__content"><h3>'+safe(item.title)+'</h3>'+
-   '<p>'+safe(item.reason)+'</p>'+
-   '<div class="bas-live-actions"><button class="bas-c-button" data-c-action="moderation-action" data-id="'+safe(item.animation_id)+'" data-decision="hide">'+safe(tr('hide'))+'</button>'+
-   '<button class="bas-c-button" data-c-action="dismiss-report" data-id="'+safe(item.id)+'">'+safe(tr('dismiss'))+'</button></div></div></article>').join('');
- return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS ADMIN · BETA</span>'+
-   '<h1 id="bas-c-page-title">'+safe(tr('manage'))+'</h1>'+
-   '<button type="button" class="bas-c-button" data-c-action="refresh-moderation">↻</button></section>'+
-   statusHTML()+
-   '<section class="bas-c-sectionhead"><h2>'+safe(tr('moderation'))+'</h2></section>'+
-   '<div class="bas-c-grid">'+(cards||'<p>'+safe(tr('nothing'))+'</p>')+'</div>'+
-   '<section class="bas-c-sectionhead"><h2>Reports</h2></section>'+
-   '<div class="bas-c-grid">'+(complaints||'<p>'+safe(tr('nothing'))+'</p>')+'</div>';
 }
 function uploadView(){
  if(!logged())return welcome();
@@ -287,7 +270,6 @@ function render(){
  let content='';
  if(state.route==='profile')content=profileView();
  else if(state.route==='profile-edit')content=editProfile();
- else if(state.route==='moderation')content=moderatorView();
  else if(state.route==='detail')content=detailsView();
  else if(state.route==='upload')content=uploadView();
  else if(state.route==='licenses')content=licensesView();
@@ -297,7 +279,6 @@ function render(){
 }
 let gallerySequence=0,searchTimeout=null;
 async function fetchGallery(){
- if(!logged()){state.items=[];render();return;}
  const seq=++gallerySequence;state.loading=true;state.status='';
  try{
   const results=await api().gallery(state.query,0,state.sort);
@@ -305,12 +286,6 @@ async function fetchGallery(){
   state.items=Array.isArray(results.items)?results.items:[];
  }catch(e){state.items=[];state.status=e.message;}
  finally{if(seq===gallerySequence){state.loading=false;render();}}
-}
-async function fetchModeration(){
- if(!logged()||!api().state().moderator)return;
- try{state.moderation=await api().queue();state.status='';}
- catch(e){state.moderation=null;state.status=e.message;}
- render();
 }
 async function fetchDrafts(){
  if(!logged())return;
@@ -421,25 +396,31 @@ async function updatePicture(file,kind){
   go('profile');
  }catch(e){state.status=e.message;render();}
 }
-async function decision(id,action){
- if(!logged()||!api().state().moderator)return;
- const reason=window.prompt(tr('why'));
- if(reason===null)return;
- if(reason.trim().length<5||reason.length>500){state.status=tr('why');render();return;}
- if(!window.confirm('Confirmar '+action+'?'))return;
- try{await api().decide(id,action,reason);await fetchModeration();await fetchGallery();}
- catch(e){state.status=e.message;render();}
-}
-async function dismiss(id){
- const reason=window.prompt(tr('why'));
- if(!reason||reason.trim().length<5)return;
- try{await api().dismissReport(id,reason);await fetchModeration();}
- catch(e){state.status=e.message;render();}
+async function applyModule(id){
+ if(!moduleCanApply())return;
+ if(!window.confirm(language()==='pt'
+  ?'Aplicar esta animação aprovada no celular conectado? Isso substituirá a animação atual. Faça backup antes de continuar.'
+  :'Apply this approved animation to the connected phone? It will replace the current boot animation. Back up first.'))return;
+ try{
+  const blob=await api().approvedZip(id);
+  if(!moduleCanApply()||!window.BASApi.ensureFeature('direct_upload'))
+   throw Error('Companion desconectado ou sem permissão de controle.');
+  const zip=new File([blob],'bootanimation.zip',{type:'application/zip'});
+  const body=new FormData();body.append('bootanimation',zip,'bootanimation.zip');
+  const result=await window.BASApi.fetch('/upload',{method:'POST',body});
+  if(!result.ok)throw Error('Companion recusou a instalação: '+result.status);
+  window.hasCustomAnimApplied=true;
+  window.BASApi.syncConnectedSurfaces?.();
+  await window.BASApi.loadHistory?.();
+  state.status=language()==='pt'?'Animação aplicada pelo Companion.':'Applied through Companion.';
+ }catch(e){state.status=String(e.message||e);}
+ render();
 }
 async function download(id){
  try{await api().download(id);}catch(e){state.status=e.message;render();}
 }
 async function report(id){
+ if(!logged()){state.status='Entre com GitHub para denunciar.';render();return;}
  const reason=window.prompt('Qual o motivo da denúncia? (5 a 500 caracteres)');
  if(reason===null)return;
  if(reason.trim().length<5||reason.length>500){state.status='Descreva o motivo (5 a 500 caracteres).';render();return;}
@@ -462,7 +443,7 @@ function handle(event){
  if(action==='navigate'){
   const target=hit.dataset.route;
   if(target==='saved'||target==='profile'){go('profile');return true;}
-  if(target==='moderation'||target==='creators'){go('moderation');return true;}
+  if(target==='moderation'||target==='creators')return true;
   go('explore');return true;
  }
  if(action==='upload'){openUpload();return true;}
@@ -481,14 +462,12 @@ function handle(event){
   if(entry){state.selected=entry;go('detail');}return true;
  }
  if(action==='download'){void download(id);return true;}
+ if(action==='apply-module'){void applyModule(id);return true;}
  if(action==='report'){void report(id);return true;}
  if(action==='edit-profile'){
   state.profileDraft={...user()};go('profile-edit');return true;
  }
  if(action==='go-profile'){go('profile');return true;}
- if(action==='moderation-action'){void decision(id,hit.dataset.decision);return true;}
- if(action==='dismiss-report'){void dismiss(id);return true;}
- if(action==='refresh-moderation'){void fetchModeration();return true;}
  // Never let BAS' old DEMO handlers process clicks inside a live Community.
  return true;
 }
@@ -546,10 +525,14 @@ function mount(){
  if(overlay()?.hidden)return false;
  chrome();
  render();
- if(logged()){void fetchGallery();void fetchPictures();void fetchDrafts();}
+ void fetchGallery();
+ if(logged()){void fetchPictures();void fetchDrafts();}
  return true;
 }
-window.BASCommunityLive=Object.freeze({active,mount,render,handle,onInput,onChange,onSubmit,openUpload,pullFromDevice});
+window.BASCommunityLive=Object.freeze({
+ active,mount,render,handle,onInput,onChange,onSubmit,openUpload,pullFromDevice,
+ showProfile(){if(!active()||!logged())return false;go('profile');return true;}
+});
 window.addEventListener('bas:community-auth',()=>{
  if(!active())return;
  chrome();
@@ -558,12 +541,6 @@ window.addEventListener('bas:community-auth',()=>{
   if(state.route==='profile'||state.route==='profile-edit')go('profile');
   else go('explore');
   void fetchPictures();
- }else{state.items=[];state.moderation=null;state.remotePictures={avatar:null,banner:null};go('explore');}
-});
-window.addEventListener('bas:community-login-success',()=>{
- if(!active())return;
- if(window.BASCommunityPreview?.open()){
-  state.route='profile';render();void fetchPictures();
- }
+ }else{state.remotePictures={avatar:null,banner:null};go('explore');}
 });
 })();

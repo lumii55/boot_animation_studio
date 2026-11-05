@@ -191,3 +191,95 @@ test('Cloudflare never serves the original BAS application as a second website',
  assert.equal((await x.req('/studio/')).status,404);
  assert.equal((await x.req('/studio/index.html')).status,404);
 });
+
+test('public guest may browse/search/download approved animations, but cannot report or moderate',async t=>{
+ const x=setup(t);
+ x.env.COMMUNITY_GUEST_READ_ENABLED='true';
+ const approved=x.animation(20,'Natureza noturna',['natureza','one piece'],true);
+ const pendingItem=pending(x,21,'Aguardando revisão',['privado']);
+ const unauth=async(path,method='GET',body)=>{
+  const headers={};
+  if(method==='POST'){headers['Content-Type']='application/json';}
+  const resp=await worker.fetch(new Request(API+path,{
+   method,headers,body:body?JSON.stringify(body):undefined}),x.env);
+  return {status:resp.status,headers:resp.headers,
+   body:resp.headers.get('content-type')?.includes('json')?await resp.json():await resp.arrayBuffer()};
+ };
+ for(const term of ['NATUREZA','one piece','noturna']){
+  const r=await unauth('/v1/beta/catalog?q='+encodeURIComponent(term));
+  assert.equal(r.status,200,term);
+  assert.equal(r.body.items.length,1);
+  assert.equal(r.body.items[0].id,approved.a);
+ }
+ assert.equal((await unauth('/v1/beta/animations/'+approved.a)).status,200);
+ assert.equal((await unauth('/v1/beta/animations/'+pendingItem.a)).status,404);
+ assert.equal((await unauth('/v1/beta/downloads/'+approved.a)).status,200);
+ assert.equal((await unauth('/v1/beta/downloads/'+pendingItem.a)).status,404);
+ assert.equal((await unauth('/v1/beta/moderation/queue')).status,403);
+ assert.equal((await unauth('/v1/beta/reports','POST',{
+  animation_id:approved.a,reason:'Anonymous cannot report'
+ })).status,403);
+ assert.equal((await unauth('/v1/catalog')).status,503,'full public launch still disabled');
+ x.env.COMMUNITY_GUEST_READ_ENABLED='false';
+ assert.equal((await unauth('/v1/beta/catalog')).status,403,'guest feature is fail-closed');
+});
+test('admin operations require admin-scoped session from separate origin',async t=>{
+ const x=setup(t),item=pending(x,23,'Private admin queue',['moderation']);
+ x.env.ADMIN_PANEL_SEPARATED='true';
+ x.env.BAS_ADMIN_CLIENT_ENABLED='true';
+ x.env.BAS_ADMIN_ORIGIN='http://127.0.0.1:8090';
+ x.env.BAS_LOCAL_CLIENT_ENABLED='true';
+ x.env.BAS_LOCAL_ORIGINS='http://127.0.0.1:8088';
+ // Existing ordinary BAS OAuth session does not acquire admin permissions
+ const ordinary=await x.req('/v1/beta/moderation/queue');
+ assert.equal(ordinary.status,403);
+ const adminToken='B'.repeat(43);
+ const adminHash=createHash('sha256').update('session:'+adminToken).digest('hex');
+ const adminCSRF=createHmac('sha256',SECRET).update('csrf:'+adminToken).digest('hex');
+ x.db.prepare('INSERT INTO auth_sessions(session_hash,user_id,expires_at,client_kind) VALUES(?,?,?,?)')
+  .run(adminHash,uid,Math.floor(Date.now()/1000)+3600,'admin');
+ let response=await worker.fetch(new Request(API+'/v1/beta/moderation/queue',{
+  headers:{Origin:'http://127.0.0.1:8090',Authorization:'Bearer '+adminToken}}),x.env);
+ assert.equal(response.status,200);
+ response=await worker.fetch(new Request(API+'/v1/beta/moderation/decision/'+item.a,{
+  method:'POST',headers:{Origin:'http://127.0.0.1:8090',
+   Authorization:'Bearer '+adminToken,'X-CSRF-Token':adminCSRF,'Content-Type':'application/json'},
+  body:JSON.stringify({action:'approve',reason:'Original content checked'})
+ }),x.env);
+ assert.equal(response.status,200,await response.clone().text());
+ // Forging the admin Origin with a normal BAS-scoped token fails session scope
+ response=await worker.fetch(new Request(API+'/v1/beta/moderation/queue',{
+  headers:{Origin:'http://127.0.0.1:8090',Authorization:'Bearer '+COOKIE}}),x.env);
+ assert.equal(response.status,403);
+ // Admin token cannot be used from BAS origin.
+ response=await worker.fetch(new Request(API+'/v1/beta/moderation/queue',{
+  headers:{Origin:'http://127.0.0.1:8088',Authorization:'Bearer '+adminToken}}),x.env);
+ assert.equal(response.status,403);
+ // A random site never gets an Access-Control-Allow-Origin header
+ response=await worker.fetch(new Request(API+'/v1/beta/moderation/queue',{
+  headers:{Origin:'https://evil.example',Authorization:'Bearer '+adminToken}}),x.env);
+ assert.equal(response.status,403);
+ assert.equal(response.headers.get('access-control-allow-origin'),null);
+});
+test('owner-only admin can inspect private pending ZIP while public guest cannot',async t=>{
+ const x=setup(t),file=pending(x,24,'Review me',['pending']);
+ x.env.ADMIN_PANEL_SEPARATED='true';
+ x.env.BAS_ADMIN_CLIENT_ENABLED='true';
+ x.env.BAS_ADMIN_ORIGIN='http://127.0.0.1:8090';
+ x.env.COMMUNITY_GUEST_READ_ENABLED='true';
+ const path='/v1/beta/moderation/pending/'+file.a+'/zip';
+ let r=await worker.fetch(new Request(API+path),x.env);
+ assert.equal(r.status,403);
+ const admin='B'.repeat(43),hash=createHash('sha256').update('session:'+admin).digest('hex');
+ x.db.prepare("INSERT INTO auth_sessions(session_hash,user_id,expires_at,client_kind) VALUES(?,?,?,'admin')")
+ .run(hash,uid,Math.floor(Date.now()/1000)+3600);
+ r=await worker.fetch(new Request(API+path,{
+  headers:{Origin:'http://127.0.0.1:8090',Authorization:'Bearer '+admin}}),x.env);
+ assert.equal(r.status,200);
+ assert.equal(r.headers.get('content-type'),'application/zip');
+ assert.match(r.headers.get('content-disposition'),/review.zip/);
+ x.env.STAGING_DOWNLOADS_APPROVED='false';
+ r=await worker.fetch(new Request(API+path,{
+  headers:{Origin:'http://127.0.0.1:8090',Authorization:'Bearer '+admin}}),x.env);
+ assert.equal(r.status,404);
+});
