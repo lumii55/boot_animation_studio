@@ -1,4 +1,5 @@
 import {discordInteractions,dispatchAdminDMs} from './discord-admin-bot.mjs';
+import {handleAdminPreview} from './admin-preview.mjs';
 import { handleSocial } from './social.mjs';
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
@@ -169,6 +170,10 @@ export default {
     if (url.pathname==='/v1/discord/interactions')return discordInteractions(request,env,ctx);
      if (url.pathname.startsWith('/v1/auth/')) return localCORS(request,env,await handleAuth(request, env, url));
     if (url.pathname.startsWith('/v1/social/')) return localCORS(request,env,await handleSocial(request,env,url));
+    if (url.pathname.endsWith('/preview') && url.pathname.startsWith('/v1/publishing/')) {
+      const preview=await handleAdminPreview(request,env,url);
+      if(preview)return localCORS(request,env,preview);
+    }
     if (url.pathname.startsWith('/v1/publishing/animations') || url.pathname.startsWith('/v1/publishing/revisions/'))
       return localCORS(request,env,await handleOwnerAnimations(request,env,url));
     if (url.pathname.startsWith('/v1/publishing')) return localCORS(request,env,await handlePublishing(request, env, url));

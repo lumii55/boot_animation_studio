@@ -198,7 +198,14 @@ export async function dispatchAdminDMs(env,fetcher=fetch){
   let gif=null;
   if(['publication','revision'].includes(event.kind)){
    gif=await loadRealGif(env,row.preview_key);
-   if(!gif){await env.DB.prepare("UPDATE discord_admin_events SET state='blocked',last_error='gif_preview_required' WHERE event_id=?").bind(event.event_id).run();blocked++;continue;}
+   if(!gif){
+    // GIF may still be encoding/uploading after the ZIP enters moderation.
+    // Never send a fake preview and never permanently discard a pending item.
+    await env.DB.prepare("UPDATE discord_admin_events SET state='retry',attempts=attempts+1, "+
+     "last_error='gif_preview_required',next_attempt_at=unixepoch()+300 "+
+     "WHERE event_id=? AND state IN ('queued','retry')").bind(event.event_id).run();
+    blocked++;continue;
+   }
   }
   const claimed=await env.DB.prepare("UPDATE discord_admin_events SET state='sending',attempts=attempts+1 "+
    "WHERE event_id=? AND state IN ('queued','retry') RETURNING event_id").bind(event.event_id).first();

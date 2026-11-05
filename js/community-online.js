@@ -251,9 +251,16 @@ async function publishArchive(file,meta){
    ...(source==='editor'&&/^[a-f0-9]{32}$/.test(meta.remix_of||'')?{remix_of:meta.remix_of}:{})}
  });
  if(!/^[a-f0-9]{32}$/.test(start.draft_id||''))throw Error('Rascunho inválido.');
- return request('/v1/publishing/drafts/'+start.draft_id+'/zip',{
+ const complete=await request('/v1/publishing/drafts/'+start.draft_id+'/zip',{
   method:'PUT',data:new Blob([file],{type:'application/zip'})
  });
+ try{
+  const gif=await window.BASCommunityGif.fromBootZip(file);
+  await request('/v1/publishing/drafts/'+start.draft_id+'/preview',{method:'PUT',data:gif});
+  return {...complete,moderation_preview:'attached'};
+ }catch(error){
+  return {...complete,moderation_preview:'unavailable',moderation_preview_error:String(error?.message||error).slice(0,120)};
+ }
 }
 async function drafts(){
  return request('/v1/publishing/drafts');
@@ -277,8 +284,16 @@ async function proposeRevision(animationId,fields,zip=null){
   method:'POST',headers:{'Idempotency-Key':randomToken().slice(0,40)},data:payload
  });
  if(!/^[a-f0-9]{32}$/.test(start.revision_id||''))throw Error('Invalid revision response');
- return zip?request('/v1/publishing/revisions/'+start.revision_id+'/zip',{
-  method:'PUT',data:new Blob([zip],{type:'application/zip'})}):start;
+ if(!zip)return start;
+ const complete=await request('/v1/publishing/revisions/'+start.revision_id+'/zip',{
+  method:'PUT',data:new Blob([zip],{type:'application/zip'})});
+ try{
+  const gif=await window.BASCommunityGif.fromBootZip(zip);
+  await request('/v1/publishing/revisions/'+start.revision_id+'/preview',{method:'PUT',data:gif});
+  return {...complete,moderation_preview:'attached'};
+ }catch(error){
+  return {...complete,moderation_preview:'unavailable',moderation_preview_error:String(error?.message||error).slice(0,120)};
+ }
 }
 async function cancelRevision(revisionId){
  if(!/^[a-f0-9]{32}$/.test(revisionId))throw Error('Invalid revision ID');

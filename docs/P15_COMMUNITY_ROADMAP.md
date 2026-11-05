@@ -351,3 +351,9 @@ BAS original e main preservados; teste real de upload ainda pendente.
 - Fundação de bot **privado por DM** com validação de assinatura Ed25519, IDs restritos, outbox durável, botões e modalidades de decisão, consumo R2 privado. Migração `0013_discord_admin_queue.sql`.
 - `DISCORD_ADMIN_BOT_ENABLED` permanece **false**, credenciais Discord ausentes e GIF verdadeiro ainda não gerado; não afirmar bot pronto/operacional. Especificação e instruções: `docs/P15_7_DISCORD_DM_BOT_FOUNDATION_2026_11_05.md`.
 - P15.8: manter backlog de refinamentos sociais, avaliações e notificações; denunciantes e status de seguidores já têm implementação em P15.7 beta, sujeitos a testes reais.
+
+## Checkpoint P15.7 — geração de GIF real, beta privado
+
+- Uma prévia GIF curta agora é composta a partir dos quadros reais do ZIP no navegador BAS e anexada por endpoint privado autenticado depois da quarentena. Não é um substituto da inspeção humana.
+- Limites de imagem e de R2; envio automático Discord permanece desligado, aguardando teste real e configuração do cron.
+- Detalhes em docs/P15_7_PRIVATE_GIF_PREVIEWS_2026_11_05.md.

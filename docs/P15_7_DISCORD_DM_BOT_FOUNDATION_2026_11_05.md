@@ -39,3 +39,7 @@
 - Branch exclusiva `dev/p15-community-foundation`, repositório BAS. Não tocar `main` nem o repositório de módulo/Companion. O painel administrativo é privado em `~/bas-admin-private`, nunca copiar para GitHub.
 - Migrações 0012–0013 são aditivas; `0012` usa ALTER TABLE e deve ser aplicada **uma única vez** no staging (não reaplicar). Antes de qualquer deploy, conservar segredos e todos os bindings existentes; comparar versões e manter a anterior para rollback.
 - Toda alteração exige um ZIP de continuidade completo com commit, branch, código, resultados, estado Cloudflare, scripts, decisões e pendências. Nunca incluir secrets, tokens, R2 objetos privados nem mídia pessoal.
+
+## Continuação: geração real de GIF em beta
+
+O pipeline real de preview do ZIP original foi implementado em js/community-gif.js, community-api/src/admin-preview.mjs e docs/P15_7_PRIVATE_GIF_PREVIEWS_2026_11_05.md. O código só tenta anexar o GIF depois da quarentena e usa R2 privado com quota. A validação real com a conta da proprietária e a primeira DM continuam pendentes; NÃO habilitar o bot ou Cron antes disso.

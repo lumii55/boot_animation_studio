@@ -510,7 +510,7 @@ async function sendOwnerEdit(){
   const result=await api().proposeRevision(e.id,{title:e.title,summary:e.summary,tags:e.tags.join(','),
    license:e.license,author_credit:e.author_credit},e.file);
   if(result.status!=='pending_review')throw Error('revision_status_unconfirmed');
-  state.editDraft=null;state.status=tr('ownerEditSent');go('profile');
+  state.editDraft=null;state.status=tr('ownerEditSent')+(result.moderation_preview==='unavailable'?' · GIF indisponível: revisão pelo painel privado.':'');go('profile');
  }catch(error){state.status=tr('ownerUnable')+': '+translateError(error.message);render();}
  finally{state.busy=false;render();}
 }
@@ -858,7 +858,7 @@ async function sendPublish(){
   });
   if(result.status!=='pending_review')throw Error('upload_status_unconfirmed');
   state.file=null;state.title='';state.summary='';state.tags=[];state.tagInput='';
-  state.rights=false;state.author='';state.status=tr('sent');
+  state.rights=false;state.author='';state.status=tr('sent')+(result.moderation_preview==='unavailable'?' · GIF indisponível: revisão pelo painel privado.':'');
   go('explore');
  }catch(e){state.status=tr('uploadError')+': '+translateError(e.message);}
  finally{state.busy=false;render();}

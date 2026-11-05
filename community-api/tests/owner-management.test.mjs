@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,createHmac} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import {createLocalServer,databaseBinding} from '../dev-server.mjs';
 import worker from '../src/index.mjs';
 const API='http://127.0.0.1:8788',SITE='http://127.0.0.1:8088',ADMIN='http://127.0.0.1:8090';
@@ -140,4 +142,37 @@ test('new ZIP is quarantined as next revision, kept hidden until approval then s
  assert.equal(publicAfter.data.animation.title,'Updated and reviewed');
  assert.notEqual(x.db.prepare('SELECT published_version_id AS id FROM animations WHERE id=?').get(ANIM).id,BASE);
  assert.equal(x.db.prepare('SELECT status FROM animation_versions WHERE id=?').get(BASE).status,'approved');
+});
+
+test('pending ZIP revision accepts only its author real bounded GIF; stores privately with budget',async t=>{
+ const x=await envSetup(t);
+ const zip=zipFixture();
+ const changed={...x.meta,replace_zip:true,size_bytes:zip.length};
+ const start=await x.propose(changed,'GIF_PREVIEW_REVISION_TEST_00001');
+ assert.equal(start.status,201,JSON.stringify(start.data));
+ const revisionId=start.data.revision_id;
+ const upload=await x.request('/v1/publishing/revisions/'+revisionId+'/zip','PUT',zip,'u1',{'Content-Type':'application/zip'});
+ assert.equal(upload.status,202,JSON.stringify(upload.data));
+ const browser={window:{}};
+ runInNewContext(readFileSync(new URL('../../js/community-gif.js',import.meta.url),'utf8'),browser);
+ const pixels=new Uint8Array(64);pixels.fill(255);
+ const gif=Buffer.from(browser.window.BASCommunityGif.encodeRGB332([pixels,pixels],4,4,10));
+ const url='/v1/publishing/revisions/'+revisionId+'/preview';
+ const bad=await x.request(url,'PUT',gif,'u2',{'Content-Type':'image/gif'});
+ assert.equal(bad.status,404);
+ const fake=await x.request(url,'PUT',Buffer.from('not a GIF'),'u1',{'Content-Type':'image/gif'});
+ assert.equal(fake.status,422);
+ const before=x.db.prepare('SELECT used_bytes FROM storage_budget WHERE id=1').get().used_bytes;
+ const good=await x.request(url,'PUT',gif,'u1',{'Content-Type':'image/gif'});
+ assert.equal(good.status,200,JSON.stringify(good.data));
+ assert.equal(good.data.preview,'stored_privately');
+ const version=x.db.prepare('SELECT version_id FROM owner_revisions WHERE id=?').get(revisionId).version_id;
+ const key='previews/'+ANIM+'/'+version+'.gif';
+ assert.equal(x.db.prepare('SELECT preview_key FROM animation_versions WHERE id=?').get(version).preview_key,key);
+ assert.equal(x.objects.get(key)?.length,gif.length);
+ assert.equal(x.db.prepare('SELECT used_bytes FROM storage_budget WHERE id=1').get().used_bytes,before+gif.length);
+ const duplicate=await x.request(url,'PUT',gif,'u1',{'Content-Type':'image/gif'});
+ assert.equal(duplicate.status,409);
+ const tooBig=await x.request(url,'PUT',Buffer.alloc(2*1024*1024+1),'u1',{'Content-Type':'image/gif'});
+ assert.equal(tooBig.status,409); // already attached; no additional R2 bytes
 });
