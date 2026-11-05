@@ -14,7 +14,7 @@ export const betaCatalogReady=env=>env?.BETA_CATALOG_ENABLED==='true' &&
 const base=[
  'SELECT a.id,a.title,a.summary,a.category,a.published_at,a.download_count,a.like_count,',
  'v.size_bytes,v.width,v.height,v.fps,u.handle,u.display_name,r.license,',
- "(SELECT group_concat(tag,' ') FROM animation_tags t WHERE t.animation_id=a.id) AS tags",
+ "(SELECT COALESCE(json_group_array(tag),'[]') FROM animation_tags t WHERE t.animation_id=a.id) AS tags_json",
  'FROM animations a JOIN community_users u ON u.id=a.owner_id',
  'JOIN animation_versions v ON v.id=a.published_version_id',
  'JOIN animation_rights r ON r.animation_id=a.id',
@@ -26,7 +26,7 @@ function output(row){
   published_at:row.published_at,download_count:row.download_count,like_count:row.like_count,
   size_bytes:row.size_bytes,width:row.width,height:row.height,fps:row.fps,
   handle:row.handle,display_name:row.display_name,license:row.license,
-  tags:row.tags?row.tags.split(' ').filter(Boolean):[]};
+  tags:JSON.parse(row.tags_json||'[]')};
 }
 async function list(url,env){
  const size=Number(url.searchParams.get('limit')||12),

@@ -7,13 +7,21 @@ const $=id=>document.getElementById(id);
 const form=$('publish-form'),status=$('publish-status'),list=$('publish-drafts'),
       input=$('publish-file'),source=$('publish-source'),submit=$('publish-submit');
 const MAX_ARCHIVE=20*1024*1024;
+const safeLanguages=new Set(['en','pt','es','fr','de','it','ja','zh']);
+const browserLanguage=typeof navigator==='object'&&navigator.language?navigator.language:'en';
+const pageLanguage=(new URLSearchParams(window.location.search).get('lang')||browserLanguage)
+  .split('-')[0].toLowerCase();
+const basLanguage=safeLanguages.has(pageLanguage)?pageLanguage:'en';
+const licenseLink=document.querySelector('.license-help');
+if(licenseLink)licenseLink.href='/beta/licenses?lang='+encodeURIComponent(basLanguage);
 const tags=[];
 const tagEntry=$('publish-tags-input'),tagChips=$('publish-tag-chips'),
-  sourceChoice=$('source-choice');
+  tagAdd=$('publish-tags-add'),sourceChoice=$('source-choice');
 function normalizeTag(raw){
-  const tag=raw.normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
-    .trim().replace(/^#/,'').toLowerCase();
-  return /^[a-z0-9_-]{1,32}$/.test(tag)?tag:null;
+  if(typeof raw!=='string')return null;
+  const tag=raw.normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'')
+    .replace(/\\s+/g,' ').replace(/^#/,'').trim().toLowerCase();
+  return tag.length>0&&tag.length<=32&&/^[a-z0-9_-]+(?: [a-z0-9_-]+)*$/.test(tag)?tag:null;
 }
 function drawTags(){
   tagChips.replaceChildren();
@@ -27,27 +35,21 @@ function drawTags(){
     tagChips.append(button);
   }
 }
-function addTags(value){
-  for(const word of value.split(/[\s,]+/).filter(Boolean)){
-    const tag=normalizeTag(word);
-    if(!tag){say('Use tags de até 32 caracteres, com letras, números, - ou _.');continue;}
-    if(!tags.includes(tag)&&tags.length<12)tags.push(tag);
-    else if(tags.length>=12&&!tags.includes(tag))say('Limite de 12 tags atingido.');
-  }
+function addTags(){
+  const value=tagEntry.value;
+  if(!value.trim())return;
+  const incoming=value.split(',');
+  const normalized=incoming.map(normalizeTag);
+  if(normalized.some(tag=>!tag)){say('Use letras, números, espaços, - ou _. Separe tags usando vírgulas.');return;}
+  const combined=[...new Set([...tags,...normalized])];
+  if(combined.length>12){say('Limite de 12 tags atingido.');return;}
+  tags.splice(0,tags.length,...combined);
+  tagEntry.value='';
   drawTags();
 }
-tagEntry.addEventListener('input',()=>{
-  const value=tagEntry.value;
-  if(/[\s,]/.test(value)){const parts=value.split(/[\s,]+/);const partial=/[\s,]$/.test(value)?'':parts.pop();
-    addTags(parts.join(' '));tagEntry.value=partial;}
-});
-tagEntry.addEventListener('keydown',e=>{
-  if(e.key==='Enter'||e.key===','){
-    e.preventDefault();addTags(tagEntry.value);tagEntry.value='';
-  }
-});
-tagEntry.addEventListener('blur',()=>{
-  if(tagEntry.value.trim()){addTags(tagEntry.value);tagEntry.value='';}
+tagAdd.addEventListener('click',addTags);
+tagEntry.addEventListener('keydown',event=>{
+  if(event.key==='Enter'){event.preventDefault();addTags();}
 });
 const API='/v1/publishing';
 let borrowedFile=null,submitting=false,fromCompanion=false;
@@ -158,7 +160,9 @@ form.addEventListener('submit',async ev=>{
   if(source.value==='companion'&&!fromCompanion){
     say('Para enviar pelo Companion, abra o BAS conectado ao dispositivo e autorize a leitura por lá.');return;
   }
-  if(tagEntry.value.trim()){addTags(tagEntry.value);tagEntry.value='';}
+  if(tagEntry.value.trim()){
+    say('Clique em + Adicionar para confirmar suas tags antes de enviar.');return;
+  }
   const title=form.elements.title.value.trim();
   const license=form.elements.license.value;
   if(!$('publish-rights').checked){say('Confirme que tem os direitos de compartilhar.');return;}

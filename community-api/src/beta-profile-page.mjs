@@ -79,11 +79,14 @@ export const profilePage = `<!doctype html>
         <input id="publish-title" name="title" minlength="3" maxlength="100" required>
         <label for="publish-summary">Descrição</label>
         <textarea id="publish-summary" name="summary" rows="3" maxlength="1000"></textarea>
-        <label for="publish-tags-input">Tags (separadas por espaço ou vírgula)</label>
+        <label for="publish-tags-input">Tags</label>
         <div id="publish-tag-chips" class="tag-chips" aria-live="polite"></div>
-        <input id="publish-tags-input" type="text" maxlength="100" autocomplete="off"
-          placeholder="anime luffy one_piece" aria-describedby="tag-hint">
-        <p class="hint" id="tag-hint">Até 12 tags livres. Espaço, vírgula ou Enter cria cada tag.</p>
+        <div class="tag-entry">
+          <input id="publish-tags-input" type="text" maxlength="400" autocomplete="off"
+            placeholder="anime, natureza, relaxante" aria-describedby="tag-hint">
+          <button id="publish-tags-add" type="button" class="btn outline">+ Adicionar</button>
+        </div>
+        <p class="hint" id="tag-hint">Espaços ficam na mesma tag. Vírgulas separam tags diferentes. Clique em Adicionar para confirmar.</p>
         <div class="license-row"><label for="publish-license">Licença</label>
           <a href="/beta/licenses" target="_blank" rel="noopener noreferrer"
             class="license-help" aria-label="Não sabe qual licença escolher? Abrir guia em uma nova aba">? Não sabe qual escolher? Clique aqui</a>
@@ -115,7 +118,7 @@ export const profilePage = `<!doctype html>
       <label for="catalog-search">Buscar por nome ou tags</label>
       <div class="catalog-search">
         <input id="catalog-search" type="search" autocomplete="off" maxlength="80"
-          placeholder="Anime, Luffy, Lu, neon...">
+          placeholder="anime, natureza, relaxante...">
         <button type="button" class="btn outline" id="catalog-find">Buscar</button>
       </div>
       <p class="hint">Busca parcial, sem diferenciar maiúsculas e minúsculas. Animações pendentes não aparecem.</p>
@@ -130,8 +133,7 @@ export const profilePage = `<!doctype html>
         Aprovação neste beta não significa lançamento público.</p>
       <div id="moderation-list" aria-live="polite"></div>
       <h3>Denúncias</h3><div id="moderation-reports"></div>
-      <button id="discord-dispatch" type="button" class="btn subtle">Enviar avisos ao Discord (se configurado)</button>
-      <p class="hint" id="discord-status">Integração opcional, desativada até configuração explícita.</p>
+      <p class="hint">A moderação acontece aqui. O futuro bot administrativo permitirá realizar as mesmas decisões pelo Discord, com autorização específica.</p>
     </section>
     <section id="profile-edit" class="panel editor" hidden aria-label="Editar perfil">
       <div class="editor-header"><div><p class="eyebrow">PERSONALIZAÇÃO</p><h2>Editar perfil</h2></div>

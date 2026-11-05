@@ -261,7 +261,7 @@ test('P15.7 persists free creator tags and fold-search text atomically',async t=
 test('P15.7 rejects invalid creator tags and contradictory remix licenses',async t=>{
   const x=await setup(t),zip=makeZip();
   const cases=[
-    {tags:['anime','tag with space']},
+    {tags:['anime','tag, separated']},
     {tags:Array.from({length:13},(_,i)=>'tag'+i)},
     {tags:['unsafe!']},
     {license:'CC-BY-4.0',allows_remix:false},

@@ -210,3 +210,53 @@ Estas mudancas sao parte da entrega UNICA da P15.7 (moderacao + galeria real + D
 - Licencas: guia first-party /beta/licenses, link de ajuda em nova aba para preservar formulario, fontes Creative Commons, licencas CC0, CC BY, CC BY-SA e todos os direitos reservados explicados. Backend impede permitir-remix contraditorio.
 - Regressoes locais: **139/139** = 17 UI, 89 JS API, 33 SQLite. Smoke HTTPS: pagina, assets, licencas 200; API beta sem login 403; /v1/catalog 503; /v1/auth/me 401. Teste real de publicacao, fluxo Companion e webhook Discord ainda pendentes.
 - Proximos marcos: P15.8 unica entrega de recursos sociais e seguranca; P15.9 auditoria/launch com aprovacao expressa; main intocada.
+
+## Correções solicitadas após P15.7 (2026-11-05)
+
+- Tags: espaço permanece dentro da MESMA tag; vírgula separa tags.
+  Só confirmar clicando em + Adicionar (Enter é atalho); nunca gerar
+  automaticamente ao digitar ou perder foco. Exemplo One piece -> uma
+  tag; One piece, Teste -> duas. Exemplos do campo: anime, natureza,
+  relaxante. Migration D1 0007 permite tags compostas sem apagar antigas.
+- Idioma: guia de licenças nas oito línguas do BAS, determinado pelo
+  idioma selecionado pelo usuário, não fixado em português. A UI nativa
+  da Community também deverá reutilizar o i18n original do BAS.
+- Discord: bot administrativo privado conforme
+  docs/P15_DISCORD_ADMIN_BOT.md. O usuário denuncia no site.
+  Bot recebe eventos administrativos com preview GIF real e botões
+  Aprovar/Negar/Mais informações/Baixar. Antiga tentativa de
+  webhook texto foi bloqueada. O bot completo permanece pendente.
+- Integração verdadeira: NÃO substituir a interface do BAS por uma
+  página paralela. Ver docs/P15_UNIFIED_SITE_ARCHITECTURE.md.
+  A rota same-origin e o bundle estático estão preparados mas
+  ainda não foram implantados com Cloudflare Assets; a experiência
+  nativa do BAS ainda requer implementação.
+- Manter revisão consolidada da P15.7 na branch dev,
+  sem criar novas mini-etapas nem alterar main; nenhum lançamento público.
+
+## Revisão consolidada dos reportes da P15.7 (2026-11-05)
+
+- Correções live no Worker privado bas-community-staging: versão
+  1b723004-f4ed-487a-ae24-600c7c6518d1; rollback possível para
+  7ce6e9e0-36c7-4bd9-a4fc-8df79c3a22be.
+- Migracao 0007_multiword_tags.sql aplicada ao D1: 1 usuário e 1
+  animação preservados; tags antigas intactas (0 tags neste beta).
+- UI com + Adicionar: espaço permanece na tag, apenas vírgula
+  divide; tags com múltiplas palavras retornam como array JSON
+  na API sem serem quebradas; placeholder genérico.
+- Licenças no idioma solicitado via lang ou Accept-Language, com
+  oito idiomas do BAS; idioma da origem do editor é encaminhado
+  ao beta quando abre o formulário.
+- Discord: botão legado de despachar webhook removido, rota de texto
+  bloqueada mesmo se configurada; bot administrativo solicitado
+  não implementado. Ver documentação específica.
+- Preparados build de static assets do BAS ORIGINAL, exemplo de
+  configuração Cloudflare Assets e rota /studio/ protegida por sessão,
+  mas ainda NÃO implantados na Cloudflare nem integrados visualmente
+  com o BAS original. Staging /studio/ ainda retorna 404.
+- Testes locais: **144/144** (17 site, 94 API JS, 33 SQLite).
+  Teste HTTP live: campo/manual Add e scripts 200, oito guias
+  com html.lang correto, /v1/auth/me 401 sem login,
+  /v1/beta/catalog 403 sem login, /v1/catalog 503,
+  /studio/ 404 (por segurança, até o deploy de assets).
+- main e Companion publicado não alterados. Beta privado mantido.

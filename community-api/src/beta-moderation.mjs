@@ -137,42 +137,11 @@ async function settleReport(req,env,user,id){
   return send(200,{report_id:id,status:data.action==='dismiss'?'dismissed':'resolved'});
  }catch(_){return fail(503,'moderation_unavailable');}
 }
-async function notifyDiscord(env){
- // No remote notifications until an owner-provided webhook secret is configured.
- if(env.DISCORD_NOTIFICATIONS_APPROVED!=='true'||
-    typeof env.DISCORD_WEBHOOK_URL!=='string')return fail(503,'discord_not_configured');
- let endpoint;
- try{endpoint=new URL(env.DISCORD_WEBHOOK_URL);}catch(_){return fail(503,'discord_not_configured');}
- if(endpoint.protocol!=='https:'||!['discord.com','discordapp.com'].includes(endpoint.hostname)||
-    !/^\/api\/webhooks\/[0-9]+\/[A-Za-z0-9_.-]+$/.test(endpoint.pathname))
-  return fail(503,'discord_not_configured');
- const jobs=(await env.DB.prepare(
-  "SELECT o.id,o.action,a.title,u.handle FROM discord_outbox o "+
-  "JOIN animations a ON a.id=o.animation_id JOIN community_users u ON u.id=a.owner_id "+
-  "WHERE o.status='queued' AND o.attempts<3 ORDER BY o.created_at ASC LIMIT 5"
- ).bind().all()).results||[];
- let delivered=0,failed=0;
- for(const job of jobs){
-  try{
-   const content='BAS Community · '+job.action+' · '+
-    job.title.slice(0,100)+' · @'+job.handle.slice(0,32)+' (revisão privada)';
-   const r=await fetch(endpoint.href,{method:'POST',redirect:'manual',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({content,allowed_mentions:{parse:[]}})});
-   if(!r.ok)throw Error('delivery failed');
-   await env.DB.prepare(
-    "UPDATE discord_outbox SET status='delivered',attempts=attempts+1,processed_at=unixepoch() WHERE id=? AND status='queued'"
-   ).bind(job.id).run();
-   delivered++;
-  }catch(_){
-   failed++;
-   await env.DB.prepare(
-    "UPDATE discord_outbox SET attempts=attempts+1,status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'queued' END WHERE id=?"
-   ).bind(job.id).run();
-   break; // no automatic bursts after failure/429
-  }
- }
- return send(200,{delivered,failed});
+async function notifyDiscord(){
+ // Legacy text-only webhook dispatch has been permanently disabled.
+ // The requested bot must use signed Discord Interactions, a private admin
+ // allowlist, preview GIF attachments, and authenticated review actions.
+ return fail(503,'discord_admin_bot_not_ready');
 }
 export async function handleModeration(req,env,url,user){
  const path=url.pathname.slice('/v1/beta/'.length);

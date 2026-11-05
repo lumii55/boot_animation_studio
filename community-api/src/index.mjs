@@ -1,4 +1,5 @@
 import {serveBetaPortal} from './beta-portal.mjs';
+import {serveUnifiedStudio} from './studio-assets.mjs';
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
@@ -144,6 +145,8 @@ export default {
     let url;
     try { url = new URL(request.url); }
     catch (_) { return error('invalid_url', 400, origin, head); }
+    const unifiedStudio=await serveUnifiedStudio(request,env,url);
+    if(unifiedStudio)return unifiedStudio;
     const betaPage=serveBetaPortal(request,env,url);
     if(betaPage)return betaPage;
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.

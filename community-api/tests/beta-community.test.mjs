@@ -51,7 +51,9 @@ function setup(t){
 test('tag normalization handles accents, deduplication and invalid tokens',()=>{
  assert.deepEqual(normalizeTags(['Anime','animé','ONE_PIECE','luffy']),['anime','one_piece','luffy']);
  assert.equal(normalizeTags(Array(13).fill('x')),null);
- assert.equal(normalizeTags(['tag with space']),null);
+ assert.deepEqual(normalizeTags(['One piece','Teste']),['one piece','teste']);
+ assert.deepEqual(normalizeTags(['Anime   relaxante']),['anime relaxante']);
+ assert.equal(normalizeTags(['one piece, teste']),null);
  assert.equal(foldSearch('Animação do Luffy'),'animacao do luffy');
 });
 test('beta catalog searches approved titles and tags with case/accent folding',async t=>{
@@ -145,7 +147,7 @@ test('download requires approved version and is disabled independently',async t=
 test('Discord notification worker requires explicitly approved webhook',async t=>{
  const x=setup(t);
  const r=await x.req('/v1/beta/moderation/discord/dispatch','POST',{});
- assert.equal(r.status,503);assert.equal(r.body.error,'discord_not_configured');
+ assert.equal(r.status,503);assert.equal(r.body.error,'discord_admin_bot_not_ready');
 });
 test('moderator can dismiss a report with reason and cannot resolve twice',async t=>{
  const x=setup(t),a=x.animation(9,'Report dismissal example',['original'],true);
@@ -169,4 +171,35 @@ test('rejected animation never becomes visible in beta search or downloads',asyn
  assert.equal((await x.req('/v1/beta/downloads/'+a.a)).status,404);
  assert.equal((await x.req('/v1/beta/moderation/decision/'+a.a,
   'POST',{action:'approve',reason:'Try to approve rejected'})).status,409);
+});
+test('multi-word tags remain intact in catalog and are searchable by fragments',async t=>{
+ const x=setup(t);
+ x.animation(11,'Natureza no céu',['one piece','relaxante','natureza'],true);
+ for(const term of ['one piece','One','PIECE','relax']){
+  const r=await x.req('/v1/beta/catalog?q='+encodeURIComponent(term));
+  assert.equal(r.status,200,term);
+  assert.equal(r.body.items.length,1,term);
+  assert.deepEqual(r.body.items[0].tags.slice().sort(),['one piece','relaxante','natureza'].sort());
+ }
+});
+test('original BAS studio assets require a beta session and same-origin binding',async t=>{
+ const x=setup(t);
+ x.env.BETA_PORTAL_ENABLED='true';
+ x.env.AUTH_BETA_GITHUB_IDS='12345';
+ x.env.BAS_UNIFIED_STUDIO_ENABLED='true';
+ let fetched=null;
+ x.env.ASSETS={fetch:async req=>{
+  fetched=new URL(req.url).pathname;
+  return new Response('ORIGINAL BAS STATIC ASSET',{status:200,headers:{'Content-Type':'text/html'}});
+ }};
+ let r=await x.req('/studio/');
+ assert.equal(r.status,200);
+ assert.equal(fetched,'/index.html');
+ r=await x.req('/studio/community-api/src/index.mjs');
+ assert.equal(r.status,404);
+ r=await x.req('/studio/', 'GET',null,{Cookie:''});
+ assert.equal(r.status,302);
+ x.env.BAS_UNIFIED_STUDIO_ENABLED='false';
+ r=await x.req('/studio/');
+ assert.equal(r.status,404);
 });

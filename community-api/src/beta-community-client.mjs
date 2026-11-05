@@ -128,12 +128,6 @@ async function moderation(){
  }catch(_){modPanel.hidden=true;}
 }
 $('moderation-refresh').addEventListener('click',()=>void moderation());
-$('discord-dispatch').addEventListener('click',async()=>{
- try{
-  const data=await post('moderation/discord/dispatch',{});
-  $('discord-status').textContent='Enviados: '+data.delivered+' · falhas: '+data.failed;
- }catch(e){$('discord-status').textContent='Discord não configurado ou indisponível ('+e.message+').';}
-});
 window.addEventListener('bas:authenticated',()=>{void search(true);void moderation()});
 void (async()=>{try{await token();await Promise.all([search(true),moderation()]);}catch(_){}})();
 })();`;

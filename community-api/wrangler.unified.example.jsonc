@@ -1,0 +1,51 @@
+{
+  "$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+  "name": "bas-community-staging",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-11-04",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "PUBLIC_CATALOG_ENABLED": "false",
+    "CORS_ALLOWED_ORIGINS": "http://127.0.0.1:8088",
+    "AUTH_ENABLED": "false",
+    "AUTH_DEPLOYMENT_APPROVED": "false",
+    "AUTH_PUBLIC_SIGNUP_APPROVED": "false",
+    "BETA_PORTAL_ENABLED": "false",
+    "UPLOAD_ENABLED": "false",
+    "STORAGE_ENABLED": "false",
+    "PUBLISH_ENABLED": "false",
+    "PUBLISH_STAGING_APPROVED": "false",
+    "PUBLISH_MAINTENANCE_APPROVED": "false",
+    "BETA_CATALOG_ENABLED": "false",
+    "MODERATION_STAGING_APPROVED": "false",
+    "STAGING_DOWNLOADS_APPROVED": "false",
+    "DISCORD_NOTIFICATIONS_APPROVED": "false",
+    "MODERATOR_USER_IDS": "",
+    "MEDIA_ENABLED": "false",
+    "MEDIA_STAGING_APPROVED": "false",
+    "BAS_UNIFIED_STUDIO_ENABLED": "false"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bas-community-staging",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PRIVATE_UPLOADS",
+      "bucket_name": "replace-only-in-private-staging-config"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "assets": {
+    "directory": "./.studio-assets-build",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  }
+}

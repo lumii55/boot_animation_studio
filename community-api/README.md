@@ -249,3 +249,47 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
 - Licencas: guia first-party /beta/licenses, link de ajuda em nova aba para preservar formulario, fontes Creative Commons, licencas CC0, CC BY, CC BY-SA e todos os direitos reservados explicados. Backend impede permitir-remix contraditorio.
 - Regressoes locais: **139/139** = 17 UI, 89 JS API, 33 SQLite. Smoke HTTPS: pagina, assets, licencas 200; API beta sem login 403; /v1/catalog 503; /v1/auth/me 401. Teste real de publicacao, fluxo Companion e webhook Discord ainda pendentes.
 - Proximos marcos: P15.8 unica entrega de recursos sociais e seguranca; P15.9 auditoria/launch com aprovacao expressa; main intocada.
+
+## Correção P15.7: tags compostas, idioma e arquitetura BAS
+
+- D1 migration 0007_multiword_tags.sql preserva as tags antigas,
+  aceita espaços internos e continua limitando tamanho/quantidade.
+- O formulário só insere tags pelo botão Adicionar (Enter é atalho);
+  vírgulas separam, espaços não. Busca beta retorna arrays JSON de
+  tags, sem cortar nomes compostos.
+- Guia das licenças traduzido para as oito línguas do BAS,
+  usando parâmetro lang fornecido pela página original, com
+  Accept-Language como fallback.
+- Webhook antigo de Discord não representa o bot solicitado e está
+  desabilitado. Ver documentação do bot administrador no roadmap.
+- Arquitetura opcional de Workers Static Assets sob /studio/
+  preparada, mas não implantada no Worker atual. Não afirmar
+  que o BAS original já está integrado/hospedado até completar
+  o upload de assets e a migração da UI para o layout nativo.
+
+## Revisão consolidada dos reportes da P15.7 (2026-11-05)
+
+- Correções live no Worker privado bas-community-staging: versão
+  1b723004-f4ed-487a-ae24-600c7c6518d1; rollback possível para
+  7ce6e9e0-36c7-4bd9-a4fc-8df79c3a22be.
+- Migracao 0007_multiword_tags.sql aplicada ao D1: 1 usuário e 1
+  animação preservados; tags antigas intactas (0 tags neste beta).
+- UI com + Adicionar: espaço permanece na tag, apenas vírgula
+  divide; tags com múltiplas palavras retornam como array JSON
+  na API sem serem quebradas; placeholder genérico.
+- Licenças no idioma solicitado via lang ou Accept-Language, com
+  oito idiomas do BAS; idioma da origem do editor é encaminhado
+  ao beta quando abre o formulário.
+- Discord: botão legado de despachar webhook removido, rota de texto
+  bloqueada mesmo se configurada; bot administrativo solicitado
+  não implementado. Ver documentação específica.
+- Preparados build de static assets do BAS ORIGINAL, exemplo de
+  configuração Cloudflare Assets e rota /studio/ protegida por sessão,
+  mas ainda NÃO implantados na Cloudflare nem integrados visualmente
+  com o BAS original. Staging /studio/ ainda retorna 404.
+- Testes locais: **144/144** (17 site, 94 API JS, 33 SQLite).
+  Teste HTTP live: campo/manual Add e scripts 200, oito guias
+  com html.lang correto, /v1/auth/me 401 sem login,
+  /v1/beta/catalog 403 sem login, /v1/catalog 503,
+  /studio/ 404 (por segurança, até o deploy de assets).
+- main e Companion publicado não alterados. Beta privado mantido.

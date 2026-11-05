@@ -9,8 +9,8 @@ export function normalizeTags(values){
   const output=[];
   for(const raw of values){
     if(typeof raw!=='string')return null;
-    const value=foldSearch(raw).replace(/^#/, '');
-    if(value.length<1||value.length>32||!/^[a-z0-9_-]+$/.test(value))return null;
+    const value=foldSearch(raw).replace(/^#/, '').replace(/\s+/g,' ').trim();
+    if(value.length<1||value.length>32||!/^[a-z0-9_-]+(?: [a-z0-9_-]+)*$/.test(value))return null;
     if(!output.includes(value))output.push(value);
   }
   return output;

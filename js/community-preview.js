@@ -418,6 +418,12 @@
   let recentExport=null;
   let selectedPublishFile=null;
   const PRIVATE_BETA_ORIGIN='https://bas-community-staging.caiolive1000.workers.dev';
+  function privateBetaUrl(editorOrigin){
+    const language=typeof idiomaAtual==='string'?idiomaAtual:(document.documentElement.lang||'en');
+    const params=new URLSearchParams({lang:language});
+    if(editorOrigin)params.set('editor_origin',editorOrigin);
+    return PRIVATE_BETA_ORIGIN+'/?'+params.toString();
+  }
   function modulePublishReady(){
     return typeof apiFetch==='function'&&typeof ensureModuleFeature==='function'&&
       (typeof isConnectedMode==='undefined'||isConnectedMode===true) &&
@@ -429,7 +435,7 @@
     const accepted=location.origin==='http://127.0.0.1:8088'||
       (location.origin==='https://lumii55.github.io'&&location.pathname.startsWith('/boot_animation_studio'));
     if(!accepted)return false;
-    const page=window.open(PRIVATE_BETA_ORIGIN+'/?editor_origin='+encodeURIComponent(location.origin),'_blank');
+    const page=window.open(privateBetaUrl(location.origin),'_blank');
     if(!page)return false;
     let complete=false;
     const timeout=window.setTimeout(()=>window.removeEventListener('message',receive),60000);
@@ -451,7 +457,7 @@
       ' pelo Companion autorizado? Nada será instalado ou alterado.'))return false;
     // Fetch AFTER the user click, but the browser window must open synchronously
     // to avoid popup blockers. Remote send still requires owner confirmation.
-    const page=window.open(PRIVATE_BETA_ORIGIN+'/?editor_origin='+encodeURIComponent(location.origin),'_blank');
+    const page=window.open(privateBetaUrl(location.origin),'_blank');
     if(!page)return false;
     let ready=false,blob=null;
     const stop=()=>{window.removeEventListener('message',receive);clearTimeout(timer);};
@@ -531,10 +537,10 @@
     const supported=ownOrigin==='http://127.0.0.1:8088' ||
       (ownOrigin==='https://lumii55.github.io'&&location.pathname.startsWith('/boot_animation_studio'));
     if(!supported){
-      window.open(PRIVATE_BETA_ORIGIN+'/','_blank','noopener');
+      window.open(privateBetaUrl(),'_blank','noopener');
       return;
     }
-    const endpoint=PRIVATE_BETA_ORIGIN+'/?editor_origin='+encodeURIComponent(ownOrigin);
+    const endpoint=privateBetaUrl(ownOrigin);
     const other=window.open(endpoint,'_blank');
     if(!other){
       const status=byId('bas-c-publish-status');
@@ -1014,7 +1020,7 @@
     }
     if(action==='publish-private' && state.modal?.type==='upload'){launchPrivatePublish();return;}
     if(action==='real-account'){
-      window.open(PRIVATE_BETA_ORIGIN+'/','_blank','noopener');return;
+      window.open(privateBetaUrl(),'_blank','noopener');return;
     }
     if (action==='signin') { state.profileDraft={...state.demoProfile}; openModal('account'); return; }
     if (action==='remove-photo' && state.modal?.type==='account') { clearLocalPhoto(element.dataset.photo); return; }

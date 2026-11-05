@@ -162,3 +162,66 @@ test('P15.7 browser assets parse and never expose restricted resources',async()=
   assert.ok(publish.includes('sourceChoice.hidden'));
   assert.ok(publish.includes("license!=='all-rights-reserved'"));
 });
+
+test('P15.7 language guide follows BAS locale query across eight translations',async()=>{
+ const locales=['pt','en','es','fr','de','it','ja','zh'];
+ const headings=new Set();
+ for(const locale of locales){
+  const response=await get('/beta/licenses?lang='+locale);
+  assert.equal(response.status,200,locale);
+  const html=await response.text();
+  assert.match(html,/CC0 1.0/);
+  assert.match(html,/CC BY-SA 4.0/);
+  assert.match(html,/<html lang="/);
+  headings.add(html.match(/<h1>([^<]+)<\/h1>/)?.[1]);
+ }
+ assert.equal(headings.size,8);
+});
+test('tags add button does not insert tags just by typing spaces',async()=>{
+ const html=await(await get('/')).text();
+ assert.match(html,/id="publish-tags-add"/);
+ assert.match(html,/placeholder="anime, natureza, relaxante"/);
+ const js=await(await get('/beta/publish.js')).text();
+ assert.ok(js.includes("tagAdd.addEventListener('click',addTags)"));
+ assert.ok(!js.includes("tagEntry.addEventListener('input'"));
+ assert.ok(!js.includes("tagEntry.addEventListener('blur'"));
+});
+
+test('tag entry keeps spaces until explicit Add and splits comma-separated tags',async()=>{
+ const {Script}=await import('node:vm');
+ const js=await(await get('/beta/publish.js')).text();
+ const elements=new Map(),callbacks=new Map();
+ function make(id){
+  if(!elements.has(id)){
+   const e={value:'',hidden:false,required:false,disabled:false,textContent:'',children:[],
+    addEventListener(type,handler){callbacks.set(id+':'+type,handler)},
+    replaceChildren(){this.children=[]},append(child){this.children.push(child)},
+    setAttribute(){},querySelector(){return make('option')},
+    classList:{add(){},remove(){}},files:[],elements:{},reportValidity(){return true}};
+   elements.set(id,e);
+  }
+  return elements.get(id);
+ }
+ const context={document:{getElementById:make,querySelector:()=>make('license-link'),
+  createElement:tag=>make('created-'+tag+'-'+elements.size)},
+  window:{location:{search:''},opener:null,addEventListener(){},confirm(){return false}},
+  navigator:{language:'pt-BR'},
+  URLSearchParams,Promise,Blob,File:class File{},
+  crypto:{getRandomValues:x=>x},
+  fetch:async()=>({ok:false,status:401,json:async()=>({})})};
+ new Script(js).runInNewContext(context);
+ const input=make('publish-tags-input'),chips=make('publish-tag-chips');
+ input.value='One piece';
+ assert.equal(chips.children.length,0,'typing alone must not add anything');
+ callbacks.get('publish-tags-add:click')();
+ assert.equal(chips.children.length,1);
+ assert.equal(chips.children[0].textContent,'#one piece ×');
+ input.value='One piece, Teste';
+ callbacks.get('publish-tags-add:click')();
+ assert.equal(chips.children.length,2,'comma creates two unique tags');
+ assert.deepEqual(chips.children.map(x=>x.textContent),['#one piece ×','#teste ×']);
+ input.value='anime natureza relaxante';
+ callbacks.get('publish-tags-add:click')();
+ assert.equal(chips.children.length,3,'spaces inside one tag are retained');
+ assert.equal(chips.children[2].textContent,'#anime natureza relaxante ×');
+});

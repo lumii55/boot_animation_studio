@@ -6,7 +6,7 @@ import {profilePage} from './beta-profile-page.mjs';
 import {profileStyles} from './beta-profile-styles.mjs';
 import {profileClient} from './beta-profile-client.mjs';
 import {betaPublishingClient} from './beta-publishing-client.mjs';
-import {licenseGuide} from './beta-license-guide.mjs';
+import {licenseGuide,licenseGuideFor} from './beta-license-guide.mjs';
 import {betaCommunityClient} from './beta-community-client.mjs';
 const assets=new Map([
  ['/', ['text/html; charset=utf-8',profilePage]],
@@ -34,5 +34,8 @@ export function serveBetaPortal(req,env,url){
    h.set('Allow','GET, HEAD');return new Response('Method Not Allowed',{status:405,headers:h});
  }
  h.set('Content-Type',asset[0]);
- return new Response(req.method==='HEAD'?null:asset[1],{status:200,headers:h});
+ const html=url.pathname==='/beta/licenses'
+   ?licenseGuideFor(url.searchParams.get('lang')||req.headers.get('accept-language')||'pt')
+   :asset[1];
+ return new Response(req.method==='HEAD'?null:html,{status:200,headers:h});
 }

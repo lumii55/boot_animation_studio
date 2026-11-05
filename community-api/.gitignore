@@ -10,3 +10,6 @@ wrangler.jsonc
 .local/
 __pycache__/
 *.pyc
+
+# Generated allowlisted BAS static-assets tree (never commit build output)
+.studio-assets-build/
