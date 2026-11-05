@@ -850,7 +850,7 @@
       it:['✦ Community','Esplora, condividi e scarica animazioni.'],
       ja:['✦ コミュニティ','アニメーションを探して共有・ダウンロード。'],
       zh:['✦ 社区','探索、分享并下载开机动画。']};
-    const locale=window.BASI18n?.locale||document.documentElement?.lang||'en';
+    const locale=window.BASI18n?.locale||byId('select-idioma')?.value||document.documentElement?.lang||'en';
     const captions=names[locale]||names.en;
     if(launch)launch.textContent=captions[0];
     const description=byId('bas-community-home-desc');
@@ -1003,6 +1003,8 @@
       saveFlag(Boolean(ev.target.checked));sync();
     });
     byId('bas-community-launcher')?.addEventListener('click',open);
+    byId('select-idioma')?.addEventListener('change',()=>Promise.resolve().then(sync));
+    window.addEventListener('load',sync);
     byId('bas-community-preview-open')?.addEventListener('click',open);
     byId('bas-community-preview')?.addEventListener('click',handler);
     byId('bas-community-preview')?.addEventListener('input',onInput);

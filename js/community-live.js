@@ -101,7 +101,7 @@ const tr=k=>window.BASCommunityLabels?.text(language(),k)||
 const state={route:'explore',items:[],query:'',sort:'newest',loading:false,
  status:'',busy:false,selected:null,file:null,source:'zip',title:'',summary:'',
  license:'CC-BY-4.0',author:'',tags:[],rights:false,tagInput:'',drafts:[],
- moderation:null,remotePictures:{avatar:null,banner:null},profileDraft:null,creators:[],creatorItems:[],selectedCreator:null,modal:null};
+ moderation:null,remotePictures:{avatar:null,banner:null},profileDraft:null,creators:[],creatorItems:[],selectedCreator:null,modal:null,owned:[],editDraft:null};
 const appRoot=()=>document.getElementById('bas-c-view');
 const overlay=()=>document.getElementById('bas-community-preview');
 function chrome(){
@@ -134,7 +134,7 @@ function go(route){
  if(route==='explore')void fetchGallery();
  if(route==='creators')void fetchCreators();
  if(route==='creator')void fetchCreatorPosts();
- if(route==='profile'){void fetchPictures();void fetchDrafts();}
+ if(route==='profile'){void fetchPictures();void fetchDrafts();void fetchOwned();}
 }
 function localStatus(value){
  const labels={
@@ -250,11 +250,18 @@ function profileView(){
   '</div></div>'+
   '<section class="bas-c-sectionhead"><div><span class="bas-c-kicker">BAS COMMUNITY</span>'+
    '<h2>'+safe(tr('myPosts'))+'</h2></div></section>'+
-  '<div class="bas-c-grid">'+(state.drafts.length?state.drafts.map(item=>
-   '<article class="bas-c-card bas-live-admin-item"><div class="bas-c-card__content">'+
-   '<h3>'+safe(item.title||item.filename||'ZIP')+'</h3>'+
-   '<p>'+safe(localStatus(item.moderation_status||item.status||'pending'))+'</p></div></article>').join(''):
-   '<p>'+safe(tr('noPosts'))+'</p>')+'</div>'+
+  '<div class="bas-c-grid">'+(state.owned.length?state.owned.map(item=>{
+   const canOpen=item.status==='published',editable=canOpen&&!item.edit_id;
+   return '<article class="bas-c-card bas-live-admin-item"><div class="bas-c-card__content">'+
+   '<h3>'+safe(item.title)+'</h3>'+
+   '<p>'+safe(localStatus(item.status))+'</p>'+
+   (item.edit_id?'<p class="bas-live-hint">✧ '+safe(tr('ownerPendingEdit'))+'</p>':'')+
+   '<div class="bas-live-actions">'+
+   (canOpen?'<button class="bas-c-button" type="button" data-c-action="open-owned" data-id="'+safe(item.id)+'">'+safe(tr('ownerOpen'))+'</button>':'')+
+   (editable?'<button class="bas-c-button bas-c-button--bright" type="button" data-c-action="edit-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerEdit'))+'</button>':'')+
+   (item.edit_id?'<button class="bas-c-button" type="button" data-c-action="cancel-owner-edit" data-id="'+safe(item.edit_id)+'">'+safe(tr('ownerCancelEdit'))+'</button>':'')+
+   '<button class="bas-c-button bas-live-danger" type="button" data-c-action="remove-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerRemove'))+'</button></div></div></article>';
+  }).join(''):'<p class="bas-c-noresults">'+safe(tr('noPosts'))+'</p>')+'</div>'+
   statusHTML();
 }
 function editProfile(){
@@ -284,6 +291,7 @@ function moduleCanApply(){
 function detailsView(){
  const item=state.selected;
  if(!item)return galleryView();
+ const mine=logged()?state.owned.find(owned=>owned.id===item.id):null;
  return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
   '<h1 id="bas-c-page-title">'+safe(item.title)+'</h1><p>@'+safe(item.handle)+'</p></section>'+
   '<div class="bas-c-publish-draft bas-live-detail"><div class="bas-live-detail-preview"><canvas class="bas-live-anim-canvas" data-bas-animation="'+safe(item.id)+'" aria-hidden="true"></canvas><span class="bas-live-preview-loading" aria-hidden="true">✧</span></div><p>'+safe(item.summary||'')+'</p>'+
@@ -292,7 +300,9 @@ function detailsView(){
    '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="download" data-id="'+safe(item.id)+'">'+safe(tr('download'))+'</button>'+
     (moduleCanApply()?'<button type="button" class="bas-c-button" data-c-action="apply-module" data-id="'+safe(item.id)+'">'+
      (language()==='pt'?'Aplicar no celular':'Apply to phone')+'</button>':'')+
-    '<button type="button" class="bas-c-button" data-c-action="report" data-id="'+safe(item.id)+'">'+safe(tr('report'))+'</button>'+
+    (mine?'':('<button type="button" class="bas-c-button" data-c-action="report" data-id="'+safe(item.id)+'">'+safe(tr('report'))+'</button>'))+
+    (mine&&!mine.edit_id?'<button type="button" class="bas-c-button" data-c-action="edit-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerEdit'))+'</button>':'')+
+    (mine?'<button type="button" class="bas-c-button bas-live-danger" data-c-action="remove-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerRemove'))+'</button>':'')+
     '<button type="button" class="bas-c-button" data-c-action="back-gallery">'+safe(tr('cancel'))+'</button></div></div>'+statusHTML();
 }
 function uploadView(){
@@ -325,6 +335,86 @@ function uploadView(){
    '<button class="bas-c-button" type="button" data-c-action="back-gallery">'+safe(tr('cancel'))+'</button></div></form>'+
   statusHTML()+'</div>';
 }
+function editAnimationView(){
+ const e=state.editDraft;
+ if(!e||!logged())return profileView();
+ return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
+  '<h1 id="bas-c-page-title">'+safe(tr('ownerEditTitle'))+'</h1>'+
+  '<p>'+safe(tr('ownerEditHelp'))+'</p></section>'+
+  '<form id="bas-owner-edit-form" class="bas-c-publish-draft bas-live-form">'+
+   '<label>'+safe(tr('title'))+'<input id="bas-owner-title" required minlength="3" maxlength="100" value="'+safe(e.title)+'"></label>'+
+   '<label>'+safe(tr('desc'))+'<textarea id="bas-owner-summary" maxlength="1000" rows="4">'+safe(e.summary)+'</textarea></label>'+
+   '<label>'+safe(tr('tags'))+'</label>'+
+   '<div class="bas-live-tags">'+e.tags.map(tag=>'<button type="button" data-c-action="owner-tag-remove" data-tag="'+safe(tag)+'">#'+safe(tag)+' ×</button>').join('')+'</div>'+
+   '<div class="bas-live-tag-row"><input id="bas-owner-tag-input" type="text" maxlength="400" value="'+safe(e.tagInput)+'">'+
+    '<button class="bas-c-button" type="button" data-c-action="owner-tag-add">'+safe(tr('add'))+'</button></div>'+
+   '<label>'+safe(tr('license'))+'<select id="bas-owner-license">'+
+     [['CC-BY-4.0','CC BY 4.0'],['CC-BY-SA-4.0','CC BY-SA 4.0'],['CC0-1.0','CC0 1.0'],['all-rights-reserved','All rights reserved']].map(pair=>
+       '<option value="'+safe(pair[0])+'"'+(e.license===pair[0]?' selected':'')+'>'+safe(pair[1])+'</option>').join('')+
+   '</select></label>'+
+   '<label>'+safe(tr('author'))+'<input id="bas-owner-credit" maxlength="120" value="'+safe(e.author_credit)+'"></label>'+
+   '<label>'+safe(tr('ownerReplaceZip'))+'<input id="bas-owner-zip" type="file" accept=".zip,application/zip"></label>'+
+   '<p class="bas-live-hint">'+safe(e.file?e.file.name:tr('ownerReplaceHint'))+'</p>'+
+   '<label class="bas-c-publish-rights"><input id="bas-owner-rights" type="checkbox"'+(e.rights?' checked':'')+'> '+safe(tr('rights'))+'</label>'+
+   '<div class="bas-live-actions"><button class="bas-c-button bas-c-button--bright" type="submit"'+(state.busy?' disabled':'')+'>'+safe(state.busy?tr('ownerBusy'):tr('ownerSave'))+'</button>'+
+    '<button type="button" class="bas-c-button" data-c-action="go-profile">'+safe(tr('cancel'))+'</button></div>'+statusHTML()+'</form>';
+}
+function collectOwnerEdit(){
+ const e=state.editDraft;if(!e)return;
+ for(const [id,key] of [['bas-owner-title','title'],['bas-owner-summary','summary'],
+  ['bas-owner-credit','author_credit'],['bas-owner-tag-input','tagInput'],['bas-owner-license','license']]){
+  const node=$(id);if(node)e[key]=node.value;
+ }
+ if($('bas-owner-rights'))e.rights=$('bas-owner-rights').checked;
+}
+function openOwnerEdit(id){
+ const item=state.owned.find(v=>v.id===id&&v.status==='published'&&!v.edit_id);
+ if(!item)return false;
+ state.editDraft={id,title:item.title,summary:item.summary||'',tags:[...(item.tags||[])],
+  license:item.license||'CC-BY-4.0',author_credit:item.author_credit||user()?.display_name||'',
+  tagInput:'',rights:false,file:null};
+ state.status='';go('edit-animation');return true;
+}
+async function addOwnerTags(){
+ const e=state.editDraft;if(!e)return;
+ collectOwnerEdit();
+ try{
+  const tags=api().normalizeTags(e.tagInput),all=[...new Set([...e.tags,...tags])];
+  if(all.length>12)throw Error('Limite de 12 tags.');
+  e.tags=all;e.tagInput='';state.status='';
+ }catch(error){state.status=String(error.message||error);}
+ render();
+}
+async function sendOwnerEdit(){
+ const e=state.editDraft;if(!e||state.busy)return;
+ collectOwnerEdit();
+ if(e.tagInput.trim()){state.status=tr('missingTags');render();return;}
+ if(!e.rights){state.status=tr('missingRights');render();return;}
+ if(e.title.trim().length<3||e.title.trim().length>100){state.status=tr('invalidTitle');render();return;}
+ state.busy=true;state.status=tr('ownerBusy');render();
+ try{
+  const result=await api().proposeRevision(e.id,{title:e.title,summary:e.summary,tags:e.tags.join(','),
+   license:e.license,author_credit:e.author_credit},e.file);
+  if(result.status!=='pending_review')throw Error('revision_status_unconfirmed');
+  state.editDraft=null;state.status=tr('ownerEditSent');go('profile');
+ }catch(error){state.status=tr('ownerUnable')+': '+translateError(error.message);render();}
+ finally{state.busy=false;render();}
+}
+async function cancelOwnerEdit(id){
+ if(state.busy)return;
+ state.busy=true;
+ try{await api().cancelRevision(id);state.status=tr('ownerEditCancelled');await fetchOwned();}
+ catch(error){state.status=tr('ownerUnable')+': '+String(error.message||error);}
+ finally{state.busy=false;render();}
+}
+async function removeOwnerAnimation(id){
+ if(state.busy)return;
+ state.busy=true;
+ try{await api().withdrawAnimation(id);state.selected=null;state.editDraft=null;
+  state.status=tr('ownerRemoved');go('profile');}
+ catch(error){state.status=tr('ownerUnable')+': '+String(error.message||error);render();}
+ finally{state.busy=false;}
+}
 function licensesView(){
  const guide=window.BASCommunityLicenses?.forLanguage(language());
  if(!guide)return '<p role="alert">'+safe(tr('licenseTitle'))+'</p>';
@@ -352,6 +442,9 @@ function renderModal(){
    '<textarea id="bas-live-report-reason" required minlength="5" maxlength="500" rows="5">'+safe(modal.reason||'')+'</textarea>'+
    '<div class="bas-live-actions"><button class="bas-c-button bas-c-button--bright" type="submit">'+safe(tr('send'))+'</button>'+
    '<button class="bas-c-button" type="button" data-c-action="modal-close">'+safe(tr('cancel'))+'</button></div></form>'
+  :modal.kind==='remove'?'<p>'+safe(tr('ownerRemoveWarning'))+'</p>'+
+   '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-live-danger" data-c-action="modal-remove">'+safe(tr('ownerRemoveConfirm'))+'</button>'+
+   '<button type="button" class="bas-c-button" data-c-action="modal-close">'+safe(tr('cancel'))+'</button></div>'
   :'<p>'+safe(tr('applyHelp'))+'</p>'+
    '<div class="bas-live-actions"><button class="bas-c-button bas-c-button--bright" type="button" data-c-action="modal-apply">'+safe(tr('confirmApply'))+'</button>'+
    '<button class="bas-c-button" type="button" data-c-action="modal-close">'+safe(tr('cancel'))+'</button></div>';
@@ -359,7 +452,7 @@ function renderModal(){
   '<section role="dialog" aria-modal="true" aria-labelledby="bas-live-dialog-title" class="bas-c-modal bas-live-modal">'+
   '<div class="bas-c-modal-top"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
   '<button class="bas-c-roundclose" type="button" data-c-action="modal-close" aria-label="'+safe(tr('close'))+'">×</button></div>'+
-  '<h2 id="bas-live-dialog-title">'+safe(tr(modal.kind==='report'?'reportTitle':'applyTitle'))+'</h2>'+
+  '<h2 id="bas-live-dialog-title">'+safe(tr(modal.kind==='report'?'reportTitle':modal.kind==='remove'?'ownerRemoveQuestion':'applyTitle'))+'</h2>'+
   contents+
   (modal.error?'<p class="bas-live-status" role="alert">'+safe(modal.error)+'</p>':'')+
   '</section></div>';
@@ -383,6 +476,7 @@ function render(){
  else if(state.route==='creators')content=creatorsView();
  else if(state.route==='creator')content=creatorView();
  else if(state.route==='upload')content=uploadView();
+ else if(state.route==='edit-animation')content=editAnimationView();
  else if(state.route==='licenses')content=licensesView();
  else content=galleryView();
  target.innerHTML=content;
@@ -426,6 +520,14 @@ function viewCreator(handle){
  if(!creator)return;
  state.selectedCreator=creator;state.creatorItems=[];
  go('creator');
+}
+async function fetchOwned(){
+ if(!logged()||!api().ownedAnimations)return;
+ try{
+  const response=await api().ownedAnimations();
+  state.owned=Array.isArray(response.animations)?response.animations:[];
+ }catch(error){state.owned=[];state.status=tr('ownerUnable')+': '+String(error.message||error);}
+ if(state.route==='profile')render();
 }
 async function fetchDrafts(){
  if(!logged())return;
@@ -583,6 +685,8 @@ function handle(event){
    return true; // clicks inside dialog must NOT dismiss the dialog
   closeModal();return true;
  }
+ if(action==='modal-remove'){const target=state.modal?.kind==='remove'?state.modal.id:null;
+  closeModal();if(target)void removeOwnerAnimation(target);return true;}
  if(action==='modal-apply'){
   const selected=state.modal?.kind==='apply'?state.modal.id:null;
   closeModal();
@@ -623,6 +727,13 @@ function handle(event){
  if(action==='download'){void download(id);return true;}
  if(action==='apply-module'){if(moduleCanApply())openModal('apply',id);return true;}
  if(action==='report'){void report(id);return true;}
+ if(action==='open-owned'){const entry=state.owned.find(v=>v.id===id);
+  if(entry?.status==='published'){state.selected={...entry,handle:user().handle};go('detail');}return true;}
+ if(action==='edit-animation'){openOwnerEdit(id);return true;}
+ if(action==='remove-animation'){if(state.owned.some(v=>v.id===id))openModal('remove',id);return true;}
+ if(action==='cancel-owner-edit'){void cancelOwnerEdit(id);return true;}
+ if(action==='owner-tag-add'){void addOwnerTags();return true;}
+ if(action==='owner-tag-remove'){collectOwnerEdit();state.editDraft.tags=state.editDraft.tags.filter(v=>v!==hit.dataset.tag);render();return true;}
  if(action==='edit-profile'){
   state.profileDraft={...user()};go('profile-edit');return true;
  }
@@ -644,12 +755,25 @@ function onInput(event){
  if(id==='bas-live-report-reason'&&state.modal?.kind==='report'){
   state.modal.reason=event.target.value;return true;
  }
+ if(id?.startsWith('bas-owner-')&&state.editDraft){
+   const mapped={'bas-owner-title':'title','bas-owner-summary':'summary','bas-owner-credit':'author_credit','bas-owner-tag-input':'tagInput'};
+   if(mapped[id]){state.editDraft[mapped[id]]=event.target.value;return true;}
+ }
  if(mapping[id]){state[mapping[id]]=event.target.value;return true;}
  return false;
 }
 function onChange(event){
  if(!active())return false;
  const id=event.target?.id;
+ if(id==='bas-owner-zip'&&state.editDraft){
+  const f=event.target.files?.[0];
+  if(f&&(!f.name.toLowerCase().endsWith('.zip')||f.size<1||f.size>20*1024*1024)){
+   state.status=tr('invalidZip');state.editDraft.file=null;
+  }else{state.editDraft.file=f||null;state.status='';}
+  render();return true;
+ }
+ if(id==='bas-owner-license'&&state.editDraft){state.editDraft.license=event.target.value;return true;}
+ if(id==='bas-owner-rights'&&state.editDraft){state.editDraft.rights=Boolean(event.target.checked);return true;}
  if(id==='bas-live-sort'){
   state.sort=event.target.value;void fetchGallery();return true;
  }
@@ -677,6 +801,7 @@ function onChange(event){
 function onSubmit(event){
  if(!active())return false;
  const id=event.target?.id;
+ if(id==='bas-owner-edit-form'){event.preventDefault();void sendOwnerEdit();return true;}
  if(id==='bas-live-publish-form'){event.preventDefault();void sendPublish();return true;}
  if(id==='bas-live-profile-form'){event.preventDefault();void saveProfile(event.target);return true;}
  if(id==='bas-live-report-form'){event.preventDefault();void sendReport(event.target);return true;}
@@ -689,7 +814,7 @@ function mount(){
  chrome();
  render();
  void fetchGallery();
- if(logged()){void fetchPictures();void fetchDrafts();}
+ if(logged()){void fetchPictures();void fetchDrafts();void fetchOwned();}
  return true;
 }
 window.BASCommunityLive=Object.freeze({
@@ -707,6 +832,6 @@ window.addEventListener('bas:community-auth',()=>{
   if(state.route==='profile'||state.route==='profile-edit')go('profile');
   else go('explore');
   void fetchPictures();
- }else{state.remotePictures={avatar:null,banner:null};go('explore');}
+ }else{state.remotePictures={avatar:null,banner:null};state.owned=[];state.editDraft=null;go('explore');}
 });
 })();

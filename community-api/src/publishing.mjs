@@ -40,20 +40,20 @@ function respond(request,env,status,payload){
   return new Response(payload===null?null:JSON.stringify(payload),{status,headers});
 }
 function fail(req,env,code,status=400){return respond(req,env,status,{error:code});}
-function randomId(){
+export function randomId(){
   const bytes=crypto.getRandomValues(new Uint8Array(16));
   return [...bytes].map(v=>v.toString(16).padStart(2,'0')).join('');
 }
-async function hash(input){
+export async function hash(input){
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(input));
   return [...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
 }
-function timestamp(){return Math.floor(Date.now()/1000);}
+export function timestamp(){return Math.floor(Date.now()/1000);}
 function validText(s,min,max){
   return typeof s==='string' && [...s.trim()].length>=min && [...s.trim()].length<=max
     && !/[\x00-\x1f\x7f<>]/.test(s);
 }
-async function readJson(request,max=4096){
+export async function readJson(request,max=4096){
   if(request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()!=='application/json')return null;
   const size=Number(request.headers.get('Content-Length')||'0');
   if(!Number.isFinite(size)||size>max||size<0||!request.body)return null;
@@ -72,7 +72,7 @@ async function readJson(request,max=4096){
     return obj;
   }catch(_){return null;}finally{try{reader.releaseLock();}catch(_){}}
 }
-function validateMetadata(input,env){
+export function validateMetadata(input,env){
   if(!input||typeof input!=='object')return null;
   const allowed=['source','title','summary','category','license','author_credit','allows_remix',
     'rights_confirmed','size_bytes','filename','companion_permission_confirmed','tags'];
@@ -104,7 +104,7 @@ function validateMetadata(input,env){
     size_bytes:input.size_bytes,filename:input.filename,tags
   };
 }
-async function reserveR2Write(env){
+export async function reserveR2Write(env){
   const month=new Date().toISOString().slice(0,7);
   const result=await env.DB.prepare(
     'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,1,0) '+
@@ -160,7 +160,7 @@ async function createDraft(request,env,user){
   return respond(request,env,201,{draft_id:draftId,status:'awaiting_upload',expires_at:expires,
     source:meta.source,max_bytes:meta.size_bytes,review_required:true});
 }
-async function boundedZip(request,expected){
+export async function boundedZip(request,expected){
   if(request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()!=='application/zip')return null;
   const length=request.headers.get('Content-Length');
   if(length!==null&&(!/^\d+$/.test(length)||Number(length)!==expected))return null;

@@ -1,6 +1,7 @@
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
+import { handleOwnerAnimations } from './owner-animations.mjs';
 import { handleAuth, authConfigured, trustedBASOrigin, trustedAdminOrigin } from './auth.mjs';
 /* BAS Community P15.3: read-only Worker API.
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
@@ -164,6 +165,8 @@ export default {
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
     if (url.pathname.startsWith('/v1/auth/')) return localCORS(request,env,await handleAuth(request, env, url));
+    if (url.pathname.startsWith('/v1/publishing/animations') || url.pathname.startsWith('/v1/publishing/revisions/'))
+      return localCORS(request,env,await handleOwnerAnimations(request,env,url));
     if (url.pathname.startsWith('/v1/publishing')) return localCORS(request,env,await handlePublishing(request, env, url));
     if (url.pathname.startsWith('/v1/beta/')) return localCORS(request,env,await handleBetaCatalog(request,env,url));
     if (url.pathname.startsWith('/v1/profile-media/')) return localCORS(request,env,await handleProfileMedia(request, env, url));

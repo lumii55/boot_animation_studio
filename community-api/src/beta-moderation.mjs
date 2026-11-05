@@ -1,3 +1,4 @@
+import {foldSearch} from './search-tags.mjs';
 /* P15.7 private admin actions: ADMIN-scoped login, server RBAC, audited. */
 const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store, private',
   'Content-Security-Policy':"default-src 'none'",'X-Content-Type-Options':'nosniff'};
@@ -59,13 +60,69 @@ async function queue(env){
    "JOIN animation_rights r ON r.animation_id=a.id "+
    "WHERE a.status='pending' AND d.status='pending_review' AND v.status='pending' "+
    "ORDER BY d.created_at ASC LIMIT 50").bind().all()).results||[];
+  const revisions=(await env.DB.prepare(
+   "SELECT a.id,e.id AS edit_id,e.title,e.summary,u.handle,'revision' AS source,"+
+   'e.created_at,COALESCE(n.width,v.width) AS width,COALESCE(n.height,v.height) AS height,'+
+   'COALESCE(n.fps,v.fps) AS fps,COALESCE(n.size_bytes,v.size_bytes) AS size_bytes,'+
+   'e.license FROM owner_revisions e JOIN animations a ON a.id=e.animation_id '+
+   'JOIN community_users u ON u.id=a.owner_id '+
+   'JOIN animation_versions v ON v.id=e.base_version_id '+
+   'LEFT JOIN animation_versions n ON n.id=e.version_id '+
+   "WHERE e.status='pending_review' AND a.status='published' AND a.published_version_id=e.base_version_id "+
+   'ORDER BY e.created_at ASC LIMIT 50'
+  ).bind().all()).results||[];
   const reports=(await env.DB.prepare(
    "SELECT r.id,r.animation_id,a.title,u.handle,r.reason,r.created_at "+
    "FROM community_reports r JOIN animations a ON a.id=r.animation_id "+
    "JOIN community_users u ON u.id=r.reporter_id "+
    "WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 50").bind().all()).results||[];
-  return send(200,{pending,reports});
+  return send(200,{pending:[...pending.map(p=>({...p,review_kind:'publication'})),
+    ...revisions.map(p=>({...p,review_kind:'revision'}))].sort((a,b)=>a.created_at-b.created_at).slice(0,75),reports});
  }catch(_){return fail(503,'moderation_unavailable');}
+}
+async function decideOwnerRevision(env,user,id,rev,action,reason){
+ const now=Math.floor(Date.now()/1000);
+ if(!rev||rev.status!=='pending_review')return fail(409,'invalid_revision_transition');
+ if(rev.version_id&&rev.version_status!=='pending')return fail(409,'invalid_revision_transition');
+ const changes=[env.DB.prepare(
+  "UPDATE owner_revisions SET status=?,updated_at=? WHERE id=? AND status='pending_review'"
+ ).bind(action==='approve'?'approved':'rejected',now,rev.id)];
+ if(action==='approve'){
+  if(rev.version_id)changes.push(env.DB.prepare(
+   "UPDATE animation_versions SET status='approved',reviewed_at=? WHERE id=? AND status='pending'"
+  ).bind(now,rev.version_id));
+  changes.push(env.DB.prepare(
+   "UPDATE animations SET title=?,summary=?,category=?,published_version_id=?,updated_at=? "+
+   "WHERE id=? AND status='published' AND published_version_id=?"
+  ).bind(rev.title,rev.summary,rev.category,rev.version_id||rev.base_version_id,now,id,rev.base_version_id));
+  changes.push(env.DB.prepare(
+   'UPDATE animation_rights SET license=?,author_credit=?,allows_remix=?,rights_confirmed_at=? WHERE animation_id=?'
+  ).bind(rev.license,rev.author_credit,rev.allows_remix,now,id));
+  changes.push(env.DB.prepare('DELETE FROM animation_tags WHERE animation_id=?').bind(id));
+  const tags=JSON.parse(rev.tags_json||'[]');
+  for(const tag of tags)changes.push(env.DB.prepare(
+   'INSERT INTO animation_tags(animation_id,tag) VALUES(?,?)'
+  ).bind(id,tag));
+  changes.push(env.DB.prepare(
+   'INSERT INTO animation_search(animation_id,title_fold,updated_at) VALUES(?,?,?) '+
+   'ON CONFLICT(animation_id) DO UPDATE SET title_fold=excluded.title_fold,updated_at=excluded.updated_at'
+  ).bind(id,foldSearch(rev.title),now));
+ }else if(rev.version_id){
+  changes.push(env.DB.prepare(
+   "UPDATE animation_versions SET status='rejected',reviewed_at=? WHERE id=? AND status='pending'"
+  ).bind(now,rev.version_id));
+ }
+ changes.push(env.DB.prepare(
+  'INSERT INTO moderation_events(id,animation_id,version_id,moderator_id,action,reason) VALUES(?,?,?,?,?,?)'
+ ).bind(uuid(),id,rev.version_id||rev.base_version_id,user.userId,action,
+  'owner revision '+rev.id+(reason?': '+reason:'')));
+ changes.push(env.DB.prepare('INSERT INTO discord_outbox(id,animation_id,action) VALUES(?,?,?)')
+  .bind(uuid(),id,action));
+ try{
+  await env.DB.batch(changes);
+  return send(200,{animation_id:id,edit_id:rev.id,decision:action,
+   status:'published',revision_status:action==='approve'?'approved':'rejected'});
+ }catch(_){return fail(409,'revision_moderation_conflict');}
 }
 async function decide(req,env,user,id){
  if(!ID.test(id))return fail(404,'not_found');
@@ -80,6 +137,14 @@ async function decide(req,env,user,id){
   "LEFT JOIN animation_versions v ON v.id=d.version_id WHERE a.id=? LIMIT 1"
  ).bind(id).first();
  if(!current)return fail(404,'not_found');
+ if(['approve','reject'].includes(data.action)&&current.status==='published'){
+  const rev=await env.DB.prepare(
+   'SELECT e.*,v.status AS version_status FROM owner_revisions e '+
+   'LEFT JOIN animation_versions v ON v.id=e.version_id '+
+   "WHERE e.animation_id=? AND e.status='pending_review' LIMIT 1"
+  ).bind(id).first();
+  if(rev)return decideOwnerRevision(env,user,id,rev,data.action,(data.reason||'').trim());
+ }
  const a=data.action;
  const pending=current.status==='pending'&&current.draft_status==='pending_review'&&current.version_status==='pending',
   published=current.status==='published'&&!!current.published_version_id,
@@ -143,11 +208,18 @@ async function settleReport(req,env,user,id){
   return send(200,{report_id:id,status:data.action==='dismiss'?'dismissed':'resolved'});
  }catch(_){return fail(503,'moderation_unavailable');}
 }
-async function pendingDownload(env,id){
+async function pendingDownload(env,id,editId=null){
  if(!ID.test(id)||env.STAGING_DOWNLOADS_APPROVED!=='true'||
     typeof env.PRIVATE_UPLOADS?.get!=='function')return fail(404,'not_found');
  try{
-  const row=await env.DB.prepare(
+  if(editId&&!ID.test(editId))return fail(404,'not_found');
+  const row=editId?await env.DB.prepare(
+   'SELECT v.object_key,v.size_bytes FROM owner_revisions e '+
+   'JOIN animations a ON a.id=e.animation_id '+
+   'JOIN animation_versions v ON v.id=COALESCE(e.version_id,e.base_version_id) '+
+   "WHERE e.id=? AND e.animation_id=? AND e.status='pending_review' "+
+   "AND a.status='published' AND a.published_version_id=e.base_version_id LIMIT 1"
+  ).bind(editId,id).first():await env.DB.prepare(
    "SELECT v.object_key,v.size_bytes FROM animations a "+
    "JOIN publication_drafts d ON d.animation_id=a.id "+
    "JOIN animation_versions v ON v.id=d.version_id "+
@@ -183,7 +255,7 @@ export async function handleModeration(req,env,url,user){
  if(!isModerator(env,user,req))return fail(403,'moderator_required');
  if(path==='moderation/queue'&&req.method==='GET')return queue(env);
  if(/^moderation\/pending\/[a-f0-9]{32}\/zip$/.test(path)&&req.method==='GET')
-   return pendingDownload(env,path.split('/')[2]);
+   return pendingDownload(env,path.split('/')[2],url.searchParams.get('edit'));
  if(path.startsWith('moderation/decision/')&&req.method==='POST')
   return decide(req,env,user,path.slice('moderation/decision/'.length));
  if(path.startsWith('moderation/reports/')&&req.method==='POST')

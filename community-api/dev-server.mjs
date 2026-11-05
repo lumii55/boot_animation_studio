@@ -57,6 +57,7 @@ export function createLocalServer(options = {}) {
   database.exec(readFileSync(join(here, 'migrations', '0007_multiword_tags.sql'), 'utf8'));
   database.exec(readFileSync(join(here, 'migrations', '0008_local_bas_auth.sql'), 'utf8'));
   database.exec(readFileSync(join(here, 'migrations', '0009_admin_session_scope.sql'), 'utf8'));
+  database.exec(readFileSync(join(here, 'migrations', '0010_owner_revisions.sql'), 'utf8'));
   const env = {
     DB: databaseBinding(database),
     // Always disabled unless a developer deliberately opts in for local testing.

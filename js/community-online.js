@@ -232,6 +232,38 @@ async function publishArchive(file,meta){
 async function drafts(){
  return request('/v1/publishing/drafts');
 }
+async function ownedAnimations(){
+ return request('/v1/publishing/animations');
+}
+async function proposeRevision(animationId,fields,zip=null){
+ if(!/^[a-f0-9]{32}$/.test(animationId))throw Error('Invalid animation ID');
+ if(zip!==null&&(!(zip instanceof Blob)||zip.size<1||zip.size>20*1024*1024))
+  throw Error('ZIP inválido ou maior que 20 MiB.');
+ const license=String(fields.license||'');
+ if(!['CC0-1.0','CC-BY-4.0','CC-BY-SA-4.0','all-rights-reserved'].includes(license))
+  throw Error('Licença inválida.');
+ const payload={title:String(fields.title||'').trim(),summary:String(fields.summary||''),
+  tags:normalizeTags(fields.tags||''),license,
+  author_credit:String(fields.author_credit||'').trim(),
+  allows_remix:license!=='all-rights-reserved',rights_confirmed:true,
+  replace_zip:Boolean(zip),...(zip?{size_bytes:zip.size}:{})};
+ const start=await request('/v1/publishing/animations/'+animationId+'/revisions',{
+  method:'POST',headers:{'Idempotency-Key':randomToken().slice(0,40)},data:payload
+ });
+ if(!/^[a-f0-9]{32}$/.test(start.revision_id||''))throw Error('Invalid revision response');
+ return zip?request('/v1/publishing/revisions/'+start.revision_id+'/zip',{
+  method:'PUT',data:new Blob([zip],{type:'application/zip'})}):start;
+}
+async function cancelRevision(revisionId){
+ if(!/^[a-f0-9]{32}$/.test(revisionId))throw Error('Invalid revision ID');
+ return request('/v1/publishing/revisions/'+revisionId+'/cancel',{method:'POST',data:{}});
+}
+async function withdrawAnimation(animationId){
+ if(!/^[a-f0-9]{32}$/.test(animationId))throw Error('Invalid animation ID');
+ return request('/v1/publishing/animations/'+animationId+'/remove',{
+  method:'POST',data:{confirm:true}
+ });
+}
 async function approvedZip(id){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
  const res=await request('/v1/beta/downloads/'+id,{raw:true,authenticated:false});
@@ -273,7 +305,8 @@ function publicState(){
 window.BASCommunityOnline=Object.freeze({
  available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
  state:publicState,refresh,profile:updateProfile,gallery,creators,report,
- publish:publishArchive,drafts,download,approvedZip,media,updateMedia,normalizeTags
+ publish:publishArchive,drafts,download,approvedZip,media,updateMedia,normalizeTags,
+ ownedAnimations,proposeRevision,cancelRevision,withdrawAnimation
 });
 window.addEventListener('DOMContentLoaded',()=>{void init();});
 })();

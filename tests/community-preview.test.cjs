@@ -367,8 +367,8 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-7-visual-preview/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-7-visual-preview/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-7-owner-management/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-7-owner-management/);
     assert.match(html,/id="bas-community-feature-toggle"/);
 });
 
@@ -406,4 +406,23 @@ test('original BAS Community launcher opens native real-data view without Develo
     h.click('real-account');
     assert.match(h.element('bas-c-view').innerHTML,/Perfil BAS real/);
     assert.match(h.element('bas-c-view').innerHTML,/Bio salva no D1/);
+});
+
+test('home Community button follows selected BAS language and main home button style',async()=>{
+ const h=harness(null,'pt');
+ h.window.BASCommunityOnline={available:()=>true};
+ h.window.BASI18n={locale:'pt'};
+ h.window.BASCommunityPreview.sync();
+ assert.equal(h.element('bas-community-home-choice').hidden,false);
+ assert.equal(h.element('bas-community-launcher').textContent,'✦ Comunidade');
+ assert.match(h.element('bas-community-home-desc').textContent,/Explore, compartilhe/);
+ h.window.BASI18n.locale='en';
+ h.element('select-idioma').emit('change',{});
+ await Promise.resolve();
+ assert.equal(h.element('bas-community-launcher').textContent,'✦ Community');
+ assert.match(h.element('bas-community-home-desc').textContent,/Explore, share/);
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ assert.match(html,/class="btn-upload launch-tertiary bas-community-launcher"/);
+ assert.ok(html.indexOf('id="btn-connect"')<html.indexOf('id="bas-community-home-choice"'));
+ assert.ok(html.indexOf('id="bas-community-home-choice"')<html.indexOf('id="p12-open-project-launch"'));
 });
