@@ -178,3 +178,12 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
 - Backend agora classifica apenas CODIGOS FIXOS seguros: credenciais do cliente incorretas, callback divergente, codigo expirado, e-mail nao verificado, token rejeitado, JSON invalido, rede inacessivel, identidade negada ou rate limited. Nenhum token, segredo, URL de autorizacao ou resposta arbitraria do GitHub aparece no erro.
 - Testes com provedores simulados exercitam varios erros; nenhum segredo real foi usado.
 - PENDENTE: novo login REAL pela conta allowlisted para identificar a causa. Nao declarar OAuth finalizado ate confirmar perfil salvo e logout em staging.
+
+
+## P15.6A — correcao CONFIRMADA: redirect:'error' nao e suportado nos Workers (2026-11-04)
+
+- Root cause identificado a partir do erro real oauth_github_token_network_error. A documentacao oficial Cloudflare Workers Request (atualizada em 2026-11-02) diz que o modo redirect:'error' lanca TypeError na construcao da Request ANTES de fazer a requisicao, sendo aceitos somente 'follow' ou 'manual'.
+- O codigo anterior usava redirect:'error' no POST /login/oauth/access_token e GET /user do GitHub; logo, esse fluxo falhava antes de chamar os endpoints reais.
+- Corrigido para redirect:'manual' nas duas requisicoes; o codigo agora bloqueia explicitamente status HTTP 300-399 e resposta opaqueredirect, sem seguir endereco Location e sem exibir tokens, headers ou erros crus.
+- Novos testes cobrem o modo suportado e recusam redirects maliciosos em ambos endpoints. Login verdadeiro precisa ser repetido apos deploy (codigo OAuth anterior expirou).
+- Fonte: https://developers.cloudflare.com/workers/runtime-apis/request/ (Request.redirect).

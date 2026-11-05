@@ -229,7 +229,7 @@ async function githubAccount(code,verifier,env,providerFetch) {
 
   let tokenResponse;
   try { tokenResponse=await providerFetch('https://github.com/login/oauth/access_token',{
-    method:'POST',redirect:'error',headers:{
+    method:'POST',redirect:'manual',headers:{
       'Content-Type':'application/x-www-form-urlencoded',
       'Accept':'application/json','User-Agent':'BAS-Community-Auth'
     },
@@ -240,6 +240,11 @@ async function githubAccount(code,verifier,env,providerFetch) {
     })
   }); }
   catch(_) {throw new OAuthProviderFault('oauth_github_token_network_error');}
+  // Workers Request does not implement redirect:'error'. With manual redirects,
+  // refuse 3xx *before* parsing or forwarding credentials to another origin.
+  if ((tokenResponse.status>=300 && tokenResponse.status<400) ||
+      tokenResponse.type==='opaqueredirect')
+    throw new OAuthProviderFault('oauth_github_token_redirect_blocked');
   const token=await providerJson(tokenResponse,'token');
   if(!tokenResponse.ok || token?.error)
     throw new OAuthProviderFault(githubTokenFailure(token));
@@ -247,10 +252,13 @@ async function githubAccount(code,verifier,env,providerFetch) {
     throw new OAuthProviderFault('oauth_github_token_missing');
   let identityResponse;
   try { identityResponse=await providerFetch('https://api.github.com/user',{
-    method:'GET',redirect:'error',
+    method:'GET',redirect:'manual',
     headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+token.access_token,'User-Agent':'BAS-Community-Auth'}
   }); }
   catch(_) {throw new OAuthProviderFault('oauth_github_identity_network_error');}
+  if ((identityResponse.status>=300 && identityResponse.status<400) ||
+      identityResponse.type==='opaqueredirect')
+    throw new OAuthProviderFault('oauth_github_identity_redirect_blocked');
   if(!identityResponse.ok)
     throw new OAuthProviderFault(identityResponse.status===401 ? 'oauth_github_identity_unauthorized' :
       identityResponse.status===403 ? 'oauth_github_identity_forbidden' :

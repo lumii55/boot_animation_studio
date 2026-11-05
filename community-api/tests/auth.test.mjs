@@ -9,6 +9,7 @@ const SITE='http://127.0.0.1:8088';
 const mockFetch=async (url,options) => {
   if (url==='https://github.com/login/oauth/access_token') {
     assert.equal(options.method,'POST');
+    assert.equal(options.redirect,'manual');
     assert.equal(options.body.get('code_verifier')?.length,43);
     assert.equal(options.body.get('redirect_uri'),API+'/v1/auth/github/callback');
     assert.equal(options.body.get('client_secret'),'FAKE_ONLY_TEST_OAUTH_SECRET_123');
@@ -16,6 +17,7 @@ const mockFetch=async (url,options) => {
   }
   if (url==='https://api.github.com/user') {
     assert.equal(options.headers.Authorization,'Bearer FAKE_EPHEMERAL_TOKEN');
+    assert.equal(options.redirect,'manual');
     return new Response(JSON.stringify({id:12345,login:'test-moon',name:'Moonlight Creator'}),{status:200});
   }
   throw Error('Unexpected network request: '+url);
@@ -234,5 +236,55 @@ test('GitHub provider failures distinguish network/HTTP/invalid responses and id
     assert.equal(output.error,expected);
     assert.ok(!JSON.stringify(output).includes('FAKE_SENSITIVE_PROVIDER_ERROR'));
     assert.ok(!JSON.stringify(output).includes('FAKE_SECRET_NETWORK'));
+  }
+});
+
+
+test('Cloudflare Workers OAuth outbound requests use supported manual redirect handling',async t=>{
+  const instance=createLocalServer({memory:true});
+  t.after(()=>instance.database.close());
+  const env=environment(instance);
+  const begin=await start(env,'192.0.2.91');
+  const modes=[];
+  const provider=async (url,options)=>{
+    modes.push({url,redirect:options.redirect});
+    if(options.redirect==='error')throw new TypeError('Cloudflare Workers does not implement error redirect mode');
+    if(url.includes('access_token'))
+      return new Response(JSON.stringify({access_token:'FAKE_WORKERS_TEST_TOKEN'}),{status:200});
+    if(url==='https://api.github.com/user')
+      return new Response(JSON.stringify({id:12345,login:'test-moon',name:'Cloudflare User'}),{status:200});
+    throw Error('unexpected request');
+  };
+  const callbackResponse=await call(req('/v1/auth/github/callback?state='+begin.state+'&code=TEST_CODE','GET',
+    {Cookie:begin.binder}),env,provider);
+  assert.equal(callbackResponse.status,302);
+  assert.equal(modes.length,2);
+  assert.ok(modes.every(x=>x.redirect==='manual'));
+  assert.equal(instance.database.prepare('SELECT count(*) as n FROM community_users').get().n,1);
+});
+
+test('provider redirects are denied without following Location or leaking response',async t=>{
+  const cases=[
+    ['token','oauth_github_token_redirect_blocked'],
+    ['identity','oauth_github_identity_redirect_blocked']
+  ];
+  for(const [stage,expected] of cases){
+    const instance=createLocalServer({memory:true});
+    t.after(()=>instance.database.close());
+    const env=environment(instance), begin=await start(env,'192.0.2.92');
+    const provider=async(url,options)=>{
+      assert.equal(options.redirect,'manual');
+      const tokenStage=url.includes('access_token');
+      if((stage==='token'&&tokenStage)||(stage==='identity'&&!tokenStage))
+        return new Response(null,{status:302,headers:{Location:'https://untrusted.example/?sensitive=FAKE_CREDENTIAL'}});
+      return new Response(JSON.stringify({access_token:'FAKE_EPHEMERAL_TOKEN'}),{status:200});
+    };
+    const res=await call(req('/v1/auth/github/callback?state='+begin.state+'&code=FAKE_CODE','GET',
+      {Cookie:begin.binder}),env,provider);
+    assert.equal(res.status,503);
+    const output=await res.json();
+    assert.equal(output.error,expected);
+    assert.equal(JSON.stringify(output).includes('FAKE_CREDENTIAL'),false);
+    assert.equal(instance.database.prepare('SELECT count(*) as n FROM community_users').get().n,0);
   }
 });
