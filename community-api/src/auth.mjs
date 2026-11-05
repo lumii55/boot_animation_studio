@@ -171,6 +171,15 @@ export async function verifyPublisher(request, env) {
   return { userId: current.user.id, handle: current.user.handle };
 }
 
+/* Private avatar/banner GET is read-only: browsers do not send Origin on
+ * same-origin GET. Validate the signed-in session instead. Never disclose
+ * another user's media; CORS only allows the exact BAS site origin. */
+export async function verifyPrivateProfileReader(request,env){
+  if(!authConfigured(env))return null;
+  const session=await validateSession(request,env);
+  return session?{userId:session.user.id,handle:session.user.handle}:null;
+}
+
 async function recordLoginAttempt(request,env) {
   const ip=request.headers.get('CF-Connecting-IP')||'unknown';
   const windowStart=Math.floor(now()/900)*900;

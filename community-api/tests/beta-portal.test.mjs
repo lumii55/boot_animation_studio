@@ -36,3 +36,73 @@ test('only GET/HEAD render assets',async()=>{
   assert.equal(await h.text(),'');
   assert.equal((await get('/beta/style.css')).headers.get('content-type'),'text/css; charset=utf-8');
 });
+
+test('BAS profile replaces the old form-only portal and keeps editing separate',async()=>{
+  const html=await(await get('/')).text();
+  for(const fragment of ['id="profile-view"','id="profile-edit"','id="change-avatar"',
+    'id="change-banner"','id="avatar-image"','id="banner-image"',
+    'id="creations"','id="crop-dialog"','id="save"']){
+    assert.ok(html.includes(fragment),fragment);
+  }
+  const css=(await(await get('/beta/style.css')).text());
+  assert.ok(css.includes('.profile-card'));
+  assert.ok(css.includes('.cover'));
+  assert.ok(css.includes('.avatar'));
+  assert.ok(css.includes('.crop-stage'));
+  const js=(await(await get('/beta/app.js')).text());
+  assert.ok(js.includes("user=d.user;profile();"));
+  assert.ok(js.includes('showModal()'));
+  assert.ok(js.includes('/v1/profile-media/'));
+  assert.ok(js.includes("method:'PUT'"));
+  assert.ok(js.includes("method:'PATCH'"));
+  assert.match((await get('/')).headers.get('content-security-policy'),/img-src 'self' blob:/);
+  assert.doesNotMatch(js,/innerHTML\\s*=/);
+});
+
+test('BAS saved profile navigates to read-only profile view, editing remains reversible',async()=>{
+  const {Script}=await import('node:vm');
+  const code=await(await get('/beta/app.js')).text();
+  const listeners=new Map(),elements=new Map(),paths=[],hashes=[];
+  function mock(id){
+    if(!elements.has(id)){
+      const e={hidden:false,textContent:'',value:'',disabled:false,style:{},classList:{add(){},remove(){}},
+        addEventListener(type,cb){listeners.set(id+':'+type,cb)},
+        focus(){},click(){},removeAttribute(){},reportValidity(){return true}};
+      elements.set(id,e);
+    }
+    return elements.get(id);
+  }
+  const form=mock('profile-form');
+  form.elements={handle:mock('form-handle'),display_name:mock('form-name'),bio:mock('form-bio')};
+  const responses={
+    '/v1/auth/me':{user:{handle:'test_creator',display_name:'Test Creator',bio:'',created_at:1793837000},csrf:'SAFE_FAKE_CSRF'},
+    '/v1/auth/profile':{user:{handle:'test_creator',display_name:'My BAS name',bio:'New bio',created_at:1793837000}}
+  };
+  const context={
+    document:{getElementById:mock},
+    history:{replaceState(_state,_unused,hash){hashes.push(hash)}},
+    window:{addEventListener(){}},
+    fetch:async(path,options)=>{
+      paths.push(path);
+      if(path.includes('/v1/profile-media/'))return {status:503,ok:false,json:async()=>({})};
+      return {status:200,ok:true,json:async()=>responses[path]};
+    },
+    Intl,Date,Number,Promise,URL,
+    requestAnimationFrame:()=>{}
+  };
+  new Script(code).runInNewContext(context);
+  await new Promise(r=>setImmediate(r));
+  assert.equal(mock('profile-view').hidden,false);
+  assert.equal(mock('profile-edit').hidden,true);
+  listeners.get('edit-profile:click')();
+  assert.equal(mock('profile-edit').hidden,false);
+  assert.equal(mock('profile-view').hidden,true);
+  form.elements.display_name.value='My BAS name';form.elements.bio.value='New bio';
+  await listeners.get('profile-form:submit')({preventDefault(){}});
+  assert.equal(mock('profile-view').hidden,false);
+  assert.equal(mock('profile-edit').hidden,true);
+  assert.equal(mock('view-name').textContent,'My BAS name');
+  assert.equal(mock('view-bio').textContent,'New bio');
+  assert.equal(hashes.at(-1),'#meu-perfil');
+  assert.ok(paths.includes('/v1/auth/profile'));
+});

@@ -3,7 +3,7 @@
  * browser-side MIME, dimensions, cropping or EXIF removal.
  * P15.6 staging only. No unauthenticated image reads, no public bucket exposure.
  */
-import {authConfigured, verifyPublisher} from './auth.mjs';
+import {authConfigured, verifyPublisher, verifyPrivateProfileReader} from './auth.mjs';
 
 const PREFIX='/v1/profile-media/';
 const RESERVATION=524288;
@@ -191,7 +191,10 @@ export async function handleProfileMedia(request,env,url){
   const kind=url.pathname.slice(PREFIX.length);
   if(!Object.hasOwn(LIMITS,kind))return error(request,env,'not_found',404);
   let user;
-  try{user=await verifyPublisher(request,env);}catch(_){return error(request,env,'auth_unavailable',503);}
+  try{user=request.method==='GET'
+    ?await verifyPrivateProfileReader(request,env)
+    :await verifyPublisher(request,env);}
+  catch(_){return error(request,env,'auth_unavailable',503);}
   if(!user)return error(request,env,'not_authorized',403);
   try{
     if(request.method==='PUT')return await uploadMedia(request,env,user,kind);

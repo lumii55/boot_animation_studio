@@ -127,3 +127,26 @@ No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-communi
 - Corrigido para redirect:'manual' nas duas requisicoes; o codigo agora bloqueia explicitamente status HTTP 300-399 e resposta opaqueredirect, sem seguir endereco Location e sem exibir tokens, headers ou erros crus.
 - Novos testes cobrem o modo suportado e recusam redirects maliciosos em ambos endpoints. Login verdadeiro precisa ser repetido apos deploy (codigo OAuth anterior expirou).
 - Fonte: https://developers.cloudflare.com/workers/runtime-apis/request/ (Request.redirect).
+
+
+## P15.6B — perfil BAS real e personalizacao privada (2026-11-04)
+
+- O beta recebeu um PERFIL BAS de verdade como tela principal apos o login: banner, avatar, nome, @identificador, bio, data de ingresso e area de criações (placeholder ate P15.6C). O botao Editar perfil abre o formulario separado; SALVAR persiste nome, handle e bio no D1 e volta automaticamente ao perfil com dados novos. Cancelar volta ao perfil sem escrever.
+- Estrutura de staging: beta-profile-page.mjs (HTML), beta-profile-styles.mjs (visual), beta-profile-client.mjs (sessao, navegacao e recorte) e beta-portal.mjs (rotas CSP). Os assets da UI ainda so sao servidos quando BETA_PORTAL_ENABLED e login beta configurado.
+- Personalizacao: trocar avatar e banner abre seletor JPEG/PNG/WebP, recorte arrastavel e zoom, exporta WebP via canvas sem EXIF, envia por PUT autenticado ao backend ja criado na P15.6; o backend valida/recodifica com Images e armazena exclusivamente no R2 privado. Fotos sao carregadas por GET apenas para o dono com cookie de sessao (GET same-origin do navegador nao envia Origin). Alteracoes exigem Origin+CSRF e sessoes validas.
+- CSP permite somente img-src self e blob; nenhum script inline, iframe, URL publica de R2 ou HTML gerado por usuarios.
+- Cotas ativas no esquema 0005: 8 atualizacoes de imagem por conta/24h, 200 transformacoes por mes, 512 KiB por imagem transformada, reserva/budget R2 e limite global. Free Images 5000 transformacoes gratuitas; free excessos causam erro, nao cobranca, conforme documentacao 2026. R2 pode ter custos fora de franquia, por isso manter gate beta allowlist e limites.
+- SEGURANCA: habilitar somente MEDIA_ENABLED, MEDIA_STAGING_APPROVED e STORAGE_ENABLED no Worker bas-community-staging, apos validar todos os bindings. Manter PUBLISH_ENABLED, UPLOAD_ENABLED, PUBLIC_CATALOG_ENABLED, AUTH_PUBLIC_SIGNUP_APPROVED e MEDIA_MAINTENANCE_APPROVED desativados.
+- A experiencia visual/navegacao foi testada com conta simulada; fotos reais em Cloudflare ainda exigem teste manual pela usuaria antes de declarar P15.6B completa. P15.6C continua pendente.
+
+
+## P15.6B — staging privado implantado e verificacao de acesso (2026-11-04)
+
+- Nova versao implantada no Worker bas-community-staging: 5827baa2-885f-4500-ae74-3150c7d65d6b.
+- Versao anterior para rollback: 096ce9fe-b21f-4a89-8acf-8990354ba017.
+- URL unica de teste: https://bas-community-staging.caiolive1000.workers.dev/
+- 23 bindings preservados, incluindo quatro secrets. Somente MEDIA_ENABLED, MEDIA_STAGING_APPROVED e STORAGE_ENABLED habilitados a mais para fotos no STAGING. Cadastro publico, catalogo, publicacao, uploads de animacoes e manutencao de orfaos permanecem OFF.
+- Smoke tests reais: pagina do perfil, JS e CSS HTTP 200; API health 200 com uploads/catalgo OFF; /v1/auth/me sem cookie HTTP 401; avatar/banner privados sem cookie HTTP 403; catalogo 503 e endpoint geral de uploads 403.
+- Testes cumulativos locais: 17 frontend + 70 backend JS + 33 SQLite = 120/120 aprovados. Teste com navegador simulado confirmou salvar e voltar automaticamente ao perfil. GET privado de imagem exige sessao valida, mas nao Origin/CSRF porque browsers podem nao enviar Origin em GET; PUT continua protegido com Origin e CSRF.
+- Ainda precisa de validacao REAL pela proprietaria: recarregar sessao, alterar e salvar nome/bio, selecionar imagem e banner, recortar, enviar e recarregar para confirmar persistencia no R2. Nao declarar P15.6B completamente finalizada ate esses testes passarem.
+- Esta e uma interface de perfis beta no Worker, NAO a liberacao publica da galeria; a integracao futura com o app BAS e publicacoes segue P15.6C-E.

@@ -1,13 +1,32 @@
+/* BAS Community private same-origin profile portal.
+ * Not the public catalog; requires explicit beta approval and a real allowlist.
+ */
 import {authConfigured} from './auth.mjs';
-const page=`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BAS Community · Beta</title><link rel="stylesheet" href="/beta/style.css"><main><small>✦ BOOT ANIMATION STUDIO · BETA PRIVADA</small><h1>BAS Community</h1><p>Teste seguro de contas reais. Nenhuma animação está pública.</p><p id="status" role="status">Verificando sessão...</p><section id="guest" hidden><a href="/v1/auth/github/start">Entrar com GitHub</a></section><section id="user" hidden><h2>Meu perfil</h2><form id="profile"><label>Identificador<input name="handle" minlength="3" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" required></label><label>Nome<input name="display_name" maxlength="80" required></label><label>Bio<textarea name="bio" maxlength="500"></textarea></label><button>Salvar</button><button type="button" id="logout">Sair</button></form></section><footer>P15.6A · Somente staging</footer></main><script defer src="/beta/app.js"></script></html>`;
-const css=`:root{color-scheme:dark;font-family:system-ui;background:#0e1020;color:#f5f1ff}body{margin:0;background:radial-gradient(circle at top right,#36204f,transparent 60%)}main{max-width:650px;margin:auto;padding:35px 25px}h1{font-size:clamp(34px,7vw,54px);margin:60px 0 15px}p{line-height:1.6;color:#c9c2dc}small{color:#d8b7ff}section{background:#1d1d32;border:1px solid #685580;border-radius:18px;padding:25px}section[hidden]{display:none}label{display:block;margin:15px 0}input,textarea{display:block;width:95%;padding:12px;border-radius:10px;background:#101427;border:1px solid #71618a;color:#fff}button,a{background:#8556b2;color:#fff;padding:12px;border:1px solid #b38bdc;border-radius:10px;text-decoration:none;cursor:pointer}button{margin-right:10px}footer{color:#ada4b9;margin-top:30px}`;
-const js=`(()=>{let csrf;const status=document.getElementById('status'),guest=document.getElementById('guest'),user=document.getElementById('user'),form=document.getElementById('profile');const say=x=>status.textContent=x;const json=async r=>{try{return await r.json()}catch{return {}}};function show(u){for(const k of ['handle','display_name','bio'])form.elements[k].value=u[k]||'';guest.hidden=true;user.hidden=false;}async function load(){try{const r=await fetch('/v1/auth/me',{credentials:'same-origin',cache:'no-store'});if(r.status===401){guest.hidden=false;user.hidden=true;say('Entre com sua conta autorizada do GitHub.');return;}if(!r.ok)throw Error('Sessão indisponível: '+r.status);const d=await json(r);csrf=d.csrf;show(d.user);say('Conectada ao beta!');}catch(e){say(e.message)}}form.addEventListener('submit',async e=>{e.preventDefault();if(!csrf)return;const data={};for(const k of ['handle','display_name','bio'])data[k]=form.elements[k].value;const r=await fetch('/v1/auth/profile',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(data)});if(r.ok){show((await json(r)).user);say('Perfil salvo!')}else say('Erro ao salvar: '+r.status);});document.getElementById('logout').addEventListener('click',async()=>{const r=await fetch('/v1/auth/logout',{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});if(r.ok){csrf=null;user.hidden=true;guest.hidden=false;say('Sessão encerrada.')}else say('Erro ao sair: '+r.status)});load()})();`;
-const assets=new Map([['/',['text/html; charset=utf-8',page]],['/beta',['text/html; charset=utf-8',page]],['/beta/app.js',['text/javascript; charset=utf-8',js]],['/beta/style.css',['text/css; charset=utf-8',css]]]);
+import {profilePage} from './beta-profile-page.mjs';
+import {profileStyles} from './beta-profile-styles.mjs';
+import {profileClient} from './beta-profile-client.mjs';
+const assets=new Map([
+ ['/', ['text/html; charset=utf-8',profilePage]],
+ ['/beta',['text/html; charset=utf-8',profilePage]],
+ ['/beta/style.css',['text/css; charset=utf-8',profileStyles]],
+ ['/beta/app.js',['text/javascript; charset=utf-8',profileClient]]
+]);
+const CSP="default-src 'none'; base-uri 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'";
+export function betaPortalReady(env){
+ const ids=String(env?.AUTH_BETA_GITHUB_IDS||'').split(',').map(x=>x.trim()).filter(Boolean);
+ return env?.BETA_PORTAL_ENABLED==='true' && env?.AUTH_PUBLIC_SIGNUP_APPROVED!=='true' &&
+   ids.length>0&&ids.every(id=>/^[1-9][0-9]{0,19}$/.test(id))&&authConfigured(env);
+}
 export function serveBetaPortal(req,env,url){
- const asset=assets.get(url.pathname);if(!asset)return null;
- const headers=new Headers({'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"});
- const ids=String(env?.AUTH_BETA_GITHUB_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
- if(env?.BETA_PORTAL_ENABLED!=='true'||env?.AUTH_PUBLIC_SIGNUP_APPROVED==='true'||!ids.length||!ids.every(s=>/^[1-9][0-9]{0,19}$/.test(s))||!authConfigured(env)||url.origin!==env.AUTH_SITE_ORIGIN)return new Response('Not Found',{status:404,headers});
- if(!['GET','HEAD'].includes(req.method))return new Response('Method Not Allowed',{status:405,headers});
- headers.set('Content-Type',asset[0]);return new Response(req.method==='HEAD'?null:asset[1],{status:200,headers});
+ const asset=assets.get(url.pathname);
+ if(!asset)return null;
+ const h=new Headers({'Cache-Control':'no-store, private','Content-Security-Policy':CSP,
+   'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer'});
+ if(!betaPortalReady(env)||url.origin!==env.AUTH_SITE_ORIGIN)
+   return new Response('Not Found',{status:404,headers:h});
+ if(req.method!=='GET'&&req.method!=='HEAD'){
+   h.set('Allow','GET, HEAD');return new Response('Method Not Allowed',{status:405,headers:h});
+ }
+ h.set('Content-Type',asset[0]);
+ return new Response(req.method==='HEAD'?null:asset[1],{status:200,headers:h});
 }

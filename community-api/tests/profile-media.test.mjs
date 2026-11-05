@@ -109,6 +109,11 @@ test('avatar is decoded/re-encoded to WebP, kept private and read only by the ow
   assert.deepEqual(Array.from(bytes),Array.from(webp));
   assert.equal(JSON.stringify(posted.body).includes('creator-private/'),false);
   assert.equal(x.database.prepare('SELECT count(*) AS n FROM creator_media_current').get().n,1);
+  // Same-origin browser GETs do not require an Origin header or CSRF.
+  const browserGet=await x.make('/v1/profile-media/avatar','GET',{Origin:'','X-CSRF-Token':''});
+  assert.equal(browserGet.status,200);
+  const deniedNoCookie=await x.make('/v1/profile-media/avatar','GET',{Cookie:'',Origin:'','X-CSRF-Token':''});
+  assert.equal(deniedNoCookie.status,403);
 });
 test('banner uses wide transform dimensions',async t=>{
   const x=await setup(t);
