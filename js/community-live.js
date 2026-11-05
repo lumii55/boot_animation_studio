@@ -121,8 +121,6 @@ function chrome(){
  for(const nav of root.querySelectorAll('[data-route="creators"]')){
   nav.hidden=false;nav.textContent='♧ '+tr('creators');
  }
- const badge=root.querySelector('.bas-c-topbadge');
- if(badge)badge.textContent='BAS COMMUNITY';
  const foot=root.querySelector('.bas-c-footnote');
  if(foot)foot.textContent='BAS Community';
  for(const nav of root.querySelectorAll('.bas-c-navbtn')){
@@ -174,12 +172,13 @@ function welcome(){
 function realCard(item){
  return '<article class="bas-c-card">'+
   '<button type="button" class="bas-c-thumb" data-c-action="detail" data-id="'+safe(item.id)+'" aria-label="'+safe(item.title)+'">'+
-   '<span class="bas-live-zip-symbol" aria-hidden="true">✦ ZIP</span></button>'+
+   '<canvas class="bas-live-anim-canvas" data-bas-animation="'+safe(item.id)+'" aria-hidden="true"></canvas>'+
+   '<span class="bas-live-preview-loading" aria-hidden="true">✧</span></button>'+
   '<div class="bas-c-card__content"><div class="bas-c-card__meta"><span>'+safe((item.tags||[]).join(', '))+'</span>'+
    '<span>'+safe(item.fps)+' fps</span></div>'+
   '<button type="button" class="bas-c-card__title" data-c-action="detail" data-id="'+safe(item.id)+'">'+safe(item.title)+'</button>'+
   '<div class="bas-c-card__bottom"><button type="button" class="bas-c-author bas-live-author-link" data-c-action="creator-author" data-handle="'+safe(item.handle)+'">@'+safe(item.handle)+'</button>'+
-   '<button type="button" class="bas-c-heart" data-c-action="download" data-id="'+safe(item.id)+'">↓ ZIP</button>'+
+   '<button type="button" class="bas-c-heart" data-c-action="download" data-id="'+safe(item.id)+'">↓ '+safe(tr('download').replace(/\s*ZIP$/i,''))+'</button>'+
   '</div></div></article>';
 }
 function galleryView(){
@@ -195,13 +194,19 @@ function galleryView(){
   '<div class="bas-c-grid">'+(state.items.length?state.items.map(realCard).join(''):
    '<p class="bas-c-noresults">'+safe(tr('empty'))+'</p>')+'</div>';
 }
+function creatorAvatar(creator){
+ const self=user();
+ const src=self&&creator.handle===self.handle?state.remotePictures.avatar:null;
+ return src?'<img class="bas-live-creator-avatar" alt="" src="'+safe(src)+'">':
+  '<span class="bas-live-creator-avatar" aria-hidden="true">'+safe(creator.display_name?.charAt(0)||'✧')+'</span>';
+}
 function creatorsView(){
  return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
   '<h1 id="bas-c-page-title">'+safe(tr('creators'))+'</h1>'+
   '<p>'+safe(tr('creatorsDesc'))+'</p></section>'+
   '<div class="bas-c-creators">'+(state.creators.length?state.creators.map(creator=>
    '<button type="button" class="bas-c-creator-tile" data-c-action="creator" data-handle="'+safe(creator.handle)+'">'+
-   '<span class="bas-live-creator-avatar" aria-hidden="true">'+safe(creator.display_name?.charAt(0)||'✧')+'</span>'+
+   creatorAvatar(creator)+
    '<strong>'+safe(creator.display_name||creator.handle)+'</strong>'+
    '<small>@'+safe(creator.handle)+' · '+safe(creator.animation_count)+' '+safe(tr('works'))+'</small>'+
    '<span class="bas-c-tilearrow">↗</span></button>').join(''):
@@ -211,9 +216,9 @@ function creatorView(){
  const creator=state.selectedCreator;
  if(!creator)return creatorsView();
  return '<section class="bas-c-profile" data-theme="moon"><div class="bas-c-profile-cover">'+
-  '<span class="bas-c-profile-cover__orb">✧</span></div>'+
+  (user()&&creator.handle===user().handle&&state.remotePictures.banner?'<img class="bas-c-account-cover-image" alt="" src="'+safe(state.remotePictures.banner)+'">':'<span class="bas-c-profile-cover__orb">✧</span>')+'</div>'+
   '<div class="bas-c-profile-content"><div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
-  '<span class="bas-live-avatar">'+safe(creator.display_name?.charAt(0)||'✦')+'</span>'+
+  creatorAvatar(creator)+
   '<div class="bas-c-profile-nameblock"><h1 id="bas-c-page-title">'+safe(creator.display_name||creator.handle)+'</h1>'+
   '<span>@'+safe(creator.handle)+'</span></div></div></div>'+
   '<p>'+safe(tr('creatorWorks'))+'</p></div></section>'+
@@ -281,7 +286,7 @@ function detailsView(){
  if(!item)return galleryView();
  return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
   '<h1 id="bas-c-page-title">'+safe(item.title)+'</h1><p>@'+safe(item.handle)+'</p></section>'+
-  '<div class="bas-c-publish-draft bas-live-detail"><p>'+safe(item.summary||'')+'</p>'+
+  '<div class="bas-c-publish-draft bas-live-detail"><div class="bas-live-detail-preview"><canvas class="bas-live-anim-canvas" data-bas-animation="'+safe(item.id)+'" aria-hidden="true"></canvas><span class="bas-live-preview-loading" aria-hidden="true">✧</span></div><p>'+safe(item.summary||'')+'</p>'+
    '<p>'+safe((item.tags||[]).map(x=>'#'+x).join(' · '))+'</p>'+
    '<p>'+safe(item.license)+' · '+safe(item.fps)+' fps · '+safe(item.width)+'×'+safe(item.height)+'</p>'+
    '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="download" data-id="'+safe(item.id)+'">'+safe(tr('download'))+'</button>'+
@@ -381,6 +386,7 @@ function render(){
  else if(state.route==='licenses')content=licensesView();
  else content=galleryView();
  target.innerHTML=content;
+ window.BASCommunityAnimation?.mount(target);
  renderModal();
  return true;
 }
@@ -435,7 +441,7 @@ async function fetchPictures(){
   try{state.remotePictures[kind]=await api().media(kind);}
   catch(_){state.remotePictures[kind]=null;}
  }
- if(state.route==='profile')render();
+ if(['profile','creators','creator'].includes(state.route))render();
 }
 function openUpload(file=null,source='zip'){
  if(!active())return false;
@@ -611,7 +617,7 @@ function handle(event){
  if(action==='back-creators'){go('creators');return true;}
  if(action==='creator'||action==='creator-author'){viewCreator(hit.dataset.handle);return true;}
  if(action==='detail'){
-  const entry=state.items.find(x=>x.id===id);
+  const entry=[...state.items,...state.creatorItems].find(x=>x.id===id);
   if(entry){state.selected=entry;go('detail');}return true;
  }
  if(action==='download'){void download(id);return true;}

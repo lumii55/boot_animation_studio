@@ -367,8 +367,8 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-7-public-ux/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-7-public-ux/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-7-visual-preview/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-7-visual-preview/);
     assert.match(html,/id="bas-community-feature-toggle"/);
 });
 

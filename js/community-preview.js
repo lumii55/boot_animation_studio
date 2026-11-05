@@ -269,8 +269,8 @@
       '<aside class="bas-c-sidebar"><div class="bas-c-brand"><span class="bas-c-logo">✦</span><span><b>Boot Animation</b><small>COMMUNITY <em>ALPHA</em></small></span></div>'+
       '<div class="bas-c-side-nav" aria-label="'+safe(tr('menu'))+'">'+navButton('explore','explore','⌕')+navButton('saved','saved','♡')+navButton('creators','creators','♧')+'</div>'+
       '<div class="bas-c-side-bottom"><span class="bas-c-side-flower">✧</span><b>'+safe(tr('local'))+'</b><p>'+safe(tr('localDesc'))+'</p></div></aside>'+
-      '<div class="bas-c-stage"><header class="bas-c-topbar"><span class="bas-c-breadcrumb"><span class="bas-c-brand-mini">✦</span> BAS <span class="bas-c-slash">/</span> '+safe(tr('community'))+'</span>'+
-      '<span class="bas-c-topbadge">'+safe(tr('beta'))+'</span><div class="bas-c-topactions"><button type="button" class="bas-c-signin" data-c-action="real-account" aria-label="Conta BAS Community real">✦ Conta BAS ↗</button><button type="button" class="bas-c-signin" data-c-action="signin">'+safe(tr('demoAccountBtn'))+'</button>'+
+      '<div class="bas-c-stage"><header class="bas-c-topbar"><span class="bas-c-breadcrumb"><span class="bas-c-brand-mini">✦</span> BAS <span class="bas-c-slash">/</span> <span class="bas-c-current-section">'+safe(tr('community'))+'</span></span>'+
+      '<div class="bas-c-topactions"><button type="button" class="bas-c-signin" data-c-action="real-account" aria-label="Conta BAS Community real">✦ Conta BAS ↗</button><button type="button" class="bas-c-signin" data-c-action="signin">'+safe(tr('demoAccountBtn'))+'</button>'+
       '<button type="button" class="bas-c-close" id="bas-community-close" data-c-action="close" aria-label="'+safe(tr('close'))+'">×</button></div></header>'+
       '<div class="bas-c-mobile-nav" aria-label="'+safe(tr('menu'))+'">'+navButton('explore','explore','⌕')+navButton('saved','saved','♡')+navButton('creators','creators','♧')+'</div>'+
       '<main class="bas-c-scroll" id="bas-c-main"><div id="bas-c-view"></div><div class="bas-c-footnote">✧ BAS Community · '+safe(tr('previewNote'))+'</div></main></div>'+
@@ -813,6 +813,7 @@
     closeModal();
     layer.hidden=true;
     layer.setAttribute('aria-hidden','true');
+    window.BASCommunityAnimation?.unmount();
     document.body.classList.remove('bas-community-open');
     if (lastFocus && lastFocus.isConnected) lastFocus.focus();
     lastFocus=null;
@@ -841,6 +842,21 @@
     }
     const launch=byId('bas-community-launcher'), preview=byId('bas-community-preview-open');
     if (launch) launch.hidden=!allowed;
+    const names={pt:['✦ Comunidade','Explore, compartilhe e baixe animações.'],
+      en:['✦ Community','Explore, share and download boot animations.'],
+      es:['✦ Comunidad','Explora, comparte y descarga animaciones.'],
+      fr:['✦ Communauté','Découvrez, partagez et téléchargez des animations.'],
+      de:['✦ Community','Animationen entdecken, teilen und herunterladen.'],
+      it:['✦ Community','Esplora, condividi e scarica animazioni.'],
+      ja:['✦ コミュニティ','アニメーションを探して共有・ダウンロード。'],
+      zh:['✦ 社区','探索、分享并下载开机动画。']};
+    const locale=window.BASI18n?.locale||document.documentElement?.lang||'en';
+    const captions=names[locale]||names.en;
+    if(launch)launch.textContent=captions[0];
+    const description=byId('bas-community-home-desc');
+    if(description)description.textContent=captions[1];
+    const homeChoice=byId('bas-community-home-choice');
+    if (homeChoice) homeChoice.hidden=!allowed;
     if (preview) preview.disabled=!allowed;
     if (!allowed) close();
     const status=byId('bas-community-status');

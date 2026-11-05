@@ -53,8 +53,8 @@ jobs:
               assert (root/path).is_file(),f'Missing HTML asset: {path}'
               if q.startswith('v=web-v'):
                   versions.add(q)
-                  if path.endswith(('.css','.js','.webmanifest')):
-                      assert './'+url in assets,f'Missing offline asset: {url}'
+              if path.endswith(('.css','.js','.webmanifest')):
+                  assert './'+url in assets,f'Missing offline asset: {url}'
           assert len(versions)==1,f'Asset version drift: {versions}'
           for asset in assets:
               assert asset.startswith('./')
