@@ -105,12 +105,22 @@ async function processInteraction(env,interaction,command,reason=null){
    'Não foi possível concluir: '+plain(body.error||'erro de moderação',90));
  }catch(_){return discordFollowup(env,interaction,'Falha ao processar a ação. Use o painel administrativo local.');}
 }
+// Discord requires a signed PING before accepting the Interactions Endpoint URL.
+// Handshake does NOT authorize moderation or DM delivery. Keep those separately gated.
+export function discordHandshakeReady(env){
+ return SNOWFLAKE.test(String(env?.DISCORD_APPLICATION_ID||''))&&
+  SNOWFLAKE.test(String(env?.DISCORD_ADMIN_USER_ID||''))&&
+  KEY.test(String(env?.DISCORD_PUBLIC_KEY||''))&&
+  env?.PUBLIC_CATALOG_ENABLED==='false'&&env?.AUTH_PUBLIC_SIGNUP_APPROVED==='false';
+}
 export async function discordInteractions(request,env,ctx){
- if(!discordConfigured(env)||request.method!=='POST')return response(404,{error:'not_found'});
+ if(request.method!=='POST'||!discordHandshakeReady(env))return response(404,{error:'not_found'});
  const raw=await request.text();
  if(!await verifyDiscordSignature(request,raw,env.DISCORD_PUBLIC_KEY))return response(401,{error:'invalid_signature'});
  let message;try{message=JSON.parse(raw);}catch(_){return response(400,{error:'invalid_payload'});}
  if(message.type===1)return webhookResponse(1);
+ // Absolutely no buttons or mutations until the owner explicitly enables the bot.
+ if(!discordConfigured(env))return response(404,{error:'bot_disabled'});
  if(message.application_id!==env.DISCORD_APPLICATION_ID||message.user?.id!==env.DISCORD_ADMIN_USER_ID||
     message.guild_id||message.context!==1)return webhookResponse(4,{content:'Acesso administrativo negado.',flags:64});
  if(![3,5].includes(message.type))return webhookResponse(4,{content:'Interação não suportada.',flags:64});

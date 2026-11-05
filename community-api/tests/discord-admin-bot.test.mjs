@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPairSync,sign} from 'node:crypto';
-import {discordConfigured,verifyDiscordSignature,parseButtonId,adminButtons,
+import {discordConfigured,discordHandshakeReady,verifyDiscordSignature,parseButtonId,adminButtons,
   buildPrivateDM,discordInteractions,dispatchAdminDMs} from '../src/discord-admin-bot.mjs';
 const {privateKey,publicKey}=generateKeyPairSync('ed25519');
 const publicHex=publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
@@ -19,11 +19,26 @@ function req(obj,key=privateKey,stamp=String(Math.floor(Date.now()/1000))){
 }
 const component={type:3,application_id:app,user:{id:admin},context:1,
  data:{custom_id:'bas1:deny:publication:'+id}};
-test('disabled without complete explicit bot configuration, even with public ping',async()=>{
- assert.equal(discordConfigured({...env,DISCORD_ADMIN_BOT_ENABLED:'false'}),false);
- const response=await discordInteractions(req({type:1}),{...env,DISCORD_ADMIN_BOT_ENABLED:'false'});
- assert.equal(response.status,404);
- assert.deepEqual(await dispatchAdminDMs({...env,DISCORD_ADMIN_BOT_ENABLED:'false'}),{disabled:true});
+test('signed Discord handshake works with bot disabled; DM dispatch and moderation stay locked',async()=>{
+ const disabled={...env,DISCORD_ADMIN_BOT_ENABLED:'false'};
+ assert.equal(discordConfigured(disabled),false);
+ assert.equal(discordHandshakeReady(disabled),true);
+ const ping=await discordInteractions(req({type:1}),disabled);
+ assert.equal(ping.status,200);
+ assert.deepEqual(await ping.json(),{type:1});
+ const action=await discordInteractions(req(component),disabled);
+ assert.equal(action.status,404);
+ assert.deepEqual(await action.json(),{error:'bot_disabled'});
+ assert.deepEqual(await dispatchAdminDMs(disabled),{disabled:true});
+});
+test('handshake rejects incomplete config, stale and forged signatures, and GET',async()=>{
+ const disabled={...env,DISCORD_ADMIN_BOT_ENABLED:'false'};
+ assert.equal(discordHandshakeReady({...disabled,DISCORD_PUBLIC_KEY:'invalid'}),false);
+ assert.equal((await discordInteractions(req({type:1}),{...disabled,DISCORD_PUBLIC_KEY:'invalid'})).status,404);
+ assert.equal((await discordInteractions(req({type:1},privateKey,'1234567890'),disabled)).status,401);
+ const forged=new Request('https://test.invalid/v1/discord/interactions',{method:'POST',body:'{"type":1}'});
+ assert.equal((await discordInteractions(forged,disabled)).status,401);
+ assert.equal((await discordInteractions(new Request('https://test.invalid/v1/discord/interactions'),disabled)).status,404);
 });
 test('Ed25519 signature exact body and 5-minute freshness',async()=>{
  const incoming=req({type:1});const body=await incoming.clone().text();
