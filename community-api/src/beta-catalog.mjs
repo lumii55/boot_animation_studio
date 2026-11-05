@@ -39,8 +39,12 @@ async function list(url,env){
  if(!Number.isInteger(size)||size<1||size>24||!Number.isInteger(offset)||
   offset<0||offset>5000||!Object.hasOwn(sorts,sort)||raw.length>80)
   return err(400,'invalid_query');
+ const creator=url.searchParams.get('creator')||'';
+ if(creator&&!/^[A-Za-z0-9_]{3,32}$/.test(creator))
+  return err(400,'invalid_creator');
  const q=foldSearch(raw),values=[];
  let sql=base,rank='';
+ if(creator){sql+=' AND u.handle=?';values.push(creator);}
  if(q){
   sql+=" AND (instr(COALESCE(s.title_fold,lower(a.title)),?)>0 OR "+
        "instr(lower(u.handle),?)>0 OR EXISTS(SELECT 1 FROM animation_tags t "+
@@ -57,6 +61,18 @@ async function list(url,env){
   return result(200,{items:rows.slice(0,size).map(output),
    next_offset:rows.length>size&&offset+size<=5000?offset+size:null});
  }catch(_){return err(503,'catalog_unavailable');}
+}
+async function creators(env){
+ try{
+  const rows=(await env.DB.prepare(
+   'SELECT u.handle,u.display_name,COUNT(*) AS animation_count '+
+   'FROM animations a JOIN community_users u ON u.id=a.owner_id '+
+   'JOIN animation_versions v ON v.id=a.published_version_id '+
+   "WHERE a.status='published' AND v.status='approved' AND u.status='active' "+
+   'GROUP BY u.id,u.handle,u.display_name ORDER BY animation_count DESC,u.handle ASC LIMIT 60'
+  ).bind().all()).results||[];
+  return result(200,{creators:rows});
+ }catch(_){return err(503,'creators_unavailable');}
 }
 async function detail(id,env){
  if(!idPattern.test(id))return err(404,'not_found');
@@ -98,12 +114,13 @@ export async function handleBetaCatalog(req,env,url){
  // Public read-only access is intentionally separate from public signup:
  // ONLY approved + published versions are visible; mutations remain gated.
  const guestRead=env.COMMUNITY_GUEST_READ_ENABLED==='true'&&req.method==='GET'&&
-   (path==='catalog'||/^animations\/[a-f0-9]{32}$/.test(path)||
+   (path==='catalog'||path==='creators'||/^animations\/[a-f0-9]{32}$/.test(path)||
     /^downloads\/[a-f0-9]{32}$/.test(path));
  const user=guestRead?null:(req.method==='GET'?await verifyPrivateProfileReader(req,env):
    await verifyPublisher(req,env));
  if(!guestRead&&!user)return err(403,'not_authorized');
  if(req.method==='GET'&&path==='catalog')return list(url,env);
+ if(req.method==='GET'&&path==='creators')return creators(env);
  if(req.method==='GET'&&/^animations\/[a-f0-9]{32}$/.test(path))
   return detail(path.split('/')[1],env);
  if(req.method==='GET'&&/^downloads\/[a-f0-9]{32}$/.test(path))

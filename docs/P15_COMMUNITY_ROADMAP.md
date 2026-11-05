@@ -331,3 +331,14 @@ ports localhost 8088 e 8090. Aceite humano ainda pendente.
   fe62cf59-8a0c-4846-a43b-bd9c07728f47; sem alterações da main.
 - Regressões locais completas: 151/151 (25 BAS UI, 93 Worker API,
   33 SQLite). Teste humano de botões/fluxos continua útil.
+
+## P15.7 — revisão única de upload, UX, criadores e licenças (2026-11-05)
+
+Detalhes em docs/P15_7_PUBLISH_UX_AND_LICENSE_FIXES.md.
+Corrige invalid_metadata por proveniência indevida do Companion,
+nome de ZIP unicode, input ZIP duplicado, interrogação duplicada,
+guia de licenças completo em 8 idiomas, textos/filtros localizados,
+aba Criadores real e elimina pop-ups do navegador na Community.
+159/159 testes locais. Worker staging
+4a8d9367-6d73-43cc-8aec-7de8c181de2c.
+BAS original e main preservados; teste real de upload ainda pendente.

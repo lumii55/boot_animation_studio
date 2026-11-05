@@ -620,3 +620,28 @@ body.bas-community-open{overflow:hidden}
  #bas-community-preview .bas-live-tag-row{flex-wrap:wrap}
  #bas-community-preview .bas-live-tag-row input{min-width:100%}
 }
+
+/* P15.7 licensing guide: native BAS styles, readable sections */
+#bas-community-preview .bas-live-license-list{max-width:820px;display:grid;gap:13px}
+#bas-community-preview .bas-live-license-card{padding:20px 23px}
+#bas-community-preview .bas-live-license-card h2{font-size:1.1rem;margin:0 0 11px}
+#bas-community-preview .bas-live-license-card p{line-height:1.65;margin:8px 0}
+#bas-community-preview .bas-live-license-use{color:#d3c7fa;font-weight:600}
+#bas-community-preview .bas-live-license-card a{color:#d7beff}
+#bas-community-preview .bas-live-license-warning{line-height:1.65;color:#bcc8df;padding:14px 0}
+
+/* Native creators navigation uses existing BAS creator tiles. */
+#bas-community-preview .bas-live-creator-avatar{display:grid;place-items:center;flex:none;
+ width:46px;height:46px;border-radius:14px;background:#423269;color:#eee4ff;font-size:23px}
+#bas-community-preview .bas-live-author-link{background:none;border:0;padding:0;cursor:pointer}
+#bas-community-preview .bas-live-author-link:hover{text-decoration:underline}
+
+/* In-BAS dialogs: never use native confirm/prompt in public Community. */
+#bas-community-preview .bas-live-modal{max-width:540px}
+#bas-community-preview .bas-live-modal p{line-height:1.65}
+#bas-community-preview .bas-live-modal label{display:block;margin:12px 0 7px}
+#bas-community-preview .bas-live-modal textarea{display:block;width:100%;min-height:110px;
+ background:#111829;color:#edf0ff;border:1px solid #7a699d;border-radius:10px;
+ padding:12px;font:inherit;resize:vertical}
+
+#bas-community-preview #bas-live-zip[hidden]{display:none!important}

@@ -122,3 +122,70 @@ test('guest sees apply-to-phone only when Companion grants direct upload/control
  f.window.BASCommunityLive.render();
  assert.doesNotMatch(f.get('bas-c-view').innerHTML,/Aplicar no celular/);
 });
+
+test('eight-language license guide explains each choice with permissions and examples',()=>{
+ const src=fs.readFileSync(path.join(ROOT,'js/community-license-guide.js'),'utf8');
+ const w={};
+ vm.runInNewContext(src,{window:w});
+ assert.deepEqual(Array.from(w.BASCommunityLicenses.supported),['pt','en','es','fr','de','it','ja','zh']);
+ for(const lang of w.BASCommunityLicenses.supported){
+  const guide=w.BASCommunityLicenses.forLanguage(lang);
+  assert.ok(guide.intro.length>(['ja','zh'].includes(lang)?28:55),lang+' intro');
+  assert.equal(guide.entries.length,4,lang+' choices');
+  for(const section of guide.entries){
+   assert.equal(section.length,3,lang+' shape');
+   assert.ok(section[1].length>(lang==='zh'?50:lang==='ja'?65:145),lang+': '+section[0]);
+   assert.ok(section[2].length>(['ja','zh'].includes(lang)?12:25),lang+' practical hint');
+  }
+  assert.ok(guide.note.length>(['ja','zh'].includes(lang)?65:105),lang+' legal note');
+ }
+});
+test('live Community label translations include newest/popular and license help in six extra BAS languages',()=>{
+ const src=fs.readFileSync(path.join(ROOT,'js/community-labels.js'),'utf8');
+ const w={};
+ vm.runInNewContext(src,{window:w});
+ assert.deepEqual(Array.from(w.BASCommunityLabels.supported),['es','fr','de','it','ja','zh']);
+ for(const lang of w.BASCommunityLabels.supported){
+  for(const key of w.BASCommunityLabels.keys)
+   assert.ok(w.BASCommunityLabels.text(lang,key),lang+' '+key);
+  assert.notEqual(w.BASCommunityLabels.text(lang,'latest'),'Newest');
+  assert.notEqual(w.BASCommunityLabels.text(lang,'popular'),'Popular');
+ }
+});
+test('native Community upload has ONE ZIP control, ONE license question and no native confirm',()=>{
+ const f=fixture();
+ f.window.BASCommunityLive.handle({target:{closest:()=>({dataset:{cAction:'upload'}})}});
+ const markup=f.get('bas-c-view').innerHTML;
+ assert.equal((markup.match(/id="bas-live-zip"/g)||[]).length,1);
+ assert.match(markup,/id="bas-live-zip"[^>]* hidden/,'native file input should be hidden');
+ assert.equal((markup.match(/data-c-action="choose-zip"/g)||[]).length,1);
+ assert.doesNotMatch(markup,/\? \?/);
+ assert.doesNotMatch(script,/window\.(confirm|prompt|alert)\(/);
+});
+test('Creators tab opens, uses real publisher directory and links to their posts',async()=>{
+ const f=fixture(false);
+ f.app.creators=async()=>({creators:[{handle:'creator_test',display_name:'BAS <Creator>',animation_count:1}]});
+ f.window.BASCommunityLive.mount();
+ f.window.BASCommunityLive.handle({target:{closest:()=>({dataset:{cAction:'navigate',route:'creators'}})}});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.match(f.get('bas-c-view').innerHTML,/BAS &lt;Creator&gt;/);
+ f.window.BASCommunityLive.handle({target:{closest:()=>({dataset:{cAction:'creator',handle:'creator_test'}})}});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.match(f.get('bas-c-view').innerHTML,/Relaxante &lt;img/);
+});
+
+test('report uses a BAS dialog instead of a browser prompt and clicks inside do not dismiss it',()=>{
+ const f=fixture(true);
+ const id='a'.repeat(32);
+ f.window.BASCommunityLive.handle({target:{closest:()=>({dataset:{cAction:'report',id}})}});
+ const modal=f.get('bas-c-modal-host');
+ assert.match(modal.innerHTML,/bas-live-report-form/);
+ assert.match(modal.innerHTML,/role="dialog"/);
+ const backdrop={dataset:{cAction:'modal-close'},classList:{contains:v=>v==='bas-live-modal-backdrop'}};
+ backdrop.closest=()=>backdrop;
+ const inner={closest:()=>backdrop};
+ f.window.BASCommunityLive.handle({target:inner});
+ assert.match(modal.innerHTML,/bas-live-report-form/,'clicking inside report dialog must keep it open');
+ f.window.BASCommunityLive.handle({target:backdrop});
+ assert.equal(modal.innerHTML,'','click on actual background dismisses dialog');
+});

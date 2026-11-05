@@ -361,3 +361,17 @@ decision is still audited. End-user reports retain mandatory reasons.
 Rejected animations and versions cannot appear in the approved catalog
 or be downloaded through guest APIs. Beta staging Worker version:
 fe62cf59-8a0c-4846-a43b-bd9c07728f47; no D1 migration needed.
+
+## P15.7 user-reported Community UX integration corrections
+
+See docs/P15_7_PUBLISH_UX_AND_LICENSE_FIXES.md for current behavior.
+Client sends companion_permission_confirmed only for Companion source,
+with technical metadata filename bootanimation.zip. This prevents the
+invalid_metadata reject on normal ZIP/editor uploads. Browser dialogs
+in the real BAS Community are replaced by native BAS dialogs, while
+destructive Companion actions remain confirmation/permission-gated.
+The approved-only creator directory GET /v1/beta/creators and optional
+catalog creator filter are public-read-only, not public signup.
+License guide and translations cover the 8 existing BAS locales.
+159/159 regression tests passed. API-only Worker staging version:
+4a8d9367-6d73-43cc-8aec-7de8c181de2c.

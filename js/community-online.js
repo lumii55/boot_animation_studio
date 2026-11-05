@@ -191,9 +191,13 @@ function normalizeTags(value){
  if(tags.length>12)throw Error('Limite de 12 tags.');
  return tags;
 }
-async function gallery(search='',offset=0,sort='newest'){
+async function gallery(search='',offset=0,sort='newest',creator=''){
  const q=new URLSearchParams({q:String(search).slice(0,80),offset:String(offset),limit:'12',sort});
+ if(creator)q.set('creator',creator);
  return request('/v1/beta/catalog?'+q.toString(),{authenticated:false});
+}
+async function creators(){
+ return request('/v1/beta/creators',{authenticated:false});
 }
 async function report(id,reason){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
@@ -204,7 +208,7 @@ async function publishArchive(file,meta){
  if(!(file instanceof Blob)||file.size<1||file.size>20*1024*1024)
   throw Error('ZIP ausente ou maior que 20 MiB.');
  const filename=String(meta.filename||file.name||'bootanimation.zip');
- if(!/^[A-Za-z0-9_. -]{1,90}$/.test(filename)||!filename.toLowerCase().endsWith('.zip'))
+ if(filename.length>220||!filename.toLowerCase().endsWith('.zip'))
   throw Error('Selecione um arquivo .zip válido.');
  const license=String(meta.license||'CC-BY-4.0');
  const source=String(meta.source||'zip');
@@ -217,8 +221,8 @@ async function publishArchive(file,meta){
    summary:String(meta.summary||'').trim().slice(0,1000),
    tags:normalizeTags(meta.tags||''),license,author_credit:String(meta.author_credit||user.display_name).slice(0,120),
    allows_remix:license!=='all-rights-reserved',rights_confirmed:true,
-   companion_permission_confirmed:source==='companion',
-   size_bytes:file.size,filename}
+   ...(source==='companion'?{companion_permission_confirmed:true}:{}),
+   size_bytes:file.size,filename:'bootanimation.zip'}
  });
  if(!/^[a-f0-9]{32}$/.test(start.draft_id||''))throw Error('Rascunho inválido.');
  return request('/v1/publishing/drafts/'+start.draft_id+'/zip',{
@@ -268,7 +272,7 @@ function publicState(){
 }
 window.BASCommunityOnline=Object.freeze({
  available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
- state:publicState,refresh,profile:updateProfile,gallery,report,
+ state:publicState,refresh,profile:updateProfile,gallery,creators,report,
  publish:publishArchive,drafts,download,approvedZip,media,updateMedia,normalizeTags
 });
 window.addEventListener('DOMContentLoaded',()=>{void init();});

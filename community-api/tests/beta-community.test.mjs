@@ -326,3 +326,27 @@ test('admin dismisses a report with no reason; user-submitted reasons remain man
  assert.equal((await x.req('/v1/beta/moderation/queue')).body.reports.length,0);
  assert.equal(x.db.prepare("SELECT reason FROM moderation_events WHERE animation_id=? AND moderator_id=? AND action='report'").get(a.a,uid).reason,'dismiss');
 });
+
+test('guest creators directory exposes only accounts with approved public posts',async t=>{
+ const x=setup(t);
+ x.env.COMMUNITY_GUEST_READ_ENABLED='true';
+ const publicPost=x.animation(61,'My public creation',['nature'],true);
+ pending(x,62,'Unreviewed private project',['secret']);
+ const visitor=async(path)=>{
+  const res=await worker.fetch(new Request(API+path),x.env);
+  return {status:res.status,body:await res.json()};
+ };
+ let r=await visitor('/v1/beta/creators');
+ assert.equal(r.status,200);
+ assert.equal(r.body.creators.length,1);
+ assert.equal(r.body.creators[0].animation_count,1);
+ const creator=r.body.creators[0];
+ r=await visitor('/v1/beta/catalog?creator='+encodeURIComponent(creator.handle));
+ assert.equal(r.status,200);
+ assert.deepEqual(r.body.items.map(item=>item.id),[publicPost.a]);
+ r=await visitor('/v1/beta/catalog?creator=invalid%20handle');
+ assert.equal(r.status,400);
+ assert.equal(r.body.error,'invalid_creator');
+ x.env.COMMUNITY_GUEST_READ_ENABLED='false';
+ assert.equal((await visitor('/v1/beta/creators')).status,403);
+});
