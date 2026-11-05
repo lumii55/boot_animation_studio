@@ -5,6 +5,8 @@
 const CLOCK_SKEW_SECONDS = 10;
 const FLOW_TTL = 600;
 const SESSION_TTL = 7 * 24 * 3600;
+const LOCAL_GRANT_TTL = 120;
+const LOCAL_URLS = new Set(['http://127.0.0.1:8088/','https://lumii55.github.io/boot_animation_studio/']);
 const AUTH_API_PREFIX = '/v1/auth/';
 const LOGIN_COOKIE = '__Host-bas_oauth';
 const SESSION_COOKIE = '__Host-bas_session';
@@ -50,9 +52,30 @@ export function authConfigured(env) {
     typeof env?.AUTH_SESSION_SECRET === 'string' && env.AUTH_SESSION_SECRET.length >= 32 &&
     checkedTopology(env);
 }
+export function trustedBASOrigin(origin,env){
+  if(env?.BAS_LOCAL_CLIENT_ENABLED!=='true'||typeof origin!=='string')return false;
+  if(origin!=='http://127.0.0.1:8088'&&origin!=='https://lumii55.github.io')return false;
+  const allowed=String(env.BAS_LOCAL_ORIGINS||'').split(',').map(v=>v.trim()).filter(Boolean);
+  return allowed.includes(origin);
+}
+function localReturnTo(url,env){
+  if(typeof url!=='string'||url.length>200||!LOCAL_URLS.has(url))return null;
+  const parsed=new URL(url);
+  return trustedBASOrigin(parsed.origin,env)?parsed:null;
+}
+export function allowedBASOrigin(origin,env){
+  return origin===env.AUTH_SITE_ORIGIN||trustedBASOrigin(origin,env);
+}
+function bearerToken(request,env){
+  const origin=request.headers.get('Origin');
+  if(!trustedBASOrigin(origin,env))return null;
+  const raw=request.headers.get('Authorization')||'';
+  const match=/^Bearer ([A-Za-z0-9_-]{43})$/.exec(raw);
+  return match?.[1]||null;
+}
 function allowOrigin(request, env) {
   const origin=request.headers.get('Origin');
-  return origin && origin === env.AUTH_SITE_ORIGIN ? origin : null;
+  return origin && allowedBASOrigin(origin,env) ? origin : null;
 }
 function response(request,env,value,status=200,extra={}) {
   const headers=new Headers(HEADERS);
@@ -98,7 +121,7 @@ function makeCookie(name,value,seconds) {
   return name+'='+value+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+seconds;
 }
 function expireCookie(name) {return makeCookie(name,'',0);}
-function sameOrigin(request,env) {return request.headers.get('Origin') === env.AUTH_SITE_ORIGIN;}
+function sameOrigin(request,env) {return allowedBASOrigin(request.headers.get('Origin'),env);}
 function now() {return Math.floor(Date.now()/1000);}
 function safeGitHubName(value) {
   const text=typeof value==='string'?value:'';
@@ -149,7 +172,7 @@ async function jsonBody(request,maxBytes=2048) {
   }catch(_){return null;}
 }
 async function validateSession(request,env) {
-  const token=cookie(request,SESSION_COOKIE);
+  const token=bearerToken(request,env)||cookie(request,SESSION_COOKIE);
   if(!token)return null;
   const hash=await sha256('session:'+token);
   const user=await env.DB.prepare(
@@ -164,7 +187,7 @@ async function validateSession(request,env) {
  * Do not expose the session token or internal hashed credentials to handlers. */
 export async function verifyPublisher(request, env) {
   if (!authConfigured(env)) return null;
-  if (request.headers.get('Origin') !== env.AUTH_SITE_ORIGIN) return null;
+  if (!allowedBASOrigin(request.headers.get('Origin'),env)) return null;
   const current = await validateSession(request,env);
   if (!current) return null;
   if (!constantEquals(request.headers.get('X-CSRF-Token'),current.csrf)) return null;
@@ -194,12 +217,23 @@ async function recordLoginAttempt(request,env) {
 }
 async function loginStart(request,env) {
   if(!(await recordLoginAttempt(request,env)))return fail(request,env,'too_many_attempts',429);
+  const sourceUrl=new URL(request.url);
+  const isLocal=sourceUrl.searchParams.get('mode')==='bas-local';
+  let destination=null,clientChallenge=null;
+  if(isLocal){
+    destination=localReturnTo(sourceUrl.searchParams.get('return_to'),env);
+    clientChallenge=sourceUrl.searchParams.get('challenge');
+    if(!destination||!/^[A-Za-z0-9_-]{43}$/.test(clientChallenge||''))
+      return fail(request,env,'local_redirect_not_allowed',403);
+  }else if(sourceUrl.searchParams.has('mode')||sourceUrl.searchParams.has('return_to'))
+    return fail(request,env,'invalid_login_mode',400);
   const state=randomToken(),verifier=randomToken(),binder=randomToken();
   const digest=await crypto.subtle.digest('SHA-256',encoder.encode(verifier));
   const challenge=btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   await env.DB.prepare(
-    'INSERT INTO oauth_flows(state_hash,binder_hash,pkce_verifier,expires_at) VALUES(?,?,?,?)'
-  ).bind(await sha256('state:'+state),await sha256('bind:'+binder),verifier,now()+FLOW_TTL).run();
+    'INSERT INTO oauth_flows(state_hash,binder_hash,pkce_verifier,expires_at,local_origin,local_return_path,local_challenge) VALUES(?,?,?,?,?,?,?)'
+  ).bind(await sha256('state:'+state),await sha256('bind:'+binder),verifier,now()+FLOW_TTL,
+    destination?.origin||null,destination?.pathname||null,clientChallenge).run();
   const redirect=env.AUTH_API_ORIGIN+'/v1/auth/github/callback';
   const url=new URL('https://github.com/login/oauth/authorize');
   url.searchParams.set('client_id',env.GITHUB_CLIENT_ID);
@@ -312,7 +346,7 @@ async function loginCallback(request,env,url,providerFetch) {
     return fail(request,env,'oauth_state_invalid',400,gone);
   }
   const row=await env.DB.prepare(
-    'DELETE FROM oauth_flows WHERE state_hash=? AND binder_hash=? AND expires_at>? RETURNING pkce_verifier'
+    'DELETE FROM oauth_flows WHERE state_hash=? AND binder_hash=? AND expires_at>? RETURNING pkce_verifier,local_origin,local_return_path,local_challenge'
   ).bind(await sha256('state:'+state),await sha256('bind:'+binder),now()-CLOCK_SKEW_SECONDS).first();
   if(!row)return fail(request,env,'oauth_state_invalid',400,gone);
   let profile;
@@ -325,6 +359,19 @@ async function loginCallback(request,env,url,providerFetch) {
     return fail(request,env,'beta_not_allowed',403,gone);
   const user=await upsertIdentity(env,profile);
   if(!user)return fail(request,env,'account_unavailable',403,gone);
+  if(row.local_origin){
+    const full=row.local_origin+row.local_return_path;
+    if(!localReturnTo(full,env)||!/^[A-Za-z0-9_-]{43}$/.test(row.local_challenge||''))
+      return fail(request,env,'local_redirect_not_allowed',403,gone);
+    const grant=randomToken();
+    await env.DB.prepare(
+      'INSERT INTO oauth_local_grants(grant_hash,user_id,local_origin,verifier_challenge,expires_at) VALUES(?,?,?,?,?)'
+    ).bind(await sha256('local-grant:'+grant),user.id,row.local_origin,row.local_challenge,now()+LOCAL_GRANT_TTL).run();
+    return response(request,env,null,302,{
+      'Location':full+'#bas-community-auth='+encodeURIComponent(grant),
+      'Set-Cookie':expireCookie(LOGIN_COOKIE)
+    });
+  }
   const sessionToken=randomToken();
   await env.DB.prepare(
     'INSERT INTO auth_sessions(session_hash,user_id,expires_at) VALUES(?,?,?)'
@@ -336,6 +383,29 @@ async function loginCallback(request,env,url,providerFetch) {
   // Clearing flow cookie requires a second Set-Cookie header. Headers.append preserves both.
   res.headers.append('Set-Cookie',expireCookie(LOGIN_COOKIE));
   return res;
+}
+async function localExchange(request,env){
+  const origin=request.headers.get('Origin');
+  if(!trustedBASOrigin(origin,env))return fail(request,env,'local_origin_forbidden',403);
+  const body=await jsonBody(request,1024);
+  if(!body||Object.keys(body).some(k=>!['grant','verifier'].includes(k))||
+     !/^[A-Za-z0-9_-]{43}$/.test(body.grant||'')||
+     !/^[A-Za-z0-9_-]{43}$/.test(body.verifier||''))return fail(request,env,'invalid_local_grant',400);
+  const challenge=btoa(String.fromCharCode(...new Uint8Array(
+    await crypto.subtle.digest('SHA-256',encoder.encode(body.verifier))
+  ))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  // A grant is consumed on the very first exchange, whether valid or not.
+  // Its TTL and origin are validated inside the atomic delete.
+  const row=await env.DB.prepare(
+    'DELETE FROM oauth_local_grants WHERE grant_hash=? AND expires_at>? RETURNING user_id,local_origin,verifier_challenge'
+  ).bind(await sha256('local-grant:'+body.grant),now()).first();
+  if(!row||row.local_origin!==origin||!constantEquals(row.verifier_challenge,challenge))
+    return fail(request,env,'invalid_local_grant',403);
+  const token=randomToken();
+  await env.DB.prepare(
+    'INSERT INTO auth_sessions(session_hash,user_id,expires_at) VALUES(?,?,?)'
+  ).bind(await sha256('session:'+token),row.user_id,now()+SESSION_TTL).run();
+  return response(request,env,{access_token:token,token_type:'Bearer',expires_in:SESSION_TTL},200);
 }
 async function me(request,env) {
   const session=await validateSession(request,env);
@@ -364,7 +434,8 @@ async function logout(request,env) {
   if(!session)return fail(request,env,'not_authenticated',401);
   if(!constantEquals(request.headers.get('X-CSRF-Token'),session.csrf))return fail(request,env,'csrf_invalid',403);
   await env.DB.prepare('DELETE FROM auth_sessions WHERE session_hash=?').bind(session.hash).run();
-  return response(request,env,{ok:true},200,{'Set-Cookie':expireCookie(SESSION_COOKIE)});
+  return response(request,env,{ok:true},200,
+    bearerToken(request,env)?{}:{'Set-Cookie':expireCookie(SESSION_COOKIE)});
 }
 export async function handleAuth(request,env,url,providerFetch=fetch) {
   if(!url.pathname.startsWith(AUTH_API_PREFIX))return null;
@@ -379,6 +450,9 @@ export async function handleAuth(request,env,url,providerFetch=fetch) {
   }
   if(url.pathname==='/v1/auth/github/callback' && request.method==='GET') {
     try{return await loginCallback(request,env,url,providerFetch);}catch(_){return fail(request,env,'auth_unavailable',503);}
+  }
+  if(url.pathname==='/v1/auth/local/exchange'&&request.method==='POST'){
+    try{return await localExchange(request,env);}catch(_){return fail(request,env,'auth_unavailable',503);}
   }
   if(url.pathname==='/v1/auth/me' && request.method==='GET') {
     try{return await me(request,env);}catch(_){return fail(request,env,'auth_unavailable',503);}

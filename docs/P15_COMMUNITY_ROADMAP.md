@@ -260,3 +260,41 @@ Estas mudancas sao parte da entrega UNICA da P15.7 (moderacao + galeria real + D
   /v1/beta/catalog 403 sem login, /v1/catalog 503,
   /studio/ 404 (por segurança, até o deploy de assets).
 - main e Companion publicado não alterados. Beta privado mantido.
+
+## P15.7 — canonical owner correction: BAS local, Cloudflare API-only (2026-11-05)
+
+- The previous standalone Cloudflare site (profile, gallery, license guide,
+  old beta pages) was a mistake. It is REMOVED from active Worker routing.
+  It must not be reintroduced as a second Community UI.
+- **ONLY THE ORIGINAL BAS** is user-facing. Existing overlay layout and
+  editor remain visually intact. js/community-online.js provides direct
+  account and data API calls; js/community-live.js uses original CSS and
+  Community shell. Backend only stores online information in D1/R2.
+- Cross-origin browser PKCE auth uses D1 migration 0008, one-use grant,
+  origin allowlist, opaque Bearer session, CORS, CSRF, server revocation.
+  GitHub redirects directly BACK to localhost BAS (or authorized PWA).
+- The login/profile/gallery/publishing/moderation frontend is moved
+  natively into BAS. ZIP editor and Companion never automatically upload.
+  Main branch and existing Android Companion are unchanged.
+- Original Chromium OAuth return, avatar/banner, private ZIP upload,
+  approved ZIP download and Companion pull require hands-on user testing.
+- Discord is still a PRIVATE ADMINISTRATOR BOT requirement with actual
+  GIF and buttons, never a report pathway for ordinary users. That bot
+  is not active until application credentials and an authorized private
+  destination are configured.
+- Complete this restructuring in the P15.7 milestone, not a new numbered
+  mini-step or an unrelated P15.8 milestone.
+
+## Local BAS + API-only staging checkpoint, 2026-11-05
+
+- Previous standalone Cloudflare Community website was removed;
+  Worker API-only version 7e4c043c-974c-47af-8b52-2ea4b005f3e5
+  now serves no HTML pages. OAuth callback remains technical 302.
+- The original BAS Community layout and Editor remain unchanged
+  visually; local modules community-online.js and community-live.js
+  fetch real D1/R2 data through authenticated API requests.
+- Local OAuth handoff D1 migration 0008 has been applied live.
+- Actual owner Chrome OAuth and end-to-end Companion/ZIP workflows
+  still need direct validation before P15.7 acceptance.
+
+Local-first regression totals: **141/141** (22 BAS frontend, 86 Worker API, 33 SQLite).

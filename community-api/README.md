@@ -1,3 +1,28 @@
+## CANONICAL LOCAL BAS + API-ONLY ARCHITECTURE (2026-11-05)
+
+**This supersedes historical P15.6/P15.7 beta portal descriptions below.**
+The existing Boot Animation Studio is the sole user interface. It runs
+on-device at http://127.0.0.1:8088/ and uses its native Community overlay.
+Cloudflare Worker serves HTTP /v1 APIs only: no HTML portal, beta website,
+license guide, or /studio static app. Root and /beta routes respond 404.
+
+The GitHub OAuth backend callback issues a one-time, PKCE-verifier-bound
+redirect to an allowlisted BAS origin. The BAS exchanges the grant for an
+opaque, revocable session, then uses Authorization: Bearer and a server
+CSRF proof for private writes. D1 migration 0008_local_bas_auth.sql
+must run **before** deployment. Staging flags:
+BAS_LOCAL_CLIENT_ENABLED=true and BAS_LOCAL_ORIGINS allowlist only for the
+trusted local BAS site. BETA_PORTAL_ENABLED remains false. Do not activate
+public signup, public catalog or Discord text webhooks.
+
+Native site code: js/community-online.js (API), js/community-live.js
+(existing Community UI integration), js/community-preview.js (minimal
+hooks to reuse BAS interface). No new BAS layout was introduced.
+
+Live E2E (Android Chrome, OAuth, profile media, ZIP publishing, Companion)
+must be approved by the owner. The original BAS GitHub Pages/main stays
+unchanged until the final release.
+
 # BAS Community — P15.3 secure API foundation
 
 Status: code tested locally; **private D1 staging database now provisioned at Cloudflare**, with migrations 0001, 0002 and 0003 applied. No Worker or file uploads deployed. R2 returns HTTP 403 asking to enable its subscription in the dashboard; do not activate R2 or billing automatically.
@@ -293,3 +318,16 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
   /v1/beta/catalog 403 sem login, /v1/catalog 503,
   /studio/ 404 (por segurança, até o deploy de assets).
 - main e Companion publicado não alterados. Beta privado mantido.
+
+## Live P15.7 local BAS staging checkpoint, 2026-11-05
+
+- Active Worker 7e4c043c-974c-47af-8b52-2ea4b005f3e5.
+- Workers now API-only: HTML paths 404, /v1 APIs protected by
+  one-time local OAuth grant and bearer session with CSRF/Origin
+  checks. D1 0008 applied preserving the existing account.
+- BAS site and all Community UI run on-device, locally under
+  http://127.0.0.1:8088/ (or original PWA once approved to main).
+- No public catalog, public signup, separate Cloudflare website,
+  or Discord text webhook. User Chrome E2E remains pending.
+
+Local-first regression totals: **141/141** (22 BAS frontend, 86 Worker API, 33 SQLite).

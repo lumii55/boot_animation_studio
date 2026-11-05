@@ -182,24 +182,12 @@ test('multi-word tags remain intact in catalog and are searchable by fragments',
   assert.deepEqual(r.body.items[0].tags.slice().sort(),['one piece','relaxante','natureza'].sort());
  }
 });
-test('original BAS studio assets require a beta session and same-origin binding',async t=>{
+test('Cloudflare never serves the original BAS application as a second website',async t=>{
  const x=setup(t);
  x.env.BETA_PORTAL_ENABLED='true';
  x.env.AUTH_BETA_GITHUB_IDS='12345';
  x.env.BAS_UNIFIED_STUDIO_ENABLED='true';
- let fetched=null;
- x.env.ASSETS={fetch:async req=>{
-  fetched=new URL(req.url).pathname;
-  return new Response('ORIGINAL BAS STATIC ASSET',{status:200,headers:{'Content-Type':'text/html'}});
- }};
- let r=await x.req('/studio/');
- assert.equal(r.status,200);
- assert.equal(fetched,'/index.html');
- r=await x.req('/studio/community-api/src/index.mjs');
- assert.equal(r.status,404);
- r=await x.req('/studio/', 'GET',null,{Cookie:''});
- assert.equal(r.status,302);
- x.env.BAS_UNIFIED_STUDIO_ENABLED='false';
- r=await x.req('/studio/');
- assert.equal(r.status,404);
+ x.env.ASSETS={fetch:async()=>new Response('DO NOT SERVE')};
+ assert.equal((await x.req('/studio/')).status,404);
+ assert.equal((await x.req('/studio/index.html')).status,404);
 });

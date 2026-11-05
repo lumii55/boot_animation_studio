@@ -1,0 +1,268 @@
+/* BAS P15.7 — data-only Cloudflare API client for the ORIGINAL local BAS.
+ * Never navigates to a separate Community website. GitHub OAuth callback
+ * sends a short-lived one-time handoff back to this local BAS, then
+ * browsers authenticate API requests with an origin-bound opaque session.
+ *
+ * No GitHub access token or OAuth client secret ever reaches the browser.
+ * Never put the BAS session into a URL, log, iframe or postMessage.
+ */
+(()=>{
+'use strict';
+const API='https://bas-community-staging.caiolive1000.workers.dev';
+const MODE='bas-local';
+const AUTH_KEY='bas.community.pkce.v1';
+const DB_NAME='bas.community.session.v1';
+const trusted=(location.origin==='http://127.0.0.1:8088'&&location.pathname==='/')||
+ (location.origin==='https://lumii55.github.io'&&
+  ['/boot_animation_studio/','/boot_animation_studio/index.html'].includes(location.pathname));
+let token=null,csrf=null,user=null,initPromise=null,moderator=false,lastError='',pictures={avatar:null,banner:null};
+function randomToken(){
+ const bytes=crypto.getRandomValues(new Uint8Array(32));
+ return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+function b64(bytes){
+ return btoa(String.fromCharCode(...new Uint8Array(bytes)))
+  .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+async function digest(value){return b64(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)));}
+function returnTo(){
+ if(location.origin==='http://127.0.0.1:8088')return 'http://127.0.0.1:8088/';
+ return 'https://lumii55.github.io/boot_animation_studio/';
+}
+function browserStorage(){
+ if(typeof indexedDB==='undefined')return Promise.resolve(null);
+ return new Promise(resolve=>{
+  try{
+   const req=indexedDB.open(DB_NAME,1);
+   req.onupgradeneeded=()=>req.result.createObjectStore('auth');
+   req.onsuccess=()=>resolve(req.result);
+   req.onerror=()=>resolve(null);
+   req.onblocked=()=>resolve(null);
+  }catch(_){resolve(null);}
+ });
+}
+async function save(value){
+ const db=await browserStorage();
+ if(db){
+  await new Promise(resolve=>{
+   try{
+    const tx=db.transaction('auth','readwrite');
+    tx.objectStore('auth').put(value,'access');
+    tx.oncomplete=resolve;tx.onerror=resolve;tx.onabort=resolve;
+   }catch(_){resolve();}
+  });
+  db.close();
+ }else{
+  try{if(value)sessionStorage.setItem(DB_NAME,value);
+    else sessionStorage.removeItem(DB_NAME);}catch(_){}
+ }
+}
+async function load(){
+ const db=await browserStorage();
+ if(!db){try{return sessionStorage.getItem(DB_NAME);}catch(_){return null;}}
+ const value=await new Promise(resolve=>{
+  try{const req=db.transaction('auth','readonly').objectStore('auth').get('access');
+   req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>resolve(null);
+  }catch(_){resolve(null);}
+ });
+ db.close();return value;
+}
+function event(name,detail={}){
+ try{window.dispatchEvent(new CustomEvent(name,{detail}));}catch(_){}
+}
+async function request(path,{method='GET',data=null,headers={},authenticated=true,raw=false}={}){
+ if(!trusted)throw Error('A versão local deste BAS não está na origem autorizada.');
+ if(!/^\/v1\/[a-z0-9/_-]+(?:\?[a-zA-Z0-9%&=+._-]*)?$/.test(path))
+   throw Error('Rota da API inválida.');
+ const outgoing=new Headers(headers);
+ if(authenticated){
+  if(!token)throw Error('Faça login com GitHub dentro do BAS.');
+  outgoing.set('Authorization','Bearer '+token);
+  if(method!=='GET'&&method!=='HEAD'&&csrf)outgoing.set('X-CSRF-Token',csrf);
+ }
+ let body;
+ if(data!==null){
+  if(data instanceof Blob){body=data;if(!outgoing.has('Content-Type'))outgoing.set('Content-Type',data.type||'application/octet-stream');}
+  else{body=JSON.stringify(data);outgoing.set('Content-Type','application/json');}
+ }
+ const res=await fetch(API+path,{method,headers:outgoing,body,credentials:'omit',
+  mode:'cors',cache:'no-store',redirect:'manual'});
+ if(res.type==='opaqueredirect'||res.status>=300&&res.status<400)throw Error('Redirecionamento inesperado da API.');
+ if(!res.ok){
+  let reason='HTTP '+res.status;
+  try{const json=await res.json();reason=json.error||reason;}catch(_){}
+  if(res.status===401){token=null;csrf=null;user=null;moderator=false;await save(null);event('bas:community-auth');}
+  throw Error(reason);
+ }
+ return raw?res:res.json();
+}
+async function refresh(){
+ const info=await request('/v1/auth/me');
+ if(!info.user||!info.csrf)throw Error('Sessão inválida.');
+ user=info.user;csrf=info.csrf;
+ event('bas:community-auth',{user});
+ try{
+  const r=await request('/v1/beta/moderation/queue');
+  moderator=Array.isArray(r.pending);
+ }catch(_){moderator=false;}
+ return user;
+}
+async function beginLogin(){
+ if(!trusted||!crypto?.subtle)throw Error('BAS precisa de um navegador local seguro.');
+ const verifier=randomToken(),challenge=await digest(verifier);
+ sessionStorage.setItem(AUTH_KEY,verifier);
+ const url=new URL(API+'/v1/auth/github/start');
+ url.searchParams.set('mode',MODE);
+ url.searchParams.set('return_to',returnTo());
+ url.searchParams.set('challenge',challenge);
+ window.location.assign(url.href);
+}
+async function exchangeGrant(grant){
+ const verifier=sessionStorage.getItem(AUTH_KEY);
+ sessionStorage.removeItem(AUTH_KEY);
+ if(!/^[A-Za-z0-9_-]{43}$/.test(grant)||!/^[A-Za-z0-9_-]{43}$/.test(verifier||'')){
+  throw Error('Login local expirado. Tente novamente.');
+ }
+ const result=await request('/v1/auth/local/exchange',{
+  method:'POST',data:{grant,verifier},authenticated:false
+ });
+ if(!/^[A-Za-z0-9_-]{43}$/.test(result.access_token||''))throw Error('Sessão inválida.');
+ token=result.access_token;
+ await save(token);
+ await refresh();
+}
+async function init(){
+ if(!trusted)return false;
+ if(initPromise)return initPromise;
+ initPromise=(async()=>{
+  const fragment=window.location.hash;
+  if(fragment.startsWith('#bas-community-auth=')){
+   // Clear the one-time grant from the address bar BEFORE requesting anything.
+   history.replaceState(history.state,'',window.location.pathname+window.location.search);
+   try{
+    await exchangeGrant(fragment.slice('#bas-community-auth='.length));
+    event('bas:community-login-success');
+  }catch(e){lastError=e.message;token=null;await save(null);event('bas:community-error',{error:lastError});}
+  }else{
+   token=await load();
+   if(token)try{await refresh();}catch(e){lastError=e.message;token=null;await save(null);}
+  }
+  return Boolean(user);
+ })();
+ return initPromise;
+}
+async function logout(){
+ if(token&&csrf)try{await request('/v1/auth/logout',{method:'POST',data:{}});}catch(_){}
+ token=null;csrf=null;user=null;moderator=false;
+ for(const key of ['avatar','banner']){
+  if(pictures[key])URL.revokeObjectURL(pictures[key]);pictures[key]=null;
+ }
+ await save(null);event('bas:community-auth');return true;
+}
+async function updateProfile(profile){
+ const data=await request('/v1/auth/profile',{method:'PATCH',data:profile});
+ user=data.user;event('bas:community-auth',{user});return user;
+}
+function normalizeTags(value){
+ const tags=[];
+ for(const raw of String(value||'').split(',')){
+  const tag=raw.normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+   .trim().replace(/\s+/g,' ').toLowerCase();
+  if(!tag)continue;
+  if(tag.length>32||!/^[a-z0-9_-]+(?: [a-z0-9_-]+)*$/.test(tag))
+   throw Error('Tags devem ter até 32 caracteres, letras, números ou espaços.');
+  if(!tags.includes(tag))tags.push(tag);
+ }
+ if(tags.length>12)throw Error('Limite de 12 tags.');
+ return tags;
+}
+async function gallery(search='',offset=0,sort='newest'){
+ const q=new URLSearchParams({q:String(search).slice(0,80),offset:String(offset),limit:'12',sort});
+ return request('/v1/beta/catalog?'+q.toString());
+}
+async function queue(){const data=await request('/v1/beta/moderation/queue');return data;}
+async function decide(id,action,reason){
+ if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
+ if(!['approve','reject','hide','restore'].includes(action))throw Error('Ação inválida.');
+ return request('/v1/beta/moderation/decision/'+id,{method:'POST',data:{action,reason}});
+}
+async function dismissReport(id,reason){
+ if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
+ return request('/v1/beta/moderation/reports/'+id,{
+  method:'POST',data:{action:'dismiss',reason}
+ });
+}
+async function report(id,reason){
+ if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
+ return request('/v1/beta/reports',{method:'POST',data:{animation_id:id,reason}});
+}
+async function publishArchive(file,meta){
+ if(!token||!user||!csrf)throw Error('Entre na sua conta primeiro.');
+ if(!(file instanceof Blob)||file.size<1||file.size>20*1024*1024)
+  throw Error('ZIP ausente ou maior que 20 MiB.');
+ const filename=String(meta.filename||file.name||'bootanimation.zip');
+ if(!/^[A-Za-z0-9_. -]{1,90}$/.test(filename)||!filename.toLowerCase().endsWith('.zip'))
+  throw Error('Selecione um arquivo .zip válido.');
+ const license=String(meta.license||'CC-BY-4.0');
+ const source=String(meta.source||'zip');
+ if(!['editor','zip','companion'].includes(source))throw Error('Origem inválida.');
+ if(!['CC-BY-4.0','CC-BY-SA-4.0','CC0-1.0','all-rights-reserved'].includes(license))
+  throw Error('Licença inválida.');
+ const start=await request('/v1/publishing/drafts',{
+  method:'POST',headers:{'Idempotency-Key':randomToken().slice(0,40)},
+  data:{source,title:String(meta.title||'').trim().slice(0,100),
+   summary:String(meta.summary||'').trim().slice(0,1000),
+   tags:normalizeTags(meta.tags||''),license,author_credit:String(meta.author_credit||user.display_name).slice(0,120),
+   allows_remix:license!=='all-rights-reserved',rights_confirmed:true,
+   companion_permission_confirmed:source==='companion',
+   size_bytes:file.size,filename}
+ });
+ if(!/^[a-f0-9]{32}$/.test(start.draft_id||''))throw Error('Rascunho inválido.');
+ return request('/v1/publishing/drafts/'+start.draft_id+'/zip',{
+  method:'PUT',data:new Blob([file],{type:'application/zip'})
+ });
+}
+async function drafts(){
+ return request('/v1/publishing/drafts');
+}
+async function download(id){
+ if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
+ const res=await request('/v1/beta/downloads/'+id,{raw:true});
+ const blob=await res.blob();
+ if(blob.size<1||blob.size>20*1024*1024)throw Error('ZIP inválido.');
+ const address=URL.createObjectURL(blob);
+ try{
+  const a=document.createElement('a');a.href=address;a.download='bootanimation.zip';
+  document.body.append(a);a.click();a.remove();
+ }finally{window.setTimeout(()=>URL.revokeObjectURL(address),60000);}
+}
+async function media(kind){
+ if(!['avatar','banner'].includes(kind))throw Error('Tipo inválido.');
+ const res=await request('/v1/profile-media/'+kind,{raw:true});
+ const blob=await res.blob();
+ if(!blob.size||blob.size>1024*1024)throw Error('Imagem inválida.');
+ if(pictures[kind])URL.revokeObjectURL(pictures[kind]);
+ pictures[kind]=URL.createObjectURL(blob);
+ return pictures[kind];
+}
+async function updateMedia(kind,image){
+ if(!['avatar','banner'].includes(kind)||!(image instanceof Blob))throw Error('Imagem inválida.');
+ const limit=kind==='avatar'?2*1024*1024:4*1024*1024;
+ if(image.size<1||image.size>limit||!['image/jpeg','image/png','image/webp'].includes(image.type))
+  throw Error('Formato ou tamanho inválido.');
+ const res=await request('/v1/profile-media/'+kind,{method:'PUT',
+  headers:{'Content-Type':image.type},data:image});
+ await media(kind);
+ return res;
+}
+function publicState(){
+ return Object.freeze({authenticated:Boolean(token&&user),user:user?{...user}:null,
+  moderator,hasSession:Boolean(token),error:lastError});
+}
+window.BASCommunityOnline=Object.freeze({
+ available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
+ state:publicState,refresh,profile:updateProfile,gallery,queue,decide,report,
+ publish:publishArchive,drafts,download,media,updateMedia,normalizeTags,dismissReport
+});
+window.addEventListener('DOMContentLoaded',()=>{void init();});
+})();

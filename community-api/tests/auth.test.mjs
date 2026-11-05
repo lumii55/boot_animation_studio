@@ -288,3 +288,79 @@ test('provider redirects are denied without following Location or leaking respon
     assert.equal(instance.database.prepare('SELECT count(*) as n FROM community_users').get().n,0);
   }
 });
+
+test('BAS local OAuth PKCE handoff returns a single-use grant, never a second website',async t=>{
+  const instance=await boot(t);
+  const env=environment(instance,{
+    AUTH_SITE_ORIGIN:API,
+    BAS_LOCAL_CLIENT_ENABLED:'true',
+    BAS_LOCAL_ORIGINS:'http://127.0.0.1:8088,https://lumii55.github.io',
+    BETA_PORTAL_ENABLED:'false'
+  });
+  const verifier=Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+  const challenge=Buffer.from(await crypto.subtle.digest('SHA-256',
+    new TextEncoder().encode(verifier))).toString('base64url');
+  const source='http://127.0.0.1:8088/';
+  const startPath='/v1/auth/github/start?mode=bas-local&return_to='+
+    encodeURIComponent(source)+'&challenge='+encodeURIComponent(challenge);
+  let r=await call(req(startPath),env);
+  assert.equal(r.status,302);
+  const link=new URL(r.headers.get('Location'));
+  const oauthCookie=cookieFrom(r,'__Host-bas_oauth');
+  const state=link.searchParams.get('state');
+  assert.ok(oauthCookie);assert.equal(link.searchParams.get('code_challenge_method'),'S256');
+  r=await call(req('/v1/auth/github/callback?state='+state+'&code=FAKE_AUTHORIZATION_CODE','GET',
+    {Cookie:oauthCookie}),env);
+  assert.equal(r.status,302);
+  const dest=new URL(r.headers.get('Location'));
+  assert.equal(dest.origin,'http://127.0.0.1:8088');
+  assert.equal(dest.pathname,'/');
+  assert.match(dest.hash,/^#bas-community-auth=[A-Za-z0-9_-]{43}$/);
+  assert.equal(cookieFrom(r,'__Host-bas_session'),null);
+  const grant=dest.hash.slice('#bas-community-auth='.length);
+  assert.equal(instance.database.prepare('SELECT COUNT(*) n FROM auth_sessions').get().n,0);
+  const post=(v,origin='http://127.0.0.1:8088')=>worker.fetch(req('/v1/auth/local/exchange',
+    'POST',{Origin:origin,'Content-Type':'application/json'},
+    JSON.stringify(v)),env);
+  r=await post({grant,verifier});
+  assert.equal(r.status,200,await r.clone().text());
+  assert.equal(r.headers.get('access-control-allow-origin'),'http://127.0.0.1:8088');
+  const auth=await r.json();
+  assert.match(auth.access_token,/^[A-Za-z0-9_-]{43}$/);
+  assert.equal(auth.token_type,'Bearer');
+  assert.equal((await post({grant,verifier})).status,403);
+  const localHeaders={Origin:'http://127.0.0.1:8088',Authorization:'Bearer '+auth.access_token};
+  r=await worker.fetch(req('/v1/auth/me','GET',localHeaders),env);
+  assert.equal(r.status,200);
+  const me=await r.json();assert.equal(me.user.handle,'test_moon');
+  r=await worker.fetch(req('/v1/auth/profile','PATCH',{
+    ...localHeaders,'X-CSRF-Token':me.csrf,'Content-Type':'application/json'},
+    JSON.stringify({handle:'native_creator',display_name:'BAS Local',bio:'Directly in BAS'})),env);
+  assert.equal(r.status,200,await r.clone().text());
+  r=await worker.fetch(req('/v1/auth/me','GET',{...localHeaders,
+    Origin:'https://evil.example'}),env);
+  assert.equal(r.status,401);
+  r=await worker.fetch(req('/v1/auth/logout','POST',{
+    ...localHeaders,'X-CSRF-Token':me.csrf,'Content-Type':'application/json'},'{}'),env);
+  assert.equal(r.status,200);
+  assert.equal((await worker.fetch(req('/v1/auth/me','GET',localHeaders),env)).status,401);
+});
+test('BAS local login cannot redirect OAuth to unapproved sites or fake challenges',async t=>{
+ const inst=await boot(t);
+ const env=environment(inst,{
+  AUTH_SITE_ORIGIN:API,BAS_LOCAL_CLIENT_ENABLED:'true',
+  BAS_LOCAL_ORIGINS:'http://127.0.0.1:8088,https://lumii55.github.io'
+ });
+ const testCase=async(url,challenge='A'.repeat(43))=>{
+  const path='/v1/auth/github/start?mode=bas-local&return_to='+encodeURIComponent(url)+
+   '&challenge='+encodeURIComponent(challenge);
+  const r=await call(req(path),env);
+  assert.equal(r.status,403,url);assert.equal((await r.json()).error,'local_redirect_not_allowed');
+ };
+ await testCase('https://evil.example/');
+ await testCase('https://lumii55.github.io/');
+ await testCase('http://127.0.0.1:8088/?redirect=https://evil.example');
+ await testCase('http://localhost:8088/');
+ await testCase('http://127.0.0.1:8088/','invalid');
+ assert.equal(inst.database.prepare('SELECT count(*) n FROM oauth_flows').get().n,0);
+});

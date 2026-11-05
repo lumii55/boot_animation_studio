@@ -1,9 +1,7 @@
-import {serveBetaPortal} from './beta-portal.mjs';
-import {serveUnifiedStudio} from './studio-assets.mjs';
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
-import { handleAuth, authConfigured } from './auth.mjs';
+import { handleAuth, authConfigured, trustedBASOrigin } from './auth.mjs';
 /* BAS Community P15.3: read-only Worker API.
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
  * Never return R2 object keys, tokens, internal author IDs or pending submissions.
@@ -137,6 +135,18 @@ async function getAnimation(id, env, origin, head) {
   }
 }
 
+function localCORS(request,env,answer){
+  const origin=request.headers.get('Origin');
+  if(!trustedBASOrigin(origin,env))return answer;
+  const headers=new Headers(answer.headers);
+  headers.set('Access-Control-Allow-Origin',origin);
+  headers.set('Access-Control-Allow-Methods','GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS');
+  headers.set('Access-Control-Allow-Headers','Authorization, Content-Type, X-CSRF-Token, Idempotency-Key');
+  headers.set('Access-Control-Max-Age','300');
+  headers.set('Vary','Origin');
+  headers.set('Cache-Control','no-store, private');
+  return new Response(answer.body,{status:answer.status,headers});
+}
 export default {
   async fetch(request, env) {
     const origin = allowedOrigin(request.headers.get('Origin'), env);
@@ -145,16 +155,18 @@ export default {
     let url;
     try { url = new URL(request.url); }
     catch (_) { return error('invalid_url', 400, origin, head); }
-    const unifiedStudio=await serveUnifiedStudio(request,env,url);
-    if(unifiedStudio)return unifiedStudio;
-    const betaPage=serveBetaPortal(request,env,url);
-    if(betaPage)return betaPage;
+    if(method==='OPTIONS' && url.pathname.startsWith('/v1/') &&
+       trustedBASOrigin(request.headers.get('Origin'),env)){
+      return localCORS(request,env,new Response(null,{status:204}));
+    }
+    // Backend-only by design: no profile, gallery, editor or license pages
+    // are rendered by Cloudflare. The original BAS owns all UI locally.
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
-    if (url.pathname.startsWith('/v1/auth/')) return handleAuth(request, env, url);
-    if (url.pathname.startsWith('/v1/publishing')) return handlePublishing(request, env, url);
-    if (url.pathname.startsWith('/v1/beta/')) return handleBetaCatalog(request,env,url);
-    if (url.pathname.startsWith('/v1/profile-media/')) return handleProfileMedia(request, env, url);
+    if (url.pathname.startsWith('/v1/auth/')) return localCORS(request,env,await handleAuth(request, env, url));
+    if (url.pathname.startsWith('/v1/publishing')) return localCORS(request,env,await handlePublishing(request, env, url));
+    if (url.pathname.startsWith('/v1/beta/')) return localCORS(request,env,await handleBetaCatalog(request,env,url));
+    if (url.pathname.startsWith('/v1/profile-media/')) return localCORS(request,env,await handleProfileMedia(request, env, url));
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: headers(origin) });
     }

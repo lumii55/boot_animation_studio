@@ -582,3 +582,41 @@ body.bas-community-open{overflow:hidden}
 .bas-c-upload{max-height:min(92dvh,800px);overflow-y:auto}
 @media(max-width:750px){.bas-c-publish-fields{grid-template-columns:1fr}.bas-c-publish-footer{align-items:flex-start;flex-direction:column}
   .bas-c-upload{max-height:95dvh}.bas-c-upload-options{gap:6px}}
+
+/* P15.7: real BAS Community forms rendered INSIDE the existing dialog.
+ * Scoped strictly to the Community; never modify the editor or BAS theme. */
+#bas-community-preview .bas-live-status{color:#b8f5db;margin:12px 0;font-size:.9rem}
+#bas-community-preview .bas-live-form{display:grid;gap:14px;max-width:730px}
+#bas-community-preview .bas-live-form-fields{display:grid;gap:13px}
+#bas-community-preview .bas-live-form label,
+#bas-community-preview .bas-live-form-fields label{display:grid;gap:6px;color:#d9d6ef}
+#bas-community-preview .bas-live-form input:not([type=checkbox]):not([type=file]),
+#bas-community-preview .bas-live-form textarea,
+#bas-community-preview .bas-live-form select{
+ width:100%;min-width:0;padding:11px 13px;border-radius:10px;
+ border:1px solid rgba(173,157,236,.36);
+ background:#13192d;color:#edf1fc;font:inherit;
+}
+#bas-community-preview .bas-live-form textarea{min-height:90px;resize:vertical}
+#bas-community-preview .bas-live-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
+#bas-community-preview .bas-live-tag-row{display:flex;align-items:center;gap:10px}
+#bas-community-preview .bas-live-tag-row input{flex:1}
+#bas-community-preview .bas-live-tags{display:flex;flex-wrap:wrap;gap:7px}
+#bas-community-preview .bas-live-tags button{border:1px solid rgba(179,151,236,.45);
+ background:#302747;color:#e5d9ff;border-radius:999px;padding:6px 9px;font:inherit}
+#bas-community-preview .bas-live-hint{color:#abb5cf;font-size:.79rem;line-height:1.55}
+#bas-community-preview .bas-live-link{display:inline;border:0;background:transparent;
+ color:#d4b5ff;font:inherit;text-decoration:underline;cursor:pointer}
+#bas-community-preview .bas-live-zip-symbol{display:grid;place-items:center;
+ height:100%;min-height:160px;background:linear-gradient(140deg,#181a39,#193748);
+ font-weight:800;letter-spacing:.16em;color:#dfd7fa}
+#bas-community-preview .bas-live-avatar{display:grid;place-items:center;width:88px;height:88px;
+ border-radius:50%;background:#433a71;color:#fff;font-size:35px}
+#bas-community-preview .bas-live-admin-item{padding:10px}
+#bas-community-preview .bas-live-detail,#bas-community-preview .bas-live-guide{max-width:780px}
+#bas-community-preview .bas-live-guide p{line-height:1.75;margin:13px 0}
+#bas-community-preview .bas-live-guide a{color:#d3bbff}
+@media(max-width:480px){
+ #bas-community-preview .bas-live-tag-row{flex-wrap:wrap}
+ #bas-community-preview .bas-live-tag-row input{min-width:100%}
+}

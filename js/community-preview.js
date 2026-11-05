@@ -233,7 +233,7 @@
     try { localStorage.setItem(KEY, value ? 'enabled' : 'disabled'); }
     catch (_) { /* Storage might be unavailable. */ }
   }
-  const enabled = () => activeDev() && flag();
+  const enabled = () => window.BASCommunityOnline?.available() === true || (activeDev() && flag());
   const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const genreName = genre => tr(genre);
   function art(item, extra) {
@@ -367,6 +367,7 @@
       }).join('')+'</div>';
   }
   function renderView() {
+    if(window.BASCommunityLive?.active()){window.BASCommunityLive.render();return;}
     const target=byId('bas-c-view');
     if (!target) return;
     if (state.route==='creators') target.innerHTML=creatorsView();
@@ -412,79 +413,19 @@
       '<div class="bas-c-comment"><span>✿</span><div><strong>@PetalByte · '+safe(tr('demoLabel'))+'</strong><p>'+safe(tr('demoComment2'))+'</p></div></div>'+
       '</div></div></div></section></div>';
   }
-  // Private beta bridge: keeps the exported ZIP in volatile browser memory.
-  // An explicit user click opens staging and initiates a one-time postMessage.
-  // No ZIP is sent to Cloudflare until the owner confirms in the staging form.
+  // A ZIP is prepared in memory and handed directly to the local BAS
+  // Community overlay. No second site, popup or postMessage is involved.
   let recentExport=null;
   let selectedPublishFile=null;
-  const PRIVATE_BETA_ORIGIN='https://bas-community-staging.caiolive1000.workers.dev';
-  function privateBetaUrl(editorOrigin){
-    const language=typeof idiomaAtual==='string'?idiomaAtual:(document.documentElement.lang||'en');
-    const params=new URLSearchParams({lang:language});
-    if(editorOrigin)params.set('editor_origin',editorOrigin);
-    return PRIVATE_BETA_ORIGIN+'/?'+params.toString();
-  }
   function modulePublishReady(){
     return typeof apiFetch==='function'&&typeof ensureModuleFeature==='function'&&
       (typeof isConnectedMode==='undefined'||isConnectedMode===true) &&
       (typeof hasModuleFeature!=='function'||hasModuleFeature('pull')) &&
       (typeof hasModulePermission!=='function'||hasModulePermission('view'));
   }
-  function directHandoff(item,source='editor',phoneSource=null){
-    if(!item||!item.blob||item.blob.size>20*1024*1024)return false;
-    const accepted=location.origin==='http://127.0.0.1:8088'||
-      (location.origin==='https://lumii55.github.io'&&location.pathname.startsWith('/boot_animation_studio'));
-    if(!accepted)return false;
-    const page=window.open(privateBetaUrl(location.origin),'_blank');
-    if(!page)return false;
-    let complete=false;
-    const timeout=window.setTimeout(()=>window.removeEventListener('message',receive),60000);
-    function receive(ev){
-      if(ev.origin!==PRIVATE_BETA_ORIGIN||ev.source!==page||
-        ev.data?.type!=='bas:p15:portal-ready'||complete)return;
-      complete=true;clearTimeout(timeout);window.removeEventListener('message',receive);
-      page.postMessage({type:'bas:p15:module-status',connected:modulePublishReady()},PRIVATE_BETA_ORIGIN);
-      page.postMessage({type:'bas:p15:export-ready',source,file:item.blob,
-        filename:item.filename,title:item.title||item.filename.replace(/\.zip$/i,''),
-        license:'CC-BY-4.0',phone_source:phoneSource},PRIVATE_BETA_ORIGIN);
-    }
-    window.addEventListener('message',receive);
-    return true;
-  }
   async function publishFromDevice(source){
-    if(!['module','system'].includes(source)||!modulePublishReady())return false;
-    if(!window.confirm('Ler uma COPIA da animação '+(source==='module'?'aplicada':'original')+
-      ' pelo Companion autorizado? Nada será instalado ou alterado.'))return false;
-    // Fetch AFTER the user click, but the browser window must open synchronously
-    // to avoid popup blockers. Remote send still requires owner confirmation.
-    const page=window.open(privateBetaUrl(location.origin),'_blank');
-    if(!page)return false;
-    let ready=false,blob=null;
-    const stop=()=>{window.removeEventListener('message',receive);clearTimeout(timer);};
-    function send(){
-      if(!ready||!blob)return;
-      stop();
-      page.postMessage({type:'bas:p15:module-status',connected:true},PRIVATE_BETA_ORIGIN);
-      page.postMessage({type:'bas:p15:export-ready',source:'companion',file:blob,
-        filename:'bootanimation.zip',title:source==='module'?'Animação aplicada':'Animação original',
-        phone_source:source},PRIVATE_BETA_ORIGIN);
-    }
-    function receive(e){
-      if(e.origin===PRIVATE_BETA_ORIGIN&&e.source===page&&e.data?.type==='bas:p15:portal-ready'){
-        ready=true;send();
-      }
-    }
-    const timer=window.setTimeout(stop,60000);
-    window.addEventListener('message',receive);
-    try{
-      const response=await apiFetch('/pull?source='+source+'&t='+Date.now(),{method:'GET'});
-      if(!response.ok)throw Error('Leitura recusada ('+response.status+')');
-      if(Number(response.headers.get('Content-Length')||0)>20*1024*1024)throw Error('ZIP muito grande');
-      blob=await response.blob();
-      if(!blob.size||blob.size>20*1024*1024)throw Error('ZIP inválido ou acima de 20 MiB');
-      send();
-      return true;
-    }catch(error){stop();window.alert('Não foi possível preparar a publicação: '+error.message);return false;}
+    if(!window.BASCommunityLive?.active())return false;
+    return window.BASCommunityLive.pullFromDevice(source,modulePublishReady());
   }
   window.BASCommunityExport=Object.freeze({
     capture(blob,filename){
@@ -496,7 +437,10 @@
       const endButton=byId('finish-community-publish');if(endButton)endButton.hidden=false;
     },
     available(){return !!recentExport;},
-    openRecent(){return directHandoff(recentExport,'editor');},
+    openRecent(){
+      return window.BASCommunityLive?.active()
+        ?window.BASCommunityLive.openUpload(recentExport,'editor'):false;
+    },
     publishFromDevice,
     chooseDeviceSource(){
       if(!modulePublishReady())return false;
@@ -508,81 +452,10 @@
     },
     connected:modulePublishReady
   });
-  async function launchPrivatePublish(){
-    const draft=state.publishDraft;
-    if(!draft.rights||!draft.ready){
-      const status=byId('bas-c-publish-status');
-      if(status)status.textContent='Preencha os dados e confirme seus direitos antes de enviar.';
-      return;
-    }
-    const companion=draft.source==='companion';
-    let chosen=draft.source==='editor'?recentExport:
-      draft.source==='zip'&&selectedPublishFile?{blob:selectedPublishFile,filename:selectedPublishFile.name}:null;
-    if(!companion&&!chosen){
-      const status=byId('bas-c-publish-status');
-      if(status)status.textContent='Exporte ou selecione um arquivo ZIP primeiro.';
-      return;
-    }
-    if(companion){
-      if(typeof apiFetch!=='function'||typeof ensureModuleFeature!=='function'||
-        !ensureModuleFeature('pull') ||
-        (typeof hasModulePermission==='function'&&!hasModulePermission('view'))){
-        const status=byId('bas-c-publish-status');
-        if(status)status.textContent='Conecte e autorize o Companion Android antes de usar esta origem.';
-        return;
-      }
-      if(!window.confirm('Ler uma CÓPIA da animação instalada pelo Companion e prepará-la para envio privado? O aparelho não será modificado.'))return;
-    }
-    const ownOrigin=location.origin;
-    const supported=ownOrigin==='http://127.0.0.1:8088' ||
-      (ownOrigin==='https://lumii55.github.io'&&location.pathname.startsWith('/boot_animation_studio'));
-    if(!supported){
-      window.open(privateBetaUrl(),'_blank','noopener');
-      return;
-    }
-    const endpoint=privateBetaUrl(ownOrigin);
-    const other=window.open(endpoint,'_blank');
-    if(!other){
-      const status=byId('bas-c-publish-status');
-      if(status)status.textContent='Seu navegador bloqueou a aba. Permita pop-ups e tente novamente.';
-      return;
-    }
-    let ready=false,completed=false;
-    function send(){
-      if(!ready||!chosen||completed)return;
-      completed=true;clearTimeout(timer);window.removeEventListener('message',receiver);
-      other.postMessage({type:'bas:p15:export-ready',source:draft.source,
-        file:chosen.blob,filename:chosen.filename,title:draft.title,license:draft.license},PRIVATE_BETA_ORIGIN);
-    }
-    function receiver(event){
-      if(event.origin!==PRIVATE_BETA_ORIGIN||event.source!==other||
-          event.data?.type!=='bas:p15:portal-ready')return;
-      ready=true;send();
-    }
-    const timer=window.setTimeout(()=>{
-      window.removeEventListener('message',receiver);
-      const status=byId('bas-c-publish-status');
-      if(status&&!completed)status.textContent='Transferência não confirmada. Selecione o ZIP manualmente no beta.';
-    },60000);
-    window.addEventListener('message',receiver);
-    if(companion){
-      const status=byId('bas-c-publish-status');
-      if(status)status.textContent='Lendo uma cópia do Companion autorizado...';
-      try{
-        const response=await apiFetch('/pull?source=module&t='+Date.now(),{method:'GET'});
-        if(!response.ok)throw new Error('Companion recusou a leitura ('+response.status+')');
-        const size=Number(response.headers.get('Content-Length')||'0');
-        if(size>20*1024*1024)throw new Error('ZIP do dispositivo excede 20 MiB');
-        const blob=await response.blob();
-        if(blob.size<=0||blob.size>20*1024*1024)throw new Error('Arquivo do Companion fora do limite.');
-        chosen={blob,filename:'bootanimation.zip'};
-        if(status)status.textContent='Cópia recebida do Companion. Confirme o envio na aba privada do BAS.';
-        send();
-      }catch(error){
-        clearTimeout(timer);window.removeEventListener('message',receiver);
-        if(status)status.textContent='Não foi possível ler do Companion: '+(error.message||'erro de conexão');
-      }
-    }
+  function launchPrivatePublish(){
+    // Legacy demo publishing cannot upload anything. Only BAS' local
+    // online controller may submit explicitly confirmed real ZIP files.
+    return false;
   }
   function upload() {
     const d=state.publishDraft;
@@ -880,6 +753,7 @@
     return true;
   }
   function onSubmit(event) {
+    if(window.BASCommunityLive?.onSubmit(event))return;
     if(event.target?.id!=='bas-c-account-form'||state.modal?.type!=='account')return;
     event.preventDefault();
     const draft=state.profileDraft||state.demoProfile;
@@ -900,6 +774,7 @@
       '<div class="bas-c-notice-symbol">✦</div><h2 id="bas-c-notice-title">'+safe(tr('comingSoon'))+'</h2><p>'+safe(tr('accountSoon'))+'</p></section></div>';
   }
   function modalRender() {
+    if(window.BASCommunityLive?.active())return;
     const host=byId('bas-c-modal-host');
     if (!host) return;
     if (!state.modal) { host.innerHTML=''; return; }
@@ -952,6 +827,7 @@
     layer.setAttribute('aria-hidden','false');
     document.body.classList.add('bas-community-open');
     renderView();
+    window.BASCommunityLive?.mount();
     const closer=byId('bas-community-close');
     if (closer) closer.focus();
     return true;
@@ -959,6 +835,10 @@
   function sync() {
     const allowed=enabled(), opt=byId('bas-community-feature-toggle');
     if (opt) { opt.checked=flag(); opt.disabled=!activeDev(); }
+    if(window.BASCommunityOnline?.available()){
+      const legacyPreview=byId('bas-community-devtools');
+      if(legacyPreview)legacyPreview.hidden=true;
+    }
     const launch=byId('bas-community-launcher'), preview=byId('bas-community-preview-open');
     if (launch) launch.hidden=!allowed;
     if (preview) preview.disabled=!allowed;
@@ -978,6 +858,7 @@
     }
   }
   function handler(event) {
+    if(window.BASCommunityLive?.handle(event))return;
     const element=event.target.closest?.('[data-c-action]');
     if (!element || !element.closest('#bas-community-preview')) return;
     const action=element.dataset.cAction;
@@ -1020,7 +901,7 @@
     }
     if(action==='publish-private' && state.modal?.type==='upload'){launchPrivatePublish();return;}
     if(action==='real-account'){
-      window.open(privateBetaUrl(),'_blank','noopener');return;
+      if(window.BASCommunityOnline?.available())void window.BASCommunityOnline.login();return;
     }
     if (action==='signin') { state.profileDraft={...state.demoProfile}; openModal('account'); return; }
     if (action==='remove-photo' && state.modal?.type==='account') { clearLocalPhoto(element.dataset.photo); return; }
@@ -1058,6 +939,7 @@
     }
   }
   function onInput(event) {
+    if(window.BASCommunityLive?.onInput(event))return;
     if(event.target?.id==='bas-c-publish-title'&&state.modal?.type==='upload'){
       state.publishDraft.title=String(event.target.value);state.publishDraft.ready=false;return;
     }
@@ -1069,6 +951,7 @@
     }
   }
   function onChange(event) {
+    if(window.BASCommunityLive?.onChange(event))return;
     if(state.modal?.type==='upload'){
       if(event.target?.id==='bas-c-publish-rights'){
         state.publishDraft.rights=Boolean(event.target.checked);state.publishDraft.ready=false;return;

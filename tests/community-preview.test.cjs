@@ -27,6 +27,7 @@ function harness(saved, language = 'pt', media = null) {
             const callbacks = new Map();
             const node = {
                 id, innerHTML:'', textContent:'', value:'', disabled:false, checked:false, isConnected:true,
+                replaceChildren(){this.innerHTML='';},
                 hidden: id==='bas-community-preview'||id==='bas-community-launcher',
                 dataset:{}, attrs:{},
                 classList:{add(){},remove(){},toggle(){},contains(){return false;}},
@@ -69,7 +70,7 @@ function harness(saved, language = 'pt', media = null) {
         layer.emit('click',{target});
     }
     return {
-        element, window, data, click, docs, windows,
+        element, window, context, data, click, docs, windows,
         setDeveloper(value){developer=value;windows.get('bas:developer-mode-changed')?.();},
         enable(){this.setDeveloper(true);element('bas-community-feature-toggle').emit('change',{target:{checked:true}});}
     };
@@ -366,7 +367,43 @@ test('existing BAS keeps preview assets gated and local',()=>{
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
     assert.match(html,/id="bas-community-launcher" hidden/);
     assert.match(html,/id="bas-community-preview"[^>]*hidden/);
-    assert.match(html,/js\/community-preview\.js\?v=p15-7/);
-    assert.match(html,/css\/96-community-preview\.css\?v=p15-e1/);
+    assert.match(html,/js\/community-preview\.js\?v=p15-native/);
+    assert.match(html,/css\/96-community-preview\.css\?v=p15-native/);
     assert.match(html,/id="bas-community-feature-toggle"/);
+});
+
+test('original BAS Community launcher opens native real-data view without Developer Lab or a second website',async()=>{
+    const h=harness(null,'pt');
+    const src=fs.readFileSync(path.join(root,'js/community-live.js'),'utf8');
+    const user={handle:'real_bastester',display_name:'Perfil BAS real',bio:'Bio salva no D1'};
+    h.window.BASCommunityOnline={
+      available:()=>true,
+      state:()=>({authenticated:true,user,moderator:false}),
+      gallery:async()=>({items:[{id:'b'.repeat(32),title:'Natureza relaxante',
+        handle:'real_bastester',summary:'Noite calma',tags:['natureza','one piece'],fps:30,width:1080,height:2400,license:'CC-BY-4.0'}]}),
+      media:async()=>{throw Error('not connected')},
+      drafts:async()=>({drafts:[]}),
+      normalizeTags:txt=>txt.split(',').map(v=>v.trim())
+    };
+    h.context.setTimeout=setTimeout;
+    h.context.clearTimeout=clearTimeout;
+    h.context.Blob=Blob;
+    h.context.FormData=FormData;
+    h.context.URL=URL;
+    vm.runInNewContext(src,h.context,{filename:'community-live.js'});
+    h.window.BASCommunityPreview.sync();
+    assert.equal(h.element('bas-community-launcher').hidden,false,'normal launcher is available');
+    assert.equal(h.window.BASCommunityPreview.open(),true);
+    await new Promise(setImmediate);
+    const markup=h.element('bas-c-view').innerHTML;
+    assert.match(markup,/Natureza relaxante/);
+    assert.match(markup,/one piece/);
+    assert.doesNotMatch(markup,/Cyber Circuit|Lunar Dreams|DEMO/);
+    assert.match(h.element('bas-community-preview').innerHTML,/bas-c-sidebar/,'original Community layout preserved');
+    // Harness DOM containment must model the browser: a click on a
+    // Community button is inside the existing overlay.
+    h.element('bas-community-preview').contains=()=>true;
+    h.click('real-account');
+    assert.match(h.element('bas-c-view').innerHTML,/Perfil BAS real/);
+    assert.match(h.element('bas-c-view').innerHTML,/Bio salva no D1/);
 });
