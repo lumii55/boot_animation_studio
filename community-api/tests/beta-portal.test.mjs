@@ -131,3 +131,34 @@ test('private publisher is not available unless beta portal authorizations pass'
   const response=await get('/beta/publish.js','GET',{...env,BETA_PORTAL_ENABLED:'false'});
   assert.equal(response.status,404);
 });
+
+test('P15.7 license help is a first-party explainer and preserves the form',async()=>{
+  const html=await(await get('/')).text();
+  assert.match(html,/href="\/beta\/licenses"/);
+  assert.match(html,/target="_blank"/);
+  assert.match(html,/id="publish-tags-input"/);
+  assert.match(html,/id="publish-tag-chips"/);
+  assert.match(html,/id="community-catalog"/);
+  const guide=await get('/beta/licenses');
+  assert.equal(guide.status,200);
+  const body=await guide.text();
+  for(const term of ['CC0 1.0','CC BY 4.0','CC BY-SA 4.0',
+    'Todos os direitos reservados','creativecommons.org','terceiros'])
+    assert.ok(body.includes(term),term);
+  assert.equal((await get('/beta/licenses','GET',{...env,BETA_PORTAL_ENABLED:'false'})).status,404);
+});
+test('P15.7 browser assets parse and never expose restricted resources',async()=>{
+  const {Script}=await import('node:vm');
+  for(const asset of ['/beta/publish.js','/beta/community.js']){
+    const response=await get(asset);
+    assert.equal(response.status,200,asset);
+    const source=await response.text();
+    new Script(source);
+    assert.doesNotMatch(source,/innerHTML\s*=/);
+    assert.doesNotMatch(source,/GITHUB_CLIENT_SECRET|AUTH_SESSION_SECRET/);
+  }
+  const publish=await(await get('/beta/publish.js')).text();
+  assert.ok(publish.includes('publish-tags-input'));
+  assert.ok(publish.includes('sourceChoice.hidden'));
+  assert.ok(publish.includes("license!=='all-rights-reserved'"));
+});

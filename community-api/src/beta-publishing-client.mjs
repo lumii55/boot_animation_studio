@@ -7,6 +7,48 @@ const $=id=>document.getElementById(id);
 const form=$('publish-form'),status=$('publish-status'),list=$('publish-drafts'),
       input=$('publish-file'),source=$('publish-source'),submit=$('publish-submit');
 const MAX_ARCHIVE=20*1024*1024;
+const tags=[];
+const tagEntry=$('publish-tags-input'),tagChips=$('publish-tag-chips'),
+  sourceChoice=$('source-choice');
+function normalizeTag(raw){
+  const tag=raw.normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .trim().replace(/^#/,'').toLowerCase();
+  return /^[a-z0-9_-]{1,32}$/.test(tag)?tag:null;
+}
+function drawTags(){
+  tagChips.replaceChildren();
+  for(const tag of tags){
+    const button=document.createElement('button');
+    button.type='button';button.textContent='#'+tag+' ×';
+    button.setAttribute('aria-label','Remover tag '+tag);
+    button.addEventListener('click',()=>{
+      const i=tags.indexOf(tag);if(i>=0)tags.splice(i,1);drawTags();
+    });
+    tagChips.append(button);
+  }
+}
+function addTags(value){
+  for(const word of value.split(/[\s,]+/).filter(Boolean)){
+    const tag=normalizeTag(word);
+    if(!tag){say('Use tags de até 32 caracteres, com letras, números, - ou _.');continue;}
+    if(!tags.includes(tag)&&tags.length<12)tags.push(tag);
+    else if(tags.length>=12&&!tags.includes(tag))say('Limite de 12 tags atingido.');
+  }
+  drawTags();
+}
+tagEntry.addEventListener('input',()=>{
+  const value=tagEntry.value;
+  if(/[\s,]/.test(value)){const parts=value.split(/[\s,]+/);const partial=/[\s,]$/.test(value)?'':parts.pop();
+    addTags(parts.join(' '));tagEntry.value=partial;}
+});
+tagEntry.addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();addTags(tagEntry.value);tagEntry.value='';
+  }
+});
+tagEntry.addEventListener('blur',()=>{
+  if(tagEntry.value.trim()){addTags(tagEntry.value);tagEntry.value='';}
+});
 const API='/v1/publishing';
 let borrowedFile=null,submitting=false,fromCompanion=false;
 const safeJSON=async response=>{try{return await response.json();}catch(_){return {}}};
@@ -15,7 +57,8 @@ const failure=(response,data)=>new Error(String(data?.error||'HTTP '+response.st
 function toText(value){return typeof value==='string'?value:'';}
 function validateFile(file){
   return file&&Number.isSafeInteger(file.size)&&file.size>0&&file.size<=MAX_ARCHIVE&&
-    /^[A-Za-z0-9_. -]{1,86}\\.zip$/i.test(file.name);
+    typeof file.name==='string'&&file.name.length<=90&&
+    /^[A-Za-z0-9_. -]+$/.test(file.name)&&file.name.toLowerCase().endsWith('.zip');
 }
 function key(){
   const bytes=crypto.getRandomValues(new Uint8Array(20));
@@ -26,22 +69,34 @@ function fileChoice(){
 }
 function setBorrowedFile(blob,filename,device=false){
   if(!(blob instanceof Blob)||blob.size<=0||blob.size>MAX_ARCHIVE)return;
-  if(!/^[A-Za-z0-9_. -]{1,86}\\.zip$/i.test(filename))filename='bootanimation.zip';
-  borrowedFile=new File([blob],filename,{type:'application/zip'});fromCompanion=device;
+  if(typeof filename!=='string'||!filename.toLowerCase().endsWith('.zip')||
+      !/^[A-Za-z0-9_. -]{1,90}$/.test(filename))filename='bootanimation.zip';
+  borrowedFile=new File([blob],filename,{type:'application/zip'});
+  fromCompanion=device;
   if(!validateFile(borrowedFile))return;
   input.required=false;
-  source.value='editor';
-  $('publish-file-hint').textContent='Arquivo exportado recebido do editor BAS. O envio só ocorrerá depois da sua confirmação.';
-  say('ZIP exportado recebido. Preencha os dados e confirme para enviar à quarentena privada.');
-  $('publish-title').value=$('publish-title').value||filename.replace(/\\.zip$/i,'').slice(0,100);
+  source.value=device?'companion':'editor';
+  if(device){
+    sourceChoice.hidden=false;source.querySelector('option[value="companion"]').hidden=false;
+  }
+  $('publish-file-hint').textContent='Arquivo recebido do BAS. O envio acontece apenas após sua confirmação.';
+  say('ZIP recebido. Confira os detalhes e autorize o envio privado.');
+  $('publish-title').value=$('publish-title').value||filename.slice(0,-4).slice(0,100);
 }
 const TRUSTED_EDITOR_ORIGINS=new Set(['http://127.0.0.1:8088','https://lumii55.github.io']);
 const openerOrigin=new URLSearchParams(window.location.search).get('editor_origin');
 if(TRUSTED_EDITOR_ORIGINS.has(openerOrigin)&&window.opener){
   window.addEventListener('message',ev=>{
     if(ev.origin!==openerOrigin||ev.source!==window.opener||
-      ev.data?.type!=='bas:p15:export-ready')return;
+      !['bas:p15:export-ready','bas:p15:module-status'].includes(ev.data?.type))return;
     const value=ev.data;
+    if(value.type==='bas:p15:module-status'){
+      const connected=value.connected===true;
+      sourceChoice.hidden=!connected;
+      source.querySelector('option[value="companion"]').hidden=!connected;
+      if(!connected&&source.value==='companion'){source.value='zip';fromCompanion=false;}
+      return;
+    }
     if(!['editor','zip','companion'].includes(value.source))return;
     setBorrowedFile(value.file,value.filename,value.source==='companion');
     if(source.value!==value.source)source.value=value.source;
@@ -52,11 +107,11 @@ if(TRUSTED_EDITOR_ORIGINS.has(openerOrigin)&&window.opener){
   window.opener.postMessage({type:'bas:p15:portal-ready'},openerOrigin);
 }
 source.addEventListener('change',()=>{
-  if(source.value!=='editor'&&source.value!=='companion')borrowedFile=null;\n  if(source.value!=='companion')fromCompanion=false;
+  if(source.value==='zip'){borrowedFile=null;fromCompanion=false;}
   input.required=!borrowedFile;
 });
 input.addEventListener('change',()=>{
-  borrowedFile=null;fromCompanion=false;input.required=true;
+  borrowedFile=null;fromCompanion=false;source.value='zip';input.required=true;
   const file=input.files?.[0];
   if(file&&!validateFile(file))say('ZIP inválido ou acima do limite de 20 MiB.');
 });
@@ -87,7 +142,10 @@ async function drafts(){
       const state=toText(draft.status);
       const labels={awaiting_upload:'Aguardando arquivo',pending_review:'Na fila de revisão privada',
         failed:'Falhou — nenhum arquivo público',cancelled:'Cancelado',processing:'Em processamento'};
-      desc.textContent=(labels[state]||'Em andamento')+' · '+toText(draft.filename).slice(0,90);
+      desc.textContent=(draft.moderation_status==='published'?'Aprovado no beta':
+        draft.moderation_status==='rejected'?'Rejeitado':
+        draft.moderation_status==='hidden'?'Oculto':
+        labels[state]||'Em andamento')+' · '+toText(draft.filename).slice(0,90);
       li.append(title,desc);list.append(li);
     }
   }catch(_){say('Não foi possível atualizar a lista de envios.');}
@@ -100,11 +158,9 @@ form.addEventListener('submit',async ev=>{
   if(source.value==='companion'&&!fromCompanion){
     say('Para enviar pelo Companion, abra o BAS conectado ao dispositivo e autorize a leitura por lá.');return;
   }
+  if(tagEntry.value.trim()){addTags(tagEntry.value);tagEntry.value='';}
   const title=form.elements.title.value.trim();
   const license=form.elements.license.value;
-  if(license==='all-rights-reserved'&&$('publish-remix').checked){
-    say('A licença de direitos reservados não permite marcar remixes.');return;
-  }
   if(!$('publish-rights').checked){say('Confirme que tem os direitos de compartilhar.');return;}
   if(!window.confirm('Enviar este ZIP para a fila PRIVADA de revisão do BAS? Ele não ficará público.'))return;
   submitting=true;submit.disabled=true;say('Reservando espaço para seu envio privado...');
@@ -112,8 +168,8 @@ form.addEventListener('submit',async ev=>{
   try{
     const csrf=await getCSRF();
     const meta={source:source.value,title,summary:form.elements.summary.value,
-      category:form.elements.category.value,license,author_credit:form.elements.author_credit.value,
-      allows_remix:$('publish-remix').checked,rights_confirmed:true,
+      license,author_credit:form.elements.author_credit.value,
+      tags:[...tags],allows_remix:license!=='all-rights-reserved',rights_confirmed:true,
       size_bytes:file.size,filename:file.name};
     if(source.value==='companion')meta.companion_permission_confirmed=true;
     const start=await fetch(API+'/drafts',{method:'POST',credentials:'same-origin',cache:'no-store',
@@ -130,6 +186,7 @@ form.addEventListener('submit',async ev=>{
     if(result.status!==202||finish.status!=='pending_review')throw failure(result,finish);
     say('Enviado com sucesso! Agora está na fila privada de revisão. ♡');
     borrowedFile=null;fromCompanion=false;input.value='';input.required=true;form.reset();
+    tags.length=0;drawTags();source.value='zip';
     await drafts();
   }catch(e){
     say('Envio não concluído: '+(e.message||'falha desconhecida'));

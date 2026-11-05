@@ -5,6 +5,7 @@
  */
 import { authConfigured, verifyPublisher, verifyPrivateProfileReader } from './auth.mjs';
 import { validateArchive, ArchiveRejected, ARCHIVE_CAP_BYTES } from './worker-zip.mjs';
+import {foldSearch,normalizeTags} from './search-tags.mjs';
 
 const PREFIX='/v1/publishing';
 const TITLES=new Set(['cosmos','neon','pixel','abstract','nature','minimal']);
@@ -74,17 +75,20 @@ async function readJson(request,max=4096){
 function validateMetadata(input,env){
   if(!input||typeof input!=='object')return null;
   const allowed=['source','title','summary','category','license','author_credit','allows_remix',
-    'rights_confirmed','size_bytes','filename','companion_permission_confirmed'];
+    'rights_confirmed','size_bytes','filename','companion_permission_confirmed','tags'];
   if(Object.keys(input).some(k=>!allowed.includes(k)))return null;
   const source=input.source;
   if(!SOURCES.has(source))return null;
   if(!validText(input.title,3,100))return null;
   if(typeof input.summary!=='string'||[...input.summary].length>1000||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f<>]/.test(input.summary))return null;
-  if(!TITLES.has(input.category))return null;
+  if(input.category!==undefined && !TITLES.has(input.category))return null;
+  const tags=normalizeTags(input.tags??[]);
+  if(!tags)return null;
   if(!LICENSES.has(input.license))return null;
   if(typeof input.author_credit!=='string'||[...input.author_credit].length>120||/[<>\x00-\x1f\x7f]/.test(input.author_credit))return null;
   if(typeof input.allows_remix!=='boolean'||input.rights_confirmed!==true)return null;
   if(input.license==='all-rights-reserved' && input.allows_remix)return null;
+  if(input.license!=='all-rights-reserved' && !input.allows_remix)return null;
   if(!Number.isInteger(input.size_bytes)||input.size_bytes<1||input.size_bytes>ARCHIVE_CAP_BYTES)return null;
   if(typeof input.filename!=='string'||!/^[A-Za-z0-9_. -]{1,86}\.zip$/.test(input.filename))return null;
   // The cloud worker NEVER requests a file from a device. The already paired
@@ -95,9 +99,9 @@ function validateMetadata(input,env){
     return {blocked:'companion_pairing_required'};
   if(source!=='companion' && Object.hasOwn(input,'companion_permission_confirmed'))return null;
   return {
-    source,title:input.title.trim(),summary:input.summary.trim(),category:input.category,
+    source,title:input.title.trim(),summary:input.summary.trim(),category:input.category||'abstract',
     license:input.license,author_credit:input.author_credit.trim(),allows_remix:input.allows_remix,
-    size_bytes:input.size_bytes,filename:input.filename
+    size_bytes:input.size_bytes,filename:input.filename,tags
   };
 }
 async function reserveR2Write(env){
@@ -135,6 +139,12 @@ async function createDraft(request,env,user){
       env.DB.prepare(
         "INSERT INTO animations(id,owner_id,title,summary,category,status) VALUES(?,?,?,?,?,'draft')"
       ).bind(animationId,user.userId,meta.title,meta.summary,meta.category),
+      env.DB.prepare(
+        'INSERT INTO animation_search(animation_id,title_fold) VALUES(?,?)'
+      ).bind(animationId,foldSearch(meta.title)),
+      ...meta.tags.map(tag=>env.DB.prepare(
+        'INSERT INTO animation_tags(animation_id,tag) VALUES(?,?)'
+      ).bind(animationId,tag)),
       env.DB.prepare(
         'INSERT INTO animation_rights(animation_id,license,author_credit,allows_remix) VALUES(?,?,?,?)'
       ).bind(animationId,meta.license,meta.author_credit,meta.allows_remix?1:0),
@@ -259,13 +269,14 @@ async function cancelDraft(request,env,user,id){
 }
 async function listDrafts(request,env,user){
   const items=await env.DB.prepare(
-    "SELECT d.id,d.source,d.status,d.filename,d.expected_bytes,d.created_at,a.title,a.category "+
+    "SELECT d.id,d.source,d.status,d.filename,d.expected_bytes,d.created_at,a.title,a.category,a.status AS animation_status "+
     "FROM publication_drafts d JOIN animations a ON a.id=d.animation_id "+
     "WHERE d.owner_id=? ORDER BY d.created_at DESC,d.id DESC LIMIT 25"
   ).bind(user.userId).all();
   return respond(request,env,200,{drafts:(items.results||[]).map(row=>({
     draft_id:row.id,source:row.source,status:row.status,filename:row.filename,
-    expected_bytes:row.expected_bytes,created_at:row.created_at,title:row.title,category:row.category
+    expected_bytes:row.expected_bytes,created_at:row.created_at,title:row.title,category:row.category,
+    moderation_status:row.animation_status
   }))});
 }
 export async function handlePublishing(request,env,url){

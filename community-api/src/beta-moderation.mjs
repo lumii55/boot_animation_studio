@@ -1,0 +1,188 @@
+/* P15.7 moderator actions: account-gated, audited, deny-by-default. */
+const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store, private',
+  'Content-Security-Policy':"default-src 'none'",'X-Content-Type-Options':'nosniff'};
+const send=(status,body)=>new Response(JSON.stringify(body),{status,headers:H});
+const fail=(s,code)=>send(s,{error:code});
+const uuid=()=>[...crypto.getRandomValues(new Uint8Array(16))]
+  .map(x=>x.toString(16).padStart(2,'0')).join('');
+const ID=/^[a-f0-9]{32}$/;
+const valid=(s,min,max)=>typeof s==='string'&&[...s.trim()].length>=min&&
+  [...s.trim()].length<=max&&!/[\u0000-\u001f\u007f<>]/.test(s);
+async function body(req){
+ if(req.headers.get('Content-Type')?.split(';')[0].trim()!=='application/json')return null;
+ try{
+  const text=await req.text();if(text.length>2048)return null;
+  const data=JSON.parse(text);
+  return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
+ }catch(_){return null;}
+}
+function isModerator(env,user){
+ if(env.MODERATION_STAGING_APPROVED!=='true'||!user)return false;
+ const ids=String(env.MODERATOR_USER_IDS||'').split(',').map(v=>v.trim()).filter(Boolean);
+ return ids.length>0&&ids.includes(user.userId);
+}
+async function report(req,env,user){
+ const data=await body(req);
+ if(!data||!ID.test(data.animation_id)||!valid(data.reason,5,500)||
+  Object.keys(data).some(k=>!['animation_id','reason'].includes(k)))
+  return fail(400,'invalid_report');
+ try{
+  const exists=await env.DB.prepare("SELECT id FROM animations WHERE id=? AND status='published'")
+   .bind(data.animation_id).first();
+  if(!exists)return fail(404,'not_found');
+  const id=uuid();
+  await env.DB.batch([
+   env.DB.prepare("INSERT INTO community_reports(id,animation_id,reporter_id,reason) VALUES(?,?,?,?)")
+    .bind(id,data.animation_id,user.userId,data.reason.trim()),
+   env.DB.prepare("INSERT INTO moderation_events(id,animation_id,action,reason) VALUES(?,?,'report',?)")
+    .bind(uuid(),data.animation_id,'report received'),
+   env.DB.prepare("INSERT INTO discord_outbox(id,animation_id,action) VALUES(?,?,'report')")
+    .bind(uuid(),data.animation_id)
+  ]);
+  return send(201,{report_id:id,status:'open'});
+ }catch(_){return fail(409,'report_duplicate_or_limited');}
+}
+async function queue(env){
+ try{
+  const pending=(await env.DB.prepare(
+   "SELECT a.id,a.title,a.summary,u.handle,d.source,d.created_at,v.width,v.height,"+
+   "v.fps,v.size_bytes,r.license FROM animations a "+
+   "JOIN publication_drafts d ON d.animation_id=a.id "+
+   "JOIN community_users u ON u.id=a.owner_id "+
+   "JOIN animation_versions v ON v.id=d.version_id "+
+   "JOIN animation_rights r ON r.animation_id=a.id "+
+   "WHERE a.status='pending' AND d.status='pending_review' AND v.status='pending' "+
+   "ORDER BY d.created_at ASC LIMIT 50").bind().all()).results||[];
+  const reports=(await env.DB.prepare(
+   "SELECT r.id,r.animation_id,a.title,u.handle,r.reason,r.created_at "+
+   "FROM community_reports r JOIN animations a ON a.id=r.animation_id "+
+   "JOIN community_users u ON u.id=r.reporter_id "+
+   "WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 50").bind().all()).results||[];
+  return send(200,{pending,reports});
+ }catch(_){return fail(503,'moderation_unavailable');}
+}
+async function decide(req,env,user,id){
+ if(!ID.test(id))return fail(404,'not_found');
+ const data=await body(req);
+ if(!data||!['approve','reject','hide','restore'].includes(data.action)||
+  !valid(data.reason,5,500)||Object.keys(data).some(k=>!['action','reason'].includes(k)))
+  return fail(400,'invalid_decision');
+ const current=await env.DB.prepare(
+  "SELECT a.status,a.published_version_id,d.version_id,d.status AS draft_status,"+
+  "v.status AS version_status FROM animations a "+
+  "LEFT JOIN publication_drafts d ON d.animation_id=a.id "+
+  "LEFT JOIN animation_versions v ON v.id=d.version_id WHERE a.id=? LIMIT 1"
+ ).bind(id).first();
+ if(!current)return fail(404,'not_found');
+ const a=data.action;
+ const pending=current.status==='pending'&&current.draft_status==='pending_review'&&current.version_status==='pending',
+  published=current.status==='published'&&!!current.published_version_id,
+  hidden=current.status==='hidden'&&!!current.published_version_id;
+ if((['approve','reject'].includes(a)&&!pending)||
+    (a==='hide'&&!published)||(a==='restore'&&!hidden))
+  return fail(409,'invalid_moderation_transition');
+ const t=Math.floor(Date.now()/1000),changes=[];
+ if(a==='approve'){
+  changes.push(env.DB.prepare(
+   "UPDATE animation_versions SET status='approved',reviewed_at=? WHERE id=? AND status='pending'"
+  ).bind(t,current.version_id));
+  changes.push(env.DB.prepare(
+   "UPDATE animations SET status='published',published_version_id=?,published_at=?,updated_at=? "+
+   "WHERE id=? AND status='pending'"
+  ).bind(current.version_id,t,t,id));
+ }else if(a==='reject'){
+  changes.push(env.DB.prepare(
+   "UPDATE animation_versions SET status='rejected',reviewed_at=? WHERE id=? AND status='pending'"
+  ).bind(t,current.version_id));
+  changes.push(env.DB.prepare("UPDATE animations SET status='rejected',updated_at=? WHERE id=? AND status='pending'")
+   .bind(t,id));
+ }else if(a==='hide'){
+  changes.push(env.DB.prepare("UPDATE animations SET status='hidden',updated_at=? WHERE id=? AND status='published'")
+   .bind(t,id));
+ }else{
+  changes.push(env.DB.prepare(
+   "UPDATE animations SET status='published',updated_at=? WHERE id=? AND status='hidden' AND published_version_id IS NOT NULL"
+  ).bind(t,id));
+ }
+ changes.push(env.DB.prepare(
+  'INSERT INTO moderation_events(id,animation_id,version_id,moderator_id,action,reason) VALUES(?,?,?,?,?,?)'
+ ).bind(uuid(),id,current.version_id,user.userId,a,data.reason.trim()));
+ if(['approve','reject','hide'].includes(a))changes.push(env.DB.prepare(
+  'INSERT INTO discord_outbox(id,animation_id,action) VALUES(?,?,?)'
+ ).bind(uuid(),id,a));
+ if(a==='hide')changes.push(env.DB.prepare(
+  "UPDATE community_reports SET status='resolved',resolved_at=? WHERE animation_id=? AND status='open'"
+ ).bind(t,id));
+ try{
+  await env.DB.batch(changes);
+  return send(200,{animation_id:id,decision:a,status:a==='approve'||a==='restore'?'published':
+   a==='reject'?'rejected':'hidden'});
+ }catch(_){return fail(503,'moderation_unavailable');}
+}
+async function settleReport(req,env,user,id){
+ if(!ID.test(id))return fail(404,'not_found');
+ const data=await body(req);
+ if(!data||!['dismiss','resolve'].includes(data.action)||
+  !valid(data.reason,5,500)||Object.keys(data).some(k=>!['action','reason'].includes(k)))
+  return fail(400,'invalid_decision');
+ try{
+  const report=await env.DB.prepare(
+   "UPDATE community_reports SET status=?,resolved_at=unixepoch() "+
+   "WHERE id=? AND status='open' RETURNING animation_id"
+  ).bind(data.action==='dismiss'?'dismissed':'resolved',id).first();
+  if(!report)return fail(409,'report_not_open');
+  await env.DB.prepare(
+   "INSERT INTO moderation_events(id,animation_id,moderator_id,action,reason) VALUES(?,?,?,'report',?)"
+  ).bind(uuid(),report.animation_id,user.userId,data.action+': '+data.reason.trim()).run();
+  return send(200,{report_id:id,status:data.action==='dismiss'?'dismissed':'resolved'});
+ }catch(_){return fail(503,'moderation_unavailable');}
+}
+async function notifyDiscord(env){
+ // No remote notifications until an owner-provided webhook secret is configured.
+ if(env.DISCORD_NOTIFICATIONS_APPROVED!=='true'||
+    typeof env.DISCORD_WEBHOOK_URL!=='string')return fail(503,'discord_not_configured');
+ let endpoint;
+ try{endpoint=new URL(env.DISCORD_WEBHOOK_URL);}catch(_){return fail(503,'discord_not_configured');}
+ if(endpoint.protocol!=='https:'||!['discord.com','discordapp.com'].includes(endpoint.hostname)||
+    !/^\/api\/webhooks\/[0-9]+\/[A-Za-z0-9_.-]+$/.test(endpoint.pathname))
+  return fail(503,'discord_not_configured');
+ const jobs=(await env.DB.prepare(
+  "SELECT o.id,o.action,a.title,u.handle FROM discord_outbox o "+
+  "JOIN animations a ON a.id=o.animation_id JOIN community_users u ON u.id=a.owner_id "+
+  "WHERE o.status='queued' AND o.attempts<3 ORDER BY o.created_at ASC LIMIT 5"
+ ).bind().all()).results||[];
+ let delivered=0,failed=0;
+ for(const job of jobs){
+  try{
+   const content='BAS Community · '+job.action+' · '+
+    job.title.slice(0,100)+' · @'+job.handle.slice(0,32)+' (revisão privada)';
+   const r=await fetch(endpoint.href,{method:'POST',redirect:'manual',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({content,allowed_mentions:{parse:[]}})});
+   if(!r.ok)throw Error('delivery failed');
+   await env.DB.prepare(
+    "UPDATE discord_outbox SET status='delivered',attempts=attempts+1,processed_at=unixepoch() WHERE id=? AND status='queued'"
+   ).bind(job.id).run();
+   delivered++;
+  }catch(_){
+   failed++;
+   await env.DB.prepare(
+    "UPDATE discord_outbox SET attempts=attempts+1,status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'queued' END WHERE id=?"
+   ).bind(job.id).run();
+   break; // no automatic bursts after failure/429
+  }
+ }
+ return send(200,{delivered,failed});
+}
+export async function handleModeration(req,env,url,user){
+ const path=url.pathname.slice('/v1/beta/'.length);
+ if(path==='reports'&&req.method==='POST')return report(req,env,user);
+ if(!isModerator(env,user))return fail(403,'moderator_required');
+ if(path==='moderation/queue'&&req.method==='GET')return queue(env);
+ if(path.startsWith('moderation/decision/')&&req.method==='POST')
+  return decide(req,env,user,path.slice('moderation/decision/'.length));
+ if(path.startsWith('moderation/reports/')&&req.method==='POST')
+  return settleReport(req,env,user,path.slice('moderation/reports/'.length));
+ if(path==='moderation/discord/dispatch'&&req.method==='POST')return notifyDiscord(env);
+ return fail(404,'not_found');
+}

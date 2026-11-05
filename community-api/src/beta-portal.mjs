@@ -6,12 +6,16 @@ import {profilePage} from './beta-profile-page.mjs';
 import {profileStyles} from './beta-profile-styles.mjs';
 import {profileClient} from './beta-profile-client.mjs';
 import {betaPublishingClient} from './beta-publishing-client.mjs';
+import {licenseGuide} from './beta-license-guide.mjs';
+import {betaCommunityClient} from './beta-community-client.mjs';
 const assets=new Map([
  ['/', ['text/html; charset=utf-8',profilePage]],
  ['/beta',['text/html; charset=utf-8',profilePage]],
  ['/beta/style.css',['text/css; charset=utf-8',profileStyles]],
  ['/beta/app.js',['text/javascript; charset=utf-8',profileClient]],
- ['/beta/publish.js',['text/javascript; charset=utf-8',betaPublishingClient]]
+ ['/beta/publish.js',['text/javascript; charset=utf-8',betaPublishingClient]],
+ ['/beta/licenses',['text/html; charset=utf-8',licenseGuide]],
+ ['/beta/community.js',['text/javascript; charset=utf-8',betaCommunityClient]]
 ]);
 const CSP="default-src 'none'; base-uri 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'";
 export function betaPortalReady(env){

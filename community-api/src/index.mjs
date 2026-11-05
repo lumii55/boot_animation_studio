@@ -1,4 +1,5 @@
 import {serveBetaPortal} from './beta-portal.mjs';
+import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
 import { handleAuth, authConfigured } from './auth.mjs';
@@ -6,7 +7,7 @@ import { handleAuth, authConfigured } from './auth.mjs';
  * Default-deny by design. No upload, auth, administration or file delivery routes exist.
  * Never return R2 object keys, tokens, internal author IDs or pending submissions.
  */
-const API_VERSION = 'p15.6';
+const API_VERSION = 'p15.7';
 const MAX_PAGE_SIZE = 24;
 const MAX_OFFSET = 5000;
 const SORTS = Object.freeze({
@@ -149,6 +150,7 @@ export default {
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
     if (url.pathname.startsWith('/v1/auth/')) return handleAuth(request, env, url);
     if (url.pathname.startsWith('/v1/publishing')) return handlePublishing(request, env, url);
+    if (url.pathname.startsWith('/v1/beta/')) return handleBetaCatalog(request,env,url);
     if (url.pathname.startsWith('/v1/profile-media/')) return handleProfileMedia(request, env, url);
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: headers(origin) });
@@ -157,7 +159,7 @@ export default {
     if (url.pathname === '/v1/health') {
       return json({ service: 'bas-community', version: API_VERSION,
         mode: authConfigured(env) ? 'accounts_enabled' : 'read_only', catalog_available: catalogReady(env),
-        uploads_enabled: publishingReady(env), moderation_enabled: false }, 200, origin, head);
+        uploads_enabled: publishingReady(env), moderation_enabled: betaCatalogReady(env) && env.MODERATION_STAGING_APPROVED==='true' }, 200, origin, head);
     }
     if (url.pathname === '/v1/catalog') return listCatalog(url, env, origin, head);
     const animationPath = /^\/v1\/animations\/([^/]+)$/.exec(url.pathname);

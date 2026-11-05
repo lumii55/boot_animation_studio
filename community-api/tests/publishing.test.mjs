@@ -247,3 +247,31 @@ test('app-level R2 monthly operation budget counts writes and stays below cap',a
   assert.equal(row.class_a,1);
   assert.equal(row.class_b,0);
 });
+
+test('P15.7 persists free creator tags and fold-search text atomically',async t=>{
+  const x=await setup(t),zip=makeZip();
+  const meta={...x.metadata('zip',zip),title:'Animação do Luffy',
+    tags:['Anime','animé','one_piece','luffy']};
+  const create=await x.draft(meta,'TEST_FREE_TAGS_P157_00001');
+  assert.equal(create.status,201,JSON.stringify(create.body));
+  const tags=x.db.prepare('SELECT tag FROM animation_tags ORDER BY tag').all().map(x=>x.tag);
+  assert.deepEqual(tags,['anime','luffy','one_piece']);
+  assert.equal(x.db.prepare('SELECT title_fold FROM animation_search').get().title_fold,'animacao do luffy');
+});
+test('P15.7 rejects invalid creator tags and contradictory remix licenses',async t=>{
+  const x=await setup(t),zip=makeZip();
+  const cases=[
+    {tags:['anime','tag with space']},
+    {tags:Array.from({length:13},(_,i)=>'tag'+i)},
+    {tags:['unsafe!']},
+    {license:'CC-BY-4.0',allows_remix:false},
+    {license:'CC0-1.0',allows_remix:false},
+    {license:'all-rights-reserved',allows_remix:true}
+  ];
+  for(const [i,change] of cases.entries()){
+    const res=await x.draft({...x.metadata('zip',zip),...change},
+      'TEST_P157_INVALID_'+String(i).padStart(16,'0'));
+    assert.equal(res.status,400,JSON.stringify(change));
+  }
+  assert.equal(x.db.prepare('SELECT COUNT(*) n FROM publication_drafts').get().n,0);
+});

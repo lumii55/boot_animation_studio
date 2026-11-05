@@ -418,13 +418,89 @@
   let recentExport=null;
   let selectedPublishFile=null;
   const PRIVATE_BETA_ORIGIN='https://bas-community-staging.caiolive1000.workers.dev';
+  function modulePublishReady(){
+    return typeof apiFetch==='function'&&typeof ensureModuleFeature==='function'&&
+      (typeof isConnectedMode==='undefined'||isConnectedMode===true) &&
+      (typeof hasModuleFeature!=='function'||hasModuleFeature('pull')) &&
+      (typeof hasModulePermission!=='function'||hasModulePermission('view'));
+  }
+  function directHandoff(item,source='editor',phoneSource=null){
+    if(!item||!item.blob||item.blob.size>20*1024*1024)return false;
+    const accepted=location.origin==='http://127.0.0.1:8088'||
+      (location.origin==='https://lumii55.github.io'&&location.pathname.startsWith('/boot_animation_studio'));
+    if(!accepted)return false;
+    const page=window.open(PRIVATE_BETA_ORIGIN+'/?editor_origin='+encodeURIComponent(location.origin),'_blank');
+    if(!page)return false;
+    let complete=false;
+    const timeout=window.setTimeout(()=>window.removeEventListener('message',receive),60000);
+    function receive(ev){
+      if(ev.origin!==PRIVATE_BETA_ORIGIN||ev.source!==page||
+        ev.data?.type!=='bas:p15:portal-ready'||complete)return;
+      complete=true;clearTimeout(timeout);window.removeEventListener('message',receive);
+      page.postMessage({type:'bas:p15:module-status',connected:modulePublishReady()},PRIVATE_BETA_ORIGIN);
+      page.postMessage({type:'bas:p15:export-ready',source,file:item.blob,
+        filename:item.filename,title:item.title||item.filename.replace(/\.zip$/i,''),
+        license:'CC-BY-4.0',phone_source:phoneSource},PRIVATE_BETA_ORIGIN);
+    }
+    window.addEventListener('message',receive);
+    return true;
+  }
+  async function publishFromDevice(source){
+    if(!['module','system'].includes(source)||!modulePublishReady())return false;
+    if(!window.confirm('Ler uma COPIA da animação '+(source==='module'?'aplicada':'original')+
+      ' pelo Companion autorizado? Nada será instalado ou alterado.'))return false;
+    // Fetch AFTER the user click, but the browser window must open synchronously
+    // to avoid popup blockers. Remote send still requires owner confirmation.
+    const page=window.open(PRIVATE_BETA_ORIGIN+'/?editor_origin='+encodeURIComponent(location.origin),'_blank');
+    if(!page)return false;
+    let ready=false,blob=null;
+    const stop=()=>{window.removeEventListener('message',receive);clearTimeout(timer);};
+    function send(){
+      if(!ready||!blob)return;
+      stop();
+      page.postMessage({type:'bas:p15:module-status',connected:true},PRIVATE_BETA_ORIGIN);
+      page.postMessage({type:'bas:p15:export-ready',source:'companion',file:blob,
+        filename:'bootanimation.zip',title:source==='module'?'Animação aplicada':'Animação original',
+        phone_source:source},PRIVATE_BETA_ORIGIN);
+    }
+    function receive(e){
+      if(e.origin===PRIVATE_BETA_ORIGIN&&e.source===page&&e.data?.type==='bas:p15:portal-ready'){
+        ready=true;send();
+      }
+    }
+    const timer=window.setTimeout(stop,60000);
+    window.addEventListener('message',receive);
+    try{
+      const response=await apiFetch('/pull?source='+source+'&t='+Date.now(),{method:'GET'});
+      if(!response.ok)throw Error('Leitura recusada ('+response.status+')');
+      if(Number(response.headers.get('Content-Length')||0)>20*1024*1024)throw Error('ZIP muito grande');
+      blob=await response.blob();
+      if(!blob.size||blob.size>20*1024*1024)throw Error('ZIP inválido ou acima de 20 MiB');
+      send();
+      return true;
+    }catch(error){stop();window.alert('Não foi possível preparar a publicação: '+error.message);return false;}
+  }
   window.BASCommunityExport=Object.freeze({
     capture(blob,filename){
       if(!(blob instanceof Blob)||blob.size<=0||blob.size>20*1024*1024)return;
-      recentExport={blob,filename:/^[A-Za-z0-9_. -]{1,86}\.zip$/i.test(filename)
+      recentExport={blob,filename:typeof filename==='string'&&
+        filename.toLowerCase().endsWith('.zip')&&/^[A-Za-z0-9_. -]{1,90}$/.test(filename)
         ?filename:'bootanimation.zip'};
+      const button=byId('btn-community-publish-finish');if(button)button.hidden=false;
+      const endButton=byId('finish-community-publish');if(endButton)endButton.hidden=false;
     },
-    available(){return !!recentExport;}
+    available(){return !!recentExport;},
+    openRecent(){return directHandoff(recentExport,'editor');},
+    publishFromDevice,
+    chooseDeviceSource(){
+      if(!modulePublishReady())return false;
+      const overlay=byId('modal-community-device');
+      if(!overlay)return false;
+      const applied=byId('btn-community-device-applied');
+      if(applied)applied.hidden=window.hasCustomAnimApplied!==true;
+      overlay.style.display='flex';return true;
+    },
+    connected:modulePublishReady
   });
   async function launchPrivatePublish(){
     const draft=state.publishDraft;

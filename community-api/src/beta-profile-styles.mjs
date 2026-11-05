@@ -65,6 +65,19 @@ border:1px solid #7d699b;transition:background .14s ease,transform .14s ease}
 .btn.subtle{background:#322741;color:#e9d6ff;border-color:#6d568a}
 .btn:hover,button:hover{filter:brightness(1.11)}
 .btn:disabled,button:disabled{opacity:.55;cursor:wait}
+.community-catalog,.moderation-panel{margin-top:24px}
+.license-row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.license-help{font-size:12px;color:#e0c0ff;text-decoration:underline}
+.tag-chips{display:flex;flex-wrap:wrap;gap:8px;margin:9px 0}
+.tag-chips button{background:#3f3156;border:1px solid #8868b5;color:#fbf4ff;font-size:12px;padding:7px 10px;border-radius:999px}
+.catalog-search{display:flex;gap:9px;align-items:center;margin-top:9px}
+.catalog-search input{flex:1;width:auto}.catalog-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:20px}
+.catalog-card{background:#10182b;border:1px solid #69567e;border-radius:14px;padding:16px}
+.catalog-card h3{margin:0 0 6px}.catalog-card p{font-size:13px}
+.catalog-card .tag{display:inline-block;background:#342b50;border-radius:8px;padding:4px 7px;margin:3px;color:#e9d1ff;font-size:11px}
+.moderation-item{background:#10182b;padding:14px;margin:10px 0;border:1px solid #66517b;border-radius:13px}
+.moderation-item .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.guide h2{margin:27px 0 8px;font-size:22px}.guide h2:first-child{margin-top:0}
 .publish-panel{margin-top:24px}.publish-panel form{max-width:690px}
 .publish-panel form>label:not(.checkline){display:block;margin:17px 0 7px;font-weight:750;font-size:13px}
 .publish-panel select,.publish-panel input[type=file]{width:100%;padding:12px 14px;border:1px solid #706383;

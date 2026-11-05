@@ -7,6 +7,7 @@ export const profilePage = `<!doctype html>
 <title>Meu perfil · BAS Community Beta</title>
 <link rel="stylesheet" href="/beta/style.css">
 <script defer src="/beta/app.js"></script>\n<script defer src="/beta/publish.js"></script>
+<script defer src="/beta/community.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -54,7 +55,7 @@ export const profilePage = `<!doctype html>
       <span class="coming">Em preparação</span></div>
       <div class="empty-icon" aria-hidden="true">✧</div>
       <h3>Seu espaço está pronto para criar!</h3>
-      <p>Suas animações aparecerão aqui quando o sistema de publicações privadas for liberado na P15.6.</p>
+      <p>Suas animações aprovadas aparecerão na galeria privada abaixo. Envie um ZIP para revisão quando quiser!</p>
     </section>
     <section class="panel publish-panel" id="publish-panel" aria-labelledby="publish-heading">
       <div class="section-heading"><div><p class="eyebrow">SUA OFICINA</p>
@@ -62,13 +63,15 @@ export const profilePage = `<!doctype html>
         <span class="coming">Beta privado</span></div>
       <p>Envie um bootanimation.zip para a fila privada. Nada será divulgado na galeria antes da moderação.</p>
       <form id="publish-form">
-        <label for="publish-source">Origem do arquivo</label>
-        <select id="publish-source" name="source">
-          <option value="zip">ZIP existente</option>
-          <option value="editor">Exportado pelo editor BAS</option>
-          <option value="companion">Companion (dispositivo pareado)</option>
-        </select>
-        <p class="hint">O BAS pode enviar o último ZIP exportado diretamente para esta página após sua confirmação.</p>
+        <div id="source-choice" hidden>
+          <label for="publish-source">Origem do arquivo</label>
+          <select id="publish-source" name="source">
+            <option value="zip">ZIP existente</option>
+            <option value="editor" hidden>Exportado agora pelo editor</option>
+            <option value="companion" hidden>Companion conectado</option>
+          </select>
+        </div>
+        <p class="hint" id="publish-source-hint">Envie um ZIP existente ou use o botão Publicar ao finalizar no editor.</p>
         <label for="publish-file">Arquivo bootanimation.zip</label>
         <input id="publish-file" name="file" type="file" accept=".zip,application/zip" required>
         <p class="hint" id="publish-file-hint">Selecione um arquivo de até 20 MiB, com estrutura de boot animation válida.</p>
@@ -76,16 +79,15 @@ export const profilePage = `<!doctype html>
         <input id="publish-title" name="title" minlength="3" maxlength="100" required>
         <label for="publish-summary">Descrição</label>
         <textarea id="publish-summary" name="summary" rows="3" maxlength="1000"></textarea>
-        <label for="publish-category">Categoria</label>
-        <select id="publish-category" name="category">
-          <option value="abstract">Abstrato</option>
-          <option value="cosmos">Espaço</option>
-          <option value="neon">Neon</option>
-          <option value="pixel">Pixel</option>
-          <option value="nature">Natureza</option>
-          <option value="minimal">Minimalista</option>
-        </select>
-        <label for="publish-license">Licença</label>
+        <label for="publish-tags-input">Tags (separadas por espaço ou vírgula)</label>
+        <div id="publish-tag-chips" class="tag-chips" aria-live="polite"></div>
+        <input id="publish-tags-input" type="text" maxlength="100" autocomplete="off"
+          placeholder="anime luffy one_piece" aria-describedby="tag-hint">
+        <p class="hint" id="tag-hint">Até 12 tags livres. Espaço, vírgula ou Enter cria cada tag.</p>
+        <div class="license-row"><label for="publish-license">Licença</label>
+          <a href="/beta/licenses" target="_blank" rel="noopener noreferrer"
+            class="license-help" aria-label="Não sabe qual licença escolher? Abrir guia em uma nova aba">? Não sabe qual escolher? Clique aqui</a>
+        </div>
         <select id="publish-license" name="license">
           <option value="CC-BY-4.0">CC BY 4.0</option>
           <option value="CC-BY-SA-4.0">CC BY-SA 4.0</option>
@@ -94,7 +96,7 @@ export const profilePage = `<!doctype html>
         </select>
         <label for="publish-credit">Créditos do autor</label>
         <input id="publish-credit" name="author_credit" maxlength="120">
-        <label class="checkline"><input id="publish-remix" type="checkbox"> Permitir adaptações e remixes</label>
+        <p class="hint" id="publish-license-hint">Licenças Creative Commons já permitem remixes. Leia o guia para escolher.</p>
         <label class="checkline"><input id="publish-rights" type="checkbox" required>
           Confirmo que tenho os direitos para compartilhar esta animação.</label>
         <div class="form-actions"><button type="submit" id="publish-submit" class="btn primary">
@@ -105,6 +107,31 @@ export const profilePage = `<!doctype html>
       <ul id="publish-drafts" class="draft-list" aria-live="polite">
         <li>Carregando seus rascunhos...</li>
       </ul>
+    </section>
+    <section id="community-catalog" class="panel community-catalog" aria-labelledby="catalog-title">
+      <div class="section-heading"><div><p class="eyebrow">GALERIA REAL · BETA PRIVADO</p>
+        <h2 id="catalog-title">Explorar animações aprovadas</h2></div>
+        <span class="coming">Somente beta</span></div>
+      <label for="catalog-search">Buscar por nome ou tags</label>
+      <div class="catalog-search">
+        <input id="catalog-search" type="search" autocomplete="off" maxlength="80"
+          placeholder="Anime, Luffy, Lu, neon...">
+        <button type="button" class="btn outline" id="catalog-find">Buscar</button>
+      </div>
+      <p class="hint">Busca parcial, sem diferenciar maiúsculas e minúsculas. Animações pendentes não aparecem.</p>
+      <div id="catalog-results" class="catalog-results" aria-live="polite"></div>
+      <div class="form-actions"><button id="catalog-more" type="button" class="btn subtle" hidden>Ver mais</button></div>
+    </section>
+    <section id="moderation-panel" class="panel moderation-panel" hidden aria-labelledby="moderation-title">
+      <div class="section-heading"><div><p class="eyebrow">PAINEL PRIVADO</p>
+        <h2 id="moderation-title">Fila de moderação</h2></div>
+        <button id="moderation-refresh" type="button" class="btn outline">Atualizar</button></div>
+      <p>Revise os direitos e a segurança de cada animação antes de aprová-la.
+        Aprovação neste beta não significa lançamento público.</p>
+      <div id="moderation-list" aria-live="polite"></div>
+      <h3>Denúncias</h3><div id="moderation-reports"></div>
+      <button id="discord-dispatch" type="button" class="btn subtle">Enviar avisos ao Discord (se configurado)</button>
+      <p class="hint" id="discord-status">Integração opcional, desativada até configuração explícita.</p>
     </section>
     <section id="profile-edit" class="panel editor" hidden aria-label="Editar perfil">
       <div class="editor-header"><div><p class="eyebrow">PERSONALIZAÇÃO</p><h2>Editar perfil</h2></div>

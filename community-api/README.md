@@ -222,3 +222,30 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
 - Versao ativa do Worker 2dcf8a1f-d38b-493d-8144-fd0dee1c7ca9; anterior 5827baa2-885f-4500-ae74-3150c7d65d6b.
 - Testes locais 126/126: frontend 17, backend 76, SQLite 33. Smoke HTTPS: scripts 200, API sem login 403, catalogo 503.
 - ACEITE FINAL PENDENTE de testes reais no Chrome/Companion: ZIP existente ate status pending_review, recarregar lista privada, transferencia do editor e copia do Companion com consentimento. A main e o Companion publicado permanecem inalterados.
+
+## P15.7 — Community moderada no beta privado (2026-11-04)
+
+- Schemas D1 em migrations/0006_moderation_catalog_tags.sql: tags normalizadas por animacao, pesquisa, denuncias e fila de notificacoes Discord. Aplicar migracoes 0001..0006 em ordem. O dev-server local as aplica automaticamente.
+- API privada GET /v1/beta/catalog?q= e /v1/beta/animations/:id, GET /v1/beta/downloads/:id, POST /v1/beta/reports, GET /v1/beta/moderation/queue, POST /v1/beta/moderation/decision/:id, POST /v1/beta/moderation/reports/:id, POST /v1/beta/moderation/discord/dispatch.
+- Toda /v1/beta/* exige sessao OAuth valida; writes exigem Origin HTTPS exato e X-CSRF-Token. A fila/decisoes exigem MODERATION_STAGING_APPROVED=true e MODERATOR_USER_IDS contendo user_id validado. Busca/indexacao e downloads exigem BETA_CATALOG_ENABLED=true, PUBLIC_CATALOG_ENABLED=false, AUTH_PUBLIC_SIGNUP_APPROVED=false; downloads tambem requerem STAGING_DOWNLOADS_APPROVED=true e R2 privado. O catalogo publico /v1/catalog continua fechado.
+- Pesquisa faz fold Unicode+case em title_fold e tags; suporta fragmentos em nomes ou tags, pagina de 1 a 24 itens, somente revisoes aprovadas. Tags 12 max, 32 caracteres e sem espacos dentro; tokens com virgula/espaco no frontend.
+- Moderacao envia aprovados apenas para catalogo beta; aprovar publicamente requer autorizacao separada em P15.9. Acoes moderadoras e denuncias sao auditadas no banco.
+- Discord: fila interna pronta; nenhuma mensagem sera enviada sem DISCORD_NOTIFICATIONS_APPROVED=true e webhook secreto oficial do Discord configurado. O Worker valida https://discord.com/api/webhooks/... antes de cada envio, sem embeds com links privados nem mentions. Envio real ainda NAO testado.
+- UI: perfil beta inclui galeria, mod panel e guia /beta/licenses (nova aba). Editor local e Companion reutilizam popup HTTPS e confirmacoes explicitas. Nenhuma leitura local e acionada pelo Worker.
+- P15.7 e uma unica entrega consolidada. Validações humanas em navegador/aparelho permanecem a cumprir; main e Companion Android publicado nao sao alterados.
+
+## P15.7 — entrega consolidada de staging privado (2026-11-05)
+
+**Implementado em codigo e implantado no beta privado; aceite humano em navegador/Companion ainda pendente.** Nao houve lancamento publico e a main ficou intocada.
+
+- Cloudflare Worker bas-community-staging versao final 7ce6e9e0-36c7-4bd9-a4fc-8df79c3a22be (rollback c776e069-0fa3-4816-bde6-67301976c48e). 28 bindings preservados, quatro secrets intactos, lista privada com uma conta GitHub. Moderador vinculado ao ID de usuario ja autenticado, sem publicar sua identidade nos documentos.
+- D1 migracao 0006_moderation_catalog_tags.sql aplicada no staging: animation_tags, animation_search, community_reports, discord_outbox. A conta e o envio do beta preexistentes foram preservados; limite global R2 segue 64 MiB. O dev-server aplica 0001 a 0006.
+- Tags livres (12 por obra, 32 caracteres, deduplicadas, Unicode/acentos normalizados) com separacao por espaco, virgula ou Enter, chips removiveis. Mantem categoria legada interna abstract por compatibilidade, nao obriga categoria no formulario. Backend recusa dados invalidos e licencas contraditorias.
+- Galeria REAL beta /v1/beta/catalog e detalhes/downloads autenticados, somente versoes published e approved de autores ativos. Busca parcial em titulo, handle ou tags, sem distincao de caixa/acentos para itens no novo pipeline. Paginacao, sem chaves R2. Catalogo publico /v1/catalog continua 503; cadastro publico OFF.
+- Moderacao privada: fila, aprovar/rejeitar, ocultar/restaurar, denuncias autenticadas limitadas a cinco/dia e deduplicadas, justificativas, auditoria e dispensa de denuncia. Acesso do moderador separado por MODERATOR_USER_IDS e MODERATION_STAGING_APPROVED, nenhuma aprovacao automatica.
+- Discord: fila no D1 e despacho opt-in implementados; DISCORD_NOTIFICATIONS_APPROVED=false, webhook nao conectado e envio real nao testado. Somente o titular podera autorizar e configurar webhook como segredo futuramente.
+- Editor do BAS: Publicar na Community nos controles de exportacao E na tela de conclusao ao gerar ZIP. ZIP em memoria ate clique e confirmacao em HTTPS. Na tela comum nao exibir origem Editor; ZIP por padrao e Companion apenas com informacao da conexao autenticada via handoff local.
+- Modulo/Companion: na interface conectada do BAS, botao Publicar animacao do dispositivo; modal escolhe copia da original do celular ou da aplicada (se detectada). Usa endpoint local pull com permissao e consentimento; nenhuma mudanca no APK/modulo publicado, nenhum flash/instalacao. Teste fisico nao realizado.
+- Licencas: guia first-party /beta/licenses, link de ajuda em nova aba para preservar formulario, fontes Creative Commons, licencas CC0, CC BY, CC BY-SA e todos os direitos reservados explicados. Backend impede permitir-remix contraditorio.
+- Regressoes locais: **139/139** = 17 UI, 89 JS API, 33 SQLite. Smoke HTTPS: pagina, assets, licencas 200; API beta sem login 403; /v1/catalog 503; /v1/auth/me 401. Teste real de publicacao, fluxo Companion e webhook Discord ainda pendentes.
+- Proximos marcos: P15.8 unica entrega de recursos sociais e seguranca; P15.9 auditoria/launch com aprovacao expressa; main intocada.
