@@ -11,6 +11,7 @@
     "AUTH_ENABLED": "false",
     "AUTH_DEPLOYMENT_APPROVED": "false",
     "AUTH_PUBLIC_SIGNUP_APPROVED": "false",
+    "BETA_PORTAL_ENABLED": "false",
     "UPLOAD_ENABLED": "false",
     "STORAGE_ENABLED": "false",
     "PUBLISH_ENABLED": "false",

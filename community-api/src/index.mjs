@@ -1,3 +1,4 @@
+import {serveBetaPortal} from './beta-portal.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
 import { handleAuth, authConfigured } from './auth.mjs';
@@ -142,6 +143,8 @@ export default {
     let url;
     try { url = new URL(request.url); }
     catch (_) { return error('invalid_url', 400, origin, head); }
+    const betaPage=serveBetaPortal(request,env,url);
+    if(betaPage)return betaPage;
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
     if (url.pathname.startsWith('/v1/auth/')) return handleAuth(request, env, url);

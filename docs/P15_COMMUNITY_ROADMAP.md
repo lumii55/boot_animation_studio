@@ -82,3 +82,30 @@ No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-communi
 - Migração 0005 aplicada no D1 real: 17 tabelas, 20 triggers, 43 índices, nenhuma conta, nenhuma mídia e 0 bytes utilizados ou reservados.
 - Testes cumulativos da P15 no Termux: 61 JS backend + 33 SQLite + 17 frontend = **111/111**. Apenas R2 e Cloudflare Images fictícios nos testes; nenhum arquivo de usuário enviado ao R2 verdadeiro.
 - Backend de mídia continua **desativado por padrão**. P15.6 só será concluída com OAuth real/contas reais, frontend conectado às rotas de imagem/publicação, pareamento Companion autenticado, manutenção/recuperação operacional e testes privados na Cloudflare. Ainda não iniciar P15.7.
+
+
+## P15.6A — checkpoint OAuth beta privado (2026-11-04)
+
+- Implementada pagina de staging na mesma origem HTTPS do Worker para entrar via GitHub, consultar sessao, editar nome/identificador/bio e sair. Nao substitui galeria publica.
+- Arquivos de implementacao: community-api/src/beta-portal.mjs, community-api/tests/beta-portal.test.mjs, integracao em src/index.mjs.
+- Requer BETA_PORTAL_ENABLED=true mais autenticacao real, allowlist beta numerica nao vazia, dominio exato e cadastro publico desabilitado. No exemplo, padrao desabilitado.
+- Inspecao Cloudflare: Worker bas-community-staging implantado, GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET presentes, OAuth do backend habilitado, allowlist beta de 1 conta, D1/R2/Images com bindings. Uploads, publicacoes, catalogo, midias e cadastro publico permanecem OFF. Subdominio workers.dev ainda desabilitado.
+- Testes locais: 17 frontend + 64 backend + 33 SQLite = 114/114, sem testes externos OAuth verdadeiros.
+- Proximo: revisar callback OAuth App; implantar bundle de staging sem sobrescrever vars e secrets existentes; habilitar URL apenas para beta restrito; testar login/logout, sessao e perfil com conta autorizada.
+- CUIDADO: nao rodar deploy com community-api/wrangler.jsonc antigo: contem flags AUTH false, divergentes do staging remoto. Use --keep-vars com config temporaria sem overrides conflitantes.
+- Site main e modulo publico permanecem intocados.
+
+
+## P15.6A — deployment confirmado em staging (2026-11-04)
+
+- Foi enviada via API Cloudflare uma nova versao MODULAR do Worker, mantendo por keep_bindings os tipos de bindings plain_text, secret_text, d1, r2_bucket e images. O endpoint de upload de versao nao ativou publicamente a comunidade.
+- Nova versao implantada no Worker de staging a 100%: d16c9c34-fe74-413b-b4f0-a62fc4a89a8a.
+- Versao anterior para rollback: 634c6460-f357-4aec-b392-7fcf752aa5a0.
+- Subdominio workers.dev de staging ativado; URLs de preview de versoes continuam desativadas. Isso disponibiliza a pagina de TESTE mas NAO habilita cadastro publico.
+- Auditoria confirmou 23 bindings na nova versao, incluindo os quatro secrets, e todas as flags de cadastro publico/upload/storage/publishing/media/catalog OFF. Auth e beta portal ON apenas na instancia de staging.
+- Smoke tests reais da origem HTTPS: / HTTP 200 com link de login; /beta/app.js HTTP 200; /v1/health HTTP 200 no modo accounts_enabled; /v1/auth/me HTTP 401 sem sessao; /v1/catalog HTTP 503 (bloqueado).
+- /v1/auth/github/start HTTP 302 redirecionando ao GitHub com callback da origem correta, PKCE S256, state e cookie HttpOnly Secure SameSite=Lax verificados.
+- PENDENTE: proprietaria entrar com GitHub real na beta; verificar configuracao do callback na OAuth App, sessao, edicao e logout reais. Nao marcar como autenticacao validada fim-a-fim ainda.
+- URL de beta: https://bas-community-staging.caiolive1000.workers.dev/
+- Callback GitHub: https://bas-community-staging.caiolive1000.workers.dev/v1/auth/github/callback
+- Cloudflare Worker nao recebe upload/media/publicacao ate testes posteriores aprovados. Nao liberar publicamente a Community na P15.6.

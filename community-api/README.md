@@ -154,3 +154,18 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
 - **NO LIVE ENABLEMENT:** requires `MEDIA_ENABLED=true`, `MEDIA_STAGING_APPROVED=true`, `STORAGE_ENABLED=true`, real `AUTH_ENABLED=true` OAuth session, D1 schema 0005, `PRIVATE_UPLOADS` bucket and Images `IMAGES` binding. All feature flags remain false in the real Termux preview. No actual images were uploaded to Cloudflare.
 - Cloudflare D1 migration `0005_creator_media.sql` was applied via REST, not Wrangler migration history. Staging database now has **17 tables, 20 triggers, 43 indices, 0 users/creator media, and 0 used/reserved bytes**. Reconcile Wrangler migration ledger before using `migrations apply` remotely.
 - Tests performed on Termux with fake R2 and fake Cloudflare Images binding: **61 Node backend, 33 Python D1/SQLite, 17 frontend = 111 tests**. The actual provider's production image transformation and private R2 write still require approved live staging acceptance testing.
+
+
+## P15.6A — deployment confirmado em staging (2026-11-04)
+
+- Foi enviada via API Cloudflare uma nova versao MODULAR do Worker, mantendo por keep_bindings os tipos de bindings plain_text, secret_text, d1, r2_bucket e images. O endpoint de upload de versao nao ativou publicamente a comunidade.
+- Nova versao implantada no Worker de staging a 100%: d16c9c34-fe74-413b-b4f0-a62fc4a89a8a.
+- Versao anterior para rollback: 634c6460-f357-4aec-b392-7fcf752aa5a0.
+- Subdominio workers.dev de staging ativado; URLs de preview de versoes continuam desativadas. Isso disponibiliza a pagina de TESTE mas NAO habilita cadastro publico.
+- Auditoria confirmou 23 bindings na nova versao, incluindo os quatro secrets, e todas as flags de cadastro publico/upload/storage/publishing/media/catalog OFF. Auth e beta portal ON apenas na instancia de staging.
+- Smoke tests reais da origem HTTPS: / HTTP 200 com link de login; /beta/app.js HTTP 200; /v1/health HTTP 200 no modo accounts_enabled; /v1/auth/me HTTP 401 sem sessao; /v1/catalog HTTP 503 (bloqueado).
+- /v1/auth/github/start HTTP 302 redirecionando ao GitHub com callback da origem correta, PKCE S256, state e cookie HttpOnly Secure SameSite=Lax verificados.
+- PENDENTE: proprietaria entrar com GitHub real na beta; verificar configuracao do callback na OAuth App, sessao, edicao e logout reais. Nao marcar como autenticacao validada fim-a-fim ainda.
+- URL de beta: https://bas-community-staging.caiolive1000.workers.dev/
+- Callback GitHub: https://bas-community-staging.caiolive1000.workers.dev/v1/auth/github/callback
+- Cloudflare Worker nao recebe upload/media/publicacao ate testes posteriores aprovados. Nao liberar publicamente a Community na P15.6.
