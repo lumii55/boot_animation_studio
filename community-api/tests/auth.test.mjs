@@ -184,3 +184,55 @@ test('existing verified GitHub identity is reused, never linked by handle',async
   assert.equal(inst.database.prepare('SELECT count(*) as n FROM community_users').get().n,1);
   assert.equal(inst.database.prepare('SELECT count(*) as n FROM account_identities').get().n,1);
 });
+
+test('GitHub OAuth token errors use allowlisted diagnostics without leaking credentials',async t=>{
+  const cases=[
+    [{error:'incorrect_client_credentials'},'oauth_github_client_credentials'],
+    [{error:'redirect_uri_mismatch'},'oauth_github_redirect_uri_mismatch'],
+    [{error:'bad_verification_code'},'oauth_github_code_invalid'],
+    [{error:'unverified_user_email'},'oauth_github_email_unverified'],
+    [{error:'some_unknown_provider_value'},'oauth_github_token_rejected']
+  ];
+  for(const [json,expected] of cases){
+    const instance=createLocalServer({memory:true});
+    t.after(()=>instance.database.close());
+    const env=environment(instance),begin=await start(env, '192.0.2.55');
+    const provider=async()=>new Response(JSON.stringify(json),{status:200});
+    const res=await call(req('/v1/auth/github/callback?state='+begin.state+'&code=FAKE_CODE','GET',
+      {Cookie:begin.binder}),env,provider);
+    assert.equal(res.status,503);
+    const output=await res.json();
+    assert.equal(output.error,expected);
+    assert.equal(Object.keys(output).length,1);
+    assert.equal(res.headers.get('Cache-Control'),'no-store, private');
+    assert.match(res.headers.get('Set-Cookie'),/Max-Age=0/);
+    assert.ok(!JSON.stringify(output).includes(env.GITHUB_CLIENT_SECRET));
+    assert.equal(instance.database.prepare('SELECT count(*) as n FROM community_users').get().n,0);
+  }
+});
+
+test('GitHub provider failures distinguish network/HTTP/invalid responses and identities',async t=>{
+  const scenarios=[
+    [async()=>{throw Error('FAKE_SENSITIVE_PROVIDER_ERROR');},'oauth_github_token_network_error'],
+    [async()=>new Response(JSON.stringify({error:'incorrect_client_credentials'}),{status:401}),'oauth_github_client_credentials'],
+    [async()=>new Response('not json',{status:502}),'oauth_github_token_invalid_response'],
+    [async url=>url.includes('access_token')
+      ? new Response(JSON.stringify({access_token:'FAKE_TOKEN'}))
+      : new Response(JSON.stringify({message:'denied'}),{status:403}),'oauth_github_identity_forbidden'],
+    [async url=>url.includes('access_token')
+      ? new Response(JSON.stringify({access_token:'FAKE_TOKEN'}))
+      : Promise.reject(Error('FAKE_SECRET_NETWORK')),'oauth_github_identity_network_error']
+  ];
+  for(const [provider,expected] of scenarios) {
+    const instance=createLocalServer({memory:true});
+    t.after(()=>instance.database.close());
+    const env=environment(instance),begin=await start(env,'192.0.2.88');
+    const res=await call(req('/v1/auth/github/callback?state='+begin.state+'&code=FAKE_CODE','GET',
+      {Cookie:begin.binder}),env,provider);
+    assert.equal(res.status,503,expected);
+    const output=await res.json();
+    assert.equal(output.error,expected);
+    assert.ok(!JSON.stringify(output).includes('FAKE_SENSITIVE_PROVIDER_ERROR'));
+    assert.ok(!JSON.stringify(output).includes('FAKE_SECRET_NETWORK'));
+  }
+});

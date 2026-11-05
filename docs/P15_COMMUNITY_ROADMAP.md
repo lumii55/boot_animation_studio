@@ -109,3 +109,12 @@ No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-communi
 - URL de beta: https://bas-community-staging.caiolive1000.workers.dev/
 - Callback GitHub: https://bas-community-staging.caiolive1000.workers.dev/v1/auth/github/callback
 - Cloudflare Worker nao recebe upload/media/publicacao ate testes posteriores aprovados. Nao liberar publicamente a Community na P15.6.
+
+
+## P15.6A — correcao diagnostica OAuth (2026-11-04)
+
+- Teste real do GitHub retornou erro generico oauth_provider_unavailable; fluxo nao criou conta nem sessao no D1. Ainda nao sabemos se foi falha de rede, token ou identidade.
+- GitHub suporta PKCE S256; esta protecao NAO foi removida.
+- Backend agora classifica apenas CODIGOS FIXOS seguros: credenciais do cliente incorretas, callback divergente, codigo expirado, e-mail nao verificado, token rejeitado, JSON invalido, rede inacessivel, identidade negada ou rate limited. Nenhum token, segredo, URL de autorizacao ou resposta arbitraria do GitHub aparece no erro.
+- Testes com provedores simulados exercitam varios erros; nenhum segredo real foi usado.
+- PENDENTE: novo login REAL pela conta allowlisted para identificar a causa. Nao declarar OAuth finalizado ate confirmar perfil salvo e logout em staging.

@@ -203,8 +203,32 @@ async function loginStart(request,env) {
     'Location':url.toString(),'Set-Cookie':makeCookie(LOGIN_COOKIE,binder,FLOW_TTL)
   });
 }
+
+/* OAuth provider failures are intentionally classified into a small fixed
+ * vocabulary. No GitHub response body, authorization code, token or secrets
+ * are included in responses or logs. The callback has already verified
+ * the one-time PKCE state and HttpOnly flow cookie before these can surface. */
+class OAuthProviderFault extends Error {
+  constructor(code) { super(code); this.publicCode=code; }
+}
+const TOKEN_FAILURES=Object.freeze({
+  incorrect_client_credentials:'oauth_github_client_credentials',
+  redirect_uri_mismatch:'oauth_github_redirect_uri_mismatch',
+  bad_verification_code:'oauth_github_code_invalid',
+  unverified_user_email:'oauth_github_email_unverified',
+  application_suspended:'oauth_github_app_suspended'
+});
+function githubTokenFailure(json) {
+  return TOKEN_FAILURES[json?.error] || 'oauth_github_token_rejected';
+}
+async function providerJson(res,stage) {
+  try{return await res.json();}
+  catch(_){throw new OAuthProviderFault('oauth_github_'+stage+'_invalid_response');}
+}
 async function githubAccount(code,verifier,env,providerFetch) {
-  const tokenResponse=await providerFetch('https://github.com/login/oauth/access_token',{
+
+  let tokenResponse;
+  try { tokenResponse=await providerFetch('https://github.com/login/oauth/access_token',{
     method:'POST',redirect:'error',headers:{
       'Content-Type':'application/x-www-form-urlencoded',
       'Accept':'application/json','User-Agent':'BAS-Community-Auth'
@@ -214,16 +238,24 @@ async function githubAccount(code,verifier,env,providerFetch) {
       client_secret:env.GITHUB_CLIENT_SECRET,
       code,redirect_uri:env.AUTH_API_ORIGIN+'/v1/auth/github/callback',code_verifier:verifier
     })
-  });
-  if(!tokenResponse.ok)throw Error('oauth_code_exchange_failed');
-  const token=await tokenResponse.json();
-  if(typeof token?.access_token!=='string'||!token.access_token)return null;
-  const identityResponse=await providerFetch('https://api.github.com/user',{
+  }); }
+  catch(_) {throw new OAuthProviderFault('oauth_github_token_network_error');}
+  const token=await providerJson(tokenResponse,'token');
+  if(!tokenResponse.ok || token?.error)
+    throw new OAuthProviderFault(githubTokenFailure(token));
+  if(typeof token?.access_token!=='string'||!token.access_token)
+    throw new OAuthProviderFault('oauth_github_token_missing');
+  let identityResponse;
+  try { identityResponse=await providerFetch('https://api.github.com/user',{
     method:'GET',redirect:'error',
     headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+token.access_token,'User-Agent':'BAS-Community-Auth'}
-  });
-  if(!identityResponse.ok)throw Error('oauth_identity_failed');
-  const identity=await identityResponse.json();
+  }); }
+  catch(_) {throw new OAuthProviderFault('oauth_github_identity_network_error');}
+  if(!identityResponse.ok)
+    throw new OAuthProviderFault(identityResponse.status===401 ? 'oauth_github_identity_unauthorized' :
+      identityResponse.status===403 ? 'oauth_github_identity_forbidden' :
+      identityResponse.status===429 ? 'oauth_github_identity_rate_limited' : 'oauth_github_identity_http_error');
+  const identity=await providerJson(identityResponse,'identity');
   const subject=String(identity?.id??'');
   if(!/^[1-9][0-9]{0,19}$/.test(subject))return null;
   return {subject,handle:safeGitHubName(identity.login),display:displayName(identity.name,safeGitHubName(identity.login))};
@@ -268,7 +300,7 @@ async function loginCallback(request,env,url,providerFetch) {
   if(!row)return fail(request,env,'oauth_state_invalid',400,gone);
   let profile;
   try{profile=await githubAccount(code,row.pkce_verifier,env,providerFetch);}
-  catch(_){return fail(request,env,'oauth_provider_unavailable',503,gone);}
+  catch(e){return fail(request,env,e instanceof OAuthProviderFault?e.publicCode:'oauth_provider_unavailable',503,gone);}
   if(!profile)return fail(request,env,'oauth_identity_invalid',403,gone);
   // Private beta: an explicit provider-ID allowlist is mandatory until a separate public signup approval.
   const betaIds=String(env.AUTH_BETA_GITHUB_IDS||'').split(',').map(x=>x.trim()).filter(Boolean);
