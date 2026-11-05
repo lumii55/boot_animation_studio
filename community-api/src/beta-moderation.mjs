@@ -76,8 +76,17 @@ async function queue(env){
    "FROM community_reports r JOIN animations a ON a.id=r.animation_id "+
    "JOIN community_users u ON u.id=r.reporter_id "+
    "WHERE r.status='open' ORDER BY r.created_at ASC LIMIT 50").bind().all()).results||[];
+  const comment_reports=(await env.DB.prepare(
+   'SELECT r.id,r.comment_id,r.reason,r.created_at,c.animation_id,c.content,'+
+   'u.handle AS comment_author,p.handle AS reporter_handle,a.title AS animation_title '+
+   'FROM comment_reports r JOIN community_comments c ON c.id=r.comment_id '+
+   'JOIN community_users u ON u.id=c.author_id '+
+   'JOIN community_users p ON p.id=r.reporter_id '+
+   'JOIN animations a ON a.id=c.animation_id '+
+   "WHERE r.status='open' AND c.status='visible' ORDER BY r.created_at ASC LIMIT 50"
+  ).bind().all()).results||[];
   return send(200,{pending:[...pending.map(p=>({...p,review_kind:'publication'})),
-    ...revisions.map(p=>({...p,review_kind:'revision'}))].sort((a,b)=>a.created_at-b.created_at).slice(0,75),reports});
+    ...revisions.map(p=>({...p,review_kind:'revision'}))].sort((a,b)=>a.created_at-b.created_at).slice(0,75),reports,comment_reports});
  }catch(_){return fail(503,'moderation_unavailable');}
 }
 async function decideOwnerRevision(env,user,id,rev,action,reason){
@@ -208,6 +217,29 @@ async function settleReport(req,env,user,id){
   return send(200,{report_id:id,status:data.action==='dismiss'?'dismissed':'resolved'});
  }catch(_){return fail(503,'moderation_unavailable');}
 }
+async function moderateComment(req,env,user,id){
+ if(!ID.test(id))return fail(404,'not_found');
+ const data=await body(req);
+ if(!data||!['hide','dismiss'].includes(data.action)||!optionalAdminReason(data.reason)||
+  Object.keys(data).some(k=>!['action','reason'].includes(k)))return fail(400,'invalid_decision');
+ const row=await env.DB.prepare('SELECT r.id,r.comment_id,c.animation_id,c.status AS comment_status '+
+  "FROM comment_reports r JOIN community_comments c ON c.id=r.comment_id WHERE r.id=? AND r.status='open'").bind(id).first();
+ if(!row)return fail(409,'report_not_open');
+ const action=data.action,now=Math.floor(Date.now()/1000),batch=[];
+ if(action==='hide'){
+  if(row.comment_status!=='visible')return fail(409,'comment_not_visible');
+  batch.push(env.DB.prepare("UPDATE community_comments SET status='hidden',updated_at=? WHERE id=? AND status='visible'")
+   .bind(now,row.comment_id));
+  batch.push(env.DB.prepare("UPDATE comment_reports SET status='resolved',reviewed_at=? WHERE comment_id=? AND status='open'")
+   .bind(now,row.comment_id));
+ }else batch.push(env.DB.prepare("UPDATE comment_reports SET status='dismissed',reviewed_at=? WHERE id=? AND status='open'").bind(now,id));
+ batch.push(env.DB.prepare(
+  'INSERT INTO moderation_events(id,animation_id,moderator_id,action,reason) VALUES(?,?,?,?,?)'
+ ).bind(uuid(),row.animation_id,user.userId,action==='hide'?'hide':'report',
+  'comment '+row.comment_id+(data.reason?': '+data.reason:'')));
+ try{await env.DB.batch(batch);return send(200,{report_id:id,action,comment_id:row.comment_id});}
+ catch(_){return fail(409,'comment_moderation_conflict');}
+}
 async function pendingDownload(env,id,editId=null){
  if(!ID.test(id)||env.STAGING_DOWNLOADS_APPROVED!=='true'||
     typeof env.PRIVATE_UPLOADS?.get!=='function')return fail(404,'not_found');
@@ -260,6 +292,8 @@ export async function handleModeration(req,env,url,user){
   return decide(req,env,user,path.slice('moderation/decision/'.length));
  if(path.startsWith('moderation/reports/')&&req.method==='POST')
   return settleReport(req,env,user,path.slice('moderation/reports/'.length));
+ if(path.startsWith('moderation/comments/')&&req.method==='POST')
+  return moderateComment(req,env,user,path.slice('moderation/comments/'.length));
  if(path==='moderation/discord/dispatch'&&req.method==='POST')return notifyDiscord(env);
  return fail(404,'not_found');
 }

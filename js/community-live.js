@@ -98,10 +98,51 @@ const EXTRA={
 };
 const tr=k=>window.BASCommunityLabels?.text(language(),k)||
   EXTRA[language()]?.[k]||(language()==='pt'?PT:EN)[k]||EN[k]||k;
+const SOCIAL_TEXT={
+ pt:{tagline:'Uma criação da comunidade',about:'Sobre esta animação',creator:'Criador',follower:'seguidores',
+  like:'Curtir',liked:'Curtido',follow:'Seguir',following:'Seguindo',comment:'Comentários',commentEmpty:'Seja a primeira pessoa a comentar! ✨',
+  commentPlaceholder:'Escreva um comentário (somente texto e emoji)…',commentNote:'Somente texto e emoji · máximo de 600 caracteres · sem imagens, vídeos ou anexos.',
+  commentSend:'Comentar',commentLogin:'Entre com GitHub para comentar e interagir.',commentBusy:'Enviando…',
+  share:'Compartilhar',shareReady:'Compartilhamento preparado!',shareBeta:'No beta local, links para outras pessoas só funcionarão após o lançamento no site público.',
+  remix:'Remixar no Studio',remixTitle:'Abrir esta animação no editor?',remixHelp:'O arquivo aprovado será importado no Studio e poderá substituir o seu projeto atual. Salve antes de continuar. A licença e os créditos do original serão preservados.',
+  remixDenied:'A licença desta animação não permite remix.',remixWorking:'Importando animação no Studio…',remixAttribution:'Remix baseado em',
+  remixOriginal:'Remix de',remixRights:'Ao publicar um remix, você deve respeitar a atribuição e a licença original.',
+  loading:'Carregando conversas…',more:'Mais comentários',reportComment:'Denunciar comentário',reportCommentTitle:'Denunciar comentário',
+  reportCommentHelp:'Descreva o problema (5–500 caracteres). A denúncia vai para moderação privada.',
+  noOwnerFollow:'Sua publicação',back:'Voltar à galeria',statsDownloads:'downloads',statsLikes:'curtidas',
+  statsComments:'comentários',sendError:'Não foi possível concluir a ação.',editPost:'Editar publicação',showProfile:'Ver perfil',
+  cancel:'Cancelar',confirm:'Continuar',remixDisabled:'Somente download · remix não autorizado'},
+ en:{tagline:'A community creation',about:'About this animation',creator:'Creator',follower:'followers',
+  like:'Like',liked:'Liked',follow:'Follow',following:'Following',comment:'Comments',commentEmpty:'Be the first to comment! ✨',
+  commentPlaceholder:'Write a comment (text and emoji only)…',commentNote:'Text and emoji only · up to 600 characters · no images, videos or attachments.',
+  commentSend:'Comment',commentLogin:'Sign in with GitHub to comment and interact.',commentBusy:'Sending…',
+  share:'Share',shareReady:'Ready to share!',shareBeta:'In local beta, links to other people will only work after the public site launches.',
+  remix:'Remix in Studio',remixTitle:'Open this animation in the editor?',remixHelp:'The approved ZIP will be imported in Studio and may replace your current project. Save it first. Original attribution and license will be preserved.',
+  remixDenied:'This animation license does not allow remixing.',remixWorking:'Importing to Studio…',remixAttribution:'Remix based on',
+  remixOriginal:'Remix of',remixRights:'Publishing a remix must respect the original license and attribution.',
+  loading:'Loading discussion…',more:'More comments',reportComment:'Report comment',reportCommentTitle:'Report comment',
+  reportCommentHelp:'Describe the issue (5–500 characters). A private moderator will review it.',
+  noOwnerFollow:'Your post',back:'Back to gallery',statsDownloads:'downloads',statsLikes:'likes',
+  statsComments:'comments',sendError:'Could not complete the action.',editPost:'Edit post',showProfile:'View profile',
+  cancel:'Cancel',confirm:'Continue',remixDisabled:'Download only · remix not permitted'},
+ es:{tagline:'Una creación de la comunidad',about:'Sobre esta animación',creator:'Creador',follower:'seguidores',like:'Me gusta',liked:'Te gusta',follow:'Seguir',following:'Siguiendo',comment:'Comentarios',commentEmpty:'¡Sé la primera persona en comentar! ✨',commentPlaceholder:'Escribe un comentario (solo texto y emojis)…',commentNote:'Solo texto y emojis · hasta 600 caracteres · sin archivos.',commentSend:'Comentar',commentLogin:'Inicia sesión para comentar.',share:'Compartir',remix:'Remezclar en Studio',remixTitle:'¿Abrir en el editor?',remixHelp:'Se importará el ZIP aprobado y se puede reemplazar el proyecto actual. Guárdalo primero.',remixDenied:'La licencia no permite remixes.',remixOriginal:'Remix de',reportComment:'Denunciar comentario',reportCommentTitle:'Denunciar comentario',reportCommentHelp:'Explica el motivo (5–500 caracteres).',loading:'Cargando comentarios…',more:'Más comentarios',statsDownloads:'descargas',statsLikes:'me gusta',statsComments:'comentarios',editPost:'Editar publicación',showProfile:'Ver perfil',cancel:'Cancelar',confirm:'Continuar'},
+ fr:{tagline:'Une création de la communauté',about:'À propos de cette animation',creator:'Créateur',follower:'abonnés',like:'Aimer',liked:'Aimé',follow:'Suivre',following:'Abonné',comment:'Commentaires',commentEmpty:'Soyez la première personne à commenter ! ✨',commentPlaceholder:'Écrivez un commentaire (texte et émojis uniquement)…',commentNote:'Texte et émojis uniquement · 600 caractères max · aucun fichier.',commentSend:'Commenter',commentLogin:'Connectez-vous pour commenter.',share:'Partager',remix:'Remixer dans Studio',remixTitle:'Ouvrir dans l’éditeur ?',remixHelp:'Le ZIP approuvé sera importé et peut remplacer le projet actuel. Sauvegardez-le avant.',remixDenied:'Cette licence interdit les remixes.',remixOriginal:'Remix de',reportComment:'Signaler un commentaire',reportCommentTitle:'Signaler un commentaire',reportCommentHelp:'Expliquez le problème (5 à 500 caractères).',loading:'Chargement…',more:'Plus de commentaires',statsDownloads:'téléchargements',statsLikes:'j’aime',statsComments:'commentaires',editPost:'Modifier la publication',showProfile:'Voir le profil',cancel:'Annuler',confirm:'Continuer'},
+ de:{tagline:'Ein Werk der Community',about:'Über diese Animation',creator:'Ersteller',follower:'Follower',like:'Gefällt mir',liked:'Gefällt dir',follow:'Folgen',following:'Folge ich',comment:'Kommentare',commentEmpty:'Schreibe den ersten Kommentar! ✨',commentPlaceholder:'Kommentar schreiben (nur Text und Emoji)…',commentNote:'Nur Text und Emoji · max. 600 Zeichen · keine Dateien.',commentSend:'Kommentieren',commentLogin:'Zum Kommentieren anmelden.',share:'Teilen',remix:'Im Studio remixen',remixTitle:'Im Editor öffnen?',remixHelp:'Die genehmigte ZIP-Datei wird importiert und kann dein aktuelles Projekt ersetzen. Bitte vorher speichern.',remixDenied:'Diese Lizenz erlaubt keine Remixe.',remixOriginal:'Remix von',reportComment:'Kommentar melden',reportCommentTitle:'Kommentar melden',reportCommentHelp:'Beschreibe das Problem (5–500 Zeichen).',loading:'Lädt…',more:'Weitere Kommentare',statsDownloads:'Downloads',statsLikes:'Likes',statsComments:'Kommentare',editPost:'Beitrag bearbeiten',showProfile:'Profil ansehen',cancel:'Abbrechen',confirm:'Fortfahren'},
+ it:{tagline:'Una creazione della community',about:'Informazioni sull’animazione',creator:'Creatore',follower:'follower',like:'Mi piace',liked:'Ti piace',follow:'Segui',following:'Segui già',comment:'Commenti',commentEmpty:'Lascia il primo commento! ✨',commentPlaceholder:'Scrivi un commento (solo testo ed emoji)…',commentNote:'Solo testo ed emoji · massimo 600 caratteri · nessun allegato.',commentSend:'Commenta',commentLogin:'Accedi per commentare.',share:'Condividi',remix:'Remix nello Studio',remixTitle:'Aprire nell’editor?',remixHelp:'Lo ZIP approvato sarà importato e potrebbe sostituire il progetto corrente. Salvalo prima.',remixDenied:'La licenza non consente remix.',remixOriginal:'Remix di',reportComment:'Segnala commento',reportCommentTitle:'Segnala commento',reportCommentHelp:'Descrivi il problema (5–500 caratteri).',loading:'Caricamento…',more:'Altri commenti',statsDownloads:'download',statsLikes:'mi piace',statsComments:'commenti',editPost:'Modifica post',showProfile:'Vedi profilo',cancel:'Annulla',confirm:'Continua'},
+ ja:{tagline:'コミュニティ作品',about:'このアニメーションについて',creator:'作者',follower:'フォロワー',like:'いいね',liked:'いいね済み',follow:'フォロー',following:'フォロー中',comment:'コメント',commentEmpty:'最初のコメントを書こう！ ✨',commentPlaceholder:'コメント（テキスト・絵文字のみ）…',commentNote:'テキスト・絵文字のみ · 最大600文字 · 添付不可',commentSend:'投稿',commentLogin:'コメントするにはログインしてください。',share:'共有',remix:'Studioでリミックス',remixTitle:'エディターで開きますか？',remixHelp:'承認済みZIPを読み込みます。現在のプロジェクトが置き換わる可能性があるので先に保存してください。',remixDenied:'このライセンスではリミックスできません。',remixOriginal:'元の作品',reportComment:'コメントを通報',reportCommentTitle:'コメントを通報',reportCommentHelp:'理由を5〜500文字で入力してください。',loading:'読み込み中…',more:'もっと見る',statsDownloads:'ダウンロード',statsLikes:'いいね',statsComments:'コメント',editPost:'投稿を編集',showProfile:'プロフィールを見る',cancel:'キャンセル',confirm:'続行'},
+ zh:{tagline:'社区作品',about:'关于这个动画',creator:'创作者',follower:'关注者',like:'点赞',liked:'已点赞',follow:'关注',following:'已关注',comment:'评论',commentEmpty:'发表第一条评论吧！ ✨',commentPlaceholder:'写评论（仅限文字和表情）…',commentNote:'仅限文字和表情 · 最多600字 · 不支持附件',commentSend:'发表',commentLogin:'登录后可发表评论。',share:'分享',remix:'在 Studio 中二次创作',remixTitle:'在编辑器中打开？',remixHelp:'将导入已审核ZIP，可能替换当前项目。请先保存。',remixDenied:'该许可证不允许二次创作。',remixOriginal:'改编自',reportComment:'举报评论',reportCommentTitle:'举报评论',reportCommentHelp:'请输入5至500字的原因。',loading:'加载中…',more:'更多评论',statsDownloads:'下载',statsLikes:'点赞',statsComments:'评论',editPost:'编辑帖子',showProfile:'查看主页',cancel:'取消',confirm:'继续'}
+};
+Object.assign(SOCIAL_TEXT.es,{commentBusy:'Enviando…',shareReady:'¡Listo para compartir!',shareBeta:'El enlace de esta beta local solo funciona en tu dispositivo hasta el lanzamiento público.',remixWorking:'Importando al Studio…',remixAttribution:'Remix basado en',remixRights:'Publicar un remix requiere respetar la licencia y los créditos originales.',noOwnerFollow:'Tu publicación',back:'Volver a la galería',sendError:'No se pudo completar la acción.',remixDisabled:'Solo descarga · remix no autorizado'});
+Object.assign(SOCIAL_TEXT.fr,{commentBusy:'Envoi…',shareReady:'Prêt à partager !',shareBeta:'Le lien de la bêta locale ne marche que sur votre appareil avant le lancement public.',remixWorking:'Importation dans Studio…',remixAttribution:'Remix basé sur',remixRights:'Respectez la licence et les crédits d’origine lors de la publication.',noOwnerFollow:'Votre publication',back:'Retour à la galerie',sendError:'Action impossible.',remixDisabled:'Téléchargement uniquement · remix non autorisé'});
+Object.assign(SOCIAL_TEXT.de,{commentBusy:'Wird gesendet…',shareReady:'Bereit zum Teilen!',shareBeta:'Der lokale Beta-Link funktioniert bis zum öffentlichen Start nur auf deinem Gerät.',remixWorking:'Wird in Studio importiert…',remixAttribution:'Remix basierend auf',remixRights:'Beim Veröffentlichen eines Remixes gelten die ursprüngliche Lizenz und Quellenangabe.',noOwnerFollow:'Dein Beitrag',back:'Zur Galerie',sendError:'Aktion fehlgeschlagen.',remixDisabled:'Nur Download · kein Remix erlaubt'});
+Object.assign(SOCIAL_TEXT.it,{commentBusy:'Invio…',shareReady:'Pronto da condividere!',shareBeta:'Il collegamento della beta locale funziona solo su questo dispositivo fino al lancio pubblico.',remixWorking:'Importazione in Studio…',remixAttribution:'Remix basato su',remixRights:'Per pubblicare un remix rispetta la licenza e i crediti originali.',noOwnerFollow:'Il tuo post',back:'Torna alla galleria',sendError:'Impossibile completare l’azione.',remixDisabled:'Solo download · remix non consentito'});
+Object.assign(SOCIAL_TEXT.ja,{commentBusy:'送信中…',shareReady:'共有の準備ができました！',shareBeta:'ローカルβのリンクは正式公開までこの端末だけで動作します。',remixWorking:'Studioへ読み込み中…',remixAttribution:'元の作品',remixRights:'リミックスを投稿する際は元のライセンスとクレジットを守ってください。',noOwnerFollow:'自分の投稿',back:'ギャラリーに戻る',sendError:'操作に失敗しました。',remixDisabled:'ダウンロードのみ・リミックス不可'});
+Object.assign(SOCIAL_TEXT.zh,{commentBusy:'发送中…',shareReady:'已准备分享！',shareBeta:'本地测试链接在公开发布前仅能在此设备使用。',remixWorking:'正在导入 Studio…',remixAttribution:'改编自',remixRights:'发布改编作品时须遵守原始许可证并注明出处。',noOwnerFollow:'你的帖子',back:'返回图库',sendError:'操作失败。',remixDisabled:'仅限下载 · 不允许改编'});
+const st=k=>SOCIAL_TEXT[language()]?.[k]||SOCIAL_TEXT.en[k]||k;
 const state={route:'explore',items:[],query:'',sort:'newest',loading:false,
  status:'',busy:false,selected:null,file:null,source:'zip',title:'',summary:'',
  license:'CC-BY-4.0',author:'',tags:[],rights:false,tagInput:'',drafts:[],
- moderation:null,remotePictures:{avatar:null,banner:null},profileDraft:null,creators:[],creatorItems:[],selectedCreator:null,modal:null,owned:[],editDraft:null};
+ moderation:null,remotePictures:{avatar:null,banner:null},profileDraft:null,creators:[],creatorItems:[],selectedCreator:null,modal:null,owned:[],editDraft:null,social:null,creatorSocial:null,commentText:'',socialBusy:false,commentBusy:false,remix:null};
 const appRoot=()=>document.getElementById('bas-c-view');
 const overlay=()=>document.getElementById('bas-community-preview');
 function chrome(){
@@ -133,7 +174,8 @@ function go(route){
  render();
  if(route==='explore')void fetchGallery();
  if(route==='creators')void fetchCreators();
- if(route==='creator')void fetchCreatorPosts();
+ if(route==='creator'){void fetchCreatorPosts();void fetchCreatorSocial();}
+ if(route==='detail')void fetchSocial();
  if(route==='profile'){void fetchPictures();void fetchDrafts();void fetchOwned();}
 }
 function localStatus(value){
@@ -220,8 +262,10 @@ function creatorView(){
   '<div class="bas-c-profile-content"><div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
   creatorAvatar(creator)+
   '<div class="bas-c-profile-nameblock"><h1 id="bas-c-page-title">'+safe(creator.display_name||creator.handle)+'</h1>'+
-  '<span>@'+safe(creator.handle)+'</span></div></div></div>'+
-  '<p>'+safe(tr('creatorWorks'))+'</p></div></section>'+
+  '<span>@'+safe(creator.handle)+'</span></div></div>'+
+  (!logged()||user()?.handle!==creator.handle?'<button type="button" class="bas-c-button bas-c-button--bright" data-c-action="follow" data-handle="'+safe(creator.handle)+'" aria-pressed="'+Boolean(state.creatorSocial?.following)+'">'+safe(state.creatorSocial?.following?st('following'):st('follow'))+'</button>':'')+
+  '</div><p>'+safe(state.creatorSocial?.bio||tr('creatorWorks'))+'</p>'+
+  '<div class="bas-social-creator-stats">'+socialStat(state.creatorSocial?.followers,st('follower'))+'</div></div></section>'+
   '<section class="bas-c-sectionhead"><h2>'+safe(tr('creatorWorks'))+'</h2></section>'+
   '<div class="bas-c-grid">'+(state.creatorItems.length?state.creatorItems.map(realCard).join(''):
    '<p class="bas-c-noresults">'+safe(tr('creatorEmpty'))+'</p>')+'</div>'+
@@ -288,22 +332,71 @@ function moduleCanApply(){
    bridge?.hasPermission?.('control') &&
    (typeof isConnectedMode==='undefined'||isConnectedMode===true));
 }
+function socialStat(value,label){return '<span class="bas-social-stat"><strong>'+safe(value??0)+'</strong> '+safe(label)+'</span>';}
+function detailSocialComments(item){
+ const data=state.social,comments=data?.comments||[];
+ return '<section class="bas-social-comments" aria-label="'+safe(st('comment'))+'">'+
+  '<div class="bas-social-section-title"><span class="bas-c-kicker">DISCUSSÃO</span><h2>'+safe(st('comment'))+
+  ' <span>'+safe(data?.comments_count??'—')+'</span></h2></div>'+
+  (logged()?'<form id="bas-social-comment-form" class="bas-social-compose">'+
+   '<textarea id="bas-social-comment-text" maxlength="600" required placeholder="'+safe(st('commentPlaceholder'))+'">'+safe(state.commentText)+'</textarea>'+
+   '<div class="bas-social-compose-foot"><small>'+safe(st('commentNote'))+'</small>'+
+   '<button class="bas-c-button bas-c-button--bright" type="submit"'+(state.commentBusy?' disabled':'')+'>'+safe(state.commentBusy?st('commentBusy'):st('commentSend'))+'</button></div></form>':
+   '<p class="bas-social-loginhint">'+safe(st('commentLogin'))+'</p>')+
+  (data===null?'<p class="bas-live-hint">'+safe(st('loading'))+'</p>':
+   comments.length?'<div class="bas-social-comment-list">'+comments.map(c=>
+    '<article class="bas-social-comment" data-comment="'+safe(c.id)+'">'+
+    '<span class="bas-social-comment-avatar" aria-hidden="true">'+safe(c.display_name?.charAt(0)||'✧')+'</span>'+
+    '<div class="bas-social-comment-content"><div class="bas-social-comment-meta"><strong>@'+safe(c.handle)+'</strong><time datetime="'+new Date(Number(c.created_at)*1000).toISOString()+'">'+
+    safe(new Date(Number(c.created_at)*1000).toLocaleDateString(language()))+'</time></div>'+
+    '<p>'+safe(c.content)+'</p><div class="bas-social-comment-actions">'+
+    '<button type="button" class="bas-social-ghost" data-c-action="comment-like" data-id="'+safe(c.id)+'" aria-pressed="'+Boolean(c.liked)+'">'+(c.liked?'♥':'♡')+' '+safe(c.likes)+' '+safe(st('like'))+'</button>'+
+    (logged()&&c.handle!==user()?.handle?'<button type="button" class="bas-social-ghost" data-c-action="comment-report" data-id="'+safe(c.id)+'">⚑ '+safe(st('reportComment'))+'</button>':'')+
+    '</div></div></article>').join('')+'</div>':
+   '<p class="bas-social-comment-empty">'+safe(st('commentEmpty'))+'</p>')+
+  (data?.next_offset!==null&&data?.next_offset!==undefined?'<button type="button" class="bas-c-button bas-social-more" data-c-action="comments-more">'+safe(st('more'))+'</button>':'')+
+  '</section>';
+}
 function detailsView(){
  const item=state.selected;
  if(!item)return galleryView();
  const mine=logged()?state.owned.find(owned=>owned.id===item.id):null;
- return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
-  '<h1 id="bas-c-page-title">'+safe(item.title)+'</h1><p>@'+safe(item.handle)+'</p></section>'+
-  '<div class="bas-c-publish-draft bas-live-detail"><div class="bas-live-detail-preview"><canvas class="bas-live-anim-canvas" data-bas-animation="'+safe(item.id)+'" aria-hidden="true"></canvas><span class="bas-live-preview-loading" aria-hidden="true">✧</span></div><p>'+safe(item.summary||'')+'</p>'+
-   '<p>'+safe((item.tags||[]).map(x=>'#'+x).join(' · '))+'</p>'+
-   '<p>'+safe(item.license)+' · '+safe(item.fps)+' fps · '+safe(item.width)+'×'+safe(item.height)+'</p>'+
-   '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="download" data-id="'+safe(item.id)+'">'+safe(tr('download'))+'</button>'+
-    (moduleCanApply()?'<button type="button" class="bas-c-button" data-c-action="apply-module" data-id="'+safe(item.id)+'">'+
-     (language()==='pt'?'Aplicar no celular':'Apply to phone')+'</button>':'')+
-    (mine?'':('<button type="button" class="bas-c-button" data-c-action="report" data-id="'+safe(item.id)+'">'+safe(tr('report'))+'</button>'))+
-    (mine&&!mine.edit_id?'<button type="button" class="bas-c-button" data-c-action="edit-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerEdit'))+'</button>':'')+
-    (mine?'<button type="button" class="bas-c-button bas-live-danger" data-c-action="remove-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerRemove'))+'</button>':'')+
-    '<button type="button" class="bas-c-button" data-c-action="back-gallery">'+safe(tr('cancel'))+'</button></div></div>'+statusHTML();
+ const self=logged()&&user()?.handle===item.handle;
+ const stats=state.social||{};
+ const canRemix=item.license!=='all-rights-reserved'&&stats.can_remix!==false;
+ const creatorAvatarMarkup=creatorAvatar({handle:item.handle,display_name:item.display_name||item.handle});
+ return '<article class="bas-social-publication">'+
+  '<header class="bas-social-heading"><span class="bas-c-kicker">✦ BAS COMMUNITY</span>'+
+   '<h1 id="bas-c-page-title">'+safe(item.title)+'</h1>'+
+   '<p>'+safe(st('tagline'))+'</p></header>'+
+  '<div class="bas-social-post-grid"><div class="bas-social-post-main">'+
+   '<div class="bas-social-preview"><canvas class="bas-live-anim-canvas" data-bas-animation="'+safe(item.id)+'" aria-hidden="true"></canvas>'+
+    '<span class="bas-live-preview-loading" aria-hidden="true">✧</span><div class="bas-social-preview-corner">'+safe(item.fps)+' FPS</div></div>'+
+   '<div class="bas-social-metrics">'+socialStat(stats.likes??item.like_count,st('statsLikes'))+
+    socialStat(stats.comments_count,st('statsComments'))+socialStat(item.download_count,st('statsDownloads'))+'</div>'+
+   '<section class="bas-social-about"><span class="bas-c-kicker">'+safe(st('about'))+'</span>'+
+    '<p>'+safe(item.summary||'—')+'</p>'+
+    '<div class="bas-social-tags">'+(item.tags||[]).map(x=>'<span>#'+safe(x)+'</span>').join('')+'</div>'+
+    (item.remix_of?'<p class="bas-social-provenance">↝ '+safe(st('remixOriginal'))+' <button type="button" data-c-action="detail" data-id="'+safe(item.remix_of.id)+'">'+safe(item.remix_of.title)+' · @'+safe(item.remix_of.handle)+'</button></p>':'')+
+    '<div class="bas-social-specs"><span>'+safe(item.license)+'</span><span>'+safe(item.width)+' × '+safe(item.height)+'</span><span>'+safe(item.fps)+' fps</span></div>'+
+   '</section>'+detailSocialComments(item)+'</div>'+
+  '<aside class="bas-social-sidebar"><section class="bas-social-creator-card"><span class="bas-c-kicker">'+safe(st('creator'))+'</span>'+
+   '<div class="bas-social-authorline">'+creatorAvatarMarkup+
+    '<div><strong>'+safe(item.display_name||item.handle)+'</strong><span>@'+safe(item.handle)+'</span></div></div>'+
+   '<p>'+safe(stats.followers??'—')+' '+safe(st('follower'))+'</p>'+
+   '<div class="bas-social-card-actions">'+
+    (!self?'<button type="button" class="bas-c-button bas-c-button--bright" data-c-action="follow" data-handle="'+safe(item.handle)+'" aria-pressed="'+Boolean(stats.following)+'">'+safe(stats.following?st('following'):st('follow'))+'</button>':'')+
+    '<button type="button" class="bas-c-button" data-c-action="creator-author" data-handle="'+safe(item.handle)+'">'+safe(st('showProfile'))+'</button></div></section>'+
+   '<section class="bas-social-action-card"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="download" data-id="'+safe(item.id)+'">↓ '+safe(tr('download'))+'</button>'+
+    (canRemix?'<button type="button" class="bas-c-button bas-social-remix" data-c-action="remix" data-id="'+safe(item.id)+'">✦ '+safe(st('remix'))+'</button>':
+     '<p class="bas-live-hint">'+safe(st('remixDisabled'))+'</p>')+
+    '<button type="button" class="bas-c-button" data-c-action="like-animation" data-id="'+safe(item.id)+'" aria-pressed="'+Boolean(stats.liked)+'">'+(stats.liked?'♥':'♡')+' '+safe(stats.liked?st('liked'):st('like'))+'</button>'+
+    '<button type="button" class="bas-c-button" data-c-action="share-animation" data-id="'+safe(item.id)+'">↗ '+safe(st('share'))+'</button>'+
+    (moduleCanApply()?'<button type="button" class="bas-c-button" data-c-action="apply-module" data-id="'+safe(item.id)+'">'+safe(tr('apply'))+'</button>':'')+
+    (mine&&!mine.edit_id?'<button type="button" class="bas-c-button" data-c-action="edit-animation" data-id="'+safe(item.id)+'">✎ '+safe(st('editPost'))+'</button>':'')+
+    (mine?'<button type="button" class="bas-c-button bas-live-danger" data-c-action="remove-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerRemove'))+'</button>':
+     '<button type="button" class="bas-c-button" data-c-action="report" data-id="'+safe(item.id)+'">⚑ '+safe(tr('report'))+'</button>')+
+    '</section></aside></div></article>'+statusHTML();
 }
 function uploadView(){
  if(!logged())return welcome();
@@ -317,6 +410,7 @@ function uploadView(){
    (connected?'<button class="bas-c-button" data-c-action="choose-companion">▣ Companion</button>':'')+'</div>')+
   '<input id="bas-live-zip" type="file" accept=".zip,application/zip" hidden>'+
   '<p class="bas-live-hint">'+safe(state.file?.filename||tr('noFile'))+'</p>'+
+  (state.remix?'<div class="bas-social-remix-disclosure">↝ '+safe(st('remixOriginal'))+' '+safe(state.remix.title)+' · @'+safe(state.remix.handle)+'<p>'+safe(st('remixRights'))+'</p></div>':'')+
   '<form id="bas-live-publish-form" class="bas-live-form-fields">'+
   '<label>'+safe(tr('title'))+'<input name="title" id="bas-live-title" maxlength="100" minlength="3" required value="'+safe(state.title)+'"></label>'+
   '<label>'+safe(tr('desc'))+'<textarea name="summary" id="bas-live-summary" maxlength="1000">'+safe(state.summary)+'</textarea></label>'+
@@ -338,10 +432,14 @@ function uploadView(){
 function editAnimationView(){
  const e=state.editDraft;
  if(!e||!logged())return profileView();
- return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
+ return '<section class="bas-c-plainhead"><span class="bas-c-kicker">✦ BAS COMMUNITY</span>'+
   '<h1 id="bas-c-page-title">'+safe(tr('ownerEditTitle'))+'</h1>'+
   '<p>'+safe(tr('ownerEditHelp'))+'</p></section>'+
-  '<form id="bas-owner-edit-form" class="bas-c-publish-draft bas-live-form">'+
+  '<div class="bas-social-edit-header"><div class="bas-social-edit-preview"><canvas class="bas-live-anim-canvas" data-bas-animation="'+safe(e.id)+'" aria-hidden="true"></canvas>'+
+  '<span class="bas-live-preview-loading" aria-hidden="true">✧</span></div>'+
+  '<div><span class="bas-c-kicker">'+safe(st('editPost'))+'</span><h2>'+safe(e.title)+'</h2>'+
+  '<p>'+safe(tr('ownerEditHelp'))+'</p><div class="bas-social-remix-disclosure">✧ '+safe(tr('ownerPendingEdit'))+'</div></div></div>'+
+  '<form id="bas-owner-edit-form" class="bas-c-publish-draft bas-live-form bas-social-edit-form">'+
    '<label>'+safe(tr('title'))+'<input id="bas-owner-title" required minlength="3" maxlength="100" value="'+safe(e.title)+'"></label>'+
    '<label>'+safe(tr('desc'))+'<textarea id="bas-owner-summary" maxlength="1000" rows="4">'+safe(e.summary)+'</textarea></label>'+
    '<label>'+safe(tr('tags'))+'</label>'+
@@ -436,12 +534,15 @@ function renderModal(){
  const host=$('bas-c-modal-host');if(!host)return;
  if(!state.modal){host.replaceChildren();return;}
  const modal=state.modal;
- const contents=modal.kind==='report'
-  ?'<form id="bas-live-report-form"><p>'+safe(tr('reportHelp'))+'</p>'+
+ const contents=(modal.kind==='report'||modal.kind==='comment-report')
+  ?'<form id="bas-live-report-form"><p>'+safe(modal.kind==='comment-report'?st('reportCommentHelp'):tr('reportHelp'))+'</p>'+
    '<label for="bas-live-report-reason">'+safe(tr('reason'))+'</label>'+
    '<textarea id="bas-live-report-reason" required minlength="5" maxlength="500" rows="5">'+safe(modal.reason||'')+'</textarea>'+
    '<div class="bas-live-actions"><button class="bas-c-button bas-c-button--bright" type="submit">'+safe(tr('send'))+'</button>'+
    '<button class="bas-c-button" type="button" data-c-action="modal-close">'+safe(tr('cancel'))+'</button></div></form>'
+  :modal.kind==='remix'?'<p>'+safe(st('remixHelp'))+'</p>'+
+   '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="modal-remix">'+safe(st('confirm'))+'</button>'+
+   '<button type="button" class="bas-c-button" data-c-action="modal-close">'+safe(st('cancel'))+'</button></div>'
   :modal.kind==='remove'?'<p>'+safe(tr('ownerRemoveWarning'))+'</p>'+
    '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-live-danger" data-c-action="modal-remove">'+safe(tr('ownerRemoveConfirm'))+'</button>'+
    '<button type="button" class="bas-c-button" data-c-action="modal-close">'+safe(tr('cancel'))+'</button></div>'
@@ -452,7 +553,7 @@ function renderModal(){
   '<section role="dialog" aria-modal="true" aria-labelledby="bas-live-dialog-title" class="bas-c-modal bas-live-modal">'+
   '<div class="bas-c-modal-top"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
   '<button class="bas-c-roundclose" type="button" data-c-action="modal-close" aria-label="'+safe(tr('close'))+'">×</button></div>'+
-  '<h2 id="bas-live-dialog-title">'+safe(tr(modal.kind==='report'?'reportTitle':modal.kind==='remove'?'ownerRemoveQuestion':'applyTitle'))+'</h2>'+
+  '<h2 id="bas-live-dialog-title">'+safe(modal.kind==='comment-report'?st('reportCommentTitle'):modal.kind==='remix'?st('remixTitle'):tr(modal.kind==='report'?'reportTitle':modal.kind==='remove'?'ownerRemoveQuestion':'applyTitle'))+'</h2>'+
   contents+
   (modal.error?'<p class="bas-live-status" role="alert">'+safe(modal.error)+'</p>':'')+
   '</section></div>';
@@ -511,14 +612,139 @@ async function fetchCreatorPosts(){
  }catch(e){state.creatorItems=[];state.status=e.message;}
  if(state.route==='creator')render();
 }
+async function fetchSocial(){
+ const current=state.selected?.id;
+ if(!current||!/^[a-f0-9]{32}$/.test(current))return;
+ try{
+  const [social,detail]=await Promise.all([api().socialAnimation(current),api().animationDetail(current)]);
+  if(state.route!=='detail'||state.selected?.id!==current)return;
+  state.social=social;
+  if(detail?.animation)state.selected={...state.selected,...detail.animation};
+ }catch(error){if(state.route==='detail'&&state.selected?.id===current)state.status=st('sendError')+' '+String(error.message||error);}
+ if(state.route==='detail'&&state.selected?.id===current)render();
+}
+async function fetchMoreComments(){
+ const current=state.selected?.id,existing=state.social;
+ if(!current||existing?.next_offset==null||state.socialBusy)return;
+ state.socialBusy=true;
+ try{
+  const next=await api().socialAnimation(current,existing.next_offset);
+  if(state.selected?.id===current&&state.route==='detail'){
+   state.social={...next,comments:[...existing.comments,...next.comments]};render();
+  }
+ }catch(error){state.status=String(error.message||error);render();}
+ finally{state.socialBusy=false;}
+}
+async function fetchCreatorSocial(){
+ const handle=state.selectedCreator?.handle;
+ if(!handle)return;
+ try{
+  const social=await api().socialCreator(handle);
+  if(state.route==='creator'&&state.selectedCreator?.handle===handle){state.creatorSocial=social;render();}
+ }catch(error){state.status=String(error.message||error);if(state.route==='creator')render();}
+}
+function requireSocialLogin(){
+ if(logged())return true;
+ state.status=st('commentLogin');render();return false;
+}
+async function toggleAnimationLike(id){
+ if(!requireSocialLogin()||state.socialBusy)return;
+ const was=Boolean(state.social?.liked);state.socialBusy=true;
+ try{
+  const result=await api().likeAnimation(id,!was);
+  if(state.selected?.id===id){state.social={...state.social,liked:result.liked,likes:result.likes};render();}
+ }catch(e){state.status=st('sendError')+' '+String(e.message||e);render();}
+ finally{state.socialBusy=false;}
+}
+async function toggleFollow(handle){
+ if(!requireSocialLogin()||state.socialBusy||handle===user()?.handle)return;
+ const current=(state.route==='creator'&&state.selectedCreator?.handle===handle)?state.creatorSocial:state.social;
+ const was=Boolean(current?.following);state.socialBusy=true;
+ try{
+  const result=await api().followCreator(handle,!was);
+  if(state.selected?.handle===handle&&state.social)state.social={...state.social,following:result.following,followers:result.followers};
+  if(state.selectedCreator?.handle===handle&&state.creatorSocial)state.creatorSocial={...state.creatorSocial,following:result.following,followers:result.followers};
+  render();
+ }catch(e){state.status=st('sendError')+' '+String(e.message||e);render();}
+ finally{state.socialBusy=false;}
+}
+async function sendComment(){
+ const id=state.selected?.id,text=state.commentText.trim();
+ if(!id||!requireSocialLogin()||state.commentBusy)return;
+ if(!text||[...text].length>600){state.status=st('commentNote');render();return;}
+ state.commentBusy=true;
+ try{
+  await api().addComment(id,text);
+  state.commentText='';state.status='';await fetchSocial();
+ }catch(e){state.status=st('sendError')+' '+String(e.message||e);render();}
+ finally{state.commentBusy=false;render();}
+}
+async function toggleCommentLike(id){
+ if(!requireSocialLogin()||state.socialBusy)return;
+ const comment=state.social?.comments.find(c=>c.id===id);if(!comment)return;
+ state.socialBusy=true;
+ try{
+  const res=await api().likeComment(id,!comment.liked);
+  comment.liked=res.liked;comment.likes=res.likes;render();
+ }catch(e){state.status=st('sendError')+' '+String(e.message||e);render();}
+ finally{state.socialBusy=false;}
+}
+async function shareAnimation(){
+ const post=state.selected;if(!post)return;
+ const publicSite=location.hostname==='lumii55.github.io';
+ const url=location.origin+location.pathname+'?community_animation='+encodeURIComponent(post.id);
+ const title=post.title+' · BAS Community';
+ const content=title+' — @'+post.handle+'\n'+url;
+ try{
+  if(navigator.share)await navigator.share({title,text:content,url});
+  else if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(content);
+  else throw Error('share_unavailable');
+  state.status=st(publicSite?'shareReady':'shareBeta');
+ }catch(error){if(error?.name!=='AbortError')state.status=st('shareBeta');}
+ render();
+}
+async function importRemix(id){
+ if(state.socialBusy)return;
+ state.socialBusy=true;state.status=st('remixWorking');render();
+ try{
+  const info=await api().animationDetail(id),original=info?.animation;
+  if(!original||original.license==='all-rights-reserved')throw Error(st('remixDenied'));
+  const social=await api().socialAnimation(id);
+  if(!social.can_remix)throw Error(st('remixDenied'));
+  if(typeof abrirZipNoEditor!=='function'||typeof startManualMode!=='function')throw Error('Studio importer unavailable');
+  const before=typeof currentProject==='undefined'?null:currentProject;
+  const zip=await api().approvedZip(id);
+  // Preserve the exact approved artifact; do not expand archives in this UI.
+  window.BASCommunityPreview?.close();
+  startManualMode();
+  await abrirZipNoEditor(new File([zip],'remix-'+id+'.zip',{type:'application/zip'}));
+  const project=typeof currentProject==='undefined'?null:currentProject;
+  if(!project||project===before)throw Error('ZIP import not confirmed');
+  window.BASCommunityRemixContext={project,id:original.id,title:original.title,
+   handle:original.handle,license:original.license,sourceVersion:original.remix_of?.id||null};
+  state.remix=window.BASCommunityRemixContext;
+  state.status='';
+ }catch(error){state.status=st('sendError')+' '+String(error.message||error);render();}
+ finally{state.socialBusy=false;}
+}
+async function openById(id){
+ if(!/^[a-f0-9]{32}$/.test(id))return false;
+ try{
+  const data=await api().animationDetail(id);
+  if(!data?.animation)return false;
+  state.selected=data.animation;state.social=null;state.commentText='';
+  if(overlay()?.hidden)window.BASCommunityPreview?.open();
+  go('detail');return true;
+ }catch(_){return false;}
+}
 function viewCreator(handle){
  let creator=state.creators.find(x=>x.handle===handle);
  if(!creator&&handle){
-  const known=[...state.items,...state.creatorItems].find(x=>x.handle===handle);
+  const known=[...state.items,...state.creatorItems,...(state.selected?[state.selected]:[])].find(x=>x.handle===handle);
   if(known)creator={handle,display_name:known.display_name||handle,animation_count:0};
  }
  if(!creator)return;
- state.selectedCreator=creator;state.creatorItems=[];
+ state.selectedCreator=creator;state.creatorItems=[];state.creatorSocial=null;
  go('creator');
 }
 async function fetchOwned(){
@@ -556,6 +782,12 @@ function openUpload(file=null,source='zip'){
   state.title=state.title||filename.replace(/\.zip$/i,'');
   state.source=source;
  }else{state.file=null;state.source='zip';}
+ const context=window.BASCommunityRemixContext;
+ const linked=source==='editor'&&context?.project&&(typeof currentProject!=='undefined')&&currentProject===context.project;
+ state.remix=linked?context:null;
+ if(linked){state.title=st('remixOriginal')+' '+context.title;state.summary=st('remixAttribution')+' '+context.title+' · @'+context.handle;
+  state.license=context.license==='CC-BY-SA-4.0'?'CC-BY-SA-4.0':'CC-BY-4.0';
+  state.author=(user()?.display_name||'')+' · @'+context.handle;}
  if(overlay()?.hidden)window.BASCommunityPreview?.open();
  go('upload');return true;
 }
@@ -605,6 +837,7 @@ async function sendPublish(){
   const result=await api().publish(state.file.blob,{
    filename:state.file.filename,source:state.source,title:state.title.trim(),
    summary:state.summary,tags:state.tags.join(', '),license:state.license,
+   ...(state.remix?.id?{remix_of:state.remix.id}:{}),
    author_credit:state.author||user().display_name
   });
   if(result.status!=='pending_review')throw Error('upload_status_unconfirmed');
@@ -664,13 +897,14 @@ function report(id){
 }
 async function sendReport(form){
  const modal=state.modal;
- if(!modal||modal.kind!=='report'||!form)return;
+ if(!modal||!['report','comment-report'].includes(modal.kind)||!form)return;
  const text=form.querySelector('#bas-live-report-reason')?.value?.trim()||'';
  if(text.length<5||text.length>500){
   modal.reason=text;modal.error=tr('minReason');renderModal();return;
  }
  try{
-  await api().report(modal.id,text);
+  if(modal.kind==='comment-report')await api().reportComment(modal.id,text);
+  else await api().report(modal.id,text);
   closeModal();
   state.status=tr('reportSent');render();
  }catch(e){modal.reason=text;modal.error=tr('reportError')+': '+String(e.message||e);renderModal();}
@@ -687,6 +921,7 @@ function handle(event){
  }
  if(action==='modal-remove'){const target=state.modal?.kind==='remove'?state.modal.id:null;
   closeModal();if(target)void removeOwnerAnimation(target);return true;}
+ if(action==='modal-remix'){const id=state.modal?.kind==='remix'?state.modal.id:null;closeModal();if(id)void importRemix(id);return true;}
  if(action==='modal-apply'){
   const selected=state.modal?.kind==='apply'?state.modal.id:null;
   closeModal();
@@ -722,13 +957,28 @@ function handle(event){
  if(action==='creator'||action==='creator-author'){viewCreator(hit.dataset.handle);return true;}
  if(action==='detail'){
   const entry=[...state.items,...state.creatorItems].find(x=>x.id===id);
-  if(entry){state.selected=entry;go('detail');}return true;
+  if(entry){state.selected=entry;state.social=null;state.commentText='';go('detail');}
+  else void openById(id);
+  return true;
+ }
+ if(action==='like-animation'){void toggleAnimationLike(id);return true;}
+ if(action==='follow'){void toggleFollow(hit.dataset.handle);return true;}
+ if(action==='comment-like'){void toggleCommentLike(id);return true;}
+ if(action==='comment-report'){
+  if(requireSocialLogin())openModal('comment-report',id);
+  return true;
+ }
+ if(action==='comments-more'){void fetchMoreComments();return true;}
+ if(action==='share-animation'){void shareAnimation();return true;}
+ if(action==='remix'){
+  if(state.selected?.id===id&&state.selected.license!=='all-rights-reserved')openModal('remix',id);
+  return true;
  }
  if(action==='download'){void download(id);return true;}
  if(action==='apply-module'){if(moduleCanApply())openModal('apply',id);return true;}
  if(action==='report'){void report(id);return true;}
  if(action==='open-owned'){const entry=state.owned.find(v=>v.id===id);
-  if(entry?.status==='published'){state.selected={...entry,handle:user().handle};go('detail');}return true;}
+  if(entry?.status==='published'){state.selected={...entry,handle:user().handle};state.social=null;state.commentText='';go('detail');}return true;}
  if(action==='edit-animation'){openOwnerEdit(id);return true;}
  if(action==='remove-animation'){if(state.owned.some(v=>v.id===id))openModal('remove',id);return true;}
  if(action==='cancel-owner-edit'){void cancelOwnerEdit(id);return true;}
@@ -744,6 +994,7 @@ function handle(event){
 function onInput(event){
  if(!active())return false;
  const id=event.target?.id;
+ if(id==='bas-social-comment-text'){state.commentText=String(event.target.value||'');return true;}
  if(id==='bas-live-search'){
   state.query=String(event.target.value);
   if(searchTimeout)clearTimeout(searchTimeout);
@@ -804,6 +1055,7 @@ function onSubmit(event){
  if(id==='bas-owner-edit-form'){event.preventDefault();void sendOwnerEdit();return true;}
  if(id==='bas-live-publish-form'){event.preventDefault();void sendPublish();return true;}
  if(id==='bas-live-profile-form'){event.preventDefault();void saveProfile(event.target);return true;}
+ if(id==='bas-social-comment-form'){event.preventDefault();void sendComment();return true;}
  if(id==='bas-live-report-form'){event.preventDefault();void sendReport(event.target);return true;}
  return false;
 }
@@ -819,10 +1071,18 @@ function mount(){
 }
 window.BASCommunityLive=Object.freeze({
  active,mount,render,handle,onInput,onChange,onSubmit,openUpload,pullFromDevice,
- showProfile(){if(!active()||!logged())return false;go('profile');return true;}
+ openById,showProfile(){if(!active()||!logged())return false;go('profile');return true;}
 });
 document.getElementById('select-idioma')?.addEventListener?.('change',()=>{
  Promise.resolve().then(()=>{if(active()&&overlay()&&!overlay().hidden)render();});
+});
+// Signed-out users can open a shared approved post. The beta local link only
+// works on its own device; a public URL will work after the main-site launch.
+window.addEventListener('load',()=>{
+ try{
+  const id=new URLSearchParams(location.search).get('community_animation');
+  if(/^[a-f0-9]{32}$/.test(id||'')&&active())void openById(id);
+ }catch(_){}
 });
 window.addEventListener('bas:community-auth',()=>{
  if(!active())return;

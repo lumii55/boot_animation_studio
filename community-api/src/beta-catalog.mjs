@@ -78,7 +78,13 @@ async function detail(id,env){
  if(!idPattern.test(id))return err(404,'not_found');
  try{
   const row=await env.DB.prepare(base+' AND a.id=? LIMIT 1').bind(id).first();
-  return row?result(200,{animation:output(row)}):err(404,'not_found');
+  if(!row)return err(404,'not_found');
+  const source=await env.DB.prepare(
+   'SELECT m.source_animation_id AS id,a.title,u.handle,m.source_license AS license '+
+   'FROM animation_remixes m JOIN animations a ON a.id=m.source_animation_id '+
+   'JOIN community_users u ON u.id=a.owner_id WHERE m.animation_id=? LIMIT 1'
+  ).bind(id).first();
+  return result(200,{animation:{...output(row),remix_of:source||null}});
  }catch(_){return err(503,'catalog_unavailable');}
 }
 async function download(id,env){

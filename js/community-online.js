@@ -199,6 +199,31 @@ async function gallery(search='',offset=0,sort='newest',creator=''){
 async function creators(){
  return request('/v1/beta/creators',{authenticated:false});
 }
+const socialId=id=>{if(!/^[a-f0-9]{32}$/.test(id))throw Error('Invalid social item ID');return id;};
+const socialHandle=h=>{if(!/^[A-Za-z0-9_]{3,32}$/.test(h))throw Error('Invalid creator handle');return h;};
+async function socialAnimation(id,offset=0){
+ const path='/v1/social/animations/'+socialId(id)+'?offset='+Math.max(0,Number(offset)||0);
+ return request(path,{authenticated:Boolean(token&&user)});
+}
+async function socialCreator(handle){
+ return request('/v1/social/creators/'+socialHandle(handle),{authenticated:Boolean(token&&user)});
+}
+async function animationDetail(id){return request('/v1/beta/animations/'+socialId(id),{authenticated:false});}
+async function likeAnimation(id,enabled){
+ return request('/v1/social/animations/'+socialId(id)+'/like',{method:enabled?'PUT':'DELETE'});
+}
+async function followCreator(handle,enabled){
+ return request('/v1/social/creators/'+socialHandle(handle)+'/follow',{method:enabled?'PUT':'DELETE'});
+}
+async function addComment(id,text){
+ return request('/v1/social/animations/'+socialId(id)+'/comments',{method:'POST',data:{text}});
+}
+async function likeComment(id,enabled){
+ return request('/v1/social/comments/'+socialId(id)+'/like',{method:enabled?'PUT':'DELETE'});
+}
+async function reportComment(id,reason){
+ return request('/v1/social/comments/'+socialId(id)+'/reports',{method:'POST',data:{reason}});
+}
 async function report(id,reason){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
  return request('/v1/beta/reports',{method:'POST',data:{animation_id:id,reason}});
@@ -222,7 +247,8 @@ async function publishArchive(file,meta){
    tags:normalizeTags(meta.tags||''),license,author_credit:String(meta.author_credit||user.display_name).slice(0,120),
    allows_remix:license!=='all-rights-reserved',rights_confirmed:true,
    ...(source==='companion'?{companion_permission_confirmed:true}:{}),
-   size_bytes:file.size,filename:'bootanimation.zip'}
+   size_bytes:file.size,filename:'bootanimation.zip',
+   ...(source==='editor'&&/^[a-f0-9]{32}$/.test(meta.remix_of||'')?{remix_of:meta.remix_of}:{})}
  });
  if(!/^[a-f0-9]{32}$/.test(start.draft_id||''))throw Error('Rascunho inválido.');
  return request('/v1/publishing/drafts/'+start.draft_id+'/zip',{
@@ -306,6 +332,7 @@ window.BASCommunityOnline=Object.freeze({
  available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
  state:publicState,refresh,profile:updateProfile,gallery,creators,report,
  publish:publishArchive,drafts,download,approvedZip,media,updateMedia,normalizeTags,
+ socialAnimation,socialCreator,animationDetail,likeAnimation,followCreator,addComment,likeComment,reportComment,
  ownedAnimations,proposeRevision,cancelRevision,withdrawAnimation
 });
 window.addEventListener('DOMContentLoaded',()=>{void init();});

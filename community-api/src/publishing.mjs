@@ -75,7 +75,7 @@ export async function readJson(request,max=4096){
 export function validateMetadata(input,env){
   if(!input||typeof input!=='object')return null;
   const allowed=['source','title','summary','category','license','author_credit','allows_remix',
-    'rights_confirmed','size_bytes','filename','companion_permission_confirmed','tags'];
+    'rights_confirmed','size_bytes','filename','companion_permission_confirmed','tags','remix_of'];
   if(Object.keys(input).some(k=>!allowed.includes(k)))return null;
   const source=input.source;
   if(!SOURCES.has(source))return null;
@@ -98,10 +98,11 @@ export function validateMetadata(input,env){
   if(source==='companion' && input.companion_permission_confirmed!==true)
     return {blocked:'companion_pairing_required'};
   if(source!=='companion' && Object.hasOwn(input,'companion_permission_confirmed'))return null;
+  if(input.remix_of!==undefined&&(!/^[a-f0-9]{32}$/.test(input.remix_of)||source!=='editor'))return null;
   return {
     source,title:input.title.trim(),summary:input.summary.trim(),category:input.category||'abstract',
     license:input.license,author_credit:input.author_credit.trim(),allows_remix:input.allows_remix,
-    size_bytes:input.size_bytes,filename:input.filename,tags
+    size_bytes:input.size_bytes,filename:input.filename,tags,remix_of:input.remix_of||null
   };
 }
 export async function reserveR2Write(env){
@@ -121,6 +122,27 @@ async function createDraft(request,env,user){
   const meta=validateMetadata(raw,env);
   if(meta?.blocked)return fail(request,env,meta.blocked,409);
   if(!meta)return fail(request,env,'invalid_metadata',400);
+  // An adaptation must reference a real approved licensed source. A client flag is
+  // never sufficient permission to remix or to loosen ShareAlike obligations.
+  let remix=null;
+  if(meta.remix_of){
+    remix=await env.DB.prepare(
+     'SELECT a.id,a.published_version_id,r.license,r.allows_remix,u.handle FROM animations a '+
+     'JOIN community_users u ON u.id=a.owner_id '+
+     'JOIN animation_rights r ON r.animation_id=a.id '+
+     'JOIN animation_versions v ON v.id=a.published_version_id '+
+     "WHERE a.id=? AND a.status='published' AND v.status='approved' LIMIT 1"
+    ).bind(meta.remix_of).first();
+    if(!remix||remix.allows_remix!==1||remix.license==='all-rights-reserved')
+      return fail(request,env,'remix_not_permitted',403);
+    if(remix.license==='CC-BY-SA-4.0'&&meta.license!=='CC-BY-SA-4.0')
+      return fail(request,env,'remix_sharealike_required',409);
+    if(remix.license==='CC-BY-4.0'&&!['CC-BY-4.0','CC-BY-SA-4.0'].includes(meta.license))
+      return fail(request,env,'remix_attribution_required',409);
+    if(['CC-BY-4.0','CC-BY-SA-4.0'].includes(remix.license)&&
+       !meta.author_credit.toLowerCase().includes('@'+remix.handle.toLowerCase()))
+      return fail(request,env,'remix_author_credit_required',409);
+  }
   const keyHash=await hash('publish:'+user.userId+':'+idempotency);
   const requestHash=await hash(JSON.stringify(meta));
   const existing=await env.DB.prepare(
@@ -148,6 +170,9 @@ async function createDraft(request,env,user){
       env.DB.prepare(
         'INSERT INTO animation_rights(animation_id,license,author_credit,allows_remix) VALUES(?,?,?,?)'
       ).bind(animationId,meta.license,meta.author_credit,meta.allows_remix?1:0),
+      ...(remix?[env.DB.prepare(
+       'INSERT INTO animation_remixes(animation_id,source_animation_id,source_version_id,source_license) VALUES(?,?,?,?)'
+      ).bind(animationId,remix.id,remix.published_version_id,remix.license)]:[]),
       env.DB.prepare(
         "INSERT INTO upload_reservations(id,user_id,reserved_bytes,status,idempotency_hash,expires_at) VALUES(?,?,?,'reserved',?,?)"
       ).bind(reservationId,user.userId,meta.size_bytes,keyHash,expires),

@@ -1,3 +1,4 @@
+import { handleSocial } from './social.mjs';
 import {handleBetaCatalog,betaCatalogReady} from './beta-catalog.mjs';
 import { handleProfileMedia } from './profile-media.mjs';
 import { handlePublishing, publishingReady } from './publishing.mjs';
@@ -165,6 +166,7 @@ export default {
     // Auth is separately gated by AUTH_ENABLED + owner approval + complete secret config.
     // Even when enabled, upload, moderation and all other mutation routes remain locked.
     if (url.pathname.startsWith('/v1/auth/')) return localCORS(request,env,await handleAuth(request, env, url));
+    if (url.pathname.startsWith('/v1/social/')) return localCORS(request,env,await handleSocial(request,env,url));
     if (url.pathname.startsWith('/v1/publishing/animations') || url.pathname.startsWith('/v1/publishing/revisions/'))
       return localCORS(request,env,await handleOwnerAnimations(request,env,url));
     if (url.pathname.startsWith('/v1/publishing')) return localCORS(request,env,await handlePublishing(request, env, url));

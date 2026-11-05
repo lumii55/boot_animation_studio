@@ -66,6 +66,21 @@ async function createRevision(request,env,user,animationId){
    "WHERE a.id=? AND a.owner_id=? AND a.status='published' AND v.status='approved' LIMIT 1"
   ).bind(animationId,user.userId).first();
   if(!current)return fail(404,'not_found_or_unpublished');
+  // Revisions cannot silently relicense a remix or erase its original credit.
+  const source=await env.DB.prepare(
+   'SELECT m.source_license,u.handle FROM animation_remixes m '+
+   'JOIN animations a ON a.id=m.source_animation_id '+
+   'JOIN community_users u ON u.id=a.owner_id WHERE m.animation_id=? LIMIT 1'
+  ).bind(animationId).first();
+  if(source){
+   if(source.source_license==='CC-BY-SA-4.0'&&meta.license!=='CC-BY-SA-4.0')
+    return fail(409,'remix_sharealike_required');
+   if(source.source_license==='CC-BY-4.0'&&!['CC-BY-4.0','CC-BY-SA-4.0'].includes(meta.license))
+    return fail(409,'remix_attribution_required');
+   if(['CC-BY-4.0','CC-BY-SA-4.0'].includes(source.source_license)&&
+      !meta.author_credit.toLowerCase().includes('@'+source.handle.toLowerCase()))
+    return fail(409,'remix_author_credit_required');
+  }
   const revisionId=randomId(),reservationId=replacing?randomId():null,
     expires=replacing?timestamp()+900:null;
   const changes=[];
