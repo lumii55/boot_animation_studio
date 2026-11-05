@@ -106,3 +106,28 @@ test('BAS saved profile navigates to read-only profile view, editing remains rev
   assert.equal(hashes.at(-1),'#meu-perfil');
   assert.ok(paths.includes('/v1/auth/profile'));
 });
+
+test('private publication UI is wired to the same-origin engine but never auto-publishes',async()=>{
+  const html=await(await get('/')).text();
+  for(const marker of ['id="publish-panel"','id="publish-form"','id="publish-rights"',
+    'id="publish-file"','id="publish-drafts"','src="/beta/publish.js"'])
+    assert.ok(html.includes(marker),marker);
+  const response=await get('/beta/publish.js');
+  assert.equal(response.status,200);
+  const js=await response.text();
+  const {Script}=await import('node:vm');
+  new Script(js);
+  for(const fragment of ["'/v1/publishing'", "credentials:'same-origin'",
+    'Idempotency-Key','pending_review',"type:'bas:p15:portal-ready'",
+    "ev.origin!==openerOrigin","ev.source!==window.opener",
+    "window.confirm('Enviar este ZIP"])
+    assert.ok(js.includes(fragment),fragment);
+  assert.ok(js.includes('companion_permission_confirmed'));
+  assert.match(response.headers.get('cache-control'),/no-store/);
+  assert.doesNotMatch(js,/innerHTML\s*=/);
+});
+
+test('private publisher is not available unless beta portal authorizations pass',async()=>{
+  const response=await get('/beta/publish.js','GET',{...env,BETA_PORTAL_ENABLED:'false'});
+  assert.equal(response.status,404);
+});

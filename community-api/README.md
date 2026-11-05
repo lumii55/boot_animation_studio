@@ -210,3 +210,15 @@ Cloudflare Images Free includes up to 5,000 unique transformations/month before 
 - Testes cumulativos locais: 17 frontend + 70 backend JS + 33 SQLite = 120/120 aprovados. Teste com navegador simulado confirmou salvar e voltar automaticamente ao perfil. GET privado de imagem exige sessao valida, mas nao Origin/CSRF porque browsers podem nao enviar Origin em GET; PUT continua protegido com Origin e CSRF.
 - Ainda precisa de validacao REAL pela proprietaria: recarregar sessao, alterar e salvar nome/bio, selecionar imagem e banner, recortar, enviar e recarregar para confirmar persistencia no R2. Nao declarar P15.6B completamente finalizada ate esses testes passarem.
 - Esta e uma interface de perfis beta no Worker, NAO a liberacao publica da galeria; a integracao futura com o app BAS e publicacoes segue P15.6C-E.
+
+
+## P15.6 — Integracao do beta privado (2026-11-04)
+
+- Perfil real com OAuth/PKCE e personalizacao avatar/banner. Portal beta / mostra formulario para enviar ZIP e lista privada de envios.
+- O backend recebe ZIP/editor/Companion pela mesma validacao de arquivo e fila pending_review, com direito/autoria/licenca, CSRF, idempotencia, cotas e R2 privado. Nunca publica sem moderacao.
+- O BAS local e o editor mantem tudo no navegador; o ZIP gerado e repassado pelo postMessage ao staging somente por clique. O Companion continua com pareamento Android preexistente; o BAS pode ler a copia instalada pelo endpoint local /pull com autorizacao explicita da usuaria e nova confirmacao no portal. O servidor nao pode ler o dispositivo e a indicacao de procedencia nao e prova de hardware.
+- Mecanismo de recuperacao reconcile-publishing.mjs nao tem endpoint HTTP; PUBLISH_MAINTENANCE_APPROVED precisa ser true somente durante manutencao expressamente autorizada.
+- D1 staging com cap global reduzido a 64 MiB. O Worker beta possui PUBLISH_ENABLED, PUBLISH_STAGING_APPROVED e UPLOAD_ENABLED verdadeiros somente no staging com uma conta allowlisted; catalogo e cadastro publico seguem OFF.
+- Versao ativa do Worker 2dcf8a1f-d38b-493d-8144-fd0dee1c7ca9; anterior 5827baa2-885f-4500-ae74-3150c7d65d6b.
+- Testes locais 126/126: frontend 17, backend 76, SQLite 33. Smoke HTTPS: scripts 200, API sem login 403, catalogo 503.
+- ACEITE FINAL PENDENTE de testes reais no Chrome/Companion: ZIP existente ate status pending_review, recarregar lista privada, transferencia do editor e copia do Companion com consentimento. A main e o Companion publicado permanecem inalterados.

@@ -270,7 +270,7 @@
       '<div class="bas-c-side-nav" aria-label="'+safe(tr('menu'))+'">'+navButton('explore','explore','⌕')+navButton('saved','saved','♡')+navButton('creators','creators','♧')+'</div>'+
       '<div class="bas-c-side-bottom"><span class="bas-c-side-flower">✧</span><b>'+safe(tr('local'))+'</b><p>'+safe(tr('localDesc'))+'</p></div></aside>'+
       '<div class="bas-c-stage"><header class="bas-c-topbar"><span class="bas-c-breadcrumb"><span class="bas-c-brand-mini">✦</span> BAS <span class="bas-c-slash">/</span> '+safe(tr('community'))+'</span>'+
-      '<span class="bas-c-topbadge">'+safe(tr('beta'))+'</span><div class="bas-c-topactions"><button type="button" class="bas-c-signin" data-c-action="signin">'+safe(tr('demoAccountBtn'))+'</button>'+
+      '<span class="bas-c-topbadge">'+safe(tr('beta'))+'</span><div class="bas-c-topactions"><button type="button" class="bas-c-signin" data-c-action="real-account" aria-label="Conta BAS Community real">✦ Conta BAS ↗</button><button type="button" class="bas-c-signin" data-c-action="signin">'+safe(tr('demoAccountBtn'))+'</button>'+
       '<button type="button" class="bas-c-close" id="bas-community-close" data-c-action="close" aria-label="'+safe(tr('close'))+'">×</button></div></header>'+
       '<div class="bas-c-mobile-nav" aria-label="'+safe(tr('menu'))+'">'+navButton('explore','explore','⌕')+navButton('saved','saved','♡')+navButton('creators','creators','♧')+'</div>'+
       '<main class="bas-c-scroll" id="bas-c-main"><div id="bas-c-view"></div><div class="bas-c-footnote">✧ BAS Community · '+safe(tr('previewNote'))+'</div></main></div>'+
@@ -412,6 +412,96 @@
       '<div class="bas-c-comment"><span>✿</span><div><strong>@PetalByte · '+safe(tr('demoLabel'))+'</strong><p>'+safe(tr('demoComment2'))+'</p></div></div>'+
       '</div></div></div></section></div>';
   }
+  // Private beta bridge: keeps the exported ZIP in volatile browser memory.
+  // An explicit user click opens staging and initiates a one-time postMessage.
+  // No ZIP is sent to Cloudflare until the owner confirms in the staging form.
+  let recentExport=null;
+  let selectedPublishFile=null;
+  const PRIVATE_BETA_ORIGIN='https://bas-community-staging.caiolive1000.workers.dev';
+  window.BASCommunityExport=Object.freeze({
+    capture(blob,filename){
+      if(!(blob instanceof Blob)||blob.size<=0||blob.size>20*1024*1024)return;
+      recentExport={blob,filename:/^[A-Za-z0-9_. -]{1,86}\.zip$/i.test(filename)
+        ?filename:'bootanimation.zip'};
+    },
+    available(){return !!recentExport;}
+  });
+  async function launchPrivatePublish(){
+    const draft=state.publishDraft;
+    if(!draft.rights||!draft.ready){
+      const status=byId('bas-c-publish-status');
+      if(status)status.textContent='Preencha os dados e confirme seus direitos antes de enviar.';
+      return;
+    }
+    const companion=draft.source==='companion';
+    let chosen=draft.source==='editor'?recentExport:
+      draft.source==='zip'&&selectedPublishFile?{blob:selectedPublishFile,filename:selectedPublishFile.name}:null;
+    if(!companion&&!chosen){
+      const status=byId('bas-c-publish-status');
+      if(status)status.textContent='Exporte ou selecione um arquivo ZIP primeiro.';
+      return;
+    }
+    if(companion){
+      if(typeof apiFetch!=='function'||typeof ensureModuleFeature!=='function'||
+        !ensureModuleFeature('pull') ||
+        (typeof hasModulePermission==='function'&&!hasModulePermission('view'))){
+        const status=byId('bas-c-publish-status');
+        if(status)status.textContent='Conecte e autorize o Companion Android antes de usar esta origem.';
+        return;
+      }
+      if(!window.confirm('Ler uma CÓPIA da animação instalada pelo Companion e prepará-la para envio privado? O aparelho não será modificado.'))return;
+    }
+    const ownOrigin=location.origin;
+    const supported=ownOrigin==='http://127.0.0.1:8088' ||
+      (ownOrigin==='https://lumii55.github.io'&&location.pathname.startsWith('/boot_animation_studio'));
+    if(!supported){
+      window.open(PRIVATE_BETA_ORIGIN+'/','_blank','noopener');
+      return;
+    }
+    const endpoint=PRIVATE_BETA_ORIGIN+'/?editor_origin='+encodeURIComponent(ownOrigin);
+    const other=window.open(endpoint,'_blank');
+    if(!other){
+      const status=byId('bas-c-publish-status');
+      if(status)status.textContent='Seu navegador bloqueou a aba. Permita pop-ups e tente novamente.';
+      return;
+    }
+    let ready=false,completed=false;
+    function send(){
+      if(!ready||!chosen||completed)return;
+      completed=true;clearTimeout(timer);window.removeEventListener('message',receiver);
+      other.postMessage({type:'bas:p15:export-ready',source:draft.source,
+        file:chosen.blob,filename:chosen.filename,title:draft.title,license:draft.license},PRIVATE_BETA_ORIGIN);
+    }
+    function receiver(event){
+      if(event.origin!==PRIVATE_BETA_ORIGIN||event.source!==other||
+          event.data?.type!=='bas:p15:portal-ready')return;
+      ready=true;send();
+    }
+    const timer=window.setTimeout(()=>{
+      window.removeEventListener('message',receiver);
+      const status=byId('bas-c-publish-status');
+      if(status&&!completed)status.textContent='Transferência não confirmada. Selecione o ZIP manualmente no beta.';
+    },60000);
+    window.addEventListener('message',receiver);
+    if(companion){
+      const status=byId('bas-c-publish-status');
+      if(status)status.textContent='Lendo uma cópia do Companion autorizado...';
+      try{
+        const response=await apiFetch('/pull?source=module&t='+Date.now(),{method:'GET'});
+        if(!response.ok)throw new Error('Companion recusou a leitura ('+response.status+')');
+        const size=Number(response.headers.get('Content-Length')||'0');
+        if(size>20*1024*1024)throw new Error('ZIP do dispositivo excede 20 MiB');
+        const blob=await response.blob();
+        if(blob.size<=0||blob.size>20*1024*1024)throw new Error('Arquivo do Companion fora do limite.');
+        chosen={blob,filename:'bootanimation.zip'};
+        if(status)status.textContent='Cópia recebida do Companion. Confirme o envio na aba privada do BAS.';
+        send();
+      }catch(error){
+        clearTimeout(timer);window.removeEventListener('message',receiver);
+        if(status)status.textContent='Não foi possível ler do Companion: '+(error.message||'erro de conexão');
+      }
+    }
+  }
   function upload() {
     const d=state.publishDraft;
     const sources=[['editor','✦','fromEditor','editorText'],['zip','⇧','fromZip','zipText'],['companion','▣','fromDevice','deviceText']];
@@ -439,6 +529,7 @@
       '<option value="'+k+'"'+(d.license===k?' selected':'')+'>'+safe(k)+'</option>').join('')+'</select></label></div>'+
       '<label class="bas-c-publish-rights"><input type="checkbox" id="bas-c-publish-rights"'+(d.rights?' checked':'')+'> '+safe(tr('publishConsent'))+'</label>'+
       '<div class="bas-c-publish-footer"><button type="button" class="bas-c-button bas-c-button--bright" data-c-action="publish-check">'+safe(tr('publishCheck'))+'</button>'+
+      '<button type="button" class="bas-c-button" data-c-action="publish-private">Enviar para beta privado</button>'+
       '<p id="bas-c-publish-status" aria-live="polite">'+safe(tr(d.ready?'publishReady':'publishDemoNote'))+'</p></div>'+
       '</div></section></div>';
   }
@@ -838,10 +929,16 @@
     if(action==='publish-check' && state.modal?.type==='upload'){
       const d=state.publishDraft;
       d.ready=d.rights && d.title.trim().length>=3 && d.title.trim().length<=100 &&
-        !/[<>\x00-\x1f]/.test(d.title) && (d.source!=='zip'||(d.filename&&d.size>0&&d.size<=20*1024*1024));
+        !/[<>\x00-\x1f]/.test(d.title) && (d.source!=='zip'||!!selectedPublishFile) &&
+        (d.source!=='editor'||!!recentExport) &&
+        (d.source!=='companion'||(typeof apiFetch==='function'&&typeof ensureModuleFeature==='function'));
       const status=byId('bas-c-publish-status');
       if(status)status.textContent=tr(d.ready?'publishReady':'publishNeed');
       return;
+    }
+    if(action==='publish-private' && state.modal?.type==='upload'){launchPrivatePublish();return;}
+    if(action==='real-account'){
+      window.open(PRIVATE_BETA_ORIGIN+'/','_blank','noopener');return;
     }
     if (action==='signin') { state.profileDraft={...state.demoProfile}; openModal('account'); return; }
     if (action==='remove-photo' && state.modal?.type==='account') { clearLocalPhoto(element.dataset.photo); return; }
@@ -910,6 +1007,7 @@
       if(!file||!output)return;
       const valid=/\.zip$/i.test(file.name) && file.size<=20*1024*1024 && file.size>0;
       const note=!/\.zip$/i.test(file.name)?tr('wrongType'):file.size>20*1024*1024?tr('overLimit'):tr('fileReady');
+      selectedPublishFile=valid?file:null;
       state.publishDraft.filename=valid?file.name:null;
       state.publishDraft.size=valid?file.size:0;state.publishDraft.ready=false;
       output.textContent=tr('selectedFile')+': '+file.name+' · '+(file.size/1024/1024).toFixed(2)+' MB. '+note;

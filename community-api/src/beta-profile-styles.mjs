@@ -65,6 +65,16 @@ border:1px solid #7d699b;transition:background .14s ease,transform .14s ease}
 .btn.subtle{background:#322741;color:#e9d6ff;border-color:#6d568a}
 .btn:hover,button:hover{filter:brightness(1.11)}
 .btn:disabled,button:disabled{opacity:.55;cursor:wait}
+.publish-panel{margin-top:24px}.publish-panel form{max-width:690px}
+.publish-panel form>label:not(.checkline){display:block;margin:17px 0 7px;font-weight:750;font-size:13px}
+.publish-panel select,.publish-panel input[type=file]{width:100%;padding:12px 14px;border:1px solid #706383;
+border-radius:11px;color:#f4edff;background:#101526}
+.publish-panel .checkline{display:flex;align-items:flex-start;gap:10px;font-size:13px;margin:16px 0}
+.publish-panel .checkline input{flex:0 0 auto;width:auto;max-width:none;margin-top:4px}
+.draft-list{list-style:none;padding:0;display:grid;gap:10px}
+.draft-list li{border:1px solid #6a567a;border-radius:12px;background:#11182b;padding:12px}
+.draft-list strong{display:block;color:#fff}.draft-list span{color:#baa9d2;font-size:12px}
+#publish-status{min-height:20px;color:#d9bef8}
 .editor{margin-top:24px}.editor-header{display:flex;justify-content:space-between;gap:12px;align-items:start}
 .editor-header h2{margin:6px 0 10px;font-size:25px}
 #profile-form{max-width:690px;margin-top:16px}

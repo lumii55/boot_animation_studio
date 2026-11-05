@@ -3,7 +3,7 @@
  * Never serves R2 keys or downloadable objects. Never approves an upload.
  * Requires private R2, real auth, operator activation, and D1 schema 0001-0004.
  */
-import { authConfigured, verifyPublisher } from './auth.mjs';
+import { authConfigured, verifyPublisher, verifyPrivateProfileReader } from './auth.mjs';
 import { validateArchive, ArchiveRejected, ARCHIVE_CAP_BYTES } from './worker-zip.mjs';
 
 const PREFIX='/v1/publishing';
@@ -87,10 +87,12 @@ function validateMetadata(input,env){
   if(input.license==='all-rights-reserved' && input.allows_remix)return null;
   if(!Number.isInteger(input.size_bytes)||input.size_bytes<1||input.size_bytes>ARCHIVE_CAP_BYTES)return null;
   if(typeof input.filename!=='string'||!/^[A-Za-z0-9_. -]{1,86}\.zip$/.test(input.filename))return null;
-  // A Companion client flag alone never authorizes reading a device.
-  // Companion publication is staged in the UI but requires real authenticated device pairing.
-  // A client-provided flag or environment toggle cannot prove that pairing.
-  if(source==='companion')return {blocked:'companion_pairing_required'};
+  // The cloud worker NEVER requests a file from a device. The already paired
+  // local BAS bridge retrieves bytes only after the Android owner's approval.
+  // This flag is a user attestation of *source provenance*, not device auth,
+  // and cannot bypass session, CSRF, ZIP validation, rights or quota checks.
+  if(source==='companion' && input.companion_permission_confirmed!==true)
+    return {blocked:'companion_pairing_required'};
   if(source!=='companion' && Object.hasOwn(input,'companion_permission_confirmed'))return null;
   return {
     source,title:input.title.trim(),summary:input.summary.trim(),category:input.category,
@@ -272,7 +274,10 @@ export async function handlePublishing(request,env,url){
   if(url.origin!==env.AUTH_API_ORIGIN)return fail(request,env,'origin_mismatch',403);
   if(request.method==='OPTIONS')return respond(request,env,204,null);
   let user;
-  try{user=await verifyPublisher(request,env);}catch(_){return fail(request,env,'authentication_unavailable',503);}
+  try{user=request.method==='GET' && url.pathname===PREFIX+'/drafts'
+    ?await verifyPrivateProfileReader(request,env)
+    :await verifyPublisher(request,env);}
+  catch(_){return fail(request,env,'authentication_unavailable',503);}
   if(!user)return fail(request,env,'not_authorized',403);
   try{
     if(url.pathname===PREFIX+'/drafts'&&request.method==='POST')return createDraft(request,env,user);

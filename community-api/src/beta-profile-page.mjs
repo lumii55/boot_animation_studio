@@ -6,7 +6,7 @@ export const profilePage = `<!doctype html>
 <meta name="theme-color" content="#101221">
 <title>Meu perfil · BAS Community Beta</title>
 <link rel="stylesheet" href="/beta/style.css">
-<script defer src="/beta/app.js"></script>
+<script defer src="/beta/app.js"></script>\n<script defer src="/beta/publish.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -55,6 +55,56 @@ export const profilePage = `<!doctype html>
       <div class="empty-icon" aria-hidden="true">✧</div>
       <h3>Seu espaço está pronto para criar!</h3>
       <p>Suas animações aparecerão aqui quando o sistema de publicações privadas for liberado na P15.6.</p>
+    </section>
+    <section class="panel publish-panel" id="publish-panel" aria-labelledby="publish-heading">
+      <div class="section-heading"><div><p class="eyebrow">SUA OFICINA</p>
+        <h2 id="publish-heading">Enviar animação para revisão</h2></div>
+        <span class="coming">Beta privado</span></div>
+      <p>Envie um bootanimation.zip para a fila privada. Nada será divulgado na galeria antes da moderação.</p>
+      <form id="publish-form">
+        <label for="publish-source">Origem do arquivo</label>
+        <select id="publish-source" name="source">
+          <option value="zip">ZIP existente</option>
+          <option value="editor">Exportado pelo editor BAS</option>
+          <option value="companion">Companion (dispositivo pareado)</option>
+        </select>
+        <p class="hint">O BAS pode enviar o último ZIP exportado diretamente para esta página após sua confirmação.</p>
+        <label for="publish-file">Arquivo bootanimation.zip</label>
+        <input id="publish-file" name="file" type="file" accept=".zip,application/zip" required>
+        <p class="hint" id="publish-file-hint">Selecione um arquivo de até 20 MiB, com estrutura de boot animation válida.</p>
+        <label for="publish-title">Título</label>
+        <input id="publish-title" name="title" minlength="3" maxlength="100" required>
+        <label for="publish-summary">Descrição</label>
+        <textarea id="publish-summary" name="summary" rows="3" maxlength="1000"></textarea>
+        <label for="publish-category">Categoria</label>
+        <select id="publish-category" name="category">
+          <option value="abstract">Abstrato</option>
+          <option value="cosmos">Espaço</option>
+          <option value="neon">Neon</option>
+          <option value="pixel">Pixel</option>
+          <option value="nature">Natureza</option>
+          <option value="minimal">Minimalista</option>
+        </select>
+        <label for="publish-license">Licença</label>
+        <select id="publish-license" name="license">
+          <option value="CC-BY-4.0">CC BY 4.0</option>
+          <option value="CC-BY-SA-4.0">CC BY-SA 4.0</option>
+          <option value="CC0-1.0">CC0 (domínio público)</option>
+          <option value="all-rights-reserved">Todos os direitos reservados</option>
+        </select>
+        <label for="publish-credit">Créditos do autor</label>
+        <input id="publish-credit" name="author_credit" maxlength="120">
+        <label class="checkline"><input id="publish-remix" type="checkbox"> Permitir adaptações e remixes</label>
+        <label class="checkline"><input id="publish-rights" type="checkbox" required>
+          Confirmo que tenho os direitos para compartilhar esta animação.</label>
+        <div class="form-actions"><button type="submit" id="publish-submit" class="btn primary">
+          Enviar para revisão privada</button></div>
+      </form>
+      <p id="publish-status" role="status" aria-live="polite"></p>
+      <h3>Meus envios</h3>
+      <ul id="publish-drafts" class="draft-list" aria-live="polite">
+        <li>Carregando seus rascunhos...</li>
+      </ul>
     </section>
     <section id="profile-edit" class="panel editor" hidden aria-label="Editar perfil">
       <div class="editor-header"><div><p class="eyebrow">PERSONALIZAÇÃO</p><h2>Editar perfil</h2></div>

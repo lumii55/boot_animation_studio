@@ -72,7 +72,7 @@ async function boot(){
     if(r.status===401){guest.hidden=false;member.hidden=true;say('Entre no beta para visualizar seu perfil.');return}
     if(!r.ok)throw Error('Sessão indisponível ('+r.status+').');
     const d=await json(r);if(!d.user||typeof d.csrf!=='string')throw Error('Sessão incompleta.');
-    user=d.user;csrf=d.csrf;profile();say('Perfil BAS carregado. ✧');
+    user=d.user;csrf=d.csrf;profile();say('Perfil BAS carregado. ✧');\n    window.dispatchEvent(new Event('bas:authenticated'));
     await Promise.all([refreshPhoto('avatar'),refreshPhoto('banner')]);
   }catch(error){member.hidden=true;guest.hidden=true;say(error.message||'Não foi possível abrir o perfil.');}
 }

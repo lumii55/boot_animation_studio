@@ -509,6 +509,11 @@ function downloadGeneratedBlob(blob, filename) {
 }
 
 async function deliverBootanimation(rawBootAnimBlob, options, t) {
+    // Editor opt-in: keep the generated bootanimation archive locally for
+    // an explicit private Community handoff; never upload automatically.
+    if(window.BASCommunityExport?.capture)
+        window.BASCommunityExport.capture(rawBootAnimBlob,(options.name||'bootanimation')+'.zip');
+
     const deliveryTarget = typeof getBuildDeliveryTarget === 'function' ? getBuildDeliveryTarget() : (isConnectedMode ? 'phone' : 'download');
     if (isConnectedMode && deliveryTarget === 'phone') {
         if (typeof hasModulePermission === 'function' && !hasModulePermission('control')) throw new Error(t.msgFeatureUnavailable);

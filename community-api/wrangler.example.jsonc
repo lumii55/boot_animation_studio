@@ -16,6 +16,7 @@
     "STORAGE_ENABLED": "false",
     "PUBLISH_ENABLED": "false",
     "PUBLISH_STAGING_APPROVED": "false",
+    "PUBLISH_MAINTENANCE_APPROVED": "false",
     "MEDIA_ENABLED": "false",
     "MEDIA_STAGING_APPROVED": "false"
   },

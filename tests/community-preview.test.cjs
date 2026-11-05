@@ -338,8 +338,9 @@ test('P15.6 publishing preview prepares all three paths without sending data',()
     layer.emit('input',{target:{id:'bas-c-publish-title',value:'Minha Animação de Testes'}});
     layer.emit('change',{target:{id:'bas-c-publish-rights',checked:true}});
     h.click('publish-check');
-    assert.match(h.element('bas-c-publish-status').textContent,/Rascunho conferido/);
-    assert.equal(h.window.BASCommunityPreview.state().publishingPreview.ready,true);
+    // The real integration may only prepare an editor submission after an
+    // actual export; a title and rights checkbox are no longer sufficient.
+    assert.equal(h.window.BASCommunityPreview.state().publishingPreview.ready,false);
     h.click('publish-source',{source:'companion'});
     assert.equal(h.window.BASCommunityPreview.state().publishingPreview.source,'companion');
     assert.match(h.element('bas-c-modal-host').innerHTML,/pareamento seguro/);

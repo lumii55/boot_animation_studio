@@ -4,11 +4,13 @@
 
 ## Estado atual
 
+> Os marcos iniciais abaixo registram o estado historico, nao a configuracao atual. Veja o checkpoint consolidado da P15.6 ao final.
+
 - **P15.1–P15.2 — protótipos de interface prontos:** Developer Lab oculto, galeria de demonstração, busca, filtros, detalhes, perfis ilustrados e opções de publicação simuladas.
 - **P15.3 — fundação de API e banco pronta para staging:** Cloudflare D1 `bas-community-staging` criado de verdade, com migrações 0001–0003 aplicadas via API. Worker ainda não publicado; catálogo desligado.
 - **P15.4 — autenticação preparada, não ativada:** GitHub OAuth com PKCE, sessões e proteção CSRF testados localmente; ainda faltam aplicativo OAuth real, credenciais, topologia HTTPS compatível e autorização para abrir contas.
 - **P15.5 — preparação parcial:** validação de ZIP e cotas implementadas/testadas localmente; seletor e recorte de fotos/banners no navegador. **R2 já foi ativado pela proprietária** e o bucket privado `bas-community-staging` (classe Standard) foi criado. O binding `PRIVATE_UPLOADS` está no `wrangler.jsonc` privado do Termux, não no repositório. **Não há uploads reais, Worker público nem imagens persistidas.**
-- **P15.6 — EM DESENVOLVIMENTO:** interface de publicação unificada, APIs autenticadas de rascunho e envio em quarentena privada implementadas/testadas localmente, mas sem login real ou uploads ativados. Pareamento Companion, mídias de perfil persistentes, infraestrutura pública segura e reconciliação R2 ainda pendentes.
+- **P15.6 — BETA PRIVADO IMPLANTADO, ACEITE REAL PENDENTE:** codigo de contas/perfis, fontes editor/ZIP/Companion e motor de quarentena integrados. Falta validar envio real dos tres caminhos para concluir a etapa.
 
 ## Novo roadmap — apenas 4 etapas restantes
 
@@ -150,3 +152,17 @@ No Termux, a cópia experimental é `~/bas-p15-preview`, branch `dev/p15-communi
 - Testes cumulativos locais: 17 frontend + 70 backend JS + 33 SQLite = 120/120 aprovados. Teste com navegador simulado confirmou salvar e voltar automaticamente ao perfil. GET privado de imagem exige sessao valida, mas nao Origin/CSRF porque browsers podem nao enviar Origin em GET; PUT continua protegido com Origin e CSRF.
 - Ainda precisa de validacao REAL pela proprietaria: recarregar sessao, alterar e salvar nome/bio, selecionar imagem e banner, recortar, enviar e recarregar para confirmar persistencia no R2. Nao declarar P15.6B completamente finalizada ate esses testes passarem.
 - Esta e uma interface de perfis beta no Worker, NAO a liberacao publica da galeria; a integracao futura com o app BAS e publicacoes segue P15.6C-E.
+
+
+## P15.6 — checkpoint consolidado do beta privado (2026-11-04)
+
+Status: todos os componentes de codigo e staging foram implantados; a conclusao depende de teste REAL dos tres caminhos. Nenhum ZIP fica publico.
+
+- Perfil OAuth/PKCE real e personalizacao persistente D1/R2; a titular relatou que o perfil persiste apos sair, entrar e recarregar.
+- BAS local http://127.0.0.1:8088/ preservado no Developer Lab. Botao Conta BAS e Enviar para beta conectam a galeria demonstrativa ao staging HTTPS, mantendo os cookies seguros separados do localhost e a main intacta.
+- ZIP existente, arquivo exportado pelo editor (transferencia explicita em memoria por postMessage de origens verificadas) e copia do Companion local pareado (permissao view, confirmacao antes de ler) usam o mesmo backend. O worker jamais acessa o aparelho; a flag do Companion identifica procedencia declarada e nao constitui prova criptografica do hardware. O envio requer NOVA confirmacao no site HTTPS.
+- Arquivos com validacao estrita de ZIP, CRC, expansao, formato e limites sao armazenados apenas na quarentena R2 com estado pending_review no D1; direitos e licencas do autor obrigatorios.
+- Cap do staging reduzido para 64 MiB no ledger D1. Cotas por usuario e dia, limite de operacoes R2 e reconciliador manual de rascunhos expirados/orfaos, sem endpoint HTTP.
+- Cloudflare Worker ativo bas-community-staging version 2dcf8a1f-d38b-493d-8144-fd0dee1c7ca9. Rollback 5827baa2-885f-4500-ae74-3150c7d65d6b. Auth beta allowlist 1. Cadastro publico, galeria real, moderacao e manutencao publica OFF.
+- Testes 126/126 locais (17 frontend, 76 JS API e 33 SQLite). Staging HTTPS: pagina e scripts HTTP 200; /v1/publishing/drafts e envio anonimo HTTP 403; catalogo HTTP 503. Nao afirmar ZIP real enviado nem Companion fisico testado ate a titular confirmar.
+- P15.7, P15.8 e P15.9 devem ser entregues cada uma como um unico marco grande; subdividir apenas diante de bloqueios reais de seguranca, compatibilidade ou infraestrutura. Nao mover para main antes da aprovacao final.

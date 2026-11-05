@@ -135,6 +135,11 @@ test('valid authenticated ZIP submission remains private and is sent to review q
   const catalog=await x.make('/v1/catalog');assert.equal(catalog.status,503);
   const owned=await x.make('/v1/publishing/drafts');assert.equal(owned.status,200);
   assert.equal(owned.body.drafts[0].status,'pending_review');
+  // Browsers omit Origin and CSRF on same-origin GET; the owner session is still required.
+  const browser=await x.make('/v1/publishing/drafts','GET',{Origin:'','X-CSRF-Token':''});
+  assert.equal(browser.status,200);
+  const anonymous=await x.make('/v1/publishing/drafts','GET',{Cookie:'',Origin:'','X-CSRF-Token':''});
+  assert.equal(anonymous.status,403);
   assert.equal(JSON.stringify(owned.body).includes('quarantine/'),false);
   const replay=await x.upload(id,zip);assert.equal(replay.status,409);
   assert.equal(x.calls.filter(c=>c.operation==='put').length,1);
@@ -148,14 +153,27 @@ test('editor export shares the same safe archive validation and queue',async t=>
   assert.equal(uploaded.body.source,'editor');
   assert.equal(x.objects.size,1);
 });
-test('Companion is blocked until pairing/verified-device channel is implemented',async t=>{
+test('Companion requires explicit local-pairing attestation and stays private',async t=>{
   const x=await setup(t),zip=makeZip();
-  const metadata=x.metadata('companion',zip);
-  metadata.companion_permission_confirmed=true;
-  const r=await x.draft(metadata);
-  assert.equal(r.status,409);
-  assert.equal(r.body.error,'companion_pairing_required');
+  const meta=x.metadata('companion',zip);
+  const blocked=await x.draft(meta);
+  assert.equal(blocked.status,409);
+  assert.equal(blocked.body.error,'companion_pairing_required');
   assert.equal(x.db.prepare('SELECT count(*) AS n FROM publication_drafts').get().n,0);
+  meta.companion_permission_confirmed=true;
+  const created=await x.draft(meta);
+  assert.equal(created.status,201);
+  const uploaded=await x.upload(created.body.draft_id,zip);
+  assert.equal(uploaded.status,202);
+  assert.equal(uploaded.body.source,'companion');
+  assert.equal(x.objects.size,1);
+  assert.equal(x.db.prepare('SELECT status FROM animation_versions').get().status,'pending');
+  assert.equal((await x.make('/v1/catalog')).status,503);
+  const unauth=await x.make('/v1/publishing/drafts','POST',{
+    Cookie:'', 'Idempotency-Key':'ANOTHER_COMPANION_TEST_12345',
+    'Content-Type':'application/json'
+  },JSON.stringify(meta));
+  assert.equal(unauth.status,403);
 });
 test('valid idempotency replays do not double-reserve space; altered request conflicts',async t=>{
   const x=await setup(t),zip=makeZip(),meta=x.metadata('zip',zip);
