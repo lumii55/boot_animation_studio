@@ -319,3 +319,15 @@ A API guest devolve HTTP 200 sem login com 0 itens aprovados
 no staging atualmente; a fila do moderador devolve 403 sem token ADM.
 OAuth envia prompt=select_account; BAS e admin separados nos
 ports localhost 8088 e 8090. Aceite humano ainda pendente.
+
+## P15.7 — motivo administrativo opcional (2026-11-05)
+
+- Decisões da administradora não exigem justificativa. Caso seja
+  fornecida, limita-se a 500 caracteres e fica no log de auditoria.
+  Denúncias dos usuários continuam exigindo um motivo.
+- Rejeição é terminal para aquela versão: não aparece na galeria
+  nem é entregue para visitantes por download.
+- Worker privado staging atualizado para versão
+  fe62cf59-8a0c-4846-a43b-bd9c07728f47; sem alterações da main.
+- Regressões locais completas: 151/151 (25 BAS UI, 93 Worker API,
+  33 SQLite). Teste humano de botões/fluxos continua útil.

@@ -352,3 +352,12 @@ migration 0009 aplicada. Foram confirmados 148 testes locais
 agora aceita visitantes; houve 0 itens aprovados no smoke real.
 A interface ADM fica em localhost 8090 fora do BAS; não hospedar
 no Worker público nem no Git do BAS.
+
+### Optional administrator reasons (P15.7)
+
+Moderator decisions and report dismissal now accept missing or empty
+reason; a nonempty reason is bounded to 500 characters, and every
+decision is still audited. End-user reports retain mandatory reasons.
+Rejected animations and versions cannot appear in the approved catalog
+or be downloaded through guest APIs. Beta staging Worker version:
+fe62cf59-8a0c-4846-a43b-bd9c07728f47; no D1 migration needed.

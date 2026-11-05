@@ -283,3 +283,46 @@ test('owner-only admin can inspect private pending ZIP while public guest cannot
   headers:{Origin:'http://127.0.0.1:8090',Authorization:'Bearer '+admin}}),x.env);
  assert.equal(r.status,404);
 });
+
+test('admin may reject without motive; rejected ZIP stays private forever',async t=>{
+ const x=setup(t),a=pending(x,31,'Unapproved private work',['unpublished']);
+ x.env.COMMUNITY_GUEST_READ_ENABLED='true';
+ const response=await x.req('/v1/beta/moderation/decision/'+a.a,'POST',{action:'reject'});
+ assert.equal(response.status,200,JSON.stringify(response.body));
+ assert.equal(response.body.status,'rejected');
+ assert.equal(x.db.prepare('SELECT status FROM animations WHERE id=?').get(a.a).status,'rejected');
+ const audit=x.db.prepare("SELECT action,reason FROM moderation_events WHERE animation_id=? ORDER BY occurred_at DESC LIMIT 1").get(a.a);
+ assert.equal(audit.action,'reject');
+ assert.equal(audit.reason,'');
+ assert.equal((await x.req('/v1/beta/catalog?q=unpublished')).body.items.length,0);
+ assert.equal((await x.req('/v1/beta/downloads/'+a.a)).status,404);
+ assert.equal((await x.req('/v1/beta/moderation/decision/'+a.a,'POST',{action:'approve'})).status,409);
+});
+test('admin approves with blank motive; optional annotations still validated',async t=>{
+ const x=setup(t),a=pending(x,32,'Approved with no explanation',['approved']);
+ assert.equal((await x.req('/v1/beta/moderation/decision/'+a.a,'POST',
+  {action:'approve',reason:''})).status,200);
+ assert.equal(x.db.prepare("SELECT reason FROM moderation_events WHERE animation_id=? AND action='approve'").get(a.a).reason,'');
+ assert.equal((await x.req('/v1/beta/catalog?q=approved')).body.items.length,1);
+ assert.equal((await x.req('/v1/beta/moderation/decision/'+a.a,'POST',
+  {action:'hide',reason:'x'.repeat(501)})).status,400);
+ assert.equal((await x.req('/v1/beta/moderation/decision/'+a.a,'POST',
+  {action:'hide',reason:1234})).status,400);
+ assert.equal((await x.req('/v1/beta/moderation/decision/'+a.a,'POST',
+  {action:'hide'})).status,200);
+ assert.equal((await x.req('/v1/beta/catalog?q=approved')).body.items.length,0);
+});
+test('admin dismisses a report with no reason; user-submitted reasons remain mandatory',async t=>{
+ const x=setup(t),a=x.animation(33,'A reviewed work',['original'],true);
+ assert.equal((await x.req('/v1/beta/reports','POST',{animation_id:a.a})).status,400);
+ assert.equal((await x.req('/v1/beta/reports','POST',{animation_id:a.a,reason:''})).status,400);
+ const report=await x.req('/v1/beta/reports','POST',{
+  animation_id:a.a,reason:'Unrelated complaint under review'
+ });
+ assert.equal(report.status,201);
+ const result=await x.req('/v1/beta/moderation/reports/'+report.body.report_id,'POST',{action:'dismiss'});
+ assert.equal(result.status,200,JSON.stringify(result.body));
+ assert.equal(result.body.status,'dismissed');
+ assert.equal((await x.req('/v1/beta/moderation/queue')).body.reports.length,0);
+ assert.equal(x.db.prepare("SELECT reason FROM moderation_events WHERE animation_id=? AND moderator_id=? AND action='report'").get(a.a,uid).reason,'dismiss');
+});

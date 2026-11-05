@@ -100,3 +100,24 @@ não substituem aceitação da dona.
 - Testes automáticos completos: 148/148 (25 BAS, 90 API,
   33 Python SQLite). Testes de OAuth e Companion reais no
   navegador da dona ainda aguardam confirmação.
+
+## Ajuste de usabilidade do painel ADM — 2026-11-05
+
+A justificativa é **opcional** ao aprovar, rejeitar, ocultar,
+restaurar ou dispensar uma denúncia. Na interface administrativa
+localhost 8090 o campo pode ficar vazio; clicar Cancelar na caixa
+de diálogo continua cancelando a ação. O backend aceita o campo
+reason omitido ou vazio, respeita o limite máximo de 500 caracteres,
+e registra o evento mesmo sem comentário.
+
+A justificativa de uma **denúncia criada por usuário comum**
+permanece obrigatória (5–500 caracteres). A decisão de rejeitar
+define o status rejected tanto na animação quanto na versão,
+sem ingresso na galeria (ela filtra published + approved
+e criador ativo), e o ZIP rejeitado não pode ser baixado pela
+rota pública. Novos testes cobrem essas regras.
+
+Versão staging do Worker desta correção:
+fe62cf59-8a0c-4846-a43b-bd9c07728f47.
+Rollback: 9abba123-c5c0-4003-a657-292c62b5b0d1.
+Nenhuma migração D1 e nenhuma mudança visual no BAS original.

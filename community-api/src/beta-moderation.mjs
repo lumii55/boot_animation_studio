@@ -8,6 +8,9 @@ const uuid=()=>[...crypto.getRandomValues(new Uint8Array(16))]
 const ID=/^[a-f0-9]{32}$/;
 const valid=(s,min,max)=>typeof s==='string'&&[...s.trim()].length>=min&&
   [...s.trim()].length<=max&&!/[\u0000-\u001f\u007f<>]/.test(s);
+// Administrator annotations are optional, but still validated if supplied.
+// Ordinary user-submitted report reasons stay mandatory (5–500 chars).
+const optionalAdminReason=s=>s===undefined||valid(s,0,500);
 async function body(req){
  if(req.headers.get('Content-Type')?.split(';')[0].trim()!=='application/json')return null;
  try{
@@ -68,7 +71,7 @@ async function decide(req,env,user,id){
  if(!ID.test(id))return fail(404,'not_found');
  const data=await body(req);
  if(!data||!['approve','reject','hide','restore'].includes(data.action)||
-  !valid(data.reason,5,500)||Object.keys(data).some(k=>!['action','reason'].includes(k)))
+  !optionalAdminReason(data.reason)||Object.keys(data).some(k=>!['action','reason'].includes(k)))
   return fail(400,'invalid_decision');
  const current=await env.DB.prepare(
   "SELECT a.status,a.published_version_id,d.version_id,d.status AS draft_status,"+
@@ -109,7 +112,7 @@ async function decide(req,env,user,id){
  }
  changes.push(env.DB.prepare(
   'INSERT INTO moderation_events(id,animation_id,version_id,moderator_id,action,reason) VALUES(?,?,?,?,?,?)'
- ).bind(uuid(),id,current.version_id,user.userId,a,data.reason.trim()));
+ ).bind(uuid(),id,current.version_id,user.userId,a,(data.reason||'').trim()));
  if(['approve','reject','hide'].includes(a))changes.push(env.DB.prepare(
   'INSERT INTO discord_outbox(id,animation_id,action) VALUES(?,?,?)'
  ).bind(uuid(),id,a));
@@ -126,7 +129,7 @@ async function settleReport(req,env,user,id){
  if(!ID.test(id))return fail(404,'not_found');
  const data=await body(req);
  if(!data||!['dismiss','resolve'].includes(data.action)||
-  !valid(data.reason,5,500)||Object.keys(data).some(k=>!['action','reason'].includes(k)))
+  !optionalAdminReason(data.reason)||Object.keys(data).some(k=>!['action','reason'].includes(k)))
   return fail(400,'invalid_decision');
  try{
   const report=await env.DB.prepare(
@@ -136,7 +139,7 @@ async function settleReport(req,env,user,id){
   if(!report)return fail(409,'report_not_open');
   await env.DB.prepare(
    "INSERT INTO moderation_events(id,animation_id,moderator_id,action,reason) VALUES(?,?,?,'report',?)"
-  ).bind(uuid(),report.animation_id,user.userId,data.action+': '+data.reason.trim()).run();
+  ).bind(uuid(),report.animation_id,user.userId,data.action+((data.reason||'').trim()?': '+data.reason.trim():'')).run();
   return send(200,{report_id:id,status:data.action==='dismiss'?'dismissed':'resolved'});
  }catch(_){return fail(503,'moderation_unavailable');}
 }
