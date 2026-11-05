@@ -53,7 +53,7 @@ async function queue(env){
  try{
   const pending=(await env.DB.prepare(
    "SELECT a.id,a.title,a.summary,u.handle,d.source,d.created_at,v.width,v.height,"+
-   "v.fps,v.size_bytes,r.license FROM animations a "+
+   "v.fps,v.size_bytes,r.license,CASE WHEN v.preview_key IS NULL THEN 0 ELSE 1 END AS has_preview FROM animations a "+
    "JOIN publication_drafts d ON d.animation_id=a.id "+
    "JOIN community_users u ON u.id=a.owner_id "+
    "JOIN animation_versions v ON v.id=d.version_id "+
@@ -64,7 +64,7 @@ async function queue(env){
    "SELECT a.id,e.id AS edit_id,e.title,e.summary,u.handle,'revision' AS source,"+
    'e.created_at,COALESCE(n.width,v.width) AS width,COALESCE(n.height,v.height) AS height,'+
    'COALESCE(n.fps,v.fps) AS fps,COALESCE(n.size_bytes,v.size_bytes) AS size_bytes,'+
-   'e.license FROM owner_revisions e JOIN animations a ON a.id=e.animation_id '+
+   'e.license,CASE WHEN COALESCE(n.preview_key,v.preview_key) IS NULL THEN 0 ELSE 1 END AS has_preview FROM owner_revisions e JOIN animations a ON a.id=e.animation_id '+
    'JOIN community_users u ON u.id=a.owner_id '+
    'JOIN animation_versions v ON v.id=e.base_version_id '+
    'LEFT JOIN animation_versions n ON n.id=e.version_id '+
@@ -275,6 +275,45 @@ async function pendingDownload(env,id,editId=null){
   }});
  }catch(_){return fail(503,'archive_unavailable');}
 }
+
+async function pendingPreview(env,id,editId=null){
+ if(!ID.test(id)||editId!==null&&!ID.test(editId)||
+   env.STAGING_DOWNLOADS_APPROVED!=='true')return fail(404,'not_found');
+ try{
+  const row=editId?await env.DB.prepare(
+   'SELECT COALESCE(n.preview_key,v.preview_key) AS preview_key FROM owner_revisions e '+
+   'JOIN animations a ON a.id=e.animation_id JOIN animation_versions v ON v.id=e.base_version_id '+
+   'LEFT JOIN animation_versions n ON n.id=e.version_id '+
+   "WHERE e.id=? AND e.animation_id=? AND e.status='pending_review' AND a.status='published' "+
+   'AND a.published_version_id=e.base_version_id LIMIT 1'
+  ).bind(editId,id).first():await env.DB.prepare(
+   'SELECT v.preview_key FROM animations a JOIN publication_drafts d ON d.animation_id=a.id '+
+   'JOIN animation_versions v ON v.id=d.version_id '+
+   "WHERE a.id=? AND a.status='pending' AND d.status='pending_review' AND v.status='pending' LIMIT 1"
+  ).bind(id).first();
+  const key=row?.preview_key;
+  if(typeof key!=='string'||!/^previews\/[a-f0-9]{32}\/[a-f0-9]{32}\.gif$/.test(key))
+    return fail(404,'preview_not_available');
+  const month=new Date().toISOString().slice(0,7);
+  const budget=await env.DB.prepare(
+   'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,0,1) '+
+   'ON CONFLICT(month) DO UPDATE SET class_b=class_b+1,updated_at=unixepoch() '+
+   'WHERE class_b<5000 RETURNING class_b'
+  ).bind(month).first();
+  if(!budget)return fail(429,'preview_read_limit');
+  const obj=await env.PRIVATE_UPLOADS.get(key);
+  if(!obj?.body||obj.size<50||obj.size>2*1024*1024)return fail(503,'preview_unavailable');
+  const bytes=new Uint8Array(await obj.arrayBuffer());
+  const sig=String.fromCharCode(...bytes.subarray(0,6));
+  if(sig!=='GIF89a'&&sig!=='GIF87a')return fail(503,'preview_unavailable');
+  return new Response(bytes,{status:200,headers:{
+   'Content-Type':'image/gif','Content-Disposition':'inline; filename="bas-review.gif"',
+   'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff',
+   'Content-Security-Policy':"default-src 'none'",'Referrer-Policy':'no-referrer'
+  }});
+ }catch(_){return fail(503,'preview_unavailable');}
+}
+
 async function notifyDiscord(){
  // Legacy text-only webhook dispatch has been permanently disabled.
  // The requested bot must use signed Discord Interactions, a private admin
@@ -288,6 +327,8 @@ export async function handleModeration(req,env,url,user){
  if(path==='moderation/queue'&&req.method==='GET')return queue(env);
  if(/^moderation\/pending\/[a-f0-9]{32}\/zip$/.test(path)&&req.method==='GET')
    return pendingDownload(env,path.split('/')[2],url.searchParams.get('edit'));
+ if(/^moderation\/pending\/[a-f0-9]{32}\/preview$/.test(path)&&req.method==='GET')
+   return pendingPreview(env,path.split('/')[2],url.searchParams.get('edit'));
  if(path.startsWith('moderation/decision/')&&req.method==='POST')
   return decide(req,env,user,path.slice('moderation/decision/'.length));
  if(path.startsWith('moderation/reports/')&&req.method==='POST')
