@@ -6,7 +6,7 @@ import {discordConfigured,discordHandshakeReady,verifyDiscordSignature,parseButt
 const {privateKey,publicKey}=generateKeyPairSync('ed25519');
 const publicHex=publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
 const admin='123456789012345678',app='987654321098765432',id='a'.repeat(32);
-const env={DISCORD_ADMIN_BOT_ENABLED:'true',DISCORD_APPLICATION_ID:app,
+const env={DISCORD_ADMIN_BOT_ENABLED:'true',DISCORD_NOTIFICATIONS_APPROVED:'true',DISCORD_APPLICATION_ID:app,
  DISCORD_ADMIN_USER_ID:admin,DISCORD_PUBLIC_KEY:publicHex,
  DISCORD_BOT_TOKEN:'TEST_ONLY_PLACEHOLDER_THIS_IS_NOT_A_REAL_TOKEN_ABCDEFGHIJ',
  MODERATION_STAGING_APPROVED:'true',ADMIN_PANEL_SEPARATED:'true',
@@ -22,6 +22,7 @@ const component={type:3,application_id:app,user:{id:admin},context:1,
 test('signed Discord handshake works with bot disabled; DM dispatch and moderation stay locked',async()=>{
  const disabled={...env,DISCORD_ADMIN_BOT_ENABLED:'false'};
  assert.equal(discordConfigured(disabled),false);
+ assert.equal(discordConfigured({...env,DISCORD_NOTIFICATIONS_APPROVED:'false'}),false);
  assert.equal(discordHandshakeReady(disabled),true);
  const ping=await discordInteractions(req({type:1}),disabled);
  assert.equal(ping.status,200);

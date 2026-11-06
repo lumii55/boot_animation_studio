@@ -15,7 +15,8 @@ const webhookResponse=(type,data)=>response(200,data?{type,data}:{type});
 const plain=(x,max=900)=>String(x||'').replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,max);
 function hex(s){const a=new Uint8Array(s.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(s.slice(i*2,i*2+2),16);return a;}
 export function discordConfigured(env){
- return env?.DISCORD_ADMIN_BOT_ENABLED==='true'&&SNOWFLAKE.test(String(env.DISCORD_APPLICATION_ID||''))&&
+ return env?.DISCORD_ADMIN_BOT_ENABLED==='true'&&env?.DISCORD_NOTIFICATIONS_APPROVED==='true'&&
+  SNOWFLAKE.test(String(env.DISCORD_APPLICATION_ID||''))&&
   SNOWFLAKE.test(String(env.DISCORD_ADMIN_USER_ID||''))&&KEY.test(String(env.DISCORD_PUBLIC_KEY||''))&&
   typeof env.DISCORD_BOT_TOKEN==='string'&&env.DISCORD_BOT_TOKEN.length>30&&
   env.MODERATION_STAGING_APPROVED==='true'&&env.ADMIN_PANEL_SEPARATED==='true'&&
@@ -200,8 +201,9 @@ export async function dispatchAdminDMs(env,fetcher=fetch){
    gif=await loadRealGif(env,row.preview_key);
    if(!gif){
     // GIF may still be encoding/uploading after the ZIP enters moderation.
-    // Never send a fake preview and never permanently discard a pending item.
-    await env.DB.prepare("UPDATE discord_admin_events SET state='retry',attempts=attempts+1, "+
+    // Never send a fake preview, spend attempt budget waiting for GIF,
+    // or permanently discard a pending item.
+    await env.DB.prepare("UPDATE discord_admin_events SET state='retry',"+
      "last_error='gif_preview_required',next_attempt_at=unixepoch()+300 "+
      "WHERE event_id=? AND state IN ('queued','retry')").bind(event.event_id).run();
     blocked++;continue;

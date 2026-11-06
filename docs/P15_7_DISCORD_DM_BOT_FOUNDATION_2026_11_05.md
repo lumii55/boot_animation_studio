@@ -43,3 +43,10 @@
 ## Continuação: geração real de GIF em beta
 
 O pipeline real de preview do ZIP original foi implementado em js/community-gif.js, community-api/src/admin-preview.mjs e docs/P15_7_PRIVATE_GIF_PREVIEWS_2026_11_05.md. O código só tenta anexar o GIF depois da quarentena e usa R2 privado com quota. A validação real com a conta da proprietária e a primeira DM continuam pendentes; NÃO habilitar o bot ou Cron antes disso.
+
+## 2026-11-06 — entrega real com privacidade/controle
+- O GIF real armazenado no R2 foi verificado externamente: 10 quadros de 115x256 com codificacao LZW decodificavel e contagem de pixels correta. O painel administrativo continua usando o motor canvas do BAS para visualizar o ZIP, independentemente do GIF.
+- Fluxo testado com Discord API simulada: cria conversa somente com DISCORD_ADMIN_USER_ID, anexa GIF privado via multipart a uma mensagem com criador/titulo/descricao e 4 botoes, registra message_id e evita duplicatas. Erro da API retorna fila retry sem aprovar/alterar nada.
+- Dois controles separados sao exigidos: DISCORD_ADMIN_BOT_ENABLED=true E DISCORD_NOTIFICATIONS_APPROVED=true. PING da aplicacao continua permitido mesmo desativado.
+- GIF ausente agora reprograma a fila sem consumir tentativas de envio, para nao perder notificacao quando o usuario concluir a geracao; nenhuma publicacao sem GIF real recebe imagem falsa.
+- Cron e flags ainda nao ativos ate finalizar regressao, deploy e verificacao da integracao. Nao ativar signup nem catalogo publico. Remover dados de teste do staging somente com aprovacao da proprietaria.
