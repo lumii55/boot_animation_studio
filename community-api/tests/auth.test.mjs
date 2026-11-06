@@ -123,6 +123,43 @@ test('beta allowlist blocks a valid GitHub identity until approved',async t=>{
   assert.equal((await res.json()).error,'beta_not_allowed');
   assert.equal(inst.database.prepare('SELECT count(*) as n FROM community_users').get().n,0);
 });
+test('staging-only signup admits a second GitHub account without disabling the beta catalogue',async t=>{
+  const inst=await boot(t),env=environment(inst,{
+    AUTH_BETA_GITHUB_IDS:'67890',
+    AUTH_STAGING_TEST_SIGNUP_ENABLED:'true',
+    BETA_CATALOG_ENABLED:'true',
+    PUBLIC_CATALOG_ENABLED:'false',
+    COMMUNITY_GUEST_READ_ENABLED:'true'
+  });
+  const begin=await start(env);
+  const res=await callback(env,begin);
+  assert.equal(res.status,302);
+  assert.equal(inst.database.prepare('SELECT COUNT(*) AS n FROM community_users').get().n,1);
+  const visibility=inst.database.prepare('SELECT avatar_public,banner_public FROM community_users LIMIT 1').get();
+  assert.equal(visibility.avatar_public,1,'new avatar visibility starts on');
+  assert.equal(visibility.banner_public,1,'new banner visibility starts on');
+  const catalog=await worker.fetch(req('/v1/beta/catalog'),env);
+  assert.equal(catalog.status,200,'new accounts must not disable the beta catalogue');
+  assert.deepEqual((await catalog.json()).items,[]);
+});
+test('staging signup cannot bypass public-launch and disabled-catalogue safety gates',async t=>{
+  const inst=await boot(t);
+  for(const fields of [
+    {PUBLIC_CATALOG_ENABLED:'true'},
+    {BETA_CATALOG_ENABLED:'false'}
+  ]){
+    const env=environment(inst,{
+      AUTH_BETA_GITHUB_IDS:'67890',
+      AUTH_STAGING_TEST_SIGNUP_ENABLED:'true',
+      BETA_CATALOG_ENABLED:'true',
+      PUBLIC_CATALOG_ENABLED:'false',
+      ...fields
+    });
+    const result=await callback(env,await start(env,'192.0.2.20'));
+    assert.equal(result.status,403);
+    assert.equal((await result.json()).error,'beta_not_allowed');
+  }
+});
 test('profile updates require session, correct origin and CSRF, then enforce bounds',async t=>{
   const inst=await boot(t),env=environment(inst);
   const begin=await start(env);

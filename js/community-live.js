@@ -146,11 +146,19 @@ SOCIAL_TEXT.de.publicAvatarConsent='Mein Profilbild öffentlich in Profilen und 
 SOCIAL_TEXT.it.publicAvatarConsent='Mostrare pubblicamente la foto nel profilo e nei commenti';
 SOCIAL_TEXT.ja.publicAvatarConsent='プロフィールやコメントに自分の写真を公開する';
 SOCIAL_TEXT.zh.publicAvatarConsent='在个人主页和评论中公开显示我的头像';
+Object.assign(SOCIAL_TEXT.pt,{"publicAvatarConsent": "Mostrar minha foto nos perfis e comentários", "publicBannerConsent": "Mostrar meu banner no perfil público", "profileVisibility": "Visibilidade das imagens", "profileVisibilityHint": "Escolha quem pode ver suas imagens. Fotos antigas permanecem privadas até você autorizar.", "choosePhoto": "Escolher foto", "chooseBanner": "Escolher banner", "guestActionTitle": "Entre para interagir", "guestActionHelp": "Para curtir, seguir, comentar ou denunciar, entre com GitHub. Explorar e baixar continuam livres.", "guestLoginNow": "Entrar com GitHub", "guestNotNow": "Agora não"});
+Object.assign(SOCIAL_TEXT.en,{"publicAvatarConsent": "Show my photo in profiles and comments", "publicBannerConsent": "Show my banner on my public profile", "profileVisibility": "Image visibility", "profileVisibilityHint": "Choose who can see your images. Old private photos stay private until you allow them.", "choosePhoto": "Choose photo", "chooseBanner": "Choose banner", "guestActionTitle": "Sign in to interact", "guestActionHelp": "Sign in with GitHub to like, follow, comment or report. Browsing and downloads remain free.", "guestLoginNow": "Sign in with GitHub", "guestNotNow": "Not now"});
+Object.assign(SOCIAL_TEXT.es,{"publicAvatarConsent": "Mostrar mi foto en perfiles y comentarios", "publicBannerConsent": "Mostrar mi banner en el perfil público", "profileVisibility": "Visibilidad de imágenes", "profileVisibilityHint": "Las fotos antiguas siguen siendo privadas hasta que lo permitas.", "choosePhoto": "Elegir foto", "chooseBanner": "Elegir banner", "guestActionTitle": "Inicia sesión para participar", "guestActionHelp": "Accede con GitHub para dar me gusta, seguir, comentar o denunciar. Explorar y descargar es libre.", "guestLoginNow": "Entrar con GitHub", "guestNotNow": "Ahora no"});
+Object.assign(SOCIAL_TEXT.fr,{"publicAvatarConsent": "Afficher ma photo dans les profils et commentaires", "publicBannerConsent": "Afficher ma bannière sur mon profil public", "profileVisibility": "Visibilité des images", "profileVisibilityHint": "Les anciennes photos privées le restent sans accord.", "choosePhoto": "Choisir la photo", "chooseBanner": "Choisir la bannière", "guestActionTitle": "Connectez-vous pour participer", "guestActionHelp": "Connectez-vous avec GitHub pour aimer, suivre, commenter ou signaler. Exploration et téléchargement restent libres.", "guestLoginNow": "Se connecter avec GitHub", "guestNotNow": "Pas maintenant"});
+Object.assign(SOCIAL_TEXT.de,{"publicAvatarConsent": "Mein Foto in Profilen und Kommentaren zeigen", "publicBannerConsent": "Mein Banner im öffentlichen Profil zeigen", "profileVisibility": "Bildsichtbarkeit", "profileVisibilityHint": "Alte private Fotos bleiben privat, bis du sie freigibst.", "choosePhoto": "Foto wählen", "chooseBanner": "Banner wählen", "guestActionTitle": "Zum Mitmachen anmelden", "guestActionHelp": "Mit GitHub anmelden, um zu liken, zu folgen, zu kommentieren oder zu melden. Downloads sind frei.", "guestLoginNow": "Mit GitHub anmelden", "guestNotNow": "Nicht jetzt"});
+Object.assign(SOCIAL_TEXT.it,{"publicAvatarConsent": "Mostra la foto nei profili e commenti", "publicBannerConsent": "Mostra il banner nel profilo pubblico", "profileVisibility": "Visibilità immagini", "profileVisibilityHint": "Le vecchie foto private restano tali fino al tuo consenso.", "choosePhoto": "Scegli foto", "chooseBanner": "Scegli banner", "guestActionTitle": "Accedi per partecipare", "guestActionHelp": "Accedi con GitHub per Mi piace, seguire, commentare o segnalare. Download e ricerca sono liberi.", "guestLoginNow": "Accedi con GitHub", "guestNotNow": "Non ora"});
+Object.assign(SOCIAL_TEXT.ja,{"publicAvatarConsent": "プロフィールとコメントで写真を表示", "publicBannerConsent": "公開プロフィールでバナーを表示", "profileVisibility": "画像の公開設定", "profileVisibilityHint": "以前の非公開写真は許可するまで非公開です。", "choosePhoto": "写真を選択", "chooseBanner": "バナーを選択", "guestActionTitle": "ログインして参加", "guestActionHelp": "いいね・フォロー・コメント・通報にはGitHubログインが必要です。閲覧とダウンロードは自由です。", "guestLoginNow": "GitHubでログイン", "guestNotNow": "後で"});
+Object.assign(SOCIAL_TEXT.zh,{"publicAvatarConsent": "在主页和评论中显示照片", "publicBannerConsent": "在公开主页显示横幅", "profileVisibility": "图片可见性", "profileVisibilityHint": "旧的私人照片在授权前保持私密。", "choosePhoto": "选择照片", "chooseBanner": "选择横幅", "guestActionTitle": "登录以参与", "guestActionHelp": "点赞、关注、评论和举报需要登录GitHub。浏览和下载免费。", "guestLoginNow": "通过GitHub登录", "guestNotNow": "暂不"});
 const st=k=>SOCIAL_TEXT[language()]?.[k]||SOCIAL_TEXT.en[k]||k;
 const state={route:'explore',items:[],query:'',sort:'newest',loading:false,
  status:'',busy:false,selected:null,file:null,source:'zip',title:'',summary:'',
  license:'CC-BY-4.0',author:'',tags:[],rights:false,tagInput:'',drafts:[],
- moderation:null,remotePictures:{avatar:null,banner:null},profileDraft:null,creators:[],creatorItems:[],selectedCreator:null,modal:null,owned:[],editDraft:null,social:null,creatorSocial:null,commentText:'',socialBusy:false,commentBusy:false,remix:null};
+ moderation:null,remotePictures:{avatar:null,banner:null},profileDraft:null,creators:[],creatorItems:[],selectedCreator:null,modal:null,owned:[],editDraft:null,social:null,creatorSocial:null,commentText:'',socialBusy:false,commentBusy:false,remix:null,rejectedId:null};
 const appRoot=()=>document.getElementById('bas-c-view');
 const overlay=()=>document.getElementById('bas-community-preview');
 function chrome(){
@@ -176,15 +184,53 @@ function chrome(){
   nav.classList.toggle('is-current',nav.dataset.route===state.route);
  }
 }
-function go(route){
+// Route-local return stack: X never closes the entire BAS Community.
+// The scroll container belongs to the Community overlay, not window.
+const routeHistory=[];
+const nestedRoutes=new Set(['detail','creator','licenses','edit-animation',
+ 'profile-edit','rejected','upload']);
+function scrollContainer(){
+ return overlay()?.querySelector?.('.bas-c-scroll')||
+   document.querySelector?.('#bas-community-preview .bas-c-scroll')||null;
+}
+function go(route,{reset=false}={}){
+ const previous=state.route;
+ if(reset)routeHistory.length=0;
+ else if(route!==previous&&nestedRoutes.has(route)){
+  routeHistory.push({route:previous,top:scrollContainer()?.scrollTop||0,
+   selected:state.selected,social:state.social,selectedCreator:state.selectedCreator,
+   creatorSocial:state.creatorSocial,creatorItems:state.creatorItems,editDraft:state.editDraft});
+  if(routeHistory.length>24)routeHistory.shift();
+ }
  state.route=route;
  state.modal=null;renderModal();
+ if(previous!==route){const scroller=scrollContainer();if(scroller)scroller.scrollTop=0;}
  render();
  if(route==='explore')void fetchGallery();
  if(route==='creators')void fetchCreators();
  if(route==='creator'){void fetchCreatorPosts();void fetchCreatorSocial();}
  if(route==='detail')void fetchSocial();
  if(route==='profile'){void fetchPictures();void fetchDrafts();void fetchOwned();}
+}
+function leaveView(){
+ const saved=routeHistory.pop();
+ if(!saved){go('explore',{reset:true});return;}
+ state.route=saved.route;
+ if(saved.route==='detail'){state.selected=saved.selected;state.social=saved.social;}
+ if(saved.route==='creator'){
+  state.selectedCreator=saved.selectedCreator;state.creatorSocial=saved.creatorSocial;
+  state.creatorItems=saved.creatorItems;
+ }
+ if(saved.route==='edit-animation')state.editDraft=saved.editDraft;
+ state.modal=null;renderModal();
+ render();
+ const restore=()=>{
+  if(state.route!==saved.route)return;
+  const scroller=scrollContainer();
+  if(scroller)scroller.scrollTop=saved.top;
+ };
+ restore();
+ window.requestAnimationFrame?.(restore);
 }
 function localStatus(value){
  const labels={
@@ -204,6 +250,8 @@ function translateError(message){
  const raw=String(message||'');
  if(raw==='invalid_metadata')return tr('serverMetadata');
  if(raw.startsWith('zip_')||raw==='invalid_zip_upload')return tr('serverZip');
+ if(['storage_quota_exceeded','quota_or_draft_conflict'].includes(raw))return 'Armazenamento privado do beta cheio. Nenhum arquivo foi apagado.';
+ if(raw==='draft_conflict')return 'Conflito no rascunho. Tente novamente.';
  return raw;
 }
 function statusHTML(){return state.status?'<p class="bas-live-status" role="status">'+safe(state.status)+'</p>':'';}
@@ -272,7 +320,7 @@ function creatorView(){
  const creator=state.selectedCreator;
  if(!creator)return creatorsView();
  return '<section class="bas-c-profile" data-theme="moon"><div class="bas-c-profile-cover">'+
-  (user()&&creator.handle===user().handle&&state.remotePictures.banner?'<img class="bas-c-account-cover-image" alt="" src="'+safe(state.remotePictures.banner)+'">':'<span class="bas-c-profile-cover__orb">✧</span>')+'</div>'+
+  (user()&&creator.handle===user().handle&&state.remotePictures.banner?'<img class="bas-c-account-cover-image" alt="" src="'+safe(state.remotePictures.banner)+'">':(state.creatorSocial?.banner_public||creator.banner_public?'<img class="bas-c-account-cover-image" alt="" src="'+safe(api().apiOrigin+'/v1/social/banners/'+encodeURIComponent(creator.handle))+'">':'<span class="bas-c-profile-cover__orb">✧</span>'))+'</div>'+
   '<div class="bas-c-profile-content"><div class="bas-c-profile-top"><div class="bas-c-profile-identity">'+
   creatorAvatar({...creator,avatar_public:state.creatorSocial?.avatar_public??creator.avatar_public})+
   '<div class="bas-c-profile-nameblock"><h1 id="bas-c-page-title">'+safe(creator.display_name||creator.handle)+'</h1>'+
@@ -313,8 +361,10 @@ function profileView(){
    return '<article class="bas-c-card bas-live-admin-item"><div class="bas-c-card__content">'+
    '<h3>'+safe(item.title)+'</h3>'+
    '<p>'+safe(localStatus(item.status))+'</p>'+
+   (item.rejected_revision_reason?'<p class="bas-live-hint bas-live-rejection-summary">Ultima revisao negada: '+safe(item.rejected_revision_reason)+'</p>':'')+
    (item.edit_id?'<p class="bas-live-hint">✧ '+safe(tr('ownerPendingEdit'))+'</p>':'')+
    '<div class="bas-live-actions">'+
+   (item.status==='rejected'?'<button class="bas-c-button bas-c-button--bright" type="button" data-c-action="open-rejected" data-id="'+safe(item.id)+'">Ver motivo e previa</button>':'')+
    (canOpen?'<button class="bas-c-button" type="button" data-c-action="open-owned" data-id="'+safe(item.id)+'">'+safe(tr('ownerOpen'))+'</button>':'')+
    (editable?'<button class="bas-c-button bas-c-button--bright" type="button" data-c-action="edit-animation" data-id="'+safe(item.id)+'">'+safe(tr('ownerEdit'))+'</button>':'')+
    (item.edit_id?'<button class="bas-c-button" type="button" data-c-action="cancel-owner-edit" data-id="'+safe(item.edit_id)+'">'+safe(tr('ownerCancelEdit'))+'</button>':'')+
@@ -322,6 +372,53 @@ function profileView(){
   }).join(''):'<p class="bas-c-noresults">'+safe(tr('noPosts'))+'</p>')+'</div>'+
   statusHTML();
 }
+
+// The rejected publication remains unpublished. All fields below are read-only.
+function rejectedView(){
+ const post=state.owned.find(x=>x.id===state.rejectedId&&x.status==='rejected');
+ if(!post)return profileView();
+ const reason=(post.rejection_reason||'').trim()||'A moderacao nao informou o motivo.';
+ return '<section class="bas-c-plainhead"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
+  '<h1 id="bas-c-page-title">'+safe(post.title)+'</h1>'+
+  '<p class="bas-live-rejected-label">Rejeitada pela moderacao</p></section>'+
+  '<section class="bas-live-rejected-panel">'+
+   '<div class="bas-social-edit-header"><div class="bas-social-edit-preview">'+
+    '<canvas data-rejected-preview="'+safe(post.id)+'" class="bas-live-rejected-canvas" aria-label="Previa privada da animacao rejeitada"></canvas>'+
+    '<span class="bas-live-preview-loading" data-rejected-load>Preparando previa...</span></div>'+
+    '<div><span class="bas-c-kicker">Motivo da rejeicao</span>'+
+    '<p class="bas-live-rejected-reason">'+safe(reason)+'</p></div></div>'+
+   '<dl class="bas-live-rejected-fields">'+
+    '<dt>Titulo</dt><dd>'+safe(post.title)+'</dd>'+
+    '<dt>Descricao</dt><dd>'+safe(post.summary||'Sem descricao')+'</dd>'+
+    '<dt>Tags</dt><dd>'+safe((post.tags||[]).join(', ')||'Nenhuma')+'</dd>'+
+    '<dt>Licenca</dt><dd>'+safe(post.license||'Nao informada')+'</dd>'+
+    '<dt>Creditos</dt><dd>'+safe(post.author_credit||'Nao informados')+'</dd>'+
+    '<dt>Dimensoes</dt><dd>'+safe(post.width||'?')+' x '+safe(post.height||'?')+' / '+safe(post.fps||'?')+' fps</dd>'+
+   '</dl>'+
+   '<div class="bas-live-actions"><button type="button" class="bas-c-button bas-live-danger" data-c-action="remove-animation" data-id="'+safe(post.id)+'">'+safe(tr('ownerRemove'))+'</button></div>'+
+  '</section>'+statusHTML();
+}
+let rejectedController=null,rejectedGeneration=0;
+async function attachRejectedPreview(target,generation){
+ const id=state.rejectedId;
+ const canvas=target.querySelector?.('canvas[data-rejected-preview]');
+ const status=target.querySelector?.('[data-rejected-load]');
+ if(!canvas||!id||!api().rejectedZip)return;
+ try{
+  const blob=await api().rejectedZip(id);
+  if(generation!==rejectedGeneration||state.route!=='rejected'||!canvas.isConnected)return;
+  const engine=window.BASCommunityAnimation;
+  if(!engine?.playBlob)throw Error('Previa do BAS indisponivel.');
+  rejectedController=engine.playBlob(canvas,blob,{
+   onReady(){if(generation===rejectedGeneration&&status){status.textContent='';status.hidden=true;}},
+   onError(error){if(generation===rejectedGeneration&&status){status.hidden=false;status.textContent='Previa indisponivel: '+String(error?.message||error);}}
+  });
+  await rejectedController.ready;
+ }catch(error){
+  if(generation===rejectedGeneration&&status){status.hidden=false;status.textContent='Previa indisponivel: '+String(error?.message||error);}
+ }
+}
+
 function editProfile(){
  const draft=state.profileDraft||user();
  if(!draft)return welcome();
@@ -331,13 +428,16 @@ function editProfile(){
    '<label>Handle<input name="handle" minlength="3" maxlength="32" required pattern="[A-Za-z0-9_]{3,32}" value="'+safe(draft.handle)+'"></label>'+
    '<label>'+safe(tr('name'))+'<input name="display_name" maxlength="80" required value="'+safe(draft.display_name)+'"></label>'+
    '<label>'+safe(tr('bio'))+'<textarea name="bio" maxlength="500" rows="4">'+safe(draft.bio||'')+'</textarea></label>'+
-    '<label class="bas-social-avatar-consent"><input type="checkbox" name="avatar_public"'+(draft.avatar_public?' checked':'')+'> '+safe(st('publicAvatarConsent'))+'</label>'+
+    '<section class="bas-live-visibility"><h3>'+safe(st('profileVisibility'))+'</h3><p>'+safe(st('profileVisibilityHint'))+'</p>'+
+   ['avatar','banner'].map(kind=>'<label class="bas-live-visibility-row"><span class="bas-live-visibility-copy"><strong>'+safe(st(kind==='avatar'?'publicAvatarConsent':'publicBannerConsent'))+'</strong></span>'+
+    '<input type="checkbox" role="switch" name="'+kind+'_public"'+(draft[kind+'_public']?' checked':'')+'>'+
+    '<span class="bas-live-switch" aria-hidden="true"></span></label>').join('')+'</section>'+
    '<div class="bas-live-actions"><button type="submit" class="bas-c-button bas-c-button--bright">'+safe(tr('save'))+'</button>'+
     '<button type="button" class="bas-c-button" data-c-action="go-profile">'+safe(tr('cancel'))+'</button></div>'+
   '</form>'+
   '<div class="bas-c-publish-draft bas-live-form"><h3>'+safe(tr('photoAvatar'))+' / '+safe(tr('photoBanner'))+'</h3>'+
-   '<label class="bas-c-photo-pick">'+safe(tr('photoAvatar'))+' <input type="file" id="bas-live-avatar-file" accept="image/png,image/jpeg,image/webp"></label>'+
-   '<label class="bas-c-photo-pick">'+safe(tr('photoBanner'))+' <input type="file" id="bas-live-banner-file" accept="image/png,image/jpeg,image/webp"></label>'+
+   '<label class="bas-live-image-picker"><span class="bas-live-picker-icon" aria-hidden="true">✿</span><strong>'+safe(tr('photoAvatar'))+'</strong><span class="bas-live-picker-cta">'+safe(st('choosePhoto'))+' ✧</span><input class="bas-live-picker-input" type="file" id="bas-live-avatar-file" accept="image/png,image/jpeg,image/webp" aria-label="'+safe(st('choosePhoto'))+'"></label>'+
+   '<label class="bas-live-image-picker"><span class="bas-live-picker-icon" aria-hidden="true">▧</span><strong>'+safe(tr('photoBanner'))+'</strong><span class="bas-live-picker-cta">'+safe(st('chooseBanner'))+' ✧</span><input class="bas-live-picker-input" type="file" id="bas-live-banner-file" accept="image/png,image/jpeg,image/webp" aria-label="'+safe(st('chooseBanner'))+'"></label>'+
    '<p class="bas-live-hint">'+safe(tr('imageHelp'))+'</p>'+
   '</div>'+statusHTML();
 }
@@ -357,7 +457,7 @@ function detailSocialComments(item){
    '<textarea id="bas-social-comment-text" maxlength="600" required placeholder="'+safe(st('commentPlaceholder'))+'">'+safe(state.commentText)+'</textarea>'+
    '<div class="bas-social-compose-foot"><small>'+safe(st('commentNote'))+'</small>'+
    '<button class="bas-c-button bas-c-button--bright" type="submit"'+(state.commentBusy?' disabled':'')+'>'+safe(state.commentBusy?st('commentBusy'):st('commentSend'))+'</button></div></form>':
-   '<p class="bas-social-loginhint">'+safe(st('commentLogin'))+'</p>')+
+   '<div class="bas-social-loginhint"><p>'+safe(st('commentLogin'))+'</p><button type="button" class="bas-c-button" data-c-action="guest-signin">'+safe(st('guestLoginNow'))+'</button></div>')+
   (data===null?'<p class="bas-live-hint">'+safe(st('loading'))+'</p>':
    comments.length?'<div class="bas-social-comment-list">'+comments.map(c=>
     '<article class="bas-social-comment" data-comment="'+safe(c.id)+'">'+
@@ -550,7 +650,11 @@ function renderModal(){
  const host=$('bas-c-modal-host');if(!host)return;
  if(!state.modal){host.replaceChildren();return;}
  const modal=state.modal;
- const contents=(modal.kind==='report'||modal.kind==='comment-report')
+ const contents=modal.kind==='guest-signin'
+  ?'<p>'+safe(st('guestActionHelp'))+'</p><div class="bas-live-actions">'+
+    '<button type="button" class="bas-c-button bas-c-button--bright" data-c-action="modal-login">'+safe(st('guestLoginNow'))+'</button>'+
+    '<button type="button" class="bas-c-button" data-c-action="modal-close">'+safe(st('guestNotNow'))+'</button></div>'
+  :(modal.kind==='report'||modal.kind==='comment-report')
   ?'<form id="bas-live-report-form"><p>'+safe(modal.kind==='comment-report'?st('reportCommentHelp'):tr('reportHelp'))+'</p>'+
    '<label for="bas-live-report-reason">'+safe(tr('reason'))+'</label>'+
    '<textarea id="bas-live-report-reason" required minlength="5" maxlength="500" rows="5">'+safe(modal.reason||'')+'</textarea>'+
@@ -569,7 +673,7 @@ function renderModal(){
   '<section role="dialog" aria-modal="true" aria-labelledby="bas-live-dialog-title" class="bas-c-modal bas-live-modal">'+
   '<div class="bas-c-modal-top"><span class="bas-c-kicker">BAS COMMUNITY</span>'+
   '<button class="bas-c-roundclose" type="button" data-c-action="modal-close" aria-label="'+safe(tr('close'))+'">×</button></div>'+
-  '<h2 id="bas-live-dialog-title">'+safe(modal.kind==='comment-report'?st('reportCommentTitle'):modal.kind==='remix'?st('remixTitle'):tr(modal.kind==='report'?'reportTitle':modal.kind==='remove'?'ownerRemoveQuestion':'applyTitle'))+'</h2>'+
+  '<h2 id="bas-live-dialog-title">'+safe(modal.kind==='guest-signin'?st('guestActionTitle'):modal.kind==='comment-report'?st('reportCommentTitle'):modal.kind==='remix'?st('remixTitle'):tr(modal.kind==='report'?'reportTitle':modal.kind==='remove'?'ownerRemoveQuestion':'applyTitle'))+'</h2>'+
   contents+
   (modal.error?'<p class="bas-live-status" role="alert">'+safe(modal.error)+'</p>':'')+
   '</section></div>';
@@ -586,6 +690,8 @@ function render(){
  chrome();
  const target=appRoot();
  if(!target)return false;
+ rejectedGeneration++;
+ rejectedController?.stop();rejectedController=null;
  let content='';
  if(state.route==='profile')content=profileView();
  else if(state.route==='profile-edit')content=editProfile();
@@ -594,10 +700,13 @@ function render(){
  else if(state.route==='creator')content=creatorView();
  else if(state.route==='upload')content=uploadView();
  else if(state.route==='edit-animation')content=editAnimationView();
+ else if(state.route==='rejected')content=rejectedView();
  else if(state.route==='licenses')content=licensesView();
  else content=galleryView();
- target.innerHTML=content;
+ target.innerHTML=(nestedRoutes.has(state.route)?
+  '<div class="bas-live-viewclose"><button class="bas-c-roundclose" type="button" data-c-action="view-close" aria-label="'+safe(tr('close'))+'" title="'+safe(tr('close'))+'">&times;</button></div>':'')+content;
  window.BASCommunityAnimation?.mount(target);
+ if(state.route==='rejected')void attachRejectedPreview(target,rejectedGeneration);
  renderModal();
  return true;
 }
@@ -661,7 +770,7 @@ async function fetchCreatorSocial(){
 }
 function requireSocialLogin(){
  if(logged())return true;
- state.status=st('commentLogin');render();return false;
+ openModal('guest-signin',state.selected?.id||'');return false;
 }
 async function toggleAnimationLike(id){
  if(!requireSocialLogin()||state.socialBusy)return;
@@ -859,7 +968,7 @@ async function sendPublish(){
   if(result.status!=='pending_review')throw Error('upload_status_unconfirmed');
   state.file=null;state.title='';state.summary='';state.tags=[];state.tagInput='';
   state.rights=false;state.author='';state.status=tr('sent')+(result.moderation_preview==='unavailable'?' · GIF indisponível: revisão pelo painel privado.':'');
-  go('explore');
+  go('explore',{reset:true});
  }catch(e){state.status=tr('uploadError')+': '+translateError(e.message);}
  finally{state.busy=false;render();}
 }
@@ -872,6 +981,7 @@ async function saveProfile(form){
  try{
   await api().profile(payload);
   await api().setAvatarVisibility(fields.get('avatar_public')==='on');
+  await api().setBannerVisibility(fields.get('banner_public')==='on');
   state.status=tr('profileSaved');
   go('profile');
  }catch(e){state.status=e.message;render();}
@@ -909,7 +1019,7 @@ async function download(id){
  try{await api().download(id);}catch(e){state.status=e.message;render();}
 }
 function report(id){
- if(!logged()){state.status=tr('reportAccount');render();return;}
+ if(!logged()){openModal('guest-signin',id);return;}
  openModal('report',id);
 }
 async function sendReport(form){
@@ -931,6 +1041,12 @@ function handle(event){
  const hit=event.target.closest?.('[data-c-action]');
  if(!hit)return false;
  const action=hit.dataset.cAction,id=hit.dataset.id||'';
+ if(action==='modal-login'){
+  const intent=state.route==='detail'&&state.selected?.id?'detail:'+state.selected.id:
+   state.route==='creator'&&state.selectedCreator?.handle?'creator:'+state.selectedCreator.handle:'explore';
+  closeModal();void api().login(intent);return true;
+ }
+ if(action==='guest-signin'){openModal('guest-signin',id);return true;}
  if(action==='modal-close'){
   if(hit.classList?.contains?.('bas-live-modal-backdrop')&&event.target!==hit)
    return true; // clicks inside dialog must NOT dismiss the dialog
@@ -945,19 +1061,20 @@ function handle(event){
   if(selected)void applyModule(selected);
   return true;
  }
+ if(action==='view-close'){leaveView();return true;}
  if(action==='close'){window.BASCommunityPreview?.close();return true;}
  if(action==='real-account'||action==='signin'||action==='login'){
-  if(logged())go('profile');else void api().login();return true;
+  if(logged())go('profile',{reset:true});else void api().login();return true;
  }
  if(action==='logout'){
   void api().logout().then(()=>{state.items=[];state.status='';go('explore');});return true;
  }
  if(action==='navigate'){
   const target=hit.dataset.route;
-  if(target==='saved'||target==='profile'){go('profile');return true;}
-  if(target==='creators'){go('creators');return true;}
+  if(target==='saved'||target==='profile'){go('profile',{reset:true});return true;}
+  if(target==='creators'){go('creators',{reset:true});return true;}
   if(target==='moderation')return true;
-  go('explore');return true;
+  go('explore',{reset:true});return true;
  }
  if(action==='upload'){openUpload();return true;}
  if(action==='choose-zip'){$('bas-live-zip')?.click();return true;}
@@ -968,9 +1085,9 @@ function handle(event){
  if(action==='tag-add'){void addTags();return true;}
  if(action==='tag-remove'){collectPublishForm();state.tags=state.tags.filter(x=>x!==hit.dataset.tag);render();return true;}
  if(action==='licenses'){collectPublishForm();go('licenses');return true;}
- if(action==='back-publish'){go('upload');return true;}
- if(action==='back-gallery'||action==='reset'){go('explore');return true;}
- if(action==='back-creators'){go('creators');return true;}
+ if(action==='back-publish'){leaveView();return true;}
+ if(action==='back-gallery'||action==='reset'){leaveView();return true;}
+ if(action==='back-creators'){go('creators',{reset:true});return true;}
  if(action==='creator'||action==='creator-author'){viewCreator(hit.dataset.handle);return true;}
  if(action==='detail'){
   const entry=[...state.items,...state.creatorItems].find(x=>x.id===id);
@@ -994,6 +1111,8 @@ function handle(event){
  if(action==='download'){void download(id);return true;}
  if(action==='apply-module'){if(moduleCanApply())openModal('apply',id);return true;}
  if(action==='report'){void report(id);return true;}
+ if(action==='open-rejected'){const item=state.owned.find(v=>v.id===id&&v.status==='rejected');
+  if(item){state.rejectedId=id;go('rejected');}return true;}
  if(action==='open-owned'){const entry=state.owned.find(v=>v.id===id);
   if(entry?.status==='published'){state.selected={...entry,handle:user().handle};state.social=null;state.commentText='';go('detail');}return true;}
  if(action==='edit-animation'){openOwnerEdit(id);return true;}
@@ -1088,7 +1207,7 @@ function mount(){
 }
 window.BASCommunityLive=Object.freeze({
  active,mount,render,handle,onInput,onChange,onSubmit,openUpload,pullFromDevice,
- openById,showProfile(){if(!active()||!logged())return false;go('profile');return true;}
+ openById,openCreator(handle){if(active())void viewCreator(handle);},showProfile(){if(!active()||!logged())return false;go('profile');return true;}
 });
 document.getElementById('select-idioma')?.addEventListener?.('change',()=>{
  Promise.resolve().then(()=>{if(active()&&overlay()&&!overlay().hidden)render();});

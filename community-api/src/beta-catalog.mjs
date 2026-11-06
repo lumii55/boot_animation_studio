@@ -13,7 +13,7 @@ export const betaCatalogReady=env=>env?.BETA_CATALOG_ENABLED==='true' &&
   typeof env?.DB?.prepare==='function';
 const base=[
  'SELECT a.id,a.title,a.summary,a.category,a.published_at,a.download_count,a.like_count,',
- 'v.size_bytes,v.width,v.height,v.fps,u.handle,u.display_name,r.license,',
+ 'v.size_bytes,v.width,v.height,v.fps,u.handle,u.display_name,u.banner_public,r.license,',
  "(SELECT COALESCE(json_group_array(tag),'[]') FROM animation_tags t WHERE t.animation_id=a.id) AS tags_json",
  'FROM animations a JOIN community_users u ON u.id=a.owner_id',
  'JOIN animation_versions v ON v.id=a.published_version_id',
@@ -25,7 +25,7 @@ function output(row){
  return {id:row.id,title:row.title,summary:row.summary,category:row.category,
   published_at:row.published_at,download_count:row.download_count,like_count:row.like_count,
   size_bytes:row.size_bytes,width:row.width,height:row.height,fps:row.fps,
-  handle:row.handle,display_name:row.display_name,license:row.license,
+  handle:row.handle,display_name:row.display_name,banner_public:row.banner_public===1,license:row.license,
   tags:JSON.parse(row.tags_json||'[]')};
 }
 async function list(url,env){
@@ -65,7 +65,7 @@ async function list(url,env){
 async function creators(env){
  try{
   const rows=(await env.DB.prepare(
-   'SELECT u.handle,u.display_name,u.avatar_public,COUNT(*) AS animation_count '+
+   'SELECT u.handle,u.display_name,u.avatar_public,u.banner_public,COUNT(*) AS animation_count '+
    'FROM animations a JOIN community_users u ON u.id=a.owner_id '+
    'JOIN animation_versions v ON v.id=a.published_version_id '+
    "WHERE a.status='published' AND v.status='approved' AND u.status='active' "+

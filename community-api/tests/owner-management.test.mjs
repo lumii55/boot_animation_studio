@@ -176,3 +176,46 @@ test('pending ZIP revision accepts only its author real bounded GIF; stores priv
  const tooBig=await x.request(url,'PUT',Buffer.alloc(2*1024*1024+1),'u1',{'Content-Type':'image/gif'});
  assert.equal(tooBig.status,409); // already attached; no additional R2 bytes
 });
+test('rejected metadata edit tells the author the actual reason',async t=>{
+ const x=await envSetup(t);
+ const proposed=await x.propose();assert.equal(proposed.status,201);
+ const denied=await x.request('/v1/beta/moderation/decision/'+ANIM,'POST',
+  JSON.stringify({action:'reject',reason:'A descricao precisa de ajustes'}),'admin');
+ assert.equal(denied.status,200);
+ const row=(await x.request('/v1/publishing/animations')).data.animations[0];
+ assert.equal(row.status,'published');
+ assert.equal(row.rejected_revision_reason,'A descricao precisa de ajustes');
+});
+
+test('rejected original ZIP and moderator reason are author-only and remain private',async t=>{
+ const x=await envSetup(t);
+ const zip=zipFixture();
+ const meta={source:'zip',filename:'bootanimation.zip',size_bytes:zip.length,
+  title:'Original from author',summary:'Submission before rejection',tags:['rainbow'],
+  license:'CC-BY-4.0',author_credit:'Test author',allows_remix:true,rights_confirmed:true};
+ const draft=await x.request('/v1/publishing/drafts','POST',JSON.stringify(meta),'u1',
+  {'Idempotency-Key':'REJECTED_AUTHOR_UPLOAD_2026'});
+ assert.equal(draft.status,201,JSON.stringify(draft.data));
+ const upload=await x.request('/v1/publishing/drafts/'+draft.data.draft_id+'/zip','PUT',zip,'u1',
+  {'Content-Type':'application/zip'});
+ assert.equal(upload.status,202,JSON.stringify(upload.data));
+ const row=x.db.prepare('SELECT id FROM animations WHERE status=\'pending\'').get();
+ assert.ok(row?.id);
+ const route='/v1/publishing/animations/'+row.id+'/rejected/zip';
+ assert.equal((await x.request(route)).status,404,'not downloadable before moderation');
+ const reject=await x.request('/v1/beta/moderation/decision/'+row.id,
+  'POST',JSON.stringify({action:'reject',reason:'Please credit the original artist'}),'admin');
+ assert.equal(reject.status,200,JSON.stringify(reject.data));
+ const owned=await x.request('/v1/publishing/animations');
+ assert.equal(owned.status,200);
+ const mine=owned.data.animations.find(a=>a.id===row.id);
+ assert.equal(mine.status,'rejected');
+ assert.equal(mine.title,meta.title);assert.equal(mine.summary,meta.summary);
+ assert.equal(mine.rejection_reason,'Please credit the original artist');
+ assert.equal(owned.data.animations.some(a=>a.object_key),false);
+ assert.equal((await x.request(route,'GET',null,'u2')).status,404,'other creators cannot read the ZIP');
+ const mineZip=await x.request(route);assert.equal(mineZip.status,200);
+ assert.deepEqual(Buffer.from(mineZip.data),zip);
+ assert.equal((await x.request('/v1/beta/downloads/'+row.id)).status,404,
+  'rejected ZIP never enters public downloads');
+});

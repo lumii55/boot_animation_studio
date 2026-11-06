@@ -75,13 +75,13 @@ async function readCreator(req,env,handle){
  if(!HANDLE.test(handle))return fail(404,'not_found');
  const me=await viewer(req,env);
  try{
-  const person=await read(env,'SELECT u.id,u.handle,u.display_name,u.bio,u.avatar_public FROM community_users u '+
+  const person=await read(env,'SELECT u.id,u.handle,u.display_name,u.bio,u.avatar_public,u.banner_public FROM community_users u '+
    "WHERE u.handle=? AND u.status='active' AND EXISTS (SELECT 1 FROM animations a WHERE a.owner_id=u.id AND a.status='published')",handle);
   if(!person)return fail(404,'not_found');
   const followers=await read(env,'SELECT COUNT(*) AS n FROM creator_follows WHERE creator_id=?',person.id);
   const following=me?await read(env,'SELECT 1 AS n FROM creator_follows WHERE creator_id=? AND follower_id=?',person.id,me.userId):null;
   return send(200,{handle:person.handle,display_name:person.display_name,bio:person.bio,
-   followers:Number(followers?.n||0),following:Boolean(following),avatar_public:person.avatar_public===1});
+   followers:Number(followers?.n||0),following:Boolean(following),avatar_public:person.avatar_public===1,banner_public:person.banner_public===1});
  }catch(_){return fail(503,'social_unavailable');}
 }
 async function setAnimationLike(env,id,userId,enabled){
@@ -147,13 +147,15 @@ async function reportComment(req,env,commentId,userId){
   return send(201,{report_id:id,status:'open'});
  }catch(_){return fail(409,'report_duplicate_or_limited');}
 }
-async function readPublicAvatar(env,handle){
+async function readPublicProfileMedia(env,handle,kind){
+ if(!['avatar','banner'].includes(kind))return fail(404,'not_found');
+ const flag=kind==='avatar'?'u.avatar_public':'u.banner_public';
  if(!HANDLE.test(handle)||typeof env.PRIVATE_UPLOADS?.get!=='function')return fail(404,'not_found');
  try{
   const row=await read(env,'SELECT m.object_key,m.size_bytes FROM community_users u '+
-   'JOIN creator_media_current c ON c.user_id=u.id AND c.kind=\'avatar\' '+
+   'JOIN creator_media_current c ON c.user_id=u.id AND c.kind=? '+
    'JOIN creator_media m ON m.id=c.media_id AND m.status=\'active\' '+
-   "WHERE u.handle=? AND u.status='active' AND u.avatar_public=1 LIMIT 1",handle);
+   "WHERE u.handle=? AND u.status='active' AND "+flag+"=1 LIMIT 1",kind,handle);
   if(!row||row.size_bytes<1||row.size_bytes>524288)return fail(404,'not_found');
   const month=new Date().toISOString().slice(0,7);
   const budget=await read(env,'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,0,1) '+
@@ -168,14 +170,15 @@ async function readPublicAvatar(env,handle){
    'Content-Security-Policy':"default-src 'none'"}});
  }catch(_){return fail(503,'media_unavailable');}
 }
-async function setAvatarVisibility(request,env,userId){
+async function setMediaVisibility(request,env,userId,kind){
+ const column=kind==='banner'?'banner_public':'avatar_public';
  const data=await jsonBody(request,64);
  if(!data||Object.keys(data).length!==1||typeof data.visible!=='boolean')
   return fail(400,'invalid_visibility');
  try{
-  const row=await read(env,'UPDATE community_users SET avatar_public=?,updated_at=unixepoch() '+
-   "WHERE id=? AND status='active' RETURNING avatar_public",data.visible?1:0,userId);
-  return row?send(200,{avatar_public:row.avatar_public===1}):fail(403,'not_authorized');
+  const row=await read(env,'UPDATE community_users SET '+column+'=?,updated_at=unixepoch() '+
+   "WHERE id=? AND status='active' RETURNING "+column,data.visible?1:0,userId);
+  return row?send(200,{[column]:row[column]===1}):fail(403,'not_authorized');
  }catch(_){return fail(503,'media_unavailable');}
 }
 export async function handleSocial(request,env,url){
@@ -185,7 +188,9 @@ export async function handleSocial(request,env,url){
  try{
   if(method==='GET'){
    const avatar=/^avatars\/([A-Za-z0-9_]{3,32})$/.exec(path);
-   if(avatar)return readPublicAvatar(env,avatar[1]);
+   if(avatar)return readPublicProfileMedia(env,avatar[1],'avatar');
+   const banner=/^banners\/([A-Za-z0-9_]{3,32})$/.exec(path);
+   if(banner)return readPublicProfileMedia(env,banner[1],'banner');
    const a=/^animations\/([a-f0-9]{32})$/.exec(path);
    if(a)return readAnimation(request,env,a[1],url);
    const c=/^creators\/([A-Za-z0-9_]{3,32})$/.exec(path);
@@ -193,7 +198,8 @@ export async function handleSocial(request,env,url){
   }
   const user=await verifyPublisher(request,env);
   if(!user||user.clientKind!=='bas')return fail(403,'not_authorized');
-  if(path==='me/avatar-visibility'&&method==='PUT')return setAvatarVisibility(request,env,user.userId);
+  if(path==='me/avatar-visibility'&&method==='PUT')return setMediaVisibility(request,env,user.userId,'avatar');
+  if(path==='me/banner-visibility'&&method==='PUT')return setMediaVisibility(request,env,user.userId,'banner');
    const a=/^animations\/([a-f0-9]{32})\/like$/.exec(path);
   if(a&&(method==='PUT'||method==='DELETE'))return setAnimationLike(env,a[1],user.userId,method==='PUT');
   const f=/^creators\/([A-Za-z0-9_]{3,32})\/follow$/.exec(path);

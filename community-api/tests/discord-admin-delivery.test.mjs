@@ -30,6 +30,7 @@ function harness({missingGif=false,apiFails=false}={}){
     },
     bind(...args){
      return {
+      async all(){if(sql.includes('cleaned_at'))return {results:[]};throw Error('unexpected-bound-all '+sql);},
       async first(){
        if(sql.includes('FROM publication_drafts'))return {title:'Demo private ZIP',summary:'Review me',handle:'demo',
         license:'CC0-1.0',preview_key:missingGif?null:key,size_bytes:20000,fps:30,width:1080,height:2400};

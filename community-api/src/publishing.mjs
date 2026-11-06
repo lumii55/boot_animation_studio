@@ -154,6 +154,16 @@ async function createDraft(request,env,user){
     if(existing.request_hash!==requestHash)return fail(request,env,'idempotency_conflict',409);
     return respond(request,env,200,{draft_id:existing.id,status:existing.status,source:meta.source});
   }
+  // Distinguish storage saturation from an actual draft/idempotency conflict.
+  // Never clean up historical R2 assets as a side effect of an upload.
+  const storage=await env.DB.prepare(
+   'SELECT used_bytes,reserved_bytes,cap_bytes FROM storage_budget WHERE id=1'
+  ).bind().first();
+  if(!storage)return fail(request,env,'storage_budget_unavailable',503);
+  const remaining=Math.max(0,storage.cap_bytes-storage.used_bytes-storage.reserved_bytes);
+  if(meta.size_bytes>remaining)return respond(request,env,409,{
+   error:'storage_quota_exceeded',remaining_bytes:remaining,cap_bytes:storage.cap_bytes
+  });
   const draftId=randomId(),animationId=randomId(),reservationId=randomId();
   const expires=timestamp()+900;
   try{
@@ -181,7 +191,17 @@ async function createDraft(request,env,user){
         'VALUES(?,?,?,?,?,?,?,?,?)'
       ).bind(draftId,user.userId,animationId,reservationId,meta.source,meta.filename,meta.size_bytes,requestHash,expires)
     ]);
-  }catch(_){return fail(request,env,'quota_or_draft_conflict',409);}
+  }catch(_){
+    // A second concurrent writer can consume the budget after preflight.
+    try{
+      const latest=await env.DB.prepare(
+       'SELECT used_bytes,reserved_bytes,cap_bytes FROM storage_budget WHERE id=1'
+      ).bind().first();
+      if(latest&&meta.size_bytes>latest.cap_bytes-latest.used_bytes-latest.reserved_bytes)
+       return fail(request,env,'storage_quota_exceeded',409);
+    }catch(_budgetError){}
+    return fail(request,env,'draft_conflict',409);
+  }
   return respond(request,env,201,{draft_id:draftId,status:'awaiting_upload',expires_at:expires,
     source:meta.source,max_bytes:meta.size_bytes,review_required:true});
 }

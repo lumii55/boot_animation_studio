@@ -146,7 +146,7 @@ function displayName(value,fallback) {
     ? trimmed : fallback;
 }
 function pickUser(row) {
-  return {handle:row.handle,display_name:row.display_name,bio:row.bio??'',created_at:row.created_at,avatar_public:row.avatar_public===1};
+  return {handle:row.handle,display_name:row.display_name,bio:row.bio??'',created_at:row.created_at,avatar_public:row.avatar_public===1,banner_public:row.banner_public===1};
 }
 function safeHandle(value) {
   return typeof value==='string'&&/^[A-Za-z0-9_]{3,32}$/.test(value);
@@ -187,7 +187,7 @@ async function validateSession(request,env) {
   if(!token)return null;
   const hash=await sha256('session:'+token);
   const user=await env.DB.prepare(
-    "SELECT u.id, u.handle, u.display_name, u.bio, u.created_at, u.avatar_public, s.expires_at, s.client_kind "+
+    "SELECT u.id, u.handle, u.display_name, u.bio, u.created_at, u.avatar_public, u.banner_public, s.expires_at, s.client_kind "+
     "FROM auth_sessions s JOIN community_users u ON u.id=s.user_id "+
     "WHERE s.session_hash=? AND s.expires_at>? AND u.status='active' LIMIT 1"
   ).bind(hash,now()).first();
@@ -344,7 +344,7 @@ async function upsertIdentity(env,profile) {
     const handle=profile.handle.slice(0,32-suffix.length)+suffix;
     try{
       await env.DB.batch([
-        env.DB.prepare('INSERT INTO community_users(id,handle,display_name) VALUES(?,?,?)').bind(userId,handle,profile.display),
+        env.DB.prepare('INSERT INTO community_users(id,handle,display_name,avatar_public,banner_public) VALUES(?,?,?,1,1)').bind(userId,handle,profile.display),
         env.DB.prepare('INSERT INTO account_identities(id,user_id,provider,provider_subject_hash) VALUES(?,?,?,?)').bind(identityId,userId,'github',subjectHash)
       ]);
       return {id:userId,handle,display_name:profile.display,status:'active'};
@@ -372,9 +372,16 @@ async function loginCallback(request,env,url,providerFetch) {
   try{profile=await githubAccount(code,row.pkce_verifier,env,providerFetch);}
   catch(e){return fail(request,env,e instanceof OAuthProviderFault?e.publicCode:'oauth_provider_unavailable',503,gone);}
   if(!profile)return fail(request,env,'oauth_identity_invalid',403,gone);
-  // Private beta: an explicit provider-ID allowlist is mandatory until a separate public signup approval.
+  // Separate an invitation-only beta from a test-only signup window.
+  // Never enable the production signup switch just to let testers in: doing so
+  // intentionally disables the private catalogue, social APIs and Discord queue.
   const betaIds=String(env.AUTH_BETA_GITHUB_IDS||'').split(',').map(x=>x.trim()).filter(Boolean);
-  if(!betaIds.includes(profile.subject) && env.AUTH_PUBLIC_SIGNUP_APPROVED!=='true')
+  const testSignup=env.AUTH_STAGING_TEST_SIGNUP_ENABLED==='true' &&
+    env.AUTH_PUBLIC_SIGNUP_APPROVED==='false' &&
+    env.PUBLIC_CATALOG_ENABLED==='false' &&
+    env.BETA_CATALOG_ENABLED==='true' && betaIds.length>0;
+  if(!betaIds.includes(profile.subject) && !testSignup &&
+     env.AUTH_PUBLIC_SIGNUP_APPROVED!=='true')
     return fail(request,env,'beta_not_allowed',403,gone);
   const user=await upsertIdentity(env,profile);
   if(!user)return fail(request,env,'account_unavailable',403,gone);
@@ -447,7 +454,7 @@ async function profileUpdate(request,env) {
   try{
     const result=await env.DB.prepare(
       "UPDATE community_users SET handle=?,display_name=?,bio=?,updated_at=unixepoch() "+
-      "WHERE id=? AND status='active' RETURNING id,handle,display_name,bio,created_at,avatar_public"
+      "WHERE id=? AND status='active' RETURNING id,handle,display_name,bio,created_at,avatar_public,banner_public"
     ).bind(profile.handle,profile.display_name,profile.bio,session.user.id).first();
     if(!result)return fail(request,env,'account_unavailable',403);
     return response(request,env,{user:pickUser(result)},200);

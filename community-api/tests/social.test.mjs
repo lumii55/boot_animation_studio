@@ -169,3 +169,36 @@ test('avatar is private by default and only public after explicit authenticated 
  assert.equal((await x.req(url,'PUT',{visible:'yes'},'owner')).status,400);
  assert.equal((await x.req(url,'PUT',{visible:true},'guest',{anonymous:true})).status,403);
 });
+
+test('legacy private photos remain private; banner has a separate toggle and protected public route',async t=>{
+ const x=await make(t),db=x.db;
+ const legacy=db.prepare('SELECT avatar_public,banner_public FROM community_users WHERE id=?').get('u1');
+ assert.equal(legacy.avatar_public,0);assert.equal(legacy.banner_public,0);
+ const privateUrl='/v1/social/banners/an_approved';
+ assert.equal((await x.req(privateUrl,'GET',undefined,'guest',{anonymous:true})).status,404);
+ const bannerKey='creator-private/u1/banner/'+'f'.repeat(32)+'.webp';
+ const id='e'.repeat(32);
+ db.prepare('INSERT INTO creator_media(id,owner_id,kind,object_key) VALUES(?,?,?,?)')
+  .run(id,'u1','banner',bannerKey);
+ db.prepare("UPDATE creator_media SET status='active',size_bytes=20 WHERE id=?").run(id);
+ db.prepare('INSERT INTO creator_media_current(user_id,kind,media_id) VALUES(?,?,?)')
+  .run('u1','banner',id);
+ x.env.PRIVATE_UPLOADS={get:async key=>{
+   assert.equal(key,bannerKey);
+   const bytes=Uint8Array.from([82,73,70,70,16,0,0,0,87,69,66,80,86,80,56,32,0,0,0,0]);
+   return {size:bytes.length,body:new Response(bytes).body};
+ }};
+ assert.equal((await x.req(privateUrl,'GET',undefined,'guest',{anonymous:true})).status,404);
+ const enable=await x.req('/v1/social/me/banner-visibility','PUT',{visible:true},'owner');
+ assert.equal(enable.status,200);assert.equal(enable.data.banner_public,true);
+ const visible=await x.req('/v1/social/creators/an_approved','GET',undefined,'guest',{anonymous:true});
+ assert.equal(visible.status,200);assert.equal(visible.data.banner_public,true);
+ const image=await worker.fetch(new Request(API+privateUrl),x.env);
+ assert.equal(image.status,200);assert.equal(image.headers.get('Content-Type'),'image/webp');
+ assert.equal((await image.arrayBuffer()).byteLength,20);
+ const hide=await x.req('/v1/social/me/banner-visibility','PUT',{visible:false},'owner');
+ assert.equal(hide.status,200);assert.equal(hide.data.banner_public,false);
+ const blocked=await worker.fetch(new Request(API+privateUrl),x.env);
+ assert.equal(blocked.status,404);
+ assert.equal(db.prepare('SELECT avatar_public FROM community_users WHERE id=?').get('u1').avatar_public,0);
+});

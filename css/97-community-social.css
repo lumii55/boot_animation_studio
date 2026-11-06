@@ -87,3 +87,43 @@
 #bas-community-preview .bas-social-action-card{grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
 #bas-community-preview .bas-social-comment-avatar.bas-social-comment-photo{object-fit:cover;border:1px solid #675482;background:#241b39;display:block}
 @media(max-width:740px){#bas-community-preview .bas-social-sidebar{grid-template-columns:minmax(0,1fr)}}
+
+/* In-view close returns to prior Community scroll position; top-level X still exits. */
+.bas-live-viewclose{position:sticky;top:0;z-index:9;display:flex;justify-content:flex-end;pointer-events:none;height:0}
+.bas-live-viewclose>.bas-c-roundclose{pointer-events:auto;width:40px;height:40px;flex:0 0 40px;
+ background:rgba(22,24,46,.93);border:1px solid #756d96;color:#f3eefe;box-shadow:0 4px 15px #0005}
+.bas-live-viewclose>.bas-c-roundclose:focus-visible{outline:3px solid #ad98f4}
+
+.bas-live-rejected-label{font-weight:800;color:#ffb4c5}
+.bas-live-rejected-panel{border:1px solid #7d5b7e;border-radius:18px;padding:18px;background:#191a2c}
+.bas-live-rejected-reason{white-space:pre-wrap;overflow-wrap:anywhere;color:#ffe1e5;font-weight:650}
+.bas-live-rejected-fields{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr);gap:11px 18px}
+.bas-live-rejected-fields dt{font-weight:700;color:#bdacd5}
+.bas-live-rejected-fields dd{margin:0;overflow-wrap:anywhere}
+.bas-live-rejection-summary{color:#ffb6c7}
+#bas-community-preview .bas-live-rejected-canvas{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;background:#000;border-radius:14px}
+#bas-community-preview .bas-live-rejected-panel .bas-social-edit-preview{min-width:0;width:100%}
+#bas-community-preview .bas-live-rejected-panel [data-rejected-load]{font-size:clamp(11px,2.3vw,14px);line-height:1.35;text-align:center;padding:8px;overflow-wrap:anywhere}
+@media(max-width:650px){.bas-live-rejected-fields{grid-template-columns:1fr;gap:5px}.bas-live-rejected-fields dt{margin-top:10px}}
+
+/* P15.7: prominent accessible privacy switches, original-BAS image pickers. */
+#bas-community-preview .bas-live-visibility{margin:20px 0;padding:18px;border:1px solid rgba(168,147,243,.54);border-radius:20px;background:linear-gradient(130deg,rgba(74,52,116,.42),rgba(28,54,73,.34))}
+#bas-community-preview .bas-live-visibility h3{margin:0 0 8px;color:#eee4ff}
+#bas-community-preview .bas-live-visibility>p{font-size:12px;color:#bac0d5;line-height:1.6;margin:0 0 16px}
+#bas-community-preview .bas-live-visibility-row{position:relative;display:flex!important;align-items:center;justify-content:space-between;gap:14px;padding:14px!important;margin:9px 0!important;border:1px solid #5c4d79;border-radius:15px;background:#1b1c35;cursor:pointer}
+#bas-community-preview .bas-live-visibility-copy{flex:1;min-width:0;color:#f2e9ff;font-size:13px;line-height:1.5}
+#bas-community-preview .bas-live-visibility-row input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+#bas-community-preview .bas-live-switch{flex:0 0 48px;position:relative;display:block;width:48px;height:27px;border-radius:999px;border:1px solid #786a91;background:#4c485f;transition:background .2s}
+#bas-community-preview .bas-live-switch:before{content:"";position:absolute;left:3px;top:3px;width:19px;height:19px;border-radius:50%;background:#e1d9ed;transition:transform .2s}
+#bas-community-preview .bas-live-visibility-row input:checked+.bas-live-switch{background:linear-gradient(110deg,#b2a5fa,#83e0dd);border-color:#e0ddff}
+#bas-community-preview .bas-live-visibility-row input:checked+.bas-live-switch:before{transform:translateX(20px);background:#23233d}
+#bas-community-preview .bas-live-visibility-row input:focus-visible+.bas-live-switch{outline:3px solid #a7f0e6;outline-offset:3px}
+#bas-community-preview .bas-live-image-picker{position:relative;display:flex!important;align-items:center;flex-wrap:wrap;gap:12px;min-height:66px;padding:17px!important;margin:12px 0!important;border:1px solid #755e9d;border-radius:18px;background:linear-gradient(115deg,#35264e,#27354a);color:#f7efff!important;cursor:pointer}
+#bas-community-preview .bas-live-picker-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:#634c86;font-size:23px}
+#bas-community-preview .bas-live-image-picker strong{flex:1;min-width:80px;font-size:14px}
+#bas-community-preview .bas-live-picker-cta{display:inline-flex;justify-content:center;align-items:center;min-height:38px;padding:8px 14px;border-radius:12px;background:linear-gradient(110deg,#bbb0fc,#91e0da);color:#21243b;font-weight:800;font-size:12px}
+#bas-community-preview .bas-live-picker-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;overflow:hidden!important;clip-path:inset(50%)!important}
+#bas-community-preview .bas-live-image-picker:hover{border-color:#beb1fb}
+#bas-community-preview .bas-live-image-picker:focus-within{outline:3px solid #a7eee6;outline-offset:2px}
+#bas-community-preview .bas-social-loginhint .bas-c-button{margin-top:10px}
+@media(max-width:450px){#bas-community-preview .bas-live-visibility{padding:12px}#bas-community-preview .bas-live-image-picker{padding:13px!important}#bas-community-preview .bas-live-picker-cta{width:100%}}

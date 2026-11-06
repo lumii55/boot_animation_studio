@@ -106,22 +106,28 @@ async function refresh(){
  return user;
 }
 function restoreOriginalCommunity(){
- if(!user||sessionStorage.getItem(RETURN_KEY)!=='profile')return false;
+ if(!user||!sessionStorage.getItem(RETURN_KEY))return false;
  const open=window.BASCommunityPreview?.open;
  const live=window.BASCommunityLive;
  if(typeof open!=='function'||!live?.active())return false;
  if(!open())return false;
- live.showProfile?.();
+ const destination=sessionStorage.getItem(RETURN_KEY);
  sessionStorage.removeItem(RETURN_KEY);
+ if(/^detail:[a-f0-9]{32}$/.test(destination))void live.openById?.(destination.slice(7));
+ else if(/^creator:[A-Za-z0-9_]{3,32}$/.test(destination))live.openCreator?.(destination.slice(8));
+ else if(destination==='profile')live.showProfile?.();
  return true;
 }
 window.addEventListener('load',()=>{void init().then(()=>restoreOriginalCommunity());});
 window.addEventListener('pageshow',()=>{if(user)restoreOriginalCommunity();});
-async function beginLogin(){
+async function beginLogin(returnTarget='profile'){
  if(!trusted||!crypto?.subtle)throw Error('BAS precisa de um navegador local seguro.');
  const verifier=randomToken(),challenge=await digest(verifier);
  sessionStorage.setItem(AUTH_KEY,verifier);
- sessionStorage.setItem(RETURN_KEY,'profile');
+ const destination=typeof returnTarget==='string'&&
+  (/^detail:[a-f0-9]{32}$/.test(returnTarget)||/^creator:[A-Za-z0-9_]{3,32}$/.test(returnTarget)||returnTarget==='explore')
+  ?returnTarget:'profile';
+ sessionStorage.setItem(RETURN_KEY,destination);
  const url=new URL(API+'/v1/auth/github/start');
  url.searchParams.set('mode',MODE);
  url.searchParams.set('return_to',returnTo());
@@ -305,6 +311,13 @@ async function withdrawAnimation(animationId){
   method:'POST',data:{confirm:true}
  });
 }
+async function rejectedZip(id){
+ if(!/^[a-f0-9]{32}$/.test(id))throw Error('Invalid ID.');
+ const res=await request('/v1/publishing/animations/'+id+'/rejected/zip',{raw:true});
+ const blob=await res.blob();
+ if(!blob.size||blob.size>40*1024*1024)throw Error('Rejected ZIP unavailable.');
+ return blob;
+}
 async function approvedZip(id){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
  const res=await request('/v1/beta/downloads/'+id,{raw:true,authenticated:false});
@@ -345,6 +358,12 @@ async function setAvatarVisibility(visible){
  if(user)user={...user,avatar_public:result.avatar_public};
  return result;
 }
+async function setBannerVisibility(visible){
+ if(typeof visible!=='boolean')throw Error('Preferência inválida.');
+ const result=await request('/v1/social/me/banner-visibility',{method:'PUT',data:{visible}});
+ if(user)user={...user,banner_public:result.banner_public};
+ return result;
+}
 function publicState(){
  return Object.freeze({authenticated:Boolean(token&&user),user:user?{...user}:null,
   hasSession:Boolean(token),error:lastError});
@@ -352,9 +371,9 @@ function publicState(){
 window.BASCommunityOnline=Object.freeze({
  available:()=>trusted,apiOrigin:API,init,login:beginLogin,logout,
  state:publicState,refresh,profile:updateProfile,gallery,creators,report,
- publish:publishArchive,drafts,download,approvedZip,media,updateMedia,setAvatarVisibility,normalizeTags,
+ publish:publishArchive,drafts,download,approvedZip,media,updateMedia,setAvatarVisibility,setBannerVisibility,normalizeTags,
  socialAnimation,socialCreator,animationDetail,likeAnimation,followCreator,addComment,likeComment,reportComment,
- ownedAnimations,proposeRevision,cancelRevision,withdrawAnimation
+ ownedAnimations,proposeRevision,cancelRevision,withdrawAnimation,rejectedZip
 });
 window.addEventListener('DOMContentLoaded',()=>{void init();});
 })();

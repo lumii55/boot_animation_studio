@@ -101,9 +101,11 @@ async function processInteraction(env,interaction,command,reason=null){
   const result=await botModerateAction(env,kind,id,value,reason||'');
   const body=await result.json().catch(()=>({}));
   if(result.status===409)return discordFollowup(env,interaction,'Essa solicitação já foi analisada ou mudou de estado.');
-  return discordFollowup(env,interaction,result.ok?
+  const followup=await discordFollowup(env,interaction,result.ok?
    `✅ ${plain(kind)}: ${plain(value)} registrado e auditado no BAS.`:
    'Não foi possível concluir: '+plain(body.error||'erro de moderação',90));
+  if(result.ok)await cleanupResolvedDMs(env).catch(()=>{});
+  return followup;
  }catch(_){return discordFollowup(env,interaction,'Falha ao processar a ação. Use o painel administrativo local.');}
 }
 // Discord requires a signed PING before accepting the Interactions Endpoint URL.
@@ -187,6 +189,67 @@ export function buildPrivateDM(event,row,hasGif=false){
  return {allowed_mentions:{parse:[]},embeds:[embed],components:adminButtons(event.kind,event.source_id),
   nonce:'b'+event.source_id.slice(0,24),enforce_nonce:true};
 }
+/* Delete only resolved moderation DMs. Preserve audit rows and leave pending
+ * messages untouched. Retry transient Discord errors in subsequent Cron runs. */
+export async function cleanupResolvedDMs(env,fetcher=fetch,limit=3){
+ if(!discordConfigured(env))return {disabled:true};
+ const events=(await env.DB.prepare(
+  "SELECT event_id,kind,source_id,discord_message_id,dm_channel_id,cleanup_attempts "+
+  "FROM discord_admin_events WHERE state='delivered' AND discord_message_id IS NOT NULL "+
+  "AND cleaned_at IS NULL AND cleanup_attempts<8 AND cleanup_retry_at<=unixepoch() "+
+  "ORDER BY delivered_at ASC,event_id ASC LIMIT ?"
+ ).bind(Math.max(1,Math.min(5,limit))).all()).results||[];
+ let deleted=0,skipped=0,failed=0;
+ for(const event of events){
+  if(!SNOWFLAKE.test(event.discord_message_id)){skipped++;continue;}
+  if(await loadAdminEvent(env,event.kind,event.source_id)){skipped++;continue;}
+  const claimed=await env.DB.prepare(
+   "UPDATE discord_admin_events SET cleanup_attempts=cleanup_attempts+1,"+
+   "cleanup_retry_at=unixepoch()+300 WHERE event_id=? AND state='delivered' "+
+   "AND cleaned_at IS NULL AND cleanup_attempts<8 AND cleanup_retry_at<=unixepoch() "+
+   "RETURNING event_id"
+  ).bind(event.event_id).first();
+  if(!claimed)continue;
+  try{
+   let channel=event.dm_channel_id;
+   const auth={Authorization:'Bot '+env.DISCORD_BOT_TOKEN};
+   if(!SNOWFLAKE.test(channel||'')){
+    const dm=await fetcher('https://discord.com/api/v10/users/@me/channels',{
+     method:'POST',headers:{...auth,'Content-Type':'application/json'},
+     body:JSON.stringify({recipient_id:env.DISCORD_ADMIN_USER_ID}),redirect:'manual'
+    });
+    if(!dm.ok||dm.status>=300)throw Error('dm_channel_unavailable');
+    const body=await dm.json();
+    channel=body?.id;
+    if(!SNOWFLAKE.test(channel||''))throw Error('bad_dm_channel');
+    await env.DB.prepare('UPDATE discord_admin_events SET dm_channel_id=? WHERE event_id=?')
+     .bind(channel,event.event_id).run();
+   }
+   const url='https://discord.com/api/v10/channels/'+channel+'/messages/'+event.discord_message_id;
+   const removed=await fetcher(url,{method:'DELETE',headers:auth,redirect:'manual'});
+   if(removed.status===404||removed.status===204){
+    await env.DB.prepare(
+     "UPDATE discord_admin_events SET cleaned_at=unixepoch(),cleanup_retry_at=0,"+
+     "last_error='' WHERE event_id=? AND state='delivered' AND cleaned_at IS NULL"
+    ).bind(event.event_id).run();
+    deleted++;continue;
+   }
+   await fetcher(url,{method:'PATCH',headers:{...auth,'Content-Type':'application/json'},
+    body:JSON.stringify({components:[],content:'✅ Revisão concluída no BAS. Esta mensagem será removida.'}),
+    redirect:'manual'}).catch(()=>{});
+   throw Error('discord_message_delete_failed');
+  }catch(_){
+   const wait=Math.min(3600,60*Math.pow(2,Math.min(5,event.cleanup_attempts||0)));
+   await env.DB.prepare(
+    "UPDATE discord_admin_events SET cleanup_retry_at=unixepoch()+?,last_error='dm_cleanup_retry' "+
+    "WHERE event_id=? AND state='delivered' AND cleaned_at IS NULL"
+   ).bind(wait,event.event_id).run().catch(()=>{});
+   failed++;
+  }
+ }
+ return {checked:events.length,deleted,skipped,failed};
+}
+
 export async function dispatchAdminDMs(env,fetcher=fetch){
  if(!discordConfigured(env))return {disabled:true};
  const events=(await env.DB.prepare("SELECT event_id,kind,source_id,attempts FROM discord_admin_events "+
@@ -230,12 +293,13 @@ export async function dispatchAdminDMs(env,fetcher=fetch){
    if(!sent.ok||sent.status>=300)throw Error('discord_send_failed');
    const message=await sent.json();
    if(!SNOWFLAKE.test(message?.id||''))throw Error('invalid_discord_ack');
-   await env.DB.prepare("UPDATE discord_admin_events SET state='delivered',discord_message_id=?,delivered_at=unixepoch(),last_error='' WHERE event_id=?")
-    .bind(message.id,event.event_id).run();delivered++;
+   await env.DB.prepare("UPDATE discord_admin_events SET state='delivered',discord_message_id=?,dm_channel_id=?,delivered_at=unixepoch(),last_error='' WHERE event_id=?")
+    .bind(message.id,channel.id,event.event_id).run();delivered++;
   }catch(_){
    await env.DB.prepare("UPDATE discord_admin_events SET state='retry',last_error='delivery_failed',next_attempt_at=unixepoch()+300 WHERE event_id=? AND state='sending'")
     .bind(event.event_id).run();
   }
  }
- return {checked:events.length,delivered,blocked};
+ const cleanup=await cleanupResolvedDMs(env,fetcher);
+ return {checked:events.length,delivered,blocked,cleanup};
 }

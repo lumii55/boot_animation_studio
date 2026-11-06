@@ -31,10 +31,20 @@ async function listOwned(env,user){
  try{
   const rows=(await env.DB.prepare(
    'SELECT a.id,a.title,a.summary,a.category,a.status,a.created_at,a.updated_at,'+
-   'a.published_at,v.id AS version_id,v.fps,v.width,v.height,r.license,r.author_credit,'+
+   'a.published_at,COALESCE(v.id,rv.id) AS version_id,'+
+   'COALESCE(v.fps,rv.fps) AS fps,COALESCE(v.width,rv.width) AS width,'+
+   'COALESCE(v.height,rv.height) AS height,r.license,r.author_credit,'+
+   "(SELECT me.reason FROM moderation_events me WHERE me.animation_id=a.id "+
+   "AND me.action='reject' AND me.version_id=d.version_id "+
+   "ORDER BY me.occurred_at DESC LIMIT 1) AS rejection_reason,"+
+   "(SELECT CASE WHEN instr(me.reason,': ')>0 THEN substr(me.reason,instr(me.reason,': ')+2) ELSE '' END " +
+   "FROM moderation_events me WHERE me.animation_id=a.id AND me.action='reject' " +
+   "AND me.reason LIKE 'owner revision %' ORDER BY me.occurred_at DESC LIMIT 1) AS rejected_revision_reason,"+
    "(SELECT COALESCE(json_group_array(tag),'[]') FROM animation_tags t WHERE t.animation_id=a.id) AS tags_json,"+
    'e.id AS edit_id,e.status AS edit_status FROM animations a '+
    'LEFT JOIN animation_versions v ON v.id=a.published_version_id '+
+   'LEFT JOIN publication_drafts d ON d.animation_id=a.id '+
+   'LEFT JOIN animation_versions rv ON rv.id=d.version_id '+
    'LEFT JOIN animation_rights r ON r.animation_id=a.id '+
    "LEFT JOIN owner_revisions e ON e.animation_id=a.id AND e.status IN ('awaiting_upload','processing','pending_review') "+
    "WHERE a.owner_id=? AND a.status!='removed' ORDER BY a.created_at DESC LIMIT 50"
@@ -43,8 +53,37 @@ async function listOwned(env,user){
    category:r.category,status:r.status,created_at:r.created_at,updated_at:r.updated_at,
    published_at:r.published_at,version_id:r.version_id,width:r.width,height:r.height,fps:r.fps,
    license:r.license,author_credit:r.author_credit,tags:JSON.parse(r.tags_json||'[]'),
-   edit_id:r.edit_id,edit_status:r.edit_status}))});
+   edit_id:r.edit_id,edit_status:r.edit_status,
+   rejection_reason:r.status==='rejected'?r.rejection_reason||'':null,
+   rejected_revision_reason:r.rejected_revision_reason||null}))});
  }catch(_){return fail(503,'owner_catalog_unavailable');}
+}
+// A rejected archive is readable only by its original signed-in author.
+// This never exposes object_key or grants access to a different creator.
+async function rejectedAuthorZip(env,user,animationId){
+ if(!ID.test(animationId))return fail(404,'not_found');
+ const row=await env.DB.prepare(
+  'SELECT v.object_key,v.size_bytes FROM animations a '+
+  'JOIN publication_drafts d ON d.animation_id=a.id '+
+  'JOIN animation_versions v ON v.id=d.version_id '+
+  "WHERE a.id=? AND a.owner_id=? AND a.status='rejected' AND v.status='rejected' LIMIT 1"
+ ).bind(animationId,user.userId).first();
+ if(!row||!/^quarantine\/[a-f0-9]{32}\/[a-f0-9]{32}\.zip$/.test(row.object_key||'')||
+   row.size_bytes<1||row.size_bytes>40*1024*1024)return fail(404,'not_found');
+ const month=new Date().toISOString().slice(0,7);
+ const allowed=await env.DB.prepare(
+  'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,0,1) '+
+  'ON CONFLICT(month) DO UPDATE SET class_b=class_b+1,updated_at=unixepoch() '+
+  'WHERE class_b<5000 RETURNING class_b'
+ ).bind(month).first();
+ if(!allowed)return fail(429,'download_quota');
+ const obj=await env.PRIVATE_UPLOADS.get(row.object_key);
+ if(!obj?.body)return fail(503,'zip_unavailable');
+ return new Response(obj.body,{status:200,headers:{
+  'Content-Type':'application/zip','Cache-Control':'no-store, private',
+  'Content-Disposition':'attachment; filename="bootanimation-rejected.zip"',
+  'Content-Security-Policy':"default-src 'none'",'X-Content-Type-Options':'nosniff'
+ }});
 }
 async function createRevision(request,env,user,animationId){
  if(!ID.test(animationId))return fail(404,'not_found');
@@ -232,6 +271,8 @@ export async function handleOwnerAnimations(request,env,url){
  if(!identity||identity.clientKind!=='bas')return fail(403,'not_authorized');
  try{
   if(path==='/v1/publishing/animations'&&method==='GET')return listOwned(env,identity);
+  const rejected=/^\/v1\/publishing\/animations\/([a-f0-9]{32})\/rejected\/zip$/.exec(path);
+  if(rejected&&method==='GET')return rejectedAuthorZip(env,identity,rejected[1]);
   const revision=/^\/v1\/publishing\/animations\/([a-f0-9]{32})\/revisions$/.exec(path);
   if(revision&&method==='POST')return createRevision(request,env,identity,revision[1]);
   const removed=/^\/v1\/publishing\/animations\/([a-f0-9]{32})\/remove$/.exec(path);
