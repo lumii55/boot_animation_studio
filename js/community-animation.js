@@ -189,5 +189,55 @@ document.addEventListener('visibilitychange',()=>{
   }
  }
 });
-window.BASCommunityAnimation=Object.freeze({mount,unmount,parseDescription,makeTimeline,frameAtTime,buildFromZip});
+
+// Reuse the published Community's ZIP frame parser, timeline and canvas painter
+// for PRIVATE pending archives. Caller fetches ZIP with its own authorization.
+function playBlob(canvas,blob,{onReady=()=>{},onError=()=>{}}={}){
+ let model=null,stopped=false,paused=false,timer=null,first=true,elapsed=0,started=0;
+ const clear=()=>{if(timer!==null){clearTimeout(timer);timer=null;}};
+ const free=()=>{
+  if(!model)return;
+  for(const bitmap of model.bitmaps.values())bitmap.close?.();
+  model.bitmaps.clear();model=null;
+ };
+ const stop=()=>{
+  if(stopped)return;
+  stopped=true;clear();
+  document.removeEventListener('visibilitychange',visibility);
+  free();
+ };
+ const fail=error=>{stop();try{onError(error);}catch(_){}};
+ const tick=async()=>{
+  if(stopped||paused||document.hidden||!canvas.isConnected)return;
+  const target=model;
+  if(!target)return;
+  elapsed=Math.max(0,(performance.now()-started)/1000);
+  const bitmap=await bitmapFor(target,frameAtTime(target.plan,elapsed));
+  if(stopped||paused||document.hidden||!canvas.isConnected)return;
+  showImage(canvas,bitmap);
+  if(first){first=false;onReady();}
+  if(reduced())return;
+  const fps=Math.min(MAX_PREVIEW_FPS,target.plan.fps);
+  timer=setTimeout(()=>void tick().catch(fail),Math.max(12,1000/fps));
+ };
+ function visibility(){
+  if(stopped)return;
+  if(document.hidden){clear();return;}
+  if(!paused&&!timer&&model){started=performance.now()-elapsed*1000;void tick().catch(fail);}
+ }
+ document.addEventListener('visibilitychange',visibility);
+ const pause=()=>{if(stopped)return;paused=true;clear();};
+ const resume=()=>{if(stopped||!paused)return;paused=false;started=performance.now()-elapsed*1000;
+  if(!document.hidden&&model)void tick().catch(fail);};
+ const ready=(async()=>{
+  if(!canvas?.isConnected)throw Error('Preview canvas is detached');
+  model=await buildFromZip(blob);
+  if(stopped){free();return;}
+  started=performance.now();
+  if(!document.hidden)await tick();
+ })().catch(fail);
+ return Object.freeze({stop,pause,resume,ready});
+}
+
+window.BASCommunityAnimation=Object.freeze({mount,unmount,parseDescription,makeTimeline,frameAtTime,buildFromZip,playBlob});
 })();

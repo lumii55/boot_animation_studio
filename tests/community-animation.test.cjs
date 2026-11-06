@@ -85,6 +85,44 @@ test('preview media is loaded lazily only after intersecting cards',()=>{
  assert.equal(observed,0);
  api.unmount();
 });
+
+test('same Community engine renders a private pending ZIP on canvas and stops cleanly',async()=>{
+ const {api,document}=harness();
+ const zip=new JSZip();
+ zip.file('desc.txt','864 1920 30\np 0 0 part0');
+ zip.file('part0/0001.png',pixel);
+ const bytes=await zip.generateAsync({type:'uint8array'});
+ const paints=[],bitmaps=[];
+ const canvas={
+  isConnected:true,clientWidth:100,clientHeight:180,width:0,height:0,
+  getContext(){return{fillRect:(...args)=>paints.push(['fill',...args]),
+   drawImage:(...args)=>paints.push(['draw',...args]),fillStyle:''}}
+ };
+ const original=global.createImageBitmap;
+ const engineContext={
+  window:{matchMedia:()=>({matches:false})},document:{
+   hidden:false,addEventListener(){},removeEventListener(){}
+  },JSZip,Blob,Uint8Array,ArrayBuffer,console,setTimeout,clearTimeout,
+  performance:{now:()=>Date.now()},
+  createImageBitmap:async()=>{const image={width:3,height:8,close(){bitmaps.push('closed');}};return image;}
+ };
+ vm.runInNewContext(script,engineContext,{filename:'community-animation.js'});
+ let ready=0,errors=0;
+ const controller=engineContext.window.BASCommunityAnimation.playBlob(canvas,new Blob([bytes]),
+  {onReady:()=>ready++,onError:()=>errors++});
+ await controller.ready;
+ assert.equal(ready,1);assert.equal(errors,0);
+ assert.ok(paints.some(x=>x[0]==='draw'));
+ const before=paints.length;controller.pause();
+ await new Promise(resolve=>setTimeout(resolve,40));
+ assert.equal(paints.length,before,'no work while offscreen');
+ controller.resume();
+ await new Promise(resolve=>setTimeout(resolve,20));
+ assert.ok(paints.length>before,'reuses original timeline after resume');
+ controller.stop();
+ assert.ok(bitmaps.length>0,'decoded frames released when admin card disappears');
+});
+
 test('mobile Community entry is on original home screen, not site header',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const [header,main]=html.split('<main class="studio-main">');
@@ -101,5 +139,5 @@ test('Community preview preserves private media for other creators',()=>{
  assert.match(source,/state\.remotePictures\.avatar/);
  assert.doesNotMatch(source,/creator-private\/|PRIVATE_UPLOADS|\.object_key/);
  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
- assert.match(sw,/community-animation\.js\?v=p15-7-visual-preview/);
+ assert.match(sw,/community-animation\.js\?v=p15-7-shared-zip-preview/);
 });

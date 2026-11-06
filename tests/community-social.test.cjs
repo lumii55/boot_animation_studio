@@ -99,7 +99,7 @@ test('social CSS and PWA shell include new resources',()=>{
  assert.match(html,/js\/community-live\.js\?v=p15-7-gif-previews/);
  assert.match(html,/js\/community-gif\.js\?v=p15-7-real-review-gif/);
  assert.match(sw,/css\/97-community-social\.css\?v=p15-7-bot-foundation-01/);
- assert.match(sw,/bas-shell-web-v16/);
+ assert.match(sw,/bas-shell-web-v17/);
 });
 test('approved Remix downloads original ZIP into original Studio and keeps provenance for export',async()=>{
  const h=make();h.window.BASCommunityLive.mount();await flush();h.click('detail',ID);await flush();

@@ -9,3 +9,11 @@
 
 ## Painel administrativo privado: estado e visualizacao
 A API de staging informa has_preview=0/1 na fila administrativa e permite GET /v1/beta/moderation/pending/:animation_id/preview (opcional ?edit=:revision_id), com o mesmo controle de moderadora do download do ZIP. O GIF e servido diretamente do R2 privado apenas com sessao administrativa, sem link publico, com quota de leitura, Content-Type image/gif e Cache-Control no-store. A interface em ~/bas-admin-private usa essa rota e mostra GIF animado ou aviso de ausencia; o codigo privado NAO vai para o GitHub. Publicacoes pendentes antigas sem preview_key continuam na fila e NAO sao alteradas/renotificadas automaticamente.
+
+## 2026-11-06: reproduzindo ZIP pendente com o motor original do BAS
+- O painel administrativo privado em 127.0.0.1:8090 NAO usa mais o GIF como fonte da visualizacao. Ele le o ZIP de revisao pela rota administrativa preexistente e reproduz os quadros com o mesmo motor js/community-animation.js usado pela Community publicada.
+- playBlob(canvas, zipBlob) reutiliza buildFromZip, frameAtTime, bitmapFor e showImage. Suporta pausa/retomada fora da tela, limpeza de bitmaps e limites do motor original.
+- Apenas um ZIP autenticado da fila privada e aceito; a obra nao e aprovada nem publicada automaticamente; nao existem URLs publicas do ZIP ou GIF no painel.
+- O motor oficial e copiado literalmente para o diretorio privado juntamente com vendor/jszip.min.js, servido por 8090 com allowlist de paths e CSP script-src self. NUNCA fazer deploy do painel ao GitHub ou publico.
+- O GIF89a gerado separadamente para DM no Discord e um ARQUIVO distinto (o preview publicado na Community e um canvas), cuja validade real no Discord ainda precisa ser testada. A ausencia/corrupcao do GIF nao bloqueia a revisao no painel.
+- Testar manualmente a visualizacao real no Vivaldi local antes de declarar aceita; novas mudancas continuam em dev/p15-community-foundation, sem modificar main ou Companion.
