@@ -96,10 +96,10 @@ test('social CSS and PWA shell include new resources',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
  assert.match(html,/css\/97-community-social\.css\?v=p15-7-bot-foundation-01/);
- assert.match(html,/js\/community-live\.js\?v=p15-7-gif-previews/);
- assert.match(html,/js\/community-gif\.js\?v=p15-7-real-review-gif/);
+ assert.match(html,/js\/community-live\.js\?v=p15-7-zip40mib/);
+ assert.match(html,/js\/community-gif\.js\?v=p15-7-zip40mib/);
  assert.match(sw,/css\/97-community-social\.css\?v=p15-7-bot-foundation-01/);
- assert.match(sw,/bas-shell-web-v17/);
+ assert.match(sw,/bas-shell-web-v18/);
 });
 test('approved Remix downloads original ZIP into original Studio and keeps provenance for export',async()=>{
  const h=make();h.window.BASCommunityLive.mount();await flush();h.click('detail',ID);await flush();

@@ -5,7 +5,7 @@
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 
-const MAX_ZIP_BYTES = 20 * 1024 * 1024;
+const MAX_ZIP_BYTES = 40 * 1024 * 1024;
 const MAX_ENTRY_BYTES = 8 * 1024 * 1024;
 const MAX_DESC_BYTES = 16 * 1024;
 const MAX_TOTAL_UNPACKED = 128 * 1024 * 1024;

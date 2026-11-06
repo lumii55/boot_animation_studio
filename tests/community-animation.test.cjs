@@ -61,7 +61,7 @@ test('ZIPs are read in browser; unsupported or unsafe archives fail closed',asyn
  assert.equal(archive.plan.fps,20);
  assert.deepEqual(plain(archive.plan.segments.map(x=>x.frames.length)),[1,2,1]);
  assert.equal(api.frameAtTime(archive.plan,archive.plan.segments[2].start+.01),'part2/0001.png');
- const oversized=new Blob([new Uint8Array(20*1024*1024+1)]);
+ const oversized=new Blob([new Uint8Array(40*1024*1024+1)]);
  await assert.rejects(()=>api.buildFromZip(oversized),/unavailable/);
  const bad=new JSZip();bad.file('desc.txt','480 800 30\np 1 0 part0');
  bad.file('part0/evil.svg','<svg/>');
@@ -139,5 +139,5 @@ test('Community preview preserves private media for other creators',()=>{
  assert.match(source,/state\.remotePictures\.avatar/);
  assert.doesNotMatch(source,/creator-private\/|PRIVATE_UPLOADS|\.object_key/);
  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
- assert.match(sw,/community-animation\.js\?v=p15-7-shared-zip-preview/);
+ assert.match(sw,/community-animation\.js\?v=p15-7-zip40mib/);
 });

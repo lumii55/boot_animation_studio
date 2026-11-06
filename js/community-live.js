@@ -51,7 +51,7 @@ const EXTRA={
   name:'Nome',bio:'Sobre mim',imageHelp:'JPG, PNG ou WebP. Imagens armazenadas com privacidade.',
   photoAvatar:'Foto de perfil',photoBanner:'Banner',profileSaved:'Perfil atualizado!',
   sourceEditor:'Animação criada no editor',uploadHelp:'O arquivo será analisado antes de aparecer na galeria.',
-  invalidZip:'Escolha um ZIP válido de até 20 MiB.',missingZip:'Escolha um arquivo ZIP antes de publicar.',
+  invalidZip:'Escolha um ZIP válido de até 40 MiB.',missingZip:'Escolha um arquivo ZIP antes de publicar.',
   missingTags:'Clique em + Adicionar para confirmar as tags.',
   missingRights:'Confirme que possui os direitos necessários para compartilhar.',
   invalidTitle:'O título deve ter entre 3 e 100 caracteres.',sending:'Enviando e validando a animação…',
@@ -78,7 +78,7 @@ const EXTRA={
   name:'Name',bio:'About me',imageHelp:'JPG, PNG or WebP. Images are stored privately.',
   photoAvatar:'Profile photo',photoBanner:'Banner',profileSaved:'Profile updated!',
   sourceEditor:'Animation created in the editor',uploadHelp:'The file will be reviewed before appearing in the gallery.',
-  invalidZip:'Choose a valid ZIP up to 20 MiB.',missingZip:'Choose a ZIP file before publishing.',
+  invalidZip:'Choose a valid ZIP up to 40 MiB.',missingZip:'Choose a ZIP file before publishing.',
   missingTags:'Click + Add to confirm your tags.',
   missingRights:'Confirm you have the rights to share this animation.',
   invalidTitle:'Title must be between 3 and 100 characters.',sending:'Uploading and validating…',
@@ -793,7 +793,7 @@ function openUpload(file=null,source='zip'){
  if(file){
   const blob=file.blob||file;
   const filename=file.filename||file.name||'bootanimation.zip';
-  if(!(blob instanceof Blob)||blob.size>20*1024*1024||blob.size<1)return false;
+  if(!(blob instanceof Blob)||blob.size>40*1024*1024||blob.size<1)return false;
   state.file={blob,filename};
   state.title=state.title||filename.replace(/\.zip$/i,'');
   state.source=source;
@@ -814,9 +814,9 @@ async function pullFromDevice(source,connected){
   if(typeof apiFetch!=='function')throw Error('Companion indisponível.');
   const res=await apiFetch('/pull?source='+source+'&t='+Date.now(),{method:'GET'});
   if(!res.ok)throw Error('Companion recusou a leitura.');
-  if(Number(res.headers.get('Content-Length')||0)>20*1024*1024)throw Error('Arquivo grande demais.');
+  if(Number(res.headers.get('Content-Length')||0)>40*1024*1024)throw Error('Arquivo grande demais.');
   const blob=await res.blob();
-  if(blob.size<1||blob.size>20*1024*1024)throw Error('ZIP inválido.');
+  if(blob.size<1||blob.size>40*1024*1024)throw Error('ZIP inválido.');
   return openUpload({blob,filename:'bootanimation.zip'},'companion');
  }catch(e){state.status=tr('moduleReadError')+': '+String(e.message||e);render();return false;}
 }
@@ -1035,7 +1035,7 @@ function onChange(event){
  const id=event.target?.id;
  if(id==='bas-owner-zip'&&state.editDraft){
   const f=event.target.files?.[0];
-  if(f&&(!f.name.toLowerCase().endsWith('.zip')||f.size<1||f.size>20*1024*1024)){
+  if(f&&(!f.name.toLowerCase().endsWith('.zip')||f.size<1||f.size>40*1024*1024)){
    state.status=tr('invalidZip');state.editDraft.file=null;
   }else{state.editDraft.file=f||null;state.status='';}
   render();return true;
@@ -1048,7 +1048,7 @@ function onChange(event){
  if(id==='bas-live-zip'){
   const file=event.target.files?.[0];
   if(file){
-   if(!file.name.toLowerCase().endsWith('.zip')||file.size<1||file.size>20*1024*1024){
+   if(!file.name.toLowerCase().endsWith('.zip')||file.size<1||file.size>40*1024*1024){
     state.status=tr('invalidZip');
    }else{
     state.file={blob:file,filename:file.name};state.source='zip';

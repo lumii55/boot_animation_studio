@@ -71,7 +71,7 @@ function encodeRGB332(frames,w,h,delayCs=24){
  return new Uint8Array(out);
 }
 async function fromBootZip(zipBlob){
- if(!(zipBlob instanceof Blob)||zipBlob.size<1||zipBlob.size>20*1024*1024)throw Error('Invalid ZIP for preview');
+ if(!(zipBlob instanceof Blob)||zipBlob.size<1||zipBlob.size>40*1024*1024)throw Error('Invalid ZIP for preview');
  const api=window.BASCommunityAnimation;
  if(!api?.buildFromZip||!api?.frameAtTime||typeof createImageBitmap!=='function')
   throw Error('Real frame preview unavailable on this browser');

@@ -5,7 +5,7 @@
  */
 (()=>{
 'use strict';
-const MAX_ARCHIVE=20*1024*1024, MAX_ENTRIES=480, MAX_FRAMES=450;
+const MAX_ARCHIVE=40*1024*1024, MAX_ENTRIES=480, MAX_FRAMES=450;
 const LOOP_SECONDS=5, MAX_PREVIEW_FPS=60, DECODE_LIMIT=12, ZIP_CACHE_LIMIT=2;
 const cache=new Map();
 let generation=0, observer=null;

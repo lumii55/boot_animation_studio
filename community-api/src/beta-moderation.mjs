@@ -258,7 +258,7 @@ async function pendingDownload(env,id,editId=null){
    "WHERE a.id=? AND a.status='pending' AND "+
    "d.status='pending_review' AND v.status='pending' LIMIT 1"
   ).bind(id).first();
-  if(!row||row.size_bytes>20*1024*1024)return fail(404,'not_found');
+  if(!row||row.size_bytes>40*1024*1024)return fail(404,'not_found');
   const month=new Date().toISOString().slice(0,7);
   const reserved=await env.DB.prepare(
    'INSERT INTO r2_operation_budget(month,class_a,class_b) VALUES(?,0,1) '+
@@ -314,6 +314,27 @@ async function pendingPreview(env,id,editId=null){
  }catch(_){return fail(503,'preview_unavailable');}
 }
 
+// Authenticated administrator-only BAS ledger (not a claim about every R2
+// object in the Cloudflare account). No object keys or creator identities.
+async function storageSummary(env){
+ try{
+  const value=await env.DB.prepare(
+   'SELECT cap_bytes,used_bytes,reserved_bytes,updated_at FROM storage_budget WHERE id=1'
+  ).bind().first();
+  if(!value||![value.cap_bytes,value.used_bytes,value.reserved_bytes].every(Number.isSafeInteger))
+   return fail(503,'storage_budget_unavailable');
+  const available=Math.max(0,value.cap_bytes-value.used_bytes-value.reserved_bytes);
+  return send(200,{
+   scope:'bas_private_r2_accounted',
+   cap_bytes:value.cap_bytes,
+   used_bytes:value.used_bytes,
+   reserved_bytes:value.reserved_bytes,
+   available_bytes:available,
+   percent_used:Math.min(100,Math.round(10000*(value.used_bytes+value.reserved_bytes)/value.cap_bytes)/100),
+   updated_at:value.updated_at
+  });
+ }catch(_){return fail(503,'storage_budget_unavailable');}
+}
 async function notifyDiscord(){
  // Legacy text-only webhook dispatch has been permanently disabled.
  // The requested bot must use signed Discord Interactions, a private admin
@@ -324,6 +345,7 @@ export async function handleModeration(req,env,url,user){
  const path=url.pathname.slice('/v1/beta/'.length);
  if(path==='reports'&&req.method==='POST')return report(req,env,user);
  if(!isModerator(env,user,req))return fail(403,'moderator_required');
+ if(path==='moderation/storage'&&req.method==='GET')return storageSummary(env);
  if(path==='moderation/queue'&&req.method==='GET')return queue(env);
  if(/^moderation\/pending\/[a-f0-9]{32}\/zip$/.test(path)&&req.method==='GET')
    return pendingDownload(env,path.split('/')[2],url.searchParams.get('edit'));

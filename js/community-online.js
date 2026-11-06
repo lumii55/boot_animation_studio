@@ -230,8 +230,8 @@ async function report(id,reason){
 }
 async function publishArchive(file,meta){
  if(!token||!user||!csrf)throw Error('Entre na sua conta primeiro.');
- if(!(file instanceof Blob)||file.size<1||file.size>20*1024*1024)
-  throw Error('ZIP ausente ou maior que 20 MiB.');
+ if(!(file instanceof Blob)||file.size<1||file.size>40*1024*1024)
+  throw Error('ZIP ausente ou maior que 40 MiB.');
  const filename=String(meta.filename||file.name||'bootanimation.zip');
  if(filename.length>220||!filename.toLowerCase().endsWith('.zip'))
   throw Error('Selecione um arquivo .zip válido.');
@@ -270,8 +270,8 @@ async function ownedAnimations(){
 }
 async function proposeRevision(animationId,fields,zip=null){
  if(!/^[a-f0-9]{32}$/.test(animationId))throw Error('Invalid animation ID');
- if(zip!==null&&(!(zip instanceof Blob)||zip.size<1||zip.size>20*1024*1024))
-  throw Error('ZIP inválido ou maior que 20 MiB.');
+ if(zip!==null&&(!(zip instanceof Blob)||zip.size<1||zip.size>40*1024*1024))
+  throw Error('ZIP inválido ou maior que 40 MiB.');
  const license=String(fields.license||'');
  if(!['CC0-1.0','CC-BY-4.0','CC-BY-SA-4.0','all-rights-reserved'].includes(license))
   throw Error('Licença inválida.');
@@ -309,7 +309,7 @@ async function approvedZip(id){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('ID inválido.');
  const res=await request('/v1/beta/downloads/'+id,{raw:true,authenticated:false});
  const blob=await res.blob();
- if(blob.size<1||blob.size>20*1024*1024)throw Error('ZIP inválido.');
+ if(blob.size<1||blob.size>40*1024*1024)throw Error('ZIP inválido.');
  return blob;
 }
 async function download(id){

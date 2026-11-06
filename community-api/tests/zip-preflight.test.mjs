@@ -124,6 +124,6 @@ test('rejects misleading description dimensions and executable file',()=>{
   rejects([...validRecords(),{name:'evil.sh',bytes:Buffer.from('echo bad')}],'invalid_path');
 });
 test('rejects oversized archive and truncated ZIP',()=>{
-  assert.throws(()=>validateBootAnimationZip(Buffer.alloc(20*1024*1024+1)),e=>e.code==='archive_size');
+  assert.throws(()=>validateBootAnimationZip(Buffer.alloc(40*1024*1024+1)),e=>e.code==='archive_size');
   assert.throws(()=>validateBootAnimationZip(zip(validRecords()).subarray(0,60)),e=>e.code==='missing_end_directory');
 });

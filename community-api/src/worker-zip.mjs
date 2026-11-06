@@ -3,7 +3,7 @@
  * DecompressionStream(deflate-raw) must be supported; otherwise fail CLOSED.
  * Security review/media decoding on the server is still required before public release.
  */
-const MAX_ARCHIVE = 20 * 1024 * 1024;
+const MAX_ARCHIVE = 40 * 1024 * 1024;
 const MAX_ENTRY = 4 * 1024 * 1024;
 const MAX_TOTAL = 64 * 1024 * 1024;
 const MAX_FILES = 480;

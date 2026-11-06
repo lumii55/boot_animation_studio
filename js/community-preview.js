@@ -97,14 +97,14 @@
     publishNeed:'Adicione um título (3–100 caracteres), confirme os direitos e, para ZIP, escolha um arquivo válido.',
     publishEditorNote:'O editor usará o arquivo exportado quando a conexão for habilitada.',
     publishCompanionNote:'A publicação pelo Companion exigirá pareamento seguro e confirmação no dispositivo.',
-    publishZipNote:'Escolha um bootanimation.zip de até 20 MB.',publishDemoNote:'Nenhum dado será enviado neste teste.',
+    publishZipNote:'Escolha um bootanimation.zip de até 40 MB.',publishDemoNote:'Nenhum dado será enviado neste teste.',
     publishChoose:'Selecionar',
     uploadTitle:'Como você quer publicar?', uploadDesc:'Três formas de compartilhar sua animação. Nenhum arquivo será enviado nesta prévia.',
     fromEditor:'Pelo editor', editorText:'Publicar assim que terminar e exportar uma animação no Studio.',
     fromZip:'Enviar arquivo ZIP', zipText:'Selecionar um bootanimation.zip que você já possui.',
     fromDevice:'Do celular conectado', deviceText:'Selecionar a animação aplicada, com sua autorização.',
     chooseZip:'Escolher ZIP local', zipHint:'Apenas conferência local do nome e tamanho. Nenhum upload acontece.',
-    selectedFile:'Arquivo selecionado (somente local)', overLimit:'Para esta prévia, escolha um ZIP de até 20 MB.',
+    selectedFile:'Arquivo selecionado (somente local)', overLimit:'Para esta prévia, escolha um ZIP de até 40 MB.',
     wrongType:'Selecione um arquivo .zip.', fileReady:'Nenhum dado foi enviado ao servidor.',
     comingSoon:'Disponível em uma próxima etapa da P15.', close:'Fechar',
     login:'Entrar', accountSoon:'Contas ainda não estão disponíveis nesta prévia.',
@@ -170,14 +170,14 @@
     publishNeed:'Add a title (3–100 chars), confirm rights and, for ZIP, choose a valid file.',
     publishEditorNote:'The editor will provide the exported animation when this connection is enabled.',
     publishCompanionNote:'Companion publishing will require secure pairing and explicit device confirmation.',
-    publishZipNote:'Select a bootanimation.zip up to 20 MB.',publishDemoNote:'Nothing will be uploaded during this test.',
+    publishZipNote:'Select a bootanimation.zip up to 40 MB.',publishDemoNote:'Nothing will be uploaded during this test.',
     publishChoose:'Select',
     uploadTitle:'How would you like to publish?', uploadDesc:'Three ways to share your animation. No files will be uploaded in this preview.',
     fromEditor:'From the editor', editorText:'Publish after exporting your animation in Studio.',
     fromZip:'Upload ZIP file', zipText:'Choose an existing bootanimation.zip.',
     fromDevice:'From connected phone', deviceText:'Choose the installed animation with your permission.',
     chooseZip:'Choose local ZIP', zipHint:'Local filename and size check only. No uploading.',
-    selectedFile:'Selected file (local only)', overLimit:'For this preview, choose a ZIP under 20 MB.',
+    selectedFile:'Selected file (local only)', overLimit:'For this preview, choose a ZIP under 40 MB.',
     wrongType:'Please choose a .zip file.', fileReady:'Nothing has been sent to a server.',
     comingSoon:'Coming in a later P15 milestone.', close:'Close',
     login:'Sign in', accountSoon:'Accounts are not available in this preview.',
@@ -429,7 +429,7 @@
   }
   window.BASCommunityExport=Object.freeze({
     capture(blob,filename){
-      if(!(blob instanceof Blob)||blob.size<=0||blob.size>20*1024*1024)return;
+      if(!(blob instanceof Blob)||blob.size<=0||blob.size>40*1024*1024)return;
       recentExport={blob,filename:typeof filename==='string'&&
         filename.toLowerCase().endsWith('.zip')&&/^[A-Za-z0-9_. -]{1,90}$/.test(filename)
         ?filename:'bootanimation.zip'};
@@ -986,8 +986,8 @@
       const file=t.files?.[0];
       const output=byId('bas-c-zip-result');
       if(!file||!output)return;
-      const valid=/\.zip$/i.test(file.name) && file.size<=20*1024*1024 && file.size>0;
-      const note=!/\.zip$/i.test(file.name)?tr('wrongType'):file.size>20*1024*1024?tr('overLimit'):tr('fileReady');
+      const valid=/\.zip$/i.test(file.name) && file.size<=40*1024*1024 && file.size>0;
+      const note=!/\.zip$/i.test(file.name)?tr('wrongType'):file.size>40*1024*1024?tr('overLimit'):tr('fileReady');
       selectedPublishFile=valid?file:null;
       state.publishDraft.filename=valid?file.name:null;
       state.publishDraft.size=valid?file.size:0;state.publishDraft.ready=false;
