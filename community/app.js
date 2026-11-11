@@ -1,9 +1,12 @@
 // Boot Animation Studio — Community (loaded on demand by js/community-entry.js).
 //
+// Mobile first: the phone layout is the design; wider screens only get more columns.
 // Rules for this file:
-//   * user content is only ever inserted with textContent / attributes (never innerHTML);
-//   * the feed keeps its DOM between navigations, so going back is instant and keeps the scroll;
-//   * animated previews only play while visible; lists load page by page.
+//   * user content only goes in through textContent / attributes (never innerHTML);
+//   * children are always added through h() / fill(), which drop null/undefined/false
+//     (the native append/replaceChildren would print them as the words "null"/"undefined");
+//   * sections keep their DOM, so switching tabs and going back is instant and keeps the scroll;
+//   * previews only play while visible; lists load page by page.
 (function () {
     'use strict';
 
@@ -12,44 +15,79 @@
     const REMIX_KEY = 'bas.community.remix';
     const TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     const MAX_ZIP = 50 * 1024 * 1024;
+    const LICENSES = ['cc-by-4.0', 'cc-by-sa-4.0', 'cc-by-nc-4.0', 'cc0-1.0', 'all-rights-reserved'];
 
-    // ---------------------------------------------------------------- strings
+    // ------------------------------------------------------------------ text
+
+    const lang = () => (typeof idiomaAtual === 'string' ? idiomaAtual : 'en');
 
     function t(key, vars) {
         const all = window.BASCommunityStrings || {};
-        const lang = typeof idiomaAtual === 'string' ? idiomaAtual : 'en';
-        let text = (all[lang] && all[lang][key]) || (all.en && all.en[key]) || key;
-        if (vars) for (const [name, value] of Object.entries(vars)) text = text.split(`{${name}}`).join(String(value));
+        let text = (all[lang()] && all[lang()][key]) || (all.en && all.en[key]) || key;
+        if (vars) {
+            for (const [name, value] of Object.entries(vars)) {
+                text = text.split(`{${name}}`).join(value === null || value === undefined ? '' : String(value));
+            }
+        }
         return text;
     }
 
-    const numberFormat = () => new Intl.NumberFormat(typeof idiomaAtual === 'string' ? idiomaAtual : 'en', { notation: 'compact', maximumFractionDigits: 1 });
-    const formatCount = (value) => numberFormat().format(Number(value) || 0);
+    const formatCount = (value) => new Intl.NumberFormat(lang(), { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value) || 0);
     function formatBytes(bytes) {
-        const mb = bytes / (1024 * 1024);
-        return mb >= 1 ? `${mb.toFixed(mb >= 10 ? 0 : 1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+        const mb = (Number(bytes) || 0) / (1024 * 1024);
+        return mb >= 1 ? `${mb.toFixed(mb >= 10 ? 0 : 1)} MB` : `${Math.max(1, Math.round((Number(bytes) || 0) / 1024))} KB`;
     }
     function formatDate(ms) {
-        try { return new Date(ms).toLocaleDateString(typeof idiomaAtual === 'string' ? idiomaAtual : 'en', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (error) { return ''; }
+        if (!ms) return '';
+        try { return new Date(ms).toLocaleDateString(lang(), { day: 'numeric', month: 'short', year: 'numeric' }); } catch (error) { return ''; }
     }
+    const licenseLabel = (id) => t(`license_${String(id || '').replace(/[^a-z0-9]/g, '_')}`);
 
-    // ---------------------------------------------------------------- DOM
+    // ------------------------------------------------------------------ DOM
+
+    const isEmpty = (value) => value === null || value === undefined || value === false || value === '';
+
+    function fill(el, ...children) {
+        el.replaceChildren(...children.flat(Infinity).filter((child) => !isEmpty(child)).map((child) => (child instanceof Node ? child : String(child))));
+        return el;
+    }
 
     function h(tag, attrs, ...children) {
         const el = document.createElement(tag);
         for (const [key, value] of Object.entries(attrs || {})) {
             if (value === null || value === undefined || value === false) continue;
             if (key === 'class') el.className = value;
-            else if (key === 'text') el.textContent = value;
-            else if (key === 'dataset') Object.assign(el.dataset, value);
-            else if (key.startsWith('on') && typeof value === 'function') el.addEventListener(key.slice(2), value);
+            else if (key === 'text') el.textContent = String(value);
+            else if (key === 'dataset') {
+                for (const [name, data] of Object.entries(value)) if (!isEmpty(data)) el.dataset[name] = String(data);
+            } else if (key.startsWith('on') && typeof value === 'function') el.addEventListener(key.slice(2), value);
             else el.setAttribute(key, value === true ? '' : String(value));
         }
-        for (const child of children.flat(Infinity)) {
-            if (child === null || child === undefined || child === false) continue;
-            el.append(child instanceof Node ? child : String(child));
-        }
-        return el;
+        return children.length ? fill(el, ...children) : el;
+    }
+
+    // Constant SVG markup only (never user data).
+    const ICONS = {
+        explore: '<path d="M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z"/>',
+        following: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.8 14.2c2.3.2 3.9 1.8 4.4 4.8"/>',
+        upload: '<path d="M12 16V5M7.5 9.5 12 5l4.5 4.5"/><path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/>',
+        panel: '<path d="M12 3 5 6v5.5c0 4.2 3 7.8 7 9.5 4-1.7 7-5.3 7-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
+        back: '<path d="M15 5 8 12l7 7"/>',
+        close: '<path d="M6 6l12 12M18 6 6 18"/>',
+        search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
+        phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+        remix: '<path d="M4 7h11l-3-3M20 17H9l3 3"/><path d="M4 7v3M20 17v-3"/>',
+        download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/>',
+        flag: '<path d="M6 21V4M6 4h11l-2 4 2 4H6"/>',
+        star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
+        heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    };
+    function icon(name, cls = 'cm-icon') {
+        const span = document.createElement('span');
+        span.className = cls;
+        span.setAttribute('aria-hidden', 'true');
+        span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
+        return span;
     }
 
     function safeHttps(url) {
@@ -65,22 +103,20 @@
         return window.confirm(message);
     }
 
-    // ---------------------------------------------------------------- state
+    // ------------------------------------------------------------------ state
 
     const state = {
         token: readToken(),
         me: null,
         meLoaded: false,
         config: null,
+        open: false,
+        path: 'explore',
+        sort: 'trending',
+        views: new Map(),      // kept-alive views: path -> {view, scroll}
+        current: null,
         root: null,
         main: null,
-        titleEl: null,
-        backBtn: null,
-        userSlot: null,
-        open: false,
-        path: 'feed/trending',
-        views: new Map(),     // kept-alive views (feeds): path -> {el, scroll}
-        current: null,
     };
 
     function readToken() {
@@ -100,12 +136,11 @@
         state.me = null;
         state.meLoaded = true;
         try { localStorage.removeItem(TOKEN_KEY); } catch (error) { /* ignore */ }
-        renderUserSlot();
+        renderChrome();
     }
-
     const isMod = () => !!state.me && (state.me.role === 'moderator' || state.me.role === 'owner');
 
-    // ---------------------------------------------------------------- API
+    // ------------------------------------------------------------------ API
 
     class ApiError extends Error {
         constructor(status, code, message, details) {
@@ -155,20 +190,18 @@
     }
 
     async function loadMe() {
-        if (!state.token) {
-            state.me = null;
-            state.meLoaded = true;
-            renderUserSlot();
-            return null;
-        }
-        try {
-            state.me = await api('GET', '/v1/me');
-        } catch (error) {
-            if (error.status !== 401) reportError(error);
+        if (state.token) {
+            try {
+                state.me = await api('GET', '/v1/me');
+            } catch (error) {
+                if (error.status !== 401) reportError(error);
+                state.me = null;
+            }
+        } else {
             state.me = null;
         }
         state.meLoaded = true;
-        renderUserSlot();
+        renderChrome();
         return state.me;
     }
 
@@ -177,7 +210,7 @@
         return state.config;
     }
 
-    // ---------------------------------------------------------------- sign-in
+    // ------------------------------------------------------------------ sign-in
 
     function signIn(returnPath) {
         const back = `#community/${returnPath || state.path}`.slice(0, 100).replace(/[^A-Za-z0-9/_#-]/g, '');
@@ -189,113 +222,99 @@
         history.replaceState(null, '', location.pathname + location.search);
         const failure = params.get('bas-auth-error');
         if (failure) {
-            toast(t(`authError_${failure}`) !== `authError_${failure}` ? t(`authError_${failure}`) : t('authError_github'), 'error', 5200);
-            return 'feed/trending';
+            const key = `authError_${failure}`;
+            toast(t(key) !== key ? t(key) : t('authError_github'), 'error', 5200);
+            return 'explore';
         }
-        const grant = params.get('bas-auth');
-        const to = (params.get('to') || '#community').replace(/^#community\/?/, '') || 'feed/trending';
+        const to = (params.get('to') || '').replace(/^#community\/?/, '') || 'explore';
         try {
-            const session = await api('POST', '/v1/auth/exchange', { json: { grant } });
+            const session = await api('POST', '/v1/auth/exchange', { json: { grant: params.get('bas-auth') } });
             saveToken(session.token, session.expires_at);
             await loadMe();
-            toast(t('signedIn', { name: state.me ? state.me.display_name : '' }), 'success');
+            if (state.me) toast(t('signedIn', { name: state.me.display_name }), 'success');
         } catch (error) {
             reportError(error);
         }
         return to;
     }
 
-    // ---------------------------------------------------------------- shell
+    // ------------------------------------------------------------------ chrome (top bar + bottom nav)
+
+    const SECTIONS = [
+        { id: 'explore', icon: 'explore', label: 'navExplore', match: /^(explore|tag\/)/ },
+        { id: 'following', icon: 'following', label: 'navFollowing', match: /^following/ },
+        { id: 'upload', icon: 'upload', label: 'navUpload', match: /^upload/ },
+        { id: 'mod', icon: 'panel', label: 'navPanel', match: /^mod/, modOnly: true },
+    ];
+    const isRootPath = (path) => /^(explore|following|upload|mod(\/(mass|reports|review|audit|team))?)$/.test(path);
 
     function buildShell() {
-        state.backBtn = h('button', { class: 'community-icon-btn', type: 'button', 'aria-label': t('back'), onclick: () => history.back() }, '‹');
-        state.titleEl = h('h2', { class: 'community-title', id: 'community-title' });
-        state.userSlot = h('div', { class: 'community-user-slot' });
-        const close = h('button', { class: 'community-icon-btn', type: 'button', 'aria-label': t('close'), onclick: () => close_() }, '×');
-        state.nav = h('nav', { class: 'community-nav', 'aria-label': t('title') });
-        state.main = h('main', { class: 'community-main', id: 'community-main', tabindex: '-1' });
-        const shell = h('div', { class: 'community-shell', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'community-title' },
-            h('header', { class: 'community-top' },
-                state.backBtn,
-                h('div', { class: 'community-title-wrap' }, h('span', { class: 'community-kicker', text: t('kicker') }), state.titleEl),
-                state.userSlot,
-                close,
-            ),
-            state.nav,
+        state.backBtn = h('button', { class: 'cm-iconbtn', type: 'button', 'aria-label': t('back'), onclick: () => history.back() }, icon('back'));
+        state.brand = h('span', { class: 'cm-brand', 'aria-hidden': 'true' });
+        state.titleEl = h('h2', { class: 'cm-title', id: 'cm-title' });
+        state.account = h('div', { class: 'cm-account' });
+        const closeBtn = h('button', { class: 'cm-iconbtn', type: 'button', 'aria-label': t('close'), onclick: () => closeCommunity() }, icon('close'));
+        state.main = h('main', { class: 'cm-main', id: 'cm-main', tabindex: '-1' });
+        state.nav = h('nav', { class: 'cm-tabbar', 'aria-label': t('title') });
+        const shell = h('div', { class: 'cm-shell', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'cm-title' },
+            h('header', { class: 'cm-top' }, state.backBtn, state.brand, state.titleEl, state.account, closeBtn),
             state.main,
-        );
-        state.root = h('div', { class: 'community-overlay', hidden: true }, shell);
+            state.nav);
+        state.root = h('div', { class: 'cm-overlay', hidden: true }, shell);
         document.body.append(state.root);
+
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && state.open && !document.querySelector('.community-modal')) close_();
+            if (event.key === 'Escape' && state.open && !state.root.querySelector('.cm-modal')) closeCommunity();
         });
         window.addEventListener('popstate', () => {
             if (!state.open) return;
             const hash = location.hash || '';
-            if (hash.startsWith('#community')) route(hash.replace(/^#community\/?/, '') || 'feed/trending', { fromHistory: true });
+            if (hash.startsWith('#community')) route(hash.replace(/^#community\/?/, '') || 'explore');
             else hide();
         });
         window.addEventListener('bas:languagechange', () => {
             if (!state.open) return;
             state.views.clear();
-            renderNav();
-            renderUserSlot();
-            route(state.path, { fromHistory: true, force: true });
+            renderChrome();
+            route(state.path, { force: true });
         });
-    }
-
-    function renderNav() {
-        const items = [
-            ['feed/trending', t('navTrending')],
-            ['feed/top', t('navTop')],
-            ['feed/new', t('navNew')],
-            ['feed/following', t('navFollowing')],
-            ['upload', t('navUpload')],
-        ];
-        if (isMod()) items.push(['mod/mass', t('navPanel')]);
-        const buttons = items.map(([path, label]) => h('button', {
-            type: 'button',
-            class: 'community-nav-btn',
-            'aria-current': state.path.startsWith(path.split('/')[0] === 'mod' ? 'mod' : path) ? 'page' : null,
-            dataset: { path },
-            onclick: () => navigate(path),
-        }, label));
-        state.nav.replaceChildren(...buttons);
-        const active = buttons.find((button) => button.getAttribute('aria-current') === 'page');
-        if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-
-    function renderUserSlot() {
-        if (!state.userSlot) return;
-        if (!state.meLoaded) {
-            state.userSlot.replaceChildren();
-            return;
-        }
-        if (!state.me) {
-            state.userSlot.replaceChildren(h('button', { class: 'community-btn community-btn-primary community-signin', type: 'button', onclick: () => signIn() }, t('signIn')));
-            return;
-        }
-        state.userSlot.replaceChildren(h('button', { class: 'community-me', type: 'button', onclick: () => navigate(`u/${state.me.handle}`), 'aria-label': t('myProfile') },
-            avatar(state.me.pending_avatar_url || state.me.avatar_url, 'sm'),
-            h('span', { class: 'community-me-name', text: state.me.display_name }),
-        ));
-        renderNav();
     }
 
     function avatar(url, size = 'md') {
         const src = url && (url.startsWith(API) || safeHttps(url)) ? url : null;
-        const empty = () => h('span', { class: `community-avatar community-avatar-${size} community-avatar-empty`, 'aria-hidden': 'true' });
+        const empty = () => h('span', { class: `cm-avatar cm-avatar-${size} is-empty`, 'aria-hidden': 'true' });
         if (!src) return empty();
-        const img = h('img', { class: `community-avatar community-avatar-${size}`, src, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
+        const img = h('img', { class: `cm-avatar cm-avatar-${size}`, src, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
         img.addEventListener('error', () => img.replaceWith(empty()), { once: true });
         return img;
     }
 
-    function setTitle(text) {
-        state.titleEl.textContent = text;
+    function renderChrome() {
+        if (!state.root) return;
+        if (!state.meLoaded) fill(state.account);
+        else if (state.me) {
+            fill(state.account, h('button', { class: 'cm-me', type: 'button', 'aria-label': t('myProfile'), onclick: () => navigate(`u/${state.me.handle}`) },
+                avatar(state.me.pending_avatar_url || state.me.avatar_url, 'sm')));
+        } else {
+            fill(state.account, h('button', { class: 'cm-pill', type: 'button', onclick: () => signIn() }, t('signIn')));
+        }
+        fill(state.nav, SECTIONS.filter((section) => !section.modOnly || isMod()).map((section) => h('button', {
+            class: `cm-tab${section.id === 'upload' ? ' is-upload' : ''}`,
+            type: 'button',
+            'aria-current': section.match.test(state.path) ? 'page' : null,
+            dataset: { section: section.id },
+            onclick: () => navigate(section.id === 'mod' ? 'mod/mass' : section.id),
+        }, icon(section.icon, 'cm-tab-icon'), h('span', { class: 'cm-tab-label', text: t(section.label) }))));
+        const root = isRootPath(state.path);
+        state.backBtn.hidden = root;
+        state.brand.hidden = !root;
     }
 
-    function close_() {
+    function setTitle(text) {
+        state.titleEl.textContent = text || t('title');
+    }
+
+    function closeCommunity() {
         if (location.hash.startsWith('#community')) history.replaceState(null, '', location.pathname + location.search);
         hide();
     }
@@ -303,11 +322,11 @@
     function hide() {
         state.open = false;
         state.root.hidden = true;
-        document.body.classList.remove('community-open');
+        document.body.classList.remove('cm-open');
         previews.pauseAll();
     }
 
-    // ---------------------------------------------------------------- routing
+    // ------------------------------------------------------------------ routing
 
     function navigate(path, { replace = false } = {}) {
         const hash = `#community/${path}`;
@@ -317,30 +336,28 @@
     }
 
     const ROUTES = [
-        [/^feed\/(trending|top|new|following)$/, (m) => feedView(m[1])],
-        [/^tag\/([a-z0-9-]{1,24})$/, (m) => feedView('trending', { tag: m[1] })],
+        [/^explore$/, () => exploreView()],
+        [/^tag\/([a-z0-9-]{1,24})$/, (m) => exploreView({ tag: m[1] })],
+        [/^following$/, () => followingView()],
+        [/^upload$/, () => uploadView()],
         [/^a\/([A-Za-z0-9_-]{16})$/, (m) => animationView(m[1])],
         [/^u\/([a-z0-9-]{1,39})$/, (m) => profileView(m[1])],
         [/^u\/([a-z0-9-]{1,39})\/(followers|following)$/, (m) => followListView(m[1], m[2])],
         [/^me\/edit$/, () => editProfileView()],
-        [/^me\/uploads$/, () => myUploadsView()],
-        [/^upload$/, () => uploadView()],
-        [/^mod(?:\/(.*))?$/, (m) => window.BASCommunityPanel ? window.BASCommunityPanel.view(m[1] || 'mass', kit) : notFoundView()],
+        [/^mod(?:\/(.*))?$/, (m) => (window.BASCommunityPanel ? window.BASCommunityPanel.view(m[1] || 'mass', kit) : notFoundView())],
     ];
 
-    function route(path, { fromHistory = false, force = false } = {}) {
-        if (state.current && state.current.keepAlive) {
-            state.views.set(state.path, { el: state.current.el, scroll: state.main.scrollTop, view: state.current });
+    function route(path, { force = false } = {}) {
+        if (state.current) {
+            if (state.current.keepAlive) state.views.set(state.path, { view: state.current, scroll: state.main.scrollTop });
+            if (state.current.onLeave) state.current.onLeave();
         }
-        if (state.current && state.current.onLeave) state.current.onLeave();
         state.path = path;
-        renderNav();
-        state.backBtn.hidden = history.length <= 1 || /^feed\//.test(path);
-
+        renderChrome();
         const kept = !force && state.views.get(path);
         if (kept) {
             state.current = kept.view;
-            state.main.replaceChildren(kept.el);
+            fill(state.main, kept.view.el);
             state.main.scrollTop = kept.scroll;
             setTitle(kept.view.title);
             if (kept.view.onEnter) kept.view.onEnter();
@@ -356,19 +373,26 @@
         }
         view = view || notFoundView();
         state.current = view;
-        setTitle(view.title || t('title'));
-        state.main.replaceChildren(view.el);
-        if (!fromHistory || !kept) state.main.scrollTop = 0;
+        setTitle(view.title);
+        fill(state.main, view.el);
+        state.main.scrollTop = 0;
         if (view.onEnter) view.onEnter();
     }
 
     function notFoundView() {
-        return { title: t('title'), el: h('div', { class: 'community-empty' }, t('notFound')) };
+        return { title: t('title'), el: emptyState(t('notFound')) };
     }
 
-    // ---------------------------------------------------------------- previews (play only while visible)
+    function emptyState(message, ...extra) {
+        return h('div', { class: 'cm-empty' }, h('p', { text: message }), extra);
+    }
 
-    // The observer is created lazily: its root is the Community scroll area, so "visible" means visible there.
+    function loading() {
+        return h('div', { class: 'cm-loading', role: 'status' }, h('span', { class: 'cm-spinner', 'aria-hidden': 'true' }), h('span', { text: t('loading') }));
+    }
+
+    // ------------------------------------------------------------------ previews (play only while visible)
+
     const previews = (() => {
         let observer = null;
         function ensure() {
@@ -382,7 +406,7 @@
                         img.removeAttribute('src');
                     }
                 }
-            }, { root: state.main, rootMargin: '300px 0px' });
+            }, { root: state.main, rootMargin: '400px 0px' });
             return observer;
         }
         return {
@@ -396,111 +420,176 @@
         };
     })();
 
-    function previewImage(url, width, height, cls = 'community-preview') {
-        const box = h('div', { class: `${cls}-box`, style: width && height ? `aspect-ratio:${width}/${height}` : null });
+    // Media box with the real aspect ratio, so nothing jumps while loading.
+    function media(url, width, height, cls = 'cm-media') {
+        const ratio = width > 0 && height > 0 ? Math.min(2.4, Math.max(0.5, height / width)) : 16 / 9;
+        const box = h('div', { class: cls, style: `aspect-ratio:${1}/${ratio.toFixed(4)}` });
         if (url) {
-            const img = h('img', { class: cls, alt: '', decoding: 'async', dataset: { src: url } });
+            const img = h('img', { alt: '', decoding: 'async', dataset: { src: url } });
             img.addEventListener('load', () => box.classList.add('is-loaded'));
             box.append(img);
             previews.watch(img);
         } else {
-            box.append(h('span', { class: 'community-preview-placeholder', text: t('noPreview') }));
+            box.append(h('span', { class: 'cm-media-none', text: t('noPreview') }));
         }
         return box;
     }
 
-    function stars(average) {
-        const value = Number(average) || 0;
-        return h('span', { class: 'community-stars', 'aria-label': t('ratingAria', { value: value.toFixed(1) }) },
-            h('span', { class: 'community-stars-fill', style: `width:${Math.max(0, Math.min(100, value * 20))}%` }));
+    // ------------------------------------------------------------------ masonry (Pinterest-style)
+
+    // Two columns on any phone; wider screens add a column per ~200 px.
+    const columnsFor = (width) => Math.max(2, Math.min(6, Math.floor((width + 8) / 200)));
+
+    function masonry() {
+        const el = h('div', { class: 'cm-masonry' });
+        let cols = [];
+        let heights = [];
+        const items = [];
+        const build = (count) => {
+            cols = Array.from({ length: count }, () => h('div', { class: 'cm-col' }));
+            heights = new Array(count).fill(0);
+            fill(el, cols);
+        };
+        const place = (item) => {
+            const index = heights.indexOf(Math.min(...heights));
+            cols[index].append(item.el);
+            heights[index] += item.weight;
+        };
+        const width = () => el.clientWidth || (state.main && state.main.clientWidth) || window.innerWidth;
+        let frame = 0;
+        if ('ResizeObserver' in window) {
+            new ResizeObserver(() => {
+                cancelAnimationFrame(frame);
+                frame = requestAnimationFrame(() => {
+                    const count = columnsFor(width());
+                    if (count === cols.length || !el.isConnected) return;
+                    build(count);
+                    items.forEach(place);
+                });
+            }).observe(el);
+        }
+        return {
+            el,
+            add(list) {
+                if (!cols.length) build(columnsFor(width()));
+                for (const item of list) {
+                    items.push(item);
+                    place(item);
+                }
+            },
+            clear() {
+                items.length = 0;
+                build(columnsFor(width()));
+            },
+            get size() { return items.length; },
+        };
     }
 
-    // ---------------------------------------------------------------- cards and lists
+    // Boot animations are very tall (often 9:20); pins are capped so a phone shows more than two at a time.
+    const PIN_MAX_RATIO = 1.6;
 
-    function card(item) {
-        const el = h('button', { class: 'community-card', type: 'button', onclick: () => navigate(`a/${item.id}`) },
-            previewImage(item.preview_url, item.width, item.height),
-            h('div', { class: 'community-card-body' },
-                h('strong', { class: 'community-card-title', text: item.title }),
-                h('span', { class: 'community-card-owner' }, avatar(item.owner.avatar_url, 'xs'), h('span', { text: item.owner.display_name })),
-                h('span', { class: 'community-card-meta' },
-                    item.rating.count ? [stars(item.rating.average), h('span', { text: `${item.rating.average} (${formatCount(item.rating.count)})` })] : h('span', { class: 'community-muted', text: t('noRatings') }),
-                    h('span', { class: 'community-dot', 'aria-hidden': 'true' }, '·'),
-                    h('span', { text: t('downloadsCount', { count: formatCount(item.downloads) }) }),
-                ),
-            ),
-        );
-        return el;
+    function pin(item) {
+        const ratio = Math.min(PIN_MAX_RATIO, item.width > 0 && item.height > 0 ? item.height / item.width : 16 / 9);
+        const el = h('button', { class: 'cm-pin', type: 'button', onclick: () => navigate(`a/${item.id}`) },
+            media(item.preview_url, 1, ratio),
+            h('span', { class: 'cm-pin-title', text: item.title }),
+            h('span', { class: 'cm-pin-sub' },
+                avatar(item.owner.avatar_url, 'xs'),
+                h('span', { class: 'cm-pin-owner', text: item.owner.display_name }),
+                item.rating && item.rating.count ? h('span', { class: 'cm-pin-stat' }, icon('star', 'cm-icon-xs is-star'), String(item.rating.average)) : null,
+                item.downloads ? h('span', { class: 'cm-pin-stat' }, icon('download', 'cm-icon-xs'), formatCount(item.downloads)) : null));
+        return { el, weight: Math.max(0.5, ratio) + 0.32 };
     }
 
-    function skeletonCards(count = 8) {
-        return Array.from({ length: count }, () => h('div', { class: 'community-card community-skeleton', 'aria-hidden': 'true' },
-            h('div', { class: 'community-preview-box' }), h('div', { class: 'community-card-body' }, h('i'), h('i'))));
+    function skeletonPins(count = 8) {
+        const ratios = [1.6, 1.3, 1.6, 1.45, 1.6, 1.2, 1.5, 1.6];
+        return Array.from({ length: count }, (_, i) => ({
+            el: h('div', { class: 'cm-pin is-skeleton', 'aria-hidden': 'true' },
+                h('div', { class: 'cm-media', style: `aspect-ratio:1/${ratios[i % ratios.length]}` }), h('i'), h('i')),
+            weight: ratios[i % ratios.length] + 0.32,
+        }));
     }
 
-    // Paged list with a sentinel: loads the next page when it gets close to the screen.
-    function pagedGrid({ fetchPage, renderItem, empty, gridClass = 'community-grid' }) {
-        const grid = h('div', { class: gridClass, 'aria-busy': 'true' });
-        const sentinel = h('div', { class: 'community-sentinel', 'aria-hidden': 'true' });
-        const status = h('div', { class: 'community-list-status' });
-        const wrap = h('div', { class: 'community-list' }, grid, status, sentinel);
+    // Pages through an API list into a masonry (or a plain list) as the user scrolls.
+    function feed({ fetchPage, render = pin, empty, layout = 'masonry' }) {
+        const grid = layout === 'masonry' ? masonry() : null;
+        const list = layout === 'list' ? h('div', { class: 'cm-list' }) : null;
+        const status = h('div', { class: 'cm-feed-status' });
+        const sentinel = h('div', { class: 'cm-sentinel', 'aria-hidden': 'true' });
+        const el = h('div', { class: 'cm-feed' }, grid ? grid.el : list, status, sentinel);
         let cursor = null;
         let done = false;
-        let loading = false;
-        let controller = null;
+        let busy = false;
         let first = true;
+        let controller = null;
+        let generation = 0;
 
         async function more() {
-            if (loading || done) return;
-            loading = true;
+            if (busy || done) return;
+            busy = true;
+            const mine = generation;
             controller = new AbortController();
-            if (first) grid.replaceChildren(...skeletonCards());
-            status.replaceChildren();
+            if (first && grid) grid.add(skeletonPins());
+            if (first && list) fill(list, loading());
+            fill(status);
             try {
                 const page = await fetchPage(cursor, controller.signal);
-                if (first) grid.replaceChildren();
+                if (mine !== generation) return;
+                if (first) {
+                    if (grid) grid.clear();
+                    if (list) fill(list);
+                }
                 first = false;
-                const fragment = document.createDocumentFragment();
-                for (const item of page.items) fragment.append(renderItem(item));
-                grid.append(fragment);
+                if (grid) grid.add(page.items.map(render));
+                else page.items.forEach((item) => list.append(render(item)));
                 cursor = page.next_cursor || null;
                 done = !cursor;
-                if (done && !grid.childElementCount) status.replaceChildren(h('div', { class: 'community-empty' }, empty()));
+                const count = grid ? grid.size : list.childElementCount;
+                if (done && !count) fill(status, emptyState(empty()));
             } catch (error) {
-                if (error.name === 'AbortError') return;
-                if (first) grid.replaceChildren();
-                status.replaceChildren(h('div', { class: 'community-empty' },
-                    h('p', { text: error.message || t('errGeneric') }),
-                    h('button', { class: 'community-btn', type: 'button', onclick: () => more() }, t('retry'))));
+                if (error.name === 'AbortError' || mine !== generation) return;
+                if (first) {
+                    if (grid) grid.clear();
+                    if (list) fill(list);
+                }
+                fill(status, emptyState(error.message || t('errGeneric'), h('button', { class: 'cm-btn', type: 'button', onclick: () => more() }, t('retry'))));
             } finally {
-                loading = false;
-                grid.setAttribute('aria-busy', 'false');
-                if (!done) requestAnimationFrame(checkSentinel);
+                if (mine === generation) busy = false;
             }
         }
 
-        const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
-            if (entries.some((entry) => entry.isIntersecting)) more();
-        }, { root: state.main, rootMargin: '800px 0px' }) : null;
-
-        function checkSentinel() {
-            if (!observer && !done) more();
-        }
-
+        let observer = null;
         return {
-            el: wrap,
+            el,
             start() {
-                if (observer) observer.observe(sentinel);
+                if ('IntersectionObserver' in window) {
+                    observer = new IntersectionObserver((entries) => {
+                        if (entries.some((entry) => entry.isIntersecting)) more();
+                    }, { root: state.main, rootMargin: '900px 0px' });
+                    observer.observe(sentinel);
+                }
+                more();
+            },
+            reset() {
+                generation += 1;
+                if (controller) controller.abort();
+                cursor = null;
+                done = false;
+                busy = false;
+                first = true;
+                if (grid) grid.clear();
+                if (list) fill(list);
                 more();
             },
             stop() {
+                generation += 1;
                 if (controller) controller.abort();
                 if (observer) observer.disconnect();
             },
         };
     }
 
-    // ---------------------------------------------------------------- feed
+    // ------------------------------------------------------------------ explore / following
 
     function deviceResolution() {
         try {
@@ -512,43 +601,35 @@
         }
     }
 
-    function feedView(feed, { tag = null } = {}) {
+    function exploreView({ tag = null } = {}) {
         const filters = { q: '', res: null };
         const res = deviceResolution();
-        const search = h('input', { class: 'community-search', type: 'search', placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'), maxlength: '60' });
-        const compat = res ? h('button', { class: 'community-chip', type: 'button', 'aria-pressed': 'false' }, t('compatible', { res: res.replace('x', '×') })) : null;
-        const listSlot = h('div');
-        const head = h('div', { class: 'community-feed-head' },
-            tag ? h('span', { class: 'community-chip is-static', text: `#${tag}` }) : null,
-            search,
-            compat,
-        );
-        const fab = h('button', { class: 'community-fab', type: 'button', onclick: () => navigate('upload') }, h('span', { 'aria-hidden': 'true' }, '+'), t('navUpload'));
-        const el = h('section', { class: 'community-feed' }, head, listSlot, fab);
-        let list = null;
-
-        function rebuild() {
-            if (list) list.stop();
-            if (feed === 'following' && !state.token) {
-                listSlot.replaceChildren(signInPrompt(t('followingSignIn')));
-                return;
-            }
-            list = pagedGrid({
-                fetchPage: (cursor, signal) => {
-                    const params = new URLSearchParams({ feed });
-                    if (tag) params.set('tag', tag);
-                    if (filters.q) params.set('q', filters.q);
-                    if (filters.res) params.set('res', filters.res);
-                    if (cursor) params.set('cursor', cursor);
-                    return api('GET', `/v1/animations?${params}`, { signal });
+        const search = h('input', { class: 'cm-search-input', type: 'search', enterkeyhint: 'search', placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'), maxlength: '60' });
+        const sorts = ['trending', 'top', 'new'];
+        const chips = h('div', { class: 'cm-chips', role: 'tablist' });
+        const compat = res ? h('button', { class: 'cm-chip', type: 'button', 'aria-pressed': 'false' }, t('compatible', { res: res.replace('x', '×') })) : null;
+        const paintChips = () => fill(chips,
+            sorts.map((sort) => h('button', {
+                class: 'cm-chip', type: 'button', role: 'tab', 'aria-selected': String(state.sort === sort),
+                onclick: () => {
+                    if (state.sort === sort) return;
+                    state.sort = sort;
+                    paintChips();
+                    list.reset();
                 },
-                renderItem: card,
-                empty: () => (filters.q || filters.res || tag ? t('emptyFiltered') : feed === 'following' ? t('emptyFollowing') : t('emptyFeed')),
-            });
-            listSlot.replaceChildren(list.el);
-            list.start();
-        }
-
+            }, t(`sort_${sort}`))),
+            compat);
+        const list = feed({
+            fetchPage: (cursor, signal) => {
+                const params = new URLSearchParams({ feed: state.sort });
+                if (tag) params.set('tag', tag);
+                if (filters.q) params.set('q', filters.q);
+                if (filters.res) params.set('res', filters.res);
+                if (cursor) params.set('cursor', cursor);
+                return api('GET', `/v1/animations?${params}`, { signal });
+            },
+            empty: () => (filters.q || filters.res || tag ? t('emptyFiltered') : t('emptyFeed')),
+        });
         let debounce = 0;
         search.addEventListener('input', () => {
             clearTimeout(debounce);
@@ -556,35 +637,51 @@
                 const value = search.value.trim();
                 if (value === filters.q) return;
                 filters.q = value;
-                rebuild();
-            }, 300);
+                list.reset();
+            }, 320);
         });
         if (compat) {
             compat.addEventListener('click', () => {
                 filters.res = filters.res ? null : res;
                 compat.setAttribute('aria-pressed', String(!!filters.res));
-                rebuild();
+                list.reset();
             });
         }
-        rebuild();
-        const titles = { trending: t('navTrending'), top: t('navTop'), new: t('navNew'), following: t('navFollowing') };
-        return { el, title: tag ? `#${tag}` : titles[feed], keepAlive: true };
+        paintChips();
+        const el = h('section', { class: 'cm-explore' },
+            h('div', { class: 'cm-explore-head' },
+                tag ? h('div', { class: 'cm-tagline' }, h('span', { class: 'cm-tag is-active', text: `#${tag}` })) : null,
+                h('label', { class: 'cm-search' }, icon('search'), search),
+                chips),
+            list.el);
+        list.start();
+        return { el, title: tag ? `#${tag}` : t('navExplore'), keepAlive: true };
+    }
+
+    function followingView() {
+        if (!state.token) return { el: signInPrompt(t('followingSignIn')), title: t('navFollowing') };
+        const list = feed({
+            fetchPage: (cursor, signal) => api('GET', `/v1/animations?feed=following${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }),
+            empty: () => t('emptyFollowing'),
+        });
+        list.start();
+        return { el: h('section', { class: 'cm-following' }, list.el), title: t('navFollowing'), keepAlive: true };
     }
 
     function signInPrompt(message) {
-        return h('div', { class: 'community-empty' },
+        return h('div', { class: 'cm-empty' },
             h('p', { text: message }),
-            h('button', { class: 'community-btn community-btn-primary', type: 'button', onclick: () => signIn() }, t('signInGithub')),
-            h('p', { class: 'community-fineprint', text: t('signInPrivacy') }));
+            h('button', { class: 'cm-btn is-primary', type: 'button', onclick: () => signIn() }, t('signInGithub')),
+            h('p', { class: 'cm-fine', text: t('signInPrivacy') }));
     }
 
-    // ---------------------------------------------------------------- animation detail
+    // ------------------------------------------------------------------ animation page
 
     async function fetchVerified(detail, onProgress) {
         const headers = state.token ? { Authorization: `Bearer ${state.token}` } : {};
         const response = await fetch(detail.download_url, { headers });
         if (!response.ok) throw new ApiError(response.status, 'download', t('errDownload'));
-        const total = Number(response.headers.get('Content-Length')) || detail.size_bytes;
+        const total = Number(response.headers.get('Content-Length')) || detail.size_bytes || 1;
         const reader = response.body.getReader();
         const chunks = [];
         let received = 0;
@@ -593,7 +690,7 @@
             if (done) break;
             chunks.push(value);
             received += value.byteLength;
-            if (onProgress) onProgress(received / total);
+            if (onProgress) onProgress(Math.min(1, received / total));
         }
         const blob = new Blob(chunks, { type: 'application/zip' });
         const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
@@ -602,13 +699,14 @@
         return blob;
     }
 
-    function busyButton(button, labelWhileBusy) {
-        const original = button.textContent;
+    function busy(button, label) {
+        const original = Array.from(button.childNodes);
         button.disabled = true;
-        button.textContent = labelWhileBusy;
+        const text = h('span', { text: label });
+        fill(button, h('span', { class: 'cm-spinner is-small', 'aria-hidden': 'true' }), text);
         return {
-            progress(fraction) { button.textContent = `${labelWhileBusy} ${Math.round(fraction * 100)}%`; },
-            done() { button.disabled = false; button.textContent = original; },
+            progress(fraction) { text.textContent = `${label} ${Math.round(fraction * 100)}%`; },
+            done() { button.disabled = false; fill(button, original); },
         };
     }
 
@@ -618,14 +716,14 @@
     }
 
     async function downloadAnimation(detail, button) {
-        const busy = busyButton(button, t('downloading'));
+        const state_ = busy(button, t('downloading'));
         try {
-            const blob = await fetchVerified(detail, busy.progress);
+            const blob = await fetchVerified(detail, state_.progress);
             if (window.BASExport && window.BASExport.downloadBlob) window.BASExport.downloadBlob(blob, fileNameFor(detail));
         } catch (error) {
             reportError(error);
         } finally {
-            busy.done();
+            state_.done();
         }
     }
 
@@ -645,9 +743,9 @@
     async function installOnPhone(detail, button) {
         if (!phoneReady()) return;
         if (!(await confirmAction(t('installConfirm', { title: detail.title })))) return;
-        const busy = busyButton(button, t('installing'));
+        const progress = busy(button, t('installing'));
         try {
-            const blob = await fetchVerified(detail, busy.progress);
+            const blob = await fetchVerified(detail, progress.progress);
             const form = new FormData();
             form.append('bootanimation', blob, 'bootanimation.zip');
             const response = await apiFetch('/upload', { method: 'POST', body: form });
@@ -660,36 +758,34 @@
         } catch (error) {
             reportError(error);
         } finally {
-            busy.done();
+            progress.done();
         }
     }
 
     async function openInStudio(detail, button) {
         if (typeof abrirZipNoEditor !== 'function') return;
         if (!(await confirmAction(t('openConfirm')))) return;
-        const busy = busyButton(button, t('downloading'));
+        const progress = busy(button, t('downloading'));
         try {
-            const blob = await fetchVerified(detail, busy.progress);
+            const blob = await fetchVerified(detail, progress.progress);
             try { sessionStorage.setItem(REMIX_KEY, JSON.stringify({ id: detail.id, title: detail.title, owner: detail.owner.handle })); } catch (error) { /* ignore */ }
-            close_();
+            closeCommunity();
             if (window.BASModuleWorkspace && window.BASModuleWorkspace.isOpen && window.BASModuleWorkspace.isOpen()) window.BASModuleWorkspace.leave();
             await abrirZipNoEditor(blob);
             toast(t('openedInStudio'), 'success', 4200);
         } catch (error) {
             reportError(error);
         } finally {
-            busy.done();
+            progress.done();
         }
     }
 
     function starInput(detail, onChange) {
-        const wrap = h('div', { class: 'community-star-input', role: 'radiogroup', 'aria-label': t('yourRating') });
-        function paint(value) {
-            wrap.querySelectorAll('button').forEach((button, index) => {
-                button.classList.toggle('is-on', index < value);
-                button.setAttribute('aria-checked', String(index + 1 === value));
-            });
-        }
+        const wrap = h('div', { class: 'cm-stars-input', role: 'radiogroup', 'aria-label': t('yourRating') });
+        const paint = (value) => wrap.querySelectorAll('button').forEach((button, index) => {
+            button.classList.toggle('is-on', index < value);
+            button.setAttribute('aria-checked', String(index + 1 === value));
+        });
         for (let i = 1; i <= 5; i++) {
             wrap.append(h('button', {
                 type: 'button', role: 'radio', 'aria-label': t('starsN', { n: i }),
@@ -710,18 +806,18 @@
                         reportError(error);
                     }
                 },
-            }, '★'));
+            }, icon('star', 'cm-icon')));
         }
         paint(detail.my_rating || 0);
         return wrap;
     }
 
     function followButton(handle, following, onChange) {
-        const button = h('button', { class: 'community-btn', type: 'button' });
+        const button = h('button', { class: 'cm-pill', type: 'button' });
         let current = !!following;
         const paint = () => {
             button.textContent = current ? t('following') : t('follow');
-            button.classList.toggle('community-btn-primary', !current);
+            button.classList.toggle('is-primary', !current);
         };
         paint();
         button.addEventListener('click', async () => {
@@ -733,7 +829,7 @@
                 current = result.following;
                 paint();
                 if (onChange) onChange(result.followers);
-                state.views.delete('feed/following');
+                state.views.delete('following');
             } catch (error) {
                 current = !current;
                 paint();
@@ -743,114 +839,129 @@
         return button;
     }
 
+    function ratingText(rating) {
+        if (!rating || !rating.count) return t('noRatings');
+        return t(rating.count === 1 ? 'ratingSummaryOne' : 'ratingSummary', { value: rating.average, count: formatCount(rating.count) });
+    }
+
     function animationView(id) {
-        const el = h('section', { class: 'community-detail' }, h('div', { class: 'community-loading', text: t('loading') }));
-        const view = { el, title: t('title') };
+        const el = h('section', { class: 'cm-detail' }, loading());
+        const view = { el, title: '' };
+        let more = null;
+        view.onLeave = () => { if (more) more.stop(); };
         api('GET', `/v1/animations/${id}`).then((detail) => {
             view.title = detail.title;
             if (state.current === view) setTitle(detail.title);
-            renderDetail(el, detail);
-        }).catch((error) => {
-            el.replaceChildren(h('div', { class: 'community-empty' }, error.message));
-        });
+            more = renderDetail(el, detail);
+        }).catch((error) => fill(el, emptyState(error.message)));
         return view;
     }
 
     function renderDetail(el, detail) {
-        // `status` is only sent to the uploader and to moderators; everyone else only ever sees published items.
+        // `status` only reaches the uploader and moderators; everyone else only ever sees published items.
         const published = !detail.status || detail.status === 'published';
-        const ratingLine = h('div', { class: 'community-rating-line' });
-        const paintRating = () => {
-            ratingLine.replaceChildren(
-                detail.rating.count ? stars(detail.rating.average) : null,
-                h('span', { text: !detail.rating.count ? t('noRatings')
-                    : t(detail.rating.count === 1 ? 'ratingSummaryOne' : 'ratingSummary', { value: detail.rating.average, count: formatCount(detail.rating.count) }) }),
-            );
-        };
+        const ratingLine = h('span', { class: 'cm-rating' });
+        const paintRating = () => fill(ratingLine,
+            detail.rating.count ? icon('star', 'cm-icon-xs is-star') : null,
+            h('span', { text: ratingText(detail.rating) }));
         paintRating();
 
-        const install = h('button', { class: 'community-btn community-btn-primary', type: 'button' }, t('installOnPhone'));
+        const install = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, icon('phone'), h('span', { text: t('installOnPhone') }));
         install.addEventListener('click', () => installOnPhone(detail, install));
-        const remix = h('button', { class: 'community-btn', type: 'button' }, t('openInStudio'));
+        const remix = h('button', { class: 'cm-action', type: 'button' }, icon('remix'), h('span', { text: t('actionRemix') }));
         remix.addEventListener('click', () => openInStudio(detail, remix));
-        const download = h('button', { class: 'community-btn', type: 'button' }, t('download'));
+        const download = h('button', { class: 'cm-action', type: 'button' }, icon('download'), h('span', { text: t('download') }));
         download.addEventListener('click', () => downloadAnimation(detail, download));
+        const report = published && !detail.is_mine
+            ? h('button', { class: 'cm-action', type: 'button', onclick: () => reportDialog('animation', detail.id) }, icon('flag'), h('span', { text: t('report') }))
+            : null;
 
         const credits = detail.credits || {};
+        const brand = credits.manufacturer || credits.detected_manufacturer;
         const facts = [
-            [t('factResolution'), `${detail.width} × ${detail.height}`],
-            [t('factFps'), detail.fps],
-            [t('factFrames'), formatCount(detail.frame_count)],
-            [t('factParts'), detail.parts],
+            [t('factResolution'), detail.width && detail.height ? `${detail.width} × ${detail.height}` : null],
+            [t('factFps'), detail.fps || null],
+            [t('factFrames'), detail.frame_count ? formatCount(detail.frame_count) : null],
+            [t('factParts'), detail.parts || null],
             [t('factAudio'), detail.has_audio ? t('yes') : t('no')],
             [t('factSize'), formatBytes(detail.size_bytes)],
-            [t('factLicense'), t(`license_${detail.license.replace(/[^a-z0-9]/g, '_')}`)],
-            [t('factPublished'), detail.published_at ? formatDate(detail.published_at) : '—'],
-        ];
-        const creditLines = [];
-        const brand = credits.manufacturer || credits.detected_manufacturer;
-        if (brand) creditLines.push(t('creditManufacturer', { name: brand }));
-        if (credits.original_author) creditLines.push(t('creditOriginal', { name: credits.original_author }));
+            [t('factLicense'), licenseLabel(detail.license)],
+            [t('factPublished'), formatDate(detail.published_at) || null],
+        ].filter(([, value]) => !isEmpty(value));
 
-        const ownerRow = h('div', { class: 'community-owner-row' },
-            h('button', { class: 'community-owner', type: 'button', onclick: () => navigate(`u/${detail.owner.handle}`) },
-                avatar(detail.owner.avatar_url, 'md'),
-                h('span', {}, h('strong', { text: detail.owner.display_name }), h('small', { text: `@${detail.owner.handle}` }))),
-            state.me && state.me.handle === detail.owner.handle ? null : followButton(detail.owner.handle, detail.owner_followed_by_me),
-        );
+        const moreSection = h('section', { class: 'cm-more' });
+        let moreFeed = null;
+        if (published) {
+            moreFeed = feed({
+                fetchPage: async (cursor, signal) => {
+                    const page = await api('GET', `/v1/users/${detail.owner.handle}/animations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal });
+                    return { ...page, items: page.items.filter((item) => item.id !== detail.id) };
+                },
+                empty: () => t('emptyProfile'),
+            });
+            fill(moreSection, h('h3', { class: 'cm-section-title', text: t('moreFrom', { name: detail.owner.display_name }) }), moreFeed.el);
+        }
 
-        el.replaceChildren(
-            h('div', { class: 'community-detail-media' }, previewImage(detail.preview_url, detail.width, detail.height, 'community-detail-preview')),
-            h('div', { class: 'community-detail-info' },
-                detail.status && detail.status !== 'published' ? h('div', { class: `community-status is-${detail.status}` },
-                    h('strong', { text: t(`status_${detail.status}`) }), detail.status_reason ? h('span', { text: detail.status_reason }) : null) : null,
-                h('h3', { class: 'community-detail-title', text: detail.title }),
-                ownerRow,
-                ratingLine,
-                h('div', { class: 'community-detail-stats' },
+        fill(el,
+            detail.status && !published ? h('div', { class: `cm-banner-status is-${detail.status}` },
+                h('strong', { text: t(`status_${detail.status}`) }),
+                detail.status_reason ? h('span', { text: detail.status_reason }) : null) : null,
+            h('div', { class: 'cm-detail-media' }, media(detail.preview_url, detail.width, detail.height, 'cm-media is-large')),
+            h('div', { class: 'cm-detail-body' },
+                h('h3', { class: 'cm-detail-title', text: detail.title }),
+                h('div', { class: 'cm-author' },
+                    h('button', { class: 'cm-author-link', type: 'button', onclick: () => navigate(`u/${detail.owner.handle}`) },
+                        avatar(detail.owner.avatar_url, 'md'),
+                        h('span', { class: 'cm-author-names' }, h('strong', { text: detail.owner.display_name }), h('small', { text: `@${detail.owner.handle}` }))),
+                    state.me && state.me.handle === detail.owner.handle ? null : followButton(detail.owner.handle, detail.owner_followed_by_me)),
+                h('div', { class: 'cm-statline' },
+                    ratingLine,
+                    h('span', { class: 'cm-dot', text: '·' }),
                     h('span', { text: t('downloadsCount', { count: formatCount(detail.downloads) }) }),
-                    detail.remix_count ? h('span', { text: t('remixCount', { count: formatCount(detail.remix_count) }) }) : null),
-                published && !detail.is_mine ? h('div', { class: 'community-rate' }, h('span', { text: t('yourRating') }), starInput(detail, paintRating)) : null,
-                h('div', { class: 'community-actions' }, install, remix, download),
-                detail.description ? h('p', { class: 'community-description', text: detail.description }) : null,
-                detail.remix_source ? h('p', { class: 'community-remix-of' }, t('remixOf'), ' ',
+                    detail.remix_count ? [h('span', { class: 'cm-dot', text: '·' }), h('span', { text: t('remixCount', { count: formatCount(detail.remix_count) }) })] : null),
+                install,
+                h('div', { class: 'cm-actions' }, remix, download, report),
+                published && !detail.is_mine ? h('div', { class: 'cm-rate' }, h('span', { text: t('yourRating') }), starInput(detail, paintRating)) : null,
+                detail.description ? h('p', { class: 'cm-text', text: detail.description }) : null,
+                detail.remix_source ? h('p', { class: 'cm-remix-of' }, t('remixOf'), ' ',
                     h('a', { href: `#community/a/${detail.remix_source.id}`, onclick: (event) => { event.preventDefault(); navigate(`a/${detail.remix_source.id}`); } }, detail.remix_source.title),
                     ` · @${detail.remix_source.owner}`) : null,
-                creditLines.length ? h('ul', { class: 'community-credits' }, creditLines.map((line) => h('li', { text: line }))) : null,
-                detail.tags.length ? h('div', { class: 'community-tags' }, detail.tags.map((tag) => h('button', { class: 'community-chip', type: 'button', onclick: () => navigate(`tag/${tag}`) }, `#${tag}`))) : null,
-                h('dl', { class: 'community-facts' }, facts.map(([label, value]) => h('div', {}, h('dt', { text: label }), h('dd', { text: String(value) })))),
-                h('div', { class: 'community-detail-footer' },
-                    detail.is_mine ? ownerTools(detail) : null,
-                    !detail.is_mine && published
-                        ? h('button', { class: 'community-link-btn', type: 'button', onclick: () => reportDialog('animation', detail.id) }, t('report'))
-                        : null),
-            ),
-        );
+                brand || credits.original_author ? h('ul', { class: 'cm-credits' },
+                    brand ? h('li', { text: t('creditManufacturer', { name: brand }) }) : null,
+                    credits.original_author ? h('li', { text: t('creditOriginal', { name: credits.original_author }) }) : null) : null,
+                detail.tags && detail.tags.length ? h('div', { class: 'cm-tags' }, detail.tags.map((tag) => h('button', { class: 'cm-tag', type: 'button', onclick: () => navigate(`tag/${tag}`) }, `#${tag}`))) : null,
+                h('details', { class: 'cm-facts' },
+                    h('summary', { text: t('details') }),
+                    h('dl', {}, facts.map(([label, value]) => h('div', {}, h('dt', { text: label }), h('dd', { text: String(value) }))))),
+                detail.is_mine ? ownerTools(detail) : null),
+            published ? moreSection : null);
+        if (moreFeed) moreFeed.start();
+        return moreFeed;
     }
 
     function ownerTools(detail) {
-        const remove = h('button', { class: 'community-link-btn is-danger', type: 'button' }, t('deleteAnimation'));
+        const remove = h('button', { class: 'cm-link is-danger', type: 'button' }, t('deleteAnimation'));
         remove.addEventListener('click', async () => {
             if (!(await confirmAction(t('deleteAnimationConfirm'), true))) return;
             try {
                 await api('DELETE', `/v1/animations/${detail.id}`);
                 state.views.clear();
                 toast(t('deleted'), 'success');
-                navigate('me/uploads', { replace: true });
+                navigate(`u/${detail.owner.handle}`, { replace: true });
             } catch (error) {
                 reportError(error);
             }
         });
-        return h('div', { class: 'community-owner-tools' }, remove);
+        return h('div', { class: 'cm-owner-tools' }, remove);
     }
 
-    // ---------------------------------------------------------------- modal + Turnstile
+    // ------------------------------------------------------------------ modal + Turnstile
 
     function modal(title, body, { onClose } = {}) {
-        const closeBtn = h('button', { class: 'community-icon-btn', type: 'button', 'aria-label': t('close') }, '×');
-        const box = h('div', { class: 'community-modal-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
-            h('header', {}, h('h3', { text: title }), closeBtn), body);
-        const backdrop = h('div', { class: 'community-modal' }, box);
+        const closeBtn = h('button', { class: 'cm-iconbtn', type: 'button', 'aria-label': t('close') }, icon('close'));
+        const box = h('div', { class: 'cm-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+            h('header', { class: 'cm-sheet-head' }, h('h3', { text: title }), closeBtn), body);
+        const backdrop = h('div', { class: 'cm-modal' }, box);
         const close = () => {
             backdrop.remove();
             if (onClose) onClose();
@@ -859,7 +970,7 @@
         backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
         backdrop.addEventListener('keydown', (event) => { if (event.key === 'Escape') { event.stopPropagation(); close(); } });
         state.root.append(backdrop);
-        requestAnimationFrame(() => (box.querySelector('input, textarea, select, button:not(.community-icon-btn)') || closeBtn).focus());
+        requestAnimationFrame(() => (box.querySelector('input, textarea, select') || closeBtn).focus());
         return { close, box };
     }
 
@@ -882,30 +993,28 @@
         return turnstileLoading;
     }
 
-    // Renders the anti-robot check; resolves tokens on demand (each token is single use).
+    // The anti-robot check; tokens are single use and fetched on demand.
     function robotCheck() {
-        const slot = h('div', { class: 'community-turnstile' });
+        const slot = h('div', { class: 'cm-turnstile' });
         let widget = null;
         let token = '';
-        let waiters = [];
+        const waiters = [];
         const ready = loadConfig().then((config) => loadTurnstile().then((ts) => {
             widget = ts.render(slot, {
                 sitekey: config.turnstile_site_key,
                 theme: 'dark',
-                language: typeof idiomaAtual === 'string' ? idiomaAtual : 'auto',
+                size: 'flexible',
+                language: lang(),
                 callback: (value) => { token = value; waiters.splice(0).forEach((resolve) => resolve(value)); },
                 'expired-callback': () => { token = ''; },
                 'error-callback': () => { token = ''; },
             });
-        })).catch((error) => {
-            slot.replaceChildren(h('p', { class: 'community-error', text: error.message }));
-        });
+        })).catch((error) => fill(slot, h('p', { class: 'cm-error', text: error.message })));
         return {
             el: slot,
             async token() {
                 await ready;
-                if (token) return token;
-                return new Promise((resolve) => waiters.push(resolve));
+                return token || new Promise((resolve) => waiters.push(resolve));
             },
             reset() {
                 token = '';
@@ -920,13 +1029,13 @@
     function reportDialog(targetType, targetId) {
         if (!state.me) return signIn(state.path);
         const categories = ['criminal', 'nudity', 'gore', 'violence', 'hate', 'uncredited', 'spam', 'other'];
-        const list = h('div', { class: 'community-radio-list' }, categories.map((category) => h('label', { class: 'community-radio' },
-            h('input', { type: 'radio', name: 'community-report-category', value: category }),
+        const list = h('div', { class: 'cm-options' }, categories.map((category) => h('label', { class: 'cm-option' },
+            h('input', { type: 'radio', name: 'cm-report-category', value: category }),
             h('span', {}, h('strong', { text: t(`reportCat_${category}`) }), h('small', { text: t(`reportCatHint_${category}`) })))));
-        const note = h('textarea', { class: 'community-textarea', maxlength: '500', rows: '3', placeholder: t('reportNote') });
+        const note = h('textarea', { class: 'cm-input', maxlength: '500', rows: '2', placeholder: t('reportNote') });
         const check = robotCheck();
-        const send = h('button', { class: 'community-btn community-btn-primary', type: 'button' }, t('sendReport'));
-        const dialog = modal(t('reportTitle'), h('div', { class: 'community-form' }, h('p', { class: 'community-muted', text: t('reportIntro') }), list, note, check.el, send), { onClose: () => check.remove() });
+        const send = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, t('sendReport'));
+        const dialog = modal(t('reportTitle'), h('div', { class: 'cm-form is-plain' }, h('p', { class: 'cm-muted', text: t('reportIntro') }), list, note, check.el, send), { onClose: () => check.remove() });
         send.addEventListener('click', async () => {
             const chosen = list.querySelector('input:checked');
             if (!chosen) return toast(t('reportChoose'), 'info');
@@ -944,96 +1053,110 @@
         });
     }
 
-    // ---------------------------------------------------------------- profiles
+    // ------------------------------------------------------------------ profiles
 
     function profileView(handle) {
-        const el = h('section', { class: 'community-profile' }, h('div', { class: 'community-loading', text: t('loading') }));
-        const view = { el, title: `@${handle}`, onLeave: () => grid && grid.stop() };
-        let grid = null;
+        const el = h('section', { class: 'cm-profile' }, loading());
+        const view = { el, title: `@${handle}` };
+        let list = null;
+        view.onLeave = () => { if (list) list.stop(); };
         api('GET', `/v1/users/${handle}`).then((profile) => {
-            const isMe = state.me && state.me.handle === profile.handle;
-            const followers = h('button', { class: 'community-count-btn', type: 'button', onclick: () => navigate(`u/${handle}/followers`) });
-            const paintFollowers = (count) => followers.replaceChildren(h('strong', { text: formatCount(count) }), ' ', t('followers'));
+            const isMe = !!state.me && state.me.handle === profile.handle;
+            view.title = profile.display_name;
+            if (state.current === view) setTitle(profile.display_name);
+            const followersBtn = h('button', { class: 'cm-count', type: 'button', onclick: () => navigate(`u/${handle}/followers`) });
+            const paintFollowers = (count) => fill(followersBtn, h('strong', { text: formatCount(count) }), h('span', { text: t('followers') }));
             paintFollowers(profile.followers);
             const banner = isMe && state.me.pending_banner_url ? state.me.pending_banner_url : profile.banner_url;
             const links = (profile.links || []).map(safeHttps).filter(Boolean);
-            grid = pagedGrid({
-                fetchPage: (cursor, signal) => api('GET', `/v1/users/${handle}/animations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }),
-                renderItem: card,
-                empty: () => (isMe ? t('emptyMine') : t('emptyProfile')),
-            });
-            el.replaceChildren(
-                h('div', { class: 'community-banner', style: null }, banner ? h('img', { src: banner, alt: '', decoding: 'async' }) : null),
-                h('div', { class: 'community-profile-head' },
+
+            const listSlot = h('div');
+            const showList = (mode) => {
+                if (list) list.stop();
+                list = mode === 'mine'
+                    ? feed({ fetchPage: async () => ({ items: (await api('GET', '/v1/me/animations')).items, next_cursor: null }), render: myPin, empty: () => t('emptyMine') })
+                    : feed({
+                        fetchPage: (cursor, signal) => api('GET', `/v1/users/${handle}/animations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }),
+                        empty: () => (isMe ? t('emptyMine') : t('emptyProfile')),
+                    });
+                fill(listSlot, list.el);
+                list.start();
+            };
+            const segments = isMe ? h('div', { class: 'cm-chips is-segmented', role: 'tablist' }) : null;
+            const paintSegments = (mode) => segments && fill(segments, ['published', 'mine'].map((id) => h('button', {
+                class: 'cm-chip', type: 'button', role: 'tab', 'aria-selected': String(id === mode),
+                onclick: () => { paintSegments(id); showList(id); },
+            }, t(id === 'published' ? 'profilePublished' : 'myUploads'))));
+            paintSegments('published');
+
+            fill(el,
+                h('div', { class: 'cm-cover' }, banner ? h('img', { src: banner, alt: '', decoding: 'async' }) : null),
+                h('div', { class: 'cm-profile-head' },
                     avatar(isMe ? (state.me.pending_avatar_url || profile.avatar_url) : profile.avatar_url, 'xl'),
-                    h('div', { class: 'community-profile-names' },
-                        h('h3', { text: profile.display_name }),
-                        h('span', { class: 'community-muted' }, `@${profile.handle}`,
-                            profile.role ? h('span', { class: 'community-role', text: t(`role_${profile.role}`) }) : null)),
-                    h('div', { class: 'community-profile-actions' },
+                    h('div', { class: 'cm-profile-actions' },
                         isMe
-                            ? [h('button', { class: 'community-btn', type: 'button', onclick: () => navigate('me/edit') }, t('editProfile')),
-                                h('button', { class: 'community-btn', type: 'button', onclick: () => navigate('me/uploads') }, t('myUploads'))]
-                            : [followButton(profile.handle, profile.followed_by_me, paintFollowers),
-                                h('button', { class: 'community-link-btn', type: 'button', onclick: () => reportDialog('user', profile.handle) }, t('report'))]),
-                ),
-                profile.bio ? h('p', { class: 'community-bio', text: profile.bio }) : null,
-                links.length ? h('ul', { class: 'community-links' }, links.map((url) => h('li', {}, h('a', { href: url, target: '_blank', rel: 'noopener noreferrer nofollow ugc' }, new URL(url).host + new URL(url).pathname.replace(/\/$/, ''))))) : null,
-                h('div', { class: 'community-profile-stats' },
-                    h('span', {}, h('strong', { text: formatCount(profile.animations) }), ' ', t('animationsLabel')),
-                    h('span', {}, h('strong', { text: formatCount(profile.total_downloads) }), ' ', t('downloadsLabel')),
-                    followers,
-                    h('button', { class: 'community-count-btn', type: 'button', onclick: () => navigate(`u/${handle}/following`) },
-                        h('strong', { text: formatCount(profile.following) }), ' ', t('followingLabel')),
-                    h('span', { class: 'community-muted', text: t('joined', { date: formatDate(profile.joined_at) }) })),
-                grid.el,
-            );
-            grid.start();
-        }).catch((error) => el.replaceChildren(h('div', { class: 'community-empty' }, error.message)));
+                            ? h('button', { class: 'cm-pill', type: 'button', onclick: () => navigate('me/edit') }, t('editProfile'))
+                            : followButton(profile.handle, profile.followed_by_me, paintFollowers),
+                        isMe ? null : h('button', { class: 'cm-iconbtn is-small', type: 'button', 'aria-label': t('report'), onclick: () => reportDialog('user', profile.handle) }, icon('flag')))),
+                h('div', { class: 'cm-profile-names' },
+                    h('h3', { text: profile.display_name }),
+                    h('span', { class: 'cm-muted' }, `@${profile.handle}`, profile.role ? h('span', { class: 'cm-badge', text: t(`role_${profile.role}`) }) : null)),
+                profile.bio ? h('p', { class: 'cm-text', text: profile.bio }) : null,
+                links.length ? h('div', { class: 'cm-links' }, links.map((url) => {
+                    const parsed = new URL(url);
+                    return h('a', { href: url, target: '_blank', rel: 'noopener noreferrer nofollow ugc' }, (parsed.host + parsed.pathname).replace(/\/$/, ''));
+                })) : null,
+                h('div', { class: 'cm-counts' },
+                    h('span', { class: 'cm-count' }, h('strong', { text: formatCount(profile.animations) }), h('span', { text: t('animationsLabel') })),
+                    h('span', { class: 'cm-count' }, h('strong', { text: formatCount(profile.total_downloads) }), h('span', { text: t('downloadsLabel') })),
+                    followersBtn,
+                    h('button', { class: 'cm-count', type: 'button', onclick: () => navigate(`u/${handle}/following`) },
+                        h('strong', { text: formatCount(profile.following) }), h('span', { text: t('followingLabel') }))),
+                segments,
+                listSlot);
+            showList('published');
+        }).catch((error) => fill(el, emptyState(error.message)));
         return view;
     }
 
+    // "My uploads" pins also show the review status.
+    function myPin(item) {
+        const made = pin(item);
+        if (item.status && item.status !== 'published') {
+            made.el.querySelector('.cm-media').append(h('span', { class: `cm-status-pill is-${item.status}`, text: t(`status_${item.status}`) }));
+        }
+        return made;
+    }
+
     function followListView(handle, which) {
-        const list = pagedGrid({
+        const list = feed({
+            layout: 'list',
             fetchPage: (cursor, signal) => api('GET', `/v1/users/${handle}/${which}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }),
-            renderItem: (user) => h('button', { class: 'community-user-row', type: 'button', onclick: () => navigate(`u/${user.handle}`) },
-                avatar(user.avatar_url, 'md'), h('span', {}, h('strong', { text: user.display_name }), h('small', { text: `@${user.handle}` }))),
+            render: (user) => h('button', { class: 'cm-row', type: 'button', onclick: () => navigate(`u/${user.handle}`) },
+                avatar(user.avatar_url, 'md'),
+                h('span', { class: 'cm-author-names' }, h('strong', { text: user.display_name }), h('small', { text: `@${user.handle}` }))),
             empty: () => t('emptyList'),
-            gridClass: 'community-user-list',
         });
         list.start();
-        return { el: list.el, title: `${which === 'followers' ? t('followers') : t('followingLabel')} · @${handle}`, onLeave: () => list.stop() };
+        return { el: list.el, title: which === 'followers' ? t('followersTitle') : t('followingTitle'), onLeave: () => list.stop() };
     }
 
-    function myUploadsView() {
-        if (!state.token) return { el: signInPrompt(t('uploadSignIn')), title: t('myUploads') };
-        const el = h('section', { class: 'community-uploads' }, h('div', { class: 'community-loading', text: t('loading') }));
-        api('GET', '/v1/me/animations').then((data) => {
-            if (!data.items.length) return el.replaceChildren(h('div', { class: 'community-empty' }, t('emptyMine')));
-            el.replaceChildren(h('div', { class: 'community-grid' }, data.items.map((item) => {
-                const node = card(item);
-                node.querySelector('.community-card-body').prepend(h('span', { class: `community-status-pill is-${item.status}`, text: t(`status_${item.status}`) }));
-                return node;
-            })));
-        }).catch((error) => el.replaceChildren(h('div', { class: 'community-empty' }, error.message)));
-        return { el, title: t('myUploads') };
-    }
-
-    // Resizes and re-encodes a picked image in the browser (also drops EXIF metadata such as GPS).
-    async function prepareImage(file, { width, height, cover }) {
+    // Resize + re-encode in the browser (also drops EXIF data such as GPS).
+    async function prepareImage(file, { width, height }) {
         const bitmap = await createImageBitmap(file);
-        let sx = 0, sy = 0, sw = bitmap.width, sh = bitmap.height;
-        if (cover) {
-            const target = width / height;
-            if (sw / sh > target) { sw = Math.round(sh * target); sx = Math.round((bitmap.width - sw) / 2); }
-            else { sh = Math.round(sw / target); sy = Math.round((bitmap.height - sh) / 2); }
-        }
+        let sx = 0;
+        let sy = 0;
+        let sw = bitmap.width;
+        let sh = bitmap.height;
+        const target = width / height;
+        if (sw / sh > target) { sw = Math.round(sh * target); sx = Math.round((bitmap.width - sw) / 2); }
+        else { sh = Math.round(sw / target); sy = Math.round((bitmap.height - sh) / 2); }
         const scale = Math.min(1, width / sw, height / sh);
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(sw * scale));
         canvas.height = Math.max(1, Math.round(sh * scale));
         canvas.getContext('2d').drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-        bitmap.close && bitmap.close();
+        if (bitmap.close) bitmap.close();
         for (const [type, quality] of [['image/webp', 0.86], ['image/jpeg', 0.86]]) {
             const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, quality));
             if (blob && blob.type === type) return blob;
@@ -1041,70 +1164,75 @@
         throw new Error(t('errImage'));
     }
 
+    function field(label, control, hint) {
+        return h('label', { class: 'cm-field' }, h('span', { class: 'cm-label', text: label }), control, hint ? h('small', { class: 'cm-muted', text: hint }) : null);
+    }
+
     function editProfileView() {
         if (!state.token) return { el: signInPrompt(t('uploadSignIn')), title: t('editProfile') };
-        const el = h('section', { class: 'community-edit' }, h('div', { class: 'community-loading', text: t('loading') }));
-        const view = { el, title: t('editProfile') };
+        const el = h('section', { class: 'cm-edit' }, loading());
         (state.me ? Promise.resolve(state.me) : loadMe()).then((me) => {
-            if (!me) return el.replaceChildren(signInPrompt(t('uploadSignIn')));
-            const name = h('input', { class: 'community-input', maxlength: '40', value: me.display_name });
-            const bio = h('textarea', { class: 'community-textarea', maxlength: '300', rows: '4' });
+            if (!me) return fill(el, signInPrompt(t('uploadSignIn')));
+            const name = h('input', { class: 'cm-input', maxlength: '40', value: me.display_name || '' });
+            const bio = h('textarea', { class: 'cm-input', maxlength: '300', rows: '3' });
             bio.value = me.bio || '';
-            const counter = h('small', { class: 'community-muted' });
+            const counter = h('small', { class: 'cm-muted' });
             const paintCounter = () => { counter.textContent = `${[...bio.value].length}/300`; };
             bio.addEventListener('input', paintCounter);
             paintCounter();
-            const linkInputs = Array.from({ length: 4 }, (_, i) => h('input', { class: 'community-input', type: 'url', inputmode: 'url', placeholder: 'https://', value: (me.links || [])[i] || '' }));
+            const linkInputs = Array.from({ length: 4 }, (_, i) => h('input', { class: 'cm-input', type: 'url', inputmode: 'url', placeholder: 'https://', value: (me.links || [])[i] || '' }));
 
-            const imagePicker = (kind) => {
+            const picker = (kind) => {
                 const input = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', hidden: true });
                 const current = kind === 'avatar' ? (me.pending_avatar_url || me.avatar_url) : (me.pending_banner_url || me.banner_url);
-                const previewEl = kind === 'avatar' ? avatar(current, 'xl') : h('div', { class: 'community-banner is-small' }, current ? h('img', { src: current, alt: '' }) : null);
-                const pending = (kind === 'avatar' ? me.pending_avatar_url : me.pending_banner_url) ? h('small', { class: 'community-pending', text: t('pendingImage') }) : null;
-                const choose = h('button', { class: 'community-btn', type: 'button', onclick: () => input.click() }, kind === 'avatar' ? t('changeAvatar') : t('changeBanner'));
+                const pending = kind === 'avatar' ? me.pending_avatar_url : me.pending_banner_url;
+                const trigger = h('button', { class: `cm-picker is-${kind}`, type: 'button', 'aria-label': kind === 'avatar' ? t('changeAvatar') : t('changeBanner'), onclick: () => input.click() },
+                    kind === 'avatar' ? avatar(current, 'xl') : (current ? h('img', { src: current, alt: '' }) : null),
+                    h('span', { class: 'cm-picker-label', text: kind === 'avatar' ? t('changeAvatar') : t('changeBanner') }));
                 input.addEventListener('change', async () => {
                     const file = input.files && input.files[0];
                     input.value = '';
                     if (!file) return;
-                    const busy = busyButton(choose, t('sending'));
+                    trigger.disabled = true;
+                    trigger.classList.add('is-busy');
                     try {
-                        const blob = await prepareImage(file, kind === 'avatar' ? { width: 512, height: 512, cover: true } : { width: 1500, height: 500, cover: true });
+                        const blob = await prepareImage(file, kind === 'avatar' ? { width: 512, height: 512 } : { width: 1500, height: 500 });
                         await api('PUT', `/v1/me/${kind}`, { body: blob, headers: { 'Content-Type': blob.type } });
                         await loadMe();
                         toast(t('imageSent'), 'success', 4200);
                         route('me/edit', { force: true });
                     } catch (error) {
                         reportError(error);
-                    } finally {
-                        busy.done();
+                        trigger.disabled = false;
+                        trigger.classList.remove('is-busy');
                     }
                 });
-                return h('div', { class: `community-image-field is-${kind}` }, previewEl, h('div', {}, choose, pending), input);
+                return h('div', { class: 'cm-picker-wrap' }, trigger, input, pending ? h('small', { class: 'cm-pending', text: t('pendingImage') }) : null);
             };
 
-            const save = h('button', { class: 'community-btn community-btn-primary', type: 'button' }, t('save'));
+            const save = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, t('save'));
             save.addEventListener('click', async () => {
-                const busy = busyButton(save, t('saving'));
+                const progress = busy(save, t('saving'));
                 try {
                     state.me = await api('PATCH', '/v1/me', { json: {
                         display_name: name.value,
                         bio: bio.value,
                         links: linkInputs.map((input) => input.value.trim()).filter(Boolean),
                     } });
-                    renderUserSlot();
+                    renderChrome();
                     state.views.clear();
                     toast(t('saved'), 'success');
                     navigate(`u/${me.handle}`, { replace: true });
                 } catch (error) {
                     reportError(error);
                 } finally {
-                    busy.done();
+                    progress.done();
                 }
             });
 
-            const confirmInput = h('input', { class: 'community-input', placeholder: me.handle, autocomplete: 'off' });
-            const deleteBtn = h('button', { class: 'community-btn is-danger', type: 'button' }, t('deleteAccount'));
-            deleteBtn.addEventListener('click', async () => {
+            const confirmInput = h('input', { class: 'cm-input', placeholder: me.handle, autocomplete: 'off', autocapitalize: 'off' });
+            const remove = h('button', { class: 'cm-btn is-danger is-wide', type: 'button' }, t('deleteAccount'));
+            remove.addEventListener('click', async () => {
                 if (confirmInput.value.trim().toLowerCase() !== me.handle) return toast(t('deleteAccountType'), 'info', 4200);
                 if (!(await confirmAction(t('deleteAccountConfirm'), true))) return;
                 try {
@@ -1112,42 +1240,38 @@
                     clearSession();
                     state.views.clear();
                     toast(t('accountDeleted'), 'success', 4200);
-                    navigate('feed/trending', { replace: true });
+                    navigate('explore', { replace: true });
                 } catch (error) {
                     reportError(error);
                 }
             });
-            const logout = h('button', { class: 'community-btn', type: 'button' }, t('signOut'));
+            const logout = h('button', { class: 'cm-btn is-wide', type: 'button' }, t('signOut'));
             logout.addEventListener('click', async () => {
                 try { await api('POST', '/v1/auth/logout'); } catch (error) { /* the local session ends anyway */ }
                 clearSession();
                 state.views.clear();
-                navigate('feed/trending', { replace: true });
+                navigate('explore', { replace: true });
             });
 
-            el.replaceChildren(
-                h('div', { class: 'community-form' },
-                    imagePicker('banner'),
-                    imagePicker('avatar'),
-                    h('label', { class: 'community-field' }, h('span', { text: t('displayName') }), name),
-                    h('label', { class: 'community-field' }, h('span', {}, t('bio'), ' ', counter), bio),
-                    h('div', { class: 'community-field' }, h('span', { text: t('links') }), linkInputs),
-                    h('p', { class: 'community-fineprint', text: t('profileReviewNote') }),
-                    save,
-                ),
-                h('div', { class: 'community-form community-danger-zone' },
-                    h('h4', { text: t('account') }),
+            fill(el,
+                h('div', { class: 'cm-edit-media' }, picker('banner'), picker('avatar')),
+                h('div', { class: 'cm-form' },
+                    field(t('displayName'), name),
+                    h('label', { class: 'cm-field' }, h('span', { class: 'cm-label' }, t('bio'), ' ', counter), bio),
+                    h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('links') }), linkInputs),
+                    h('p', { class: 'cm-fine', text: t('profileReviewNote') }),
+                    save),
+                h('div', { class: 'cm-form is-danger-zone' },
+                    h('h4', { class: 'cm-section-title', text: t('account') }),
                     logout,
-                    h('p', { class: 'community-muted', text: t('deleteAccountHint') }),
+                    h('p', { class: 'cm-fine', text: t('deleteAccountHint') }),
                     confirmInput,
-                    deleteBtn,
-                ),
-            );
+                    remove));
         });
-        return view;
+        return { el, title: t('editProfile') };
     }
 
-    // ---------------------------------------------------------------- upload
+    // ------------------------------------------------------------------ upload
 
     async function inspectZip(file) {
         if (file.size > MAX_ZIP) throw new Error(t('errTooLarge'));
@@ -1160,12 +1284,9 @@
         const desc = zip.file('desc.txt');
         if (!desc) throw new Error(t('errFormat'));
         const [width, height, fps] = (await desc.async('string')).split(/\r?\n/)[0].trim().split(/\s+/).map(Number);
+        if (!(width > 0 && height > 0 && fps > 0)) throw new Error(t('errFormat'));
         const frames = Object.keys(zip.files).filter((name) => /\/[^/]+\.(png|jpe?g)$/i.test(name)).sort();
-        let thumb = null;
-        if (frames.length) {
-            const bytes = await zip.file(frames[0]).async('blob');
-            thumb = URL.createObjectURL(bytes);
-        }
+        const thumb = frames.length ? URL.createObjectURL(await zip.file(frames[0]).async('blob')) : null;
         return { width, height, fps, frames: frames.length, thumb };
     }
 
@@ -1174,7 +1295,7 @@
         return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
     }
 
-    function putWithProgress(url, file, onProgress) {
+    function putWithProgress(url, bytes, onProgress) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('PUT', url);
@@ -1191,7 +1312,7 @@
                 }
             };
             xhr.onerror = () => reject(new ApiError(0, 'network', t('errNetwork')));
-            xhr.send(file);
+            xhr.send(bytes);
         });
     }
 
@@ -1201,42 +1322,45 @@
         try { remixSource = JSON.parse(sessionStorage.getItem(REMIX_KEY) || 'null'); } catch (error) { /* ignore */ }
 
         const fileInput = h('input', { type: 'file', accept: '.zip,application/zip', hidden: true });
-        const pick = h('button', { class: 'community-dropzone', type: 'button', onclick: () => fileInput.click() },
-            h('strong', { text: t('pickZip') }), h('small', { text: t('pickZipHint') }));
-        const summary = h('div', { class: 'community-zip-summary', hidden: true });
-        const title = h('input', { class: 'community-input', maxlength: '60', required: true });
-        const description = h('textarea', { class: 'community-textarea', maxlength: '1000', rows: '4' });
-        const tags = h('input', { class: 'community-input', placeholder: t('tagsPlaceholder') });
-        const license = h('select', { class: 'community-input' },
-            ['cc-by-4.0', 'cc-by-sa-4.0', 'cc-by-nc-4.0', 'cc0-1.0', 'all-rights-reserved'].map((id) => h('option', { value: id, text: t(`license_${id.replace(/[^a-z0-9]/g, '_')}`) })));
-        const manufacturer = h('input', { class: 'community-input', maxlength: '40', placeholder: t('manufacturerPlaceholder') });
-        const author = h('input', { class: 'community-input', maxlength: '80', placeholder: t('originalAuthorPlaceholder') });
+        const drop = h('button', { class: 'cm-drop', type: 'button', onclick: () => fileInput.click() },
+            icon('upload', 'cm-icon-lg'), h('strong', { text: t('pickZip') }), h('small', { text: t('pickZipHint') }));
+        const picked = h('div', { class: 'cm-picked', hidden: true });
+        const title = h('input', { class: 'cm-input', maxlength: '60' });
+        const description = h('textarea', { class: 'cm-input', maxlength: '1000', rows: '3' });
+        const tags = h('input', { class: 'cm-input', placeholder: t('tagsPlaceholder'), autocapitalize: 'off' });
+        const license = h('select', { class: 'cm-input' }, LICENSES.map((id) => h('option', { value: id, text: licenseLabel(id) })));
+        const manufacturer = h('input', { class: 'cm-input', maxlength: '40', placeholder: t('manufacturerPlaceholder') });
+        const author = h('input', { class: 'cm-input', maxlength: '80', placeholder: t('originalAuthorPlaceholder') });
         const remixBox = remixSource ? h('input', { type: 'checkbox', checked: true }) : null;
         const rules = h('input', { type: 'checkbox' });
         const check = robotCheck();
-        const submit = h('button', { class: 'community-btn community-btn-primary', type: 'button', disabled: true }, t('publish'));
-        const progress = h('div', { class: 'community-progress', hidden: true }, h('span'));
+        const submit = h('button', { class: 'cm-btn is-primary is-wide', type: 'button', disabled: true }, t('publish'));
+        const bar = h('span');
+        const progress = h('div', { class: 'cm-progress', hidden: true }, bar);
         let chosen = null;
 
         fileInput.addEventListener('change', async () => {
             const file = fileInput.files && fileInput.files[0];
             fileInput.value = '';
             if (!file) return;
-            summary.hidden = false;
-            summary.replaceChildren(h('span', { class: 'community-muted', text: t('checkingZip') }));
+            picked.hidden = false;
+            fill(picked, h('span', { class: 'cm-muted', text: t('checkingZip') }));
             try {
                 const info = await inspectZip(file);
                 chosen = { file, info, bytes: await file.arrayBuffer() };
                 if (!title.value) title.value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ').slice(0, 60);
-                summary.replaceChildren(
-                    info.thumb ? h('img', { src: info.thumb, alt: '', class: 'community-zip-thumb' }) : null,
-                    h('div', {}, h('strong', { text: file.name }),
-                        h('span', { text: `${info.width} × ${info.height} · ${info.fps} fps · ${formatCount(info.frames)} ${t('factFrames').toLowerCase()} · ${formatBytes(file.size)}` })));
+                fill(picked,
+                    info.thumb ? h('img', { src: info.thumb, alt: '' }) : null,
+                    h('div', {},
+                        h('strong', { text: file.name }),
+                        h('span', { class: 'cm-muted', text: `${info.width} × ${info.height} · ${info.fps} fps · ${formatCount(info.frames)} ${t('framesWord')} · ${formatBytes(file.size)}` })),
+                    h('button', { class: 'cm-link', type: 'button', onclick: () => fileInput.click() }, t('change')));
+                drop.hidden = true;
                 submit.disabled = false;
             } catch (error) {
                 chosen = null;
                 submit.disabled = true;
-                summary.replaceChildren(h('p', { class: 'community-error', text: error.message }));
+                fill(picked, h('p', { class: 'cm-error', text: error.message }));
             }
         });
 
@@ -1245,10 +1369,9 @@
             if (!rules.checked) return toast(t('acceptRules'), 'info', 4200);
             submit.disabled = true;
             progress.hidden = false;
-            const bar = progress.firstChild;
             bar.style.width = '0%';
+            const label = busy(submit, t('preparing'));
             try {
-                submit.textContent = t('preparing');
                 const draft = await api('POST', '/v1/animations', { json: {
                     title: title.value,
                     description: description.value,
@@ -1260,9 +1383,11 @@
                     size_bytes: chosen.bytes.byteLength,
                     turnstile_token: await check.token(),
                 } });
-                submit.textContent = t('sending');
-                // Bytes already read (and hashed) are sent as-is, so the file cannot change between hash and upload.
-                await putWithProgress(draft.upload_url, chosen.bytes, (fraction) => { bar.style.width = `${Math.round(fraction * 100)}%`; });
+                // The bytes already read and hashed are sent as they are.
+                await putWithProgress(draft.upload_url, chosen.bytes, (fraction) => {
+                    bar.style.width = `${Math.round(fraction * 100)}%`;
+                    label.progress(fraction);
+                });
                 try { sessionStorage.removeItem(REMIX_KEY); } catch (error) { /* ignore */ }
                 state.views.clear();
                 toast(t('uploaded'), 'success', 6000);
@@ -1272,49 +1397,50 @@
                 reportError(error);
                 if (error.code === 'duplicate' && error.details && error.details.id) navigate(`a/${error.details.id}`);
             } finally {
+                label.done();
                 submit.disabled = !chosen;
-                submit.textContent = t('publish');
                 progress.hidden = true;
             }
         });
 
-        const el = h('section', { class: 'community-upload' },
-            h('div', { class: 'community-form' },
-                h('p', { class: 'community-muted', text: t('uploadIntro') }),
-                pick, fileInput, summary,
-                h('label', { class: 'community-field' }, h('span', { text: t('fieldTitle') }), title),
-                h('label', { class: 'community-field' }, h('span', { text: t('fieldDescription') }), description),
-                h('label', { class: 'community-field' }, h('span', { text: t('fieldTags') }), tags),
-                h('label', { class: 'community-field' }, h('span', { text: t('fieldLicense') }), license),
-                h('div', { class: 'community-field' }, h('span', { text: t('fieldCredits') }), h('small', { class: 'community-muted', text: t('creditsHint') }), manufacturer, author),
-                remixBox ? h('label', { class: 'community-check' }, remixBox, h('span', { text: t('isRemix', { title: remixSource.title, owner: remixSource.owner }) })) : null,
-                h('label', { class: 'community-check' }, rules, h('span', { text: t('rulesAccept') })),
-                h('ul', { class: 'community-rules' }, ['rule1', 'rule2', 'rule3', 'rule4'].map((key) => h('li', { text: t(key) }))),
+        const el = h('section', { class: 'cm-upload' },
+            h('p', { class: 'cm-intro', text: t('uploadIntro') }),
+            drop, fileInput, picked,
+            h('div', { class: 'cm-form' },
+                field(t('fieldTitle'), title),
+                field(t('fieldDescription'), description),
+                field(t('fieldTags'), tags),
+                field(t('fieldLicense'), license),
+                h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('fieldCredits') }), manufacturer, author, h('small', { class: 'cm-muted', text: t('creditsHint') })),
+                remixBox ? h('label', { class: 'cm-check' }, remixBox, h('span', { text: t('isRemix', { title: remixSource.title, owner: remixSource.owner }) })) : null,
+                h('label', { class: 'cm-check' }, rules, h('span', { text: t('rulesAccept') })),
+                h('ul', { class: 'cm-rules' }, ['rule1', 'rule2', 'rule3', 'rule4'].map((key) => h('li', { text: t(key) }))),
                 check.el,
                 progress,
                 submit,
-                h('p', { class: 'community-fineprint', text: t('reviewNote') }),
-            ));
+                h('p', { class: 'cm-fine', text: t('reviewNote') })));
         return { el, title: t('navUpload'), onLeave: () => check.remove() };
     }
 
-    // ---------------------------------------------------------------- open / close
+    // ------------------------------------------------------------------ open / close
 
     async function open(options = {}) {
         if (!state.root) buildShell();
         state.open = true;
         state.root.hidden = false;
-        document.body.classList.add('community-open');
+        document.body.classList.add('cm-open');
         let path = options.path ? options.path.replace(/^community\/?/, '') : null;
         if (!state.meLoaded) await loadMe();
         if (options.incoming) path = await handleIncoming(options.incoming);
-        path = path || state.path || 'feed/trending';
-        navigate(path, { replace: true });
+        navigate(path || state.path || 'explore', { replace: true });
         requestAnimationFrame(() => state.main.focus({ preventScroll: true }));
     }
 
     // Shared with panel.js.
-    const kit = Object.freeze({ h, t, api, navigate, toast, reportError, avatar, previewImage, formatCount, formatDate, formatBytes, confirmAction, fetchVerified, state, API, modal });
+    const kit = Object.freeze({
+        h, fill, t, icon, api, navigate, toast, reportError, avatar, media, loading, emptyState,
+        formatCount, formatDate, formatBytes, confirmAction, fetchVerified, state, API, modal,
+    });
 
-    window.BASCommunity = Object.freeze({ open, close: close_, isOpen: () => state.open, kit });
+    window.BASCommunity = Object.freeze({ open, close: closeCommunity, isOpen: () => state.open, kit });
 })();

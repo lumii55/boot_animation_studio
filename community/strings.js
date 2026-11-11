@@ -4,10 +4,13 @@
     'use strict';
 
     const en = {
+        navExplore: 'Explore', sort_trending: 'Trending', sort_top: 'Top rated', sort_new: 'New', actionRemix: 'Remix',
+        moreFrom: 'More from {name}', details: 'Details', profilePublished: 'Published', followersTitle: 'Followers',
+        followingTitle: 'Following', framesWord: 'frames', change: 'Change',
         title: 'Community', kicker: 'BOOT ANIMATION COMMUNITY', back: 'Back', close: 'Close', loading: 'Loading…', retry: 'Try again',
         loadMore: 'Load more', notFound: 'This page does not exist.', yes: 'Yes', no: 'No', system: 'automatic', justNow: 'just now',
         minutesAgo: '{n} min ago', hoursAgo: '{n} h ago',
-        navTrending: 'Trending', navTop: 'Top rated', navNew: 'New', navFollowing: 'Following', navUpload: 'Share', navPanel: 'Panel',
+        navTrending: 'Trending', navTop: 'Top rated', navNew: 'New', navFollowing: 'Following', navUpload: 'Upload', navPanel: 'Panel',
         signIn: 'Sign in', signInGithub: 'Sign in with GitHub', myProfile: 'My profile',
         signInPrivacy: 'We only read your public GitHub profile. No e-mail, no password, nothing posted on GitHub.',
         signedIn: 'Welcome, {name}!',
@@ -113,10 +116,13 @@
     };
 
     const pt = {
+        navExplore: 'Explorar', sort_trending: 'Em alta', sort_top: 'Mais bem avaliadas', sort_new: 'Novas', actionRemix: 'Remixar',
+        moreFrom: 'Mais de {name}', details: 'Detalhes', profilePublished: 'Publicadas', followersTitle: 'Seguidores',
+        followingTitle: 'Seguindo', framesWord: 'quadros', change: 'Trocar',
         title: 'Comunidade', kicker: 'COMUNIDADE DE ANIMAÇÕES DE BOOT', back: 'Voltar', close: 'Fechar', loading: 'Carregando…', retry: 'Tentar de novo',
         loadMore: 'Carregar mais', notFound: 'Esta página não existe.', yes: 'Sim', no: 'Não', system: 'automático', justNow: 'agora',
         minutesAgo: 'há {n} min', hoursAgo: 'há {n} h',
-        navTrending: 'Em alta', navTop: 'Mais bem avaliadas', navNew: 'Novas', navFollowing: 'Seguindo', navUpload: 'Compartilhar', navPanel: 'Painel',
+        navTrending: 'Em alta', navTop: 'Mais bem avaliadas', navNew: 'Novas', navFollowing: 'Seguindo', navUpload: 'Upload', navPanel: 'Painel',
         signIn: 'Entrar', signInGithub: 'Entrar com GitHub', myProfile: 'Meu perfil',
         signInPrivacy: 'Só lemos o seu perfil público do GitHub. Sem e-mail, sem senha, nada é publicado no GitHub.',
         signedIn: 'Bem-vindo(a), {name}!',
