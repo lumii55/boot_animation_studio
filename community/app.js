@@ -81,6 +81,7 @@
         flag: '<path d="M6 21V4M6 4h11l-2 4 2 4H6"/>',
         star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
         heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+        bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
     };
     function icon(name, cls = 'cm-icon') {
         const span = document.createElement('span');
@@ -114,6 +115,8 @@
         path: 'explore',
         sort: 'trending',
         views: new Map(),      // kept-alive views: path -> {view, scroll}
+        unread: 0,
+        unreadTimer: 0,
         current: null,
         root: null,
         main: null,
@@ -205,6 +208,23 @@
         return state.me;
     }
 
+    // Unread notifications: checked when the Community opens and every minute while it is open.
+    async function refreshUnread() {
+        if (!state.token || !state.me) return;
+        try {
+            const { unread } = await api('GET', '/v1/me/notifications/unread');
+            if (unread !== state.unread) {
+                state.unread = unread;
+                renderChrome();
+            }
+        } catch (error) { /* quiet: it is only a badge */ }
+    }
+    function startUnreadPolling() {
+        clearInterval(state.unreadTimer);
+        refreshUnread();
+        state.unreadTimer = setInterval(() => { if (state.open && !document.hidden) refreshUnread(); }, 60000);
+    }
+
     async function loadConfig() {
         if (!state.config) state.config = await api('GET', '/v1/config');
         return state.config;
@@ -293,8 +313,11 @@
         if (!state.root) return;
         if (!state.meLoaded) fill(state.account);
         else if (state.me) {
-            fill(state.account, h('button', { class: 'cm-me', type: 'button', 'aria-label': t('myProfile'), onclick: () => navigate(`u/${state.me.handle}`) },
-                avatar(state.me.pending_avatar_url || state.me.avatar_url, 'sm')));
+            fill(state.account,
+                h('button', { class: 'cm-iconbtn cm-bell', type: 'button', 'aria-label': t('notifications'), onclick: () => navigate('me/notifications') },
+                    icon('bell'), state.unread ? h('span', { class: 'cm-bell-badge', text: state.unread > 9 ? '9+' : String(state.unread) }) : null),
+                h('button', { class: 'cm-me', type: 'button', 'aria-label': t('myProfile'), onclick: () => navigate(`u/${state.me.handle}`) },
+                    avatar(state.me.pending_avatar_url || state.me.avatar_url, 'sm')));
         } else {
             fill(state.account, h('button', { class: 'cm-pill', type: 'button', onclick: () => signIn() }, t('signIn')));
         }
@@ -344,6 +367,7 @@
         [/^u\/([a-z0-9-]{1,39})$/, (m) => profileView(m[1])],
         [/^u\/([a-z0-9-]{1,39})\/(followers|following)$/, (m) => followListView(m[1], m[2])],
         [/^me\/edit$/, () => editProfileView()],
+        [/^me\/notifications$/, () => notificationsView()],
         [/^legal\/(terms|privacy)$/, (m) => legalView(m[1])],
         [/^mod(?:\/(.*))?$/, (m) => (window.BASCommunityPanel ? window.BASCommunityPanel.view(m[1] || 'mass', kit) : notFoundView())],
     ];
@@ -1373,6 +1397,61 @@
         return { el, title: t('editProfile') };
     }
 
+    // ------------------------------------------------------------------ notifications
+
+    function notificationText(item) {
+        const name = item.actor ? item.actor.display_name : '';
+        const title = item.animation ? item.animation.title : t('deletedAnimation');
+        if (item.kind === 'follow') return t('notif_follow', { name });
+        if (item.kind === 'published') return t('notif_published', { title });
+        if (item.kind === 'refused') return t('notif_refused', { title });
+        if (item.kind === 'remix') return t('notif_remix', { name, title });
+        return '';
+    }
+
+    function notificationTarget(item) {
+        if (item.kind === 'follow' && item.actor) return `u/${item.actor.handle}`;
+        if ((item.kind === 'published' || item.kind === 'remix') && item.animation) return `a/${item.animation.id}`;
+        return null; // refused items are gone for everyone else; the reason is shown in place
+    }
+
+    function relativeTime(ms) {
+        const minutes = Math.round((Date.now() - ms) / 60000);
+        if (minutes < 1) return t('justNow');
+        if (minutes < 60) return t('minutesAgo', { n: minutes });
+        const hours = Math.round(minutes / 60);
+        return hours < 48 ? t('hoursAgo', { n: hours }) : formatDate(ms);
+    }
+
+    function notificationsView() {
+        if (!state.token) return { el: signInPrompt(t('uploadSignIn')), title: t('notifications') };
+        const list = feed({
+            layout: 'list',
+            fetchPage: (cursor, signal) => api('GET', `/v1/me/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }),
+            render: (item) => {
+                const target = notificationTarget(item);
+                const thumb = item.actor && item.kind !== 'published' && item.kind !== 'refused'
+                    ? avatar(item.actor.avatar_url, 'md')
+                    : (item.animation && item.animation.preview_url
+                        ? h('span', { class: 'cm-notif-thumb' }, h('img', { src: item.animation.preview_url, alt: '', loading: 'lazy' }))
+                        : h('span', { class: 'cm-notif-thumb is-icon' }, icon(item.kind === 'refused' ? 'flag' : 'bell')));
+                return h(target ? 'button' : 'div', {
+                    class: `cm-notif${item.read ? '' : ' is-unread'} is-${item.kind}`,
+                    type: target ? 'button' : null,
+                    onclick: target ? () => navigate(target) : null,
+                }, thumb, h('span', { class: 'cm-notif-body' },
+                    h('span', { text: notificationText(item) }),
+                    item.kind === 'refused' && item.reason ? h('small', { class: 'cm-notif-reason', text: t('notif_reason', { reason: item.reason }) }) : null,
+                    h('small', { class: 'cm-muted', text: relativeTime(item.created_at) })));
+            },
+            empty: () => t('emptyNotifications'),
+        });
+        list.start();
+        // Opening the list counts as reading it.
+        api('POST', '/v1/me/notifications/read').then(() => { state.unread = 0; renderChrome(); }).catch(() => {});
+        return { el: h('section', { class: 'cm-notifs' }, list.el), title: t('notifications'), onLeave: () => list.stop() };
+    }
+
     // ------------------------------------------------------------------ upload
 
     async function inspectZip(file) {
@@ -1471,10 +1550,12 @@
             h('small', { text: t('pickZipHint') }),
             error ? h('span', { class: 'cm-error', text: error }) : null);
         paintEmpty();
-        fileInput.addEventListener('change', async () => {
+        fileInput.addEventListener('change', () => {
             const file = fileInput.files && fileInput.files[0];
             fileInput.value = '';
-            if (!file) return;
+            if (file) useFile(file);
+        });
+        async function useFile(file) {
             fileCard.classList.add('is-busy');
             fill(fileCard, h('span', { class: 'cm-spinner' }), h('small', { text: t('checkingZip') }));
             try {
@@ -1497,7 +1578,15 @@
                 fileCard.classList.remove('is-busy');
                 paintSubmit();
             }
-        });
+        }
+
+        // A build handed over from the Studio's finish screen starts the form already filled with the file.
+        if (state.pendingUpload) {
+            const { blob, name } = state.pendingUpload;
+            state.pendingUpload = null;
+            const safeName = `${String(name).replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60) || 'bootanimation'}.zip`;
+            queueMicrotask(() => useFile(new File([blob], safeName, { type: 'application/zip' })));
+        }
 
         // 2. Title, description, tags.
         const title = h('input', { class: 'cm-create-title', maxlength: '60', placeholder: t('titlePlaceholder'), 'aria-label': t('fieldTitle') });
@@ -1592,10 +1681,17 @@
         state.open = true;
         state.root.hidden = false;
         document.body.classList.add('cm-open');
+        if (options.upload) state.pendingUpload = options.upload; // a build handed over by the Studio
         let path = options.path ? options.path.replace(/^community\/?/, '') : null;
         if (!state.meLoaded) await loadMe();
         if (options.incoming) path = await handleIncoming(options.incoming);
-        navigate(path || state.path || 'explore', { replace: true });
+        startUnreadPolling();
+        if (options.upload && path === 'upload') {
+            if (location.hash !== '#community/upload') history.pushState({ community: true }, '', '#community/upload');
+            route('upload', { force: true });
+        } else {
+            navigate(path || state.path || 'explore', { replace: true });
+        }
         requestAnimationFrame(() => state.main.focus({ preventScroll: true }));
     }
 

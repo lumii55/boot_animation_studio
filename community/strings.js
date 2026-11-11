@@ -4,6 +4,14 @@
     'use strict';
 
     const en = {
+        "notifications": "Notifications",
+        "notif_follow": "{name} started following you",
+        "notif_published": "Your animation “{title}” is published",
+        "notif_refused": "Your animation “{title}” was not accepted",
+        "notif_reason": "Reason: {reason}",
+        "notif_remix": "{name} published a remix of your animation: “{title}”",
+        "emptyNotifications": "Nothing here yet.",
+        "deletedAnimation": "(deleted animation)",
         "titlePlaceholder": "Give it a title",
         "descriptionPlaceholder": "Tell something about it (optional)",
         "needTitle": "Give it a title first.",
@@ -305,6 +313,14 @@
     };
 
     const pt = {
+        "notifications": "Notificações",
+        "notif_follow": "{name} começou a seguir você",
+        "notif_published": "Sua animação “{title}” foi publicada",
+        "notif_refused": "Sua animação “{title}” não foi aceita",
+        "notif_reason": "Motivo: {reason}",
+        "notif_remix": "{name} publicou um remix da sua animação: “{title}”",
+        "emptyNotifications": "Nada por aqui ainda.",
+        "deletedAnimation": "(animação apagada)",
         "titlePlaceholder": "Dê um título",
         "descriptionPlaceholder": "Conte algo sobre ela (opcional)",
         "needTitle": "Dê um título primeiro.",
@@ -606,6 +622,14 @@
     };
 
     const es = {
+        "notifications": "Notificaciones",
+        "notif_follow": "{name} empezó a seguirte",
+        "notif_published": "Tu animación «{title}» está publicada",
+        "notif_refused": "Tu animación «{title}» no fue aceptada",
+        "notif_reason": "Motivo: {reason}",
+        "notif_remix": "{name} publicó una remezcla de tu animación: «{title}»",
+        "emptyNotifications": "Aún no hay nada.",
+        "deletedAnimation": "(animación borrada)",
         "titlePlaceholder": "Ponle un título",
         "descriptionPlaceholder": "Cuenta algo sobre ella (opcional)",
         "needTitle": "Primero ponle un título.",
@@ -839,6 +863,14 @@
     };
 
     const fr = {
+        "notifications": "Notifications",
+        "notif_follow": "{name} vous suit désormais",
+        "notif_published": "Votre animation « {title} » est publiée",
+        "notif_refused": "Votre animation « {title} » n’a pas été acceptée",
+        "notif_reason": "Motif : {reason}",
+        "notif_remix": "{name} a publié un remix de votre animation : « {title} »",
+        "emptyNotifications": "Rien pour l’instant.",
+        "deletedAnimation": "(animation supprimée)",
         "titlePlaceholder": "Donnez-lui un titre",
         "descriptionPlaceholder": "Dites quelque chose à son sujet (facultatif)",
         "needTitle": "Donnez-lui d’abord un titre.",
@@ -1072,6 +1104,14 @@
     };
 
     const de = {
+        "notifications": "Benachrichtigungen",
+        "notif_follow": "{name} folgt dir jetzt",
+        "notif_published": "Deine Animation „{title}“ ist veröffentlicht",
+        "notif_refused": "Deine Animation „{title}“ wurde nicht angenommen",
+        "notif_reason": "Grund: {reason}",
+        "notif_remix": "{name} hat einen Remix deiner Animation veröffentlicht: „{title}“",
+        "emptyNotifications": "Noch nichts da.",
+        "deletedAnimation": "(gelöschte Animation)",
         "titlePlaceholder": "Gib ihr einen Titel",
         "descriptionPlaceholder": "Erzähl etwas darüber (optional)",
         "needTitle": "Gib ihr zuerst einen Titel.",
@@ -1305,6 +1345,14 @@
     };
 
     const it = {
+        "notifications": "Notifiche",
+        "notif_follow": "{name} ha iniziato a seguirti",
+        "notif_published": "La tua animazione «{title}» è pubblicata",
+        "notif_refused": "La tua animazione «{title}» non è stata accettata",
+        "notif_reason": "Motivo: {reason}",
+        "notif_remix": "{name} ha pubblicato un remix della tua animazione: «{title}»",
+        "emptyNotifications": "Ancora niente.",
+        "deletedAnimation": "(animazione eliminata)",
         "titlePlaceholder": "Dalle un titolo",
         "descriptionPlaceholder": "Racconta qualcosa (facoltativo)",
         "needTitle": "Prima dalle un titolo.",
@@ -1538,6 +1586,14 @@
     };
 
     const ja = {
+        "notifications": "お知らせ",
+        "notif_follow": "{name} さんがあなたをフォローしました",
+        "notif_published": "アニメーション「{title}」が公開されました",
+        "notif_refused": "アニメーション「{title}」は承認されませんでした",
+        "notif_reason": "理由：{reason}",
+        "notif_remix": "{name} さんがあなたのアニメーションのリミックスを公開しました：「{title}」",
+        "emptyNotifications": "まだ何もありません。",
+        "deletedAnimation": "（削除されたアニメーション）",
         "titlePlaceholder": "タイトルを付ける",
         "descriptionPlaceholder": "説明を書く（任意）",
         "needTitle": "先にタイトルを付けてください。",
@@ -1771,6 +1827,14 @@
     };
 
     const zh = {
+        "notifications": "通知",
+        "notif_follow": "{name} 关注了你",
+        "notif_published": "你的动画“{title}”已发布",
+        "notif_refused": "你的动画“{title}”未被接受",
+        "notif_reason": "原因：{reason}",
+        "notif_remix": "{name} 发布了你的动画的改编：“{title}”",
+        "emptyNotifications": "这里还没有内容。",
+        "deletedAnimation": "（已删除的动画）",
         "titlePlaceholder": "起个标题",
         "descriptionPlaceholder": "介绍一下（可选）",
         "needTitle": "请先起个标题。",

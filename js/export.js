@@ -632,6 +632,7 @@ btnGerar.addEventListener('click', async () => {
         } else {
             const deliveryResult = await deliverBootanimation(rawBootAnimBlob, options, t);
             window.BASFinishCenter?.record?.(deliveryResult, options);
+            window.BASCommunityEntry?.rememberBuild?.(rawBootAnimBlob, options.name);
             successText = typeof generationSuccessText === 'function' ? generationSuccessText(deliveryResult, t) : 'OK!';
         }
         document.getElementById('texto-progresso').textContent = successText;
