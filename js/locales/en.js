@@ -1811,6 +1811,8 @@
         "msgSecureTrustWaiting": "Waiting for you to accept the certificate in the other tab…",
         "msgSecurePopupBlocked": "The browser blocked the new tab. Allow pop-ups for this site, or open {url} yourself, accept the certificate and come back.",
         "multiDeviceSecureSetup": "Secure setup needed",
-        "msgSecureConnectFailed": "Couldn't reach the phone over the secure connection. If the browser doesn't trust the phone's certificate yet, choose Secure connection again and accept it."
+        "msgSecureConnectFailed": "Couldn't reach the phone over the secure connection. If the browser doesn't trust the phone's certificate yet, choose Secure connection again and accept it.",
+        "msgAuthRateLimited": "Too many connection attempts in a short time. For security, the phone pauses new authorization requests. Wait {seconds} s and try again.",
+        "multiDeviceDiagnostics": "Search details"
     };
 })(window);

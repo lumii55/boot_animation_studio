@@ -575,6 +575,32 @@ async function connectToPhone() {
     }
 }
 
+// The Companion limits authorization attempts per network client (LAN: 3 per minute, then
+// a 60 s pause) and answers 429 with Retry-After. Remember the pause per module so the
+// Studio can tell the user how long to wait instead of a misleading generic error, and
+// so clicks during the pause don't spend more attempts.
+const basAuthRateLimitedUntil = new Map();
+
+function authRateLimitRemainingSeconds() {
+    const remaining = (basAuthRateLimitedUntil.get(String(IP_LOCAL)) || 0) - Date.now();
+    return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+}
+
+function authRateLimitedError(response) {
+    const header = Number.parseInt(response?.headers?.get?.('Retry-After') || '', 10);
+    // Retry-After is readable from v1.5 modules; older ones get the module's fixed 60 s pause.
+    const seconds = Number.isFinite(header) && header > 0 && header <= 3600 ? header : 60;
+    basAuthRateLimitedUntil.set(String(IP_LOCAL), Date.now() + seconds * 1000);
+    const error = new Error('auth_rate_limited');
+    error.code = 'rate_limited';
+    error.retryAfter = seconds;
+    return error;
+}
+
+function authRateLimitMessage(t, seconds) {
+    return String(t.msgAuthRateLimited || 'Too many connection attempts in a short time. Wait {seconds} s and try again.').replace('{seconds}', String(seconds));
+}
+
 function connectionSleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -599,6 +625,7 @@ async function requestAsyncAuthorization(btn, t, attemptSignal = null) {
                 signal: AbortSignal.timeout(5000)
             });
             const data = await response.json().catch(() => ({}));
+            if (response.status === 429 || data.status === 'rate_limited') throw authRateLimitedError(response);
             if (response.ok && (data.status === 'pending' || data.status === 'ok') && data.request_id) {
                 startData = data;
                 break;
@@ -610,7 +637,8 @@ async function requestAsyncAuthorization(btn, t, attemptSignal = null) {
             }
             lastError = new Error(data.message || `auth_start_${response.status}`);
         } catch (error) {
-            if (attemptSignal?.aborted) throw error;
+            // Never retry into a rate limit: that only spends another attempt.
+            if (attemptSignal?.aborted || error?.code === 'rate_limited') throw error;
             lastError = error;
         }
         if (attempt === 0) await connectionSleep(350);
@@ -715,6 +743,13 @@ async function tentaConexao() {
             }
         }
 
+        const rateLimitedFor = sessionToken ? 0 : authRateLimitRemainingSeconds();
+        if (rateLimitedFor) {
+            alert(authRateLimitMessage(t, rateLimitedFor));
+            btn.textContent = t.btnConnect;
+            return false;
+        }
+
         if (!sessionToken && hasModuleFeature('trusted_clients') && window.BASTrustClient?.reconnect) {
             try {
                 const trusted = await window.BASTrustClient.reconnect(IP_LOCAL);
@@ -740,6 +775,7 @@ async function tentaConexao() {
                     btn.textContent = t.msgWaitingAuth;
                     const authRes = await apiFetch('/request_auth', { method: 'POST', timeoutMs: 35000 });
                     if (superseded()) return false;
+                    if (authRes.status === 429) throw authRateLimitedError(authRes);
                     data = await authRes.json().catch(() => ({}));
                     if (data.status === 'denied') {
                         alert(t.msgAuthDenied);
@@ -792,6 +828,11 @@ async function tentaConexao() {
     } catch (error) {
         if (superseded()) return false;
         sessionToken = '';
+        if (error?.code === 'rate_limited') {
+            alert(authRateLimitMessage(t, error.retryAfter || authRateLimitRemainingSeconds() || 60));
+            btn.textContent = t.btnConnect;
+            return false;
+        }
         alert(discovered || error?.code === 'auth_start_failed' || error?.code === 'auth_status_failed' ? t.msgAuthStartFailed : t.msgNotFound);
         btn.textContent = t.btnConnect;
         return false;

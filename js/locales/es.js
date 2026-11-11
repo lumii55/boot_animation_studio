@@ -1811,6 +1811,8 @@
         "msgSecureTrustWaiting": "Esperando a que aceptes el certificado en la otra pestaña…",
         "msgSecurePopupBlocked": "El navegador bloqueó la nueva pestaña. Permite las ventanas emergentes para este sitio, o abre {url} tú mismo, acepta el certificado y vuelve.",
         "multiDeviceSecureSetup": "Requiere conexión segura",
-        "msgSecureConnectFailed": "No se pudo contactar con el teléfono por la conexión segura. Si el navegador aún no confía en el certificado del teléfono, elige Conexión segura de nuevo y acéptalo."
+        "msgSecureConnectFailed": "No se pudo contactar con el teléfono por la conexión segura. Si el navegador aún no confía en el certificado del teléfono, elige Conexión segura de nuevo y acéptalo.",
+        "msgAuthRateLimited": "Demasiados intentos de conexión en poco tiempo. Por seguridad, el teléfono pausa las nuevas solicitudes de autorización. Espera {seconds} s y vuelve a intentarlo.",
+        "multiDeviceDiagnostics": "Detalles de la búsqueda"
     };
 })(window);

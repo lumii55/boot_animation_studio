@@ -1811,6 +1811,8 @@
         "msgSecureTrustWaiting": "Aguardando você aceitar o certificado na outra aba…",
         "msgSecurePopupBlocked": "O navegador bloqueou a nova aba. Permita pop-ups para este site, ou abra {url} você mesmo, aceite o certificado e volte.",
         "multiDeviceSecureSetup": "Precisa da conexão segura",
-        "msgSecureConnectFailed": "Não consegui falar com o celular pela conexão segura. Se o navegador ainda não confia no certificado do celular, escolha Conexão segura de novo e aceite."
+        "msgSecureConnectFailed": "Não consegui falar com o celular pela conexão segura. Se o navegador ainda não confia no certificado do celular, escolha Conexão segura de novo e aceite.",
+        "msgAuthRateLimited": "Muitas tentativas de conexão em pouco tempo. Por segurança, o celular pausa novos pedidos de autorização. Aguarde {seconds} s e tente de novo.",
+        "multiDeviceDiagnostics": "Detalhes da busca"
     };
 })(window);

@@ -382,8 +382,15 @@ function multiDeviceConnectedCount() {
     return Array.from(multiDeviceRuntime.devices.values()).filter(device => device.connected && device.token).length;
 }
 
-async function multiDeviceProbeIP(ip, timeout = 850) {
+// Short outcome labels for the "Search details" diagnostics shown in the network dialog.
+function multiDeviceOutcome(error) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return 'timeout';
+    return 'failed (' + String(error?.name || 'Error') + ')';
+}
+
+async function multiDeviceProbeIP(ip, timeout = 850, report = null) {
     if (!isPrivateIPv4(ip) && ip !== '127.0.0.1') return null;
+    const note = value => { if (report) report.http = value; };
     const baseUrl = `http://${ip}:4040`;
 
     // Current/public modules expose /info. Prefer it because it carries API/capability
@@ -397,10 +404,13 @@ async function multiDeviceProbeIP(ip, timeout = 850) {
             if (info && Number.isInteger(Number(info.api_version))) {
                 const device = multiDeviceUpsert({ baseUrl, info,
                     verifiedLoopback: ip === '127.0.0.1' });
+                note('ok (v1.4 or older)');
                 return device ? { ...device, token: device.token } : null;
             }
         }
+        note('HTTP ' + response.status);
     } catch (error) {
+        note(infoController.signal.aborted ? 'timeout' : multiDeviceOutcome(error));
         // A timeout/no-host result is not useful for a second probe. A real older
         // module normally answers /info quickly with 404, which falls through below.
         if (infoController.signal.aborted) return null;
@@ -433,16 +443,19 @@ async function multiDeviceProbeIP(ip, timeout = 850) {
 // only once this browser trusts the device's self-signed certificate; an untrusted
 // certificate and a closed port look the same (a network error), so this never
 // "discovers" an untrusted module, it only confirms a trusted one.
-async function multiDeviceProbeSecure(ip, timeout = 2500) {
+async function multiDeviceProbeSecure(ip, timeout = 2500, report = null) {
     if (!isPrivateIPv4(ip)) return null;
+    const note = value => { if (report) report.https = value; };
     const baseUrl = `https://${ip}:4041`;
     try {
         const response = await localNetworkFetch(baseUrl + '/info', { signal: AbortSignal.timeout(timeout), cache: 'no-store' });
-        if (!response.ok) return null;
+        if (!response.ok) { note('HTTP ' + response.status); return null; }
         const info = await response.json().catch(() => null);
-        if (!info || !Number.isInteger(Number(info.api_version))) return null;
+        if (!info || !Number.isInteger(Number(info.api_version))) { note('invalid answer'); return null; }
+        note('ok (certificate trusted)');
         return multiDeviceUpsert({ baseUrl, info });
     } catch (error) {
+        note(multiDeviceOutcome(error) + ' (not trusted yet, or offline)');
         return null;
     }
 }
@@ -451,28 +464,50 @@ async function multiDeviceProbeSecure(ip, timeout = 2500) {
 // GET /discover with {"service":"bas-companion","api_version":N,"secure_port":4041} and
 // nothing else (no model, id or state). It only tells the Studio that a phone is there;
 // connecting still requires HTTPS :4041 and normal authorization.
-async function multiDeviceProbeBeacon(ip, timeout = 850) {
+async function multiDeviceProbeBeacon(ip, timeout = 850, report = null, secureTimeout = 1500) {
     if (!isPrivateIPv4(ip)) return null;
+    const note = value => { if (report) report.signal = value; };
     try {
         const response = await localNetworkFetch(`http://${ip}:4042/discover`, { signal: AbortSignal.timeout(timeout), cache: 'no-store' });
-        if (!response.ok) return null;
+        if (!response.ok) { note('HTTP ' + response.status); return null; }
         const data = await response.json().catch(() => null);
-        if (data?.service !== 'bas-companion' || data.secure_port !== 4041 || !Number.isInteger(Number(data.api_version))) return null;
+        if (data?.service !== 'bas-companion' || data.secure_port !== 4041 || !Number.isInteger(Number(data.api_version))) { note('invalid answer'); return null; }
+        note('ok (v1.5+)');
         const known = Array.from(multiDeviceRuntime.devices.values()).find(device => device.ip === ip);
         const baseUrl = `https://${ip}:4041`;
         const device = multiDeviceUpsert(known ? { id: known.id, baseUrl } : { baseUrl, info: null });
         if (!device) return null;
         // Already trusted? Then fill in the real identity/capabilities over HTTPS.
-        return (await multiDeviceProbeSecure(ip, 1500)) || device;
+        return (await multiDeviceProbeSecure(ip, secureTimeout, report)) || device;
     } catch (error) {
+        note(multiDeviceOutcome(error));
         return null;
     }
 }
 
 // Both generations answer on different ports; probe them together. A v1.4 answer wins.
-async function multiDeviceProbeHost(ip, timeout) {
-    const [legacy, beacon] = await Promise.all([multiDeviceProbeIP(ip, timeout), multiDeviceProbeBeacon(ip, timeout)]);
+async function multiDeviceProbeHost(ip, timeout, report = null, secureTimeout = 1500) {
+    const [legacy, beacon] = await Promise.all([multiDeviceProbeIP(ip, timeout, report), multiDeviceProbeBeacon(ip, timeout, report, secureTimeout)]);
     return legacy || beacon;
+}
+
+// Known/typed phone IPs are few, so they get generous timeouts: slow browsers (the Xbox
+// Edge, the Quest) can miss short ones. The subnet sweep keeps its short timeouts.
+const BAS_SCAN_EXACT_TIMEOUT_MS = 2500;
+const BAS_SCAN_EXACT_SECURE_TIMEOUT_MS = 3500;
+
+function multiDeviceRenderDiagnostics(report) {
+    const box = document.getElementById('multi-device-diagnostics');
+    const text = document.getElementById('multi-device-diagnostics-text');
+    const title = document.getElementById('multi-device-diagnostics-title');
+    if (!box || !text) return;
+    if (title) title.textContent = multiDeviceText('multiDeviceDiagnostics', 'Search details');
+    const lines = report.hosts.map(host => `${host.ip}${host.role ? ' (' + host.role + ')' : ''}\n` +
+        `  v1.4 HTTP :4040 → ${host.http || '—'}\n  v1.5 signal :4042 → ${host.signal || '—'}\n  HTTPS :4041 → ${host.https || '—'}`);
+    lines.push(`Subnets scanned: ${report.subnets.join(', ') || '—'} · found there: ${report.subnetFound}`);
+    lines.push(`Local network permission: ${report.permission} · ${Math.round((Date.now() - report.started) / 100) / 10} s`);
+    text.textContent = lines.join('\n');
+    box.hidden = false;
 }
 
 function multiDeviceNeedsSecureSetup(device) {
@@ -586,7 +621,8 @@ async function multiDeviceScan(options = {}) {
     multiDeviceRuntime.scanning = true;
     multiDeviceRender();
     const sampleIp = rememberedPhoneIp() || '192.168.0.1';
-    await window.BASApi?.ensureLocalNetworkAccess?.(`http://${sampleIp}:4040/info`, () => {
+    const report = { started: Date.now(), hosts: [], subnets: [], subnetFound: 0, permission: '' };
+    report.permission = await window.BASApi?.ensureLocalNetworkAccess?.(`http://${sampleIp}:4040/info`, () => {
         const desc = document.getElementById('lbl-modal-net-desc');
         if (desc) desc.textContent = multiDeviceText('msgAllowLocalNetwork', 'Allow local network access in your browser to find your phone…');
     });
@@ -639,19 +675,27 @@ async function multiDeviceScan(options = {}) {
         .map(device => device.ip);
     for (const ip of Array.from(new Set(secureKnown))) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
-        const device = await multiDeviceProbeSecure(ip, 1500);
+        const host = { ip, role: 'saved HTTPS' };
+        report.hosts.push(host);
+        const device = await multiDeviceProbeSecure(ip, BAS_SCAN_EXACT_SECURE_TIMEOUT_MS, host);
         if (device) found.push(device);
     }
     for (const ip of exact) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
-        const device = await multiDeviceProbeHost(ip, 1100);
+        const host = report.hosts.find(entry => entry.ip === ip) || { ip, role: 'last used / typed' };
+        if (!report.hosts.includes(host)) report.hosts.push(host);
+        const device = await multiDeviceProbeHost(ip, BAS_SCAN_EXACT_TIMEOUT_MS, host, BAS_SCAN_EXACT_SECURE_TIMEOUT_MS);
         if (device) found.push(device);
     }
-    for (const subnet of subnets.slice(0, 3)) {
+    report.subnets = subnets.slice(0, 3);
+    for (const subnet of report.subnets) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
         const batch = await multiDeviceScanSubnet(subnet, exactSet, generation);
+        report.subnetFound += batch.length;
         found.push(...batch);
     }
+    multiDeviceRuntime.lastScanReport = report;
+    multiDeviceRenderDiagnostics(report);
     const unique = Array.from(new Map(found.map(device => [device.id, device])).values());
     multiDeviceRuntime.scanning = Boolean(options.keepScanningOnEmpty && !unique.length);
     multiDevicePersist();

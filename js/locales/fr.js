@@ -1811,6 +1811,8 @@
         "msgSecureTrustWaiting": "En attente de l’acceptation du certificat dans l’autre onglet…",
         "msgSecurePopupBlocked": "Le navigateur a bloqué le nouvel onglet. Autorisez les fenêtres pop-up pour ce site, ou ouvrez {url} vous-même, acceptez le certificat puis revenez.",
         "multiDeviceSecureSetup": "Connexion sécurisée requise",
-        "msgSecureConnectFailed": "Impossible de joindre le téléphone via la connexion sécurisée. Si le navigateur ne fait pas encore confiance au certificat du téléphone, choisissez à nouveau Connexion sécurisée et acceptez-le."
+        "msgSecureConnectFailed": "Impossible de joindre le téléphone via la connexion sécurisée. Si le navigateur ne fait pas encore confiance au certificat du téléphone, choisissez à nouveau Connexion sécurisée et acceptez-le.",
+        "msgAuthRateLimited": "Trop de tentatives de connexion en peu de temps. Par sécurité, le téléphone suspend les nouvelles demandes d’autorisation. Patientez {seconds} s et réessayez.",
+        "multiDeviceDiagnostics": "Détails de la recherche"
     };
 })(window);

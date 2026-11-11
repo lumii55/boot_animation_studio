@@ -1811,6 +1811,8 @@
         "msgSecureTrustWaiting": "In attesa che tu accetti il certificato nell’altra scheda…",
         "msgSecurePopupBlocked": "Il browser ha bloccato la nuova scheda. Consenti i pop-up per questo sito, oppure apri {url}, accetta il certificato e torna qui.",
         "multiDeviceSecureSetup": "Richiede connessione sicura",
-        "msgSecureConnectFailed": "Impossibile raggiungere il telefono tramite la connessione sicura. Se il browser non considera ancora attendibile il certificato del telefono, scegli di nuovo Connessione sicura e accettalo."
+        "msgSecureConnectFailed": "Impossibile raggiungere il telefono tramite la connessione sicura. Se il browser non considera ancora attendibile il certificato del telefono, scegli di nuovo Connessione sicura e accettalo.",
+        "msgAuthRateLimited": "Troppi tentativi di connessione in poco tempo. Per sicurezza, il telefono sospende le nuove richieste di autorizzazione. Attendi {seconds} s e riprova.",
+        "multiDeviceDiagnostics": "Dettagli della ricerca"
     };
 })(window);
