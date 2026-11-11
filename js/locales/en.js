@@ -1809,6 +1809,7 @@
         "msgAllowLocalNetwork": "Allow local network access in your browser…",
         "msgSecureTrustPrompt": "No answer from {ip} over the network. Phones with Companion Module v1.5 or newer only accept secure (HTTPS) connections from other devices.\n\nOpen the secure connection page now? If the browser warns about the certificate, choose Advanced → Continue. The page closes itself and the Studio connects.",
         "msgSecureTrustWaiting": "Waiting for you to accept the certificate in the other tab…",
-        "msgSecurePopupBlocked": "The browser blocked the new tab. Allow pop-ups for this site, or open {url} yourself, accept the certificate and come back."
+        "msgSecurePopupBlocked": "The browser blocked the new tab. Allow pop-ups for this site, or open {url} yourself, accept the certificate and come back.",
+        "multiDeviceSecureSetup": "Secure setup needed"
     };
 })(window);

@@ -182,6 +182,8 @@ function multiDeviceUpsert(candidate) {
             multiDeviceRuntime.devices.delete(legacyId);
             legacy.id = id;
             legacy.stableIdentity = true;
+            // Re-register under the stable id (it used to vanish from the registry here).
+            multiDeviceRuntime.devices.set(id, legacy);
             device = legacy;
             if (multiDeviceRuntime.activeId === legacyId) multiDeviceRuntime.activeId = id;
             if (multiDeviceRuntime.selectedId === legacyId) multiDeviceRuntime.selectedId = id;
@@ -445,6 +447,38 @@ async function multiDeviceProbeSecure(ip, timeout = 2500) {
     }
 }
 
+// v1.5+ LAN discovery signal: a separate, discovery-only listener on :4042 that answers
+// GET /discover with {"service":"bas-companion","api_version":N,"secure_port":4041} and
+// nothing else (no model, id or state). It only tells the Studio that a phone is there;
+// connecting still requires HTTPS :4041 and normal authorization.
+async function multiDeviceProbeBeacon(ip, timeout = 850) {
+    if (!isPrivateIPv4(ip)) return null;
+    try {
+        const response = await localNetworkFetch(`http://${ip}:4042/discover`, { signal: AbortSignal.timeout(timeout), cache: 'no-store' });
+        if (!response.ok) return null;
+        const data = await response.json().catch(() => null);
+        if (data?.service !== 'bas-companion' || data.secure_port !== 4041 || !Number.isInteger(Number(data.api_version))) return null;
+        const known = Array.from(multiDeviceRuntime.devices.values()).find(device => device.ip === ip);
+        const baseUrl = `https://${ip}:4041`;
+        const device = multiDeviceUpsert(known ? { id: known.id, baseUrl } : { baseUrl, info: null });
+        if (!device) return null;
+        // Already trusted? Then fill in the real identity/capabilities over HTTPS.
+        return (await multiDeviceProbeSecure(ip, 1500)) || device;
+    } catch (error) {
+        return null;
+    }
+}
+
+// Both generations answer on different ports; probe them together. A v1.4 answer wins.
+async function multiDeviceProbeHost(ip, timeout) {
+    const [legacy, beacon] = await Promise.all([multiDeviceProbeIP(ip, timeout), multiDeviceProbeBeacon(ip, timeout)]);
+    return legacy || beacon;
+}
+
+function multiDeviceNeedsSecureSetup(device) {
+    return Boolean(device && String(device.baseUrl || '').startsWith('https://') && !device.info && !(device.connected && device.token));
+}
+
 // Certificate onboarding. fetch() cannot show the browser's certificate warning, so the
 // Studio opens the module's /trust page in a new tab. Once the user accepts the warning,
 // that page posts {type: 'bas-companion-trusted'} back to this tab and closes itself.
@@ -495,7 +529,7 @@ async function multiDeviceCompleteSecureTrust() {
         return false;
     }
     multiDeviceSecureTrust.pending = null;
-    return multiDeviceConnectRecord(device.id);
+    return multiDeviceConnectRecord(device.id, { verified: true });
 }
 
 function multiDeviceOnTrustMessage(event) {
@@ -518,7 +552,7 @@ async function multiDeviceConnectSecure(rawAddress) {
     }
     await window.BASApi?.ensureLocalNetworkAccess?.(`https://${ip}:4041/info`);
     const trusted = await multiDeviceProbeSecure(ip);
-    if (trusted) return multiDeviceConnectRecord(trusted.id);
+    if (trusted) return multiDeviceConnectRecord(trusted.id, { verified: true });
     return multiDeviceBeginSecureTrust(ip);
 }
 
@@ -533,7 +567,7 @@ async function multiDeviceScanSubnet(subnet, exactSet, generation) {
     for (let start = 0; start < hosts.length; start += chunkSize) {
         if (multiDeviceRuntime.scanGeneration !== generation) return results;
         const batch = hosts.slice(start, start + chunkSize);
-        const found = await Promise.all(batch.map(ip => multiDeviceProbeIP(ip, 700)));
+        const found = await Promise.all(batch.map(ip => multiDeviceProbeHost(ip, 700)));
         found.filter(Boolean).forEach(device => results.push(device));
     }
     return results;
@@ -602,7 +636,7 @@ async function multiDeviceScan(options = {}) {
     }
     for (const ip of exact) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
-        const device = await multiDeviceProbeIP(ip, 1100);
+        const device = await multiDeviceProbeHost(ip, 1100);
         if (device) found.push(device);
     }
     for (const subnet of subnets.slice(0, 3)) {
@@ -625,6 +659,7 @@ function multiDeviceLabel(device) {
 function multiDeviceStatus(device) {
     if (device.id === multiDeviceRuntime.activeId && isConnectedMode) return multiDeviceText('multiDeviceActive', 'Active');
     if (device.connected && device.token) return multiDeviceText('multiDeviceConnected', 'Connected');
+    if (multiDeviceNeedsSecureSetup(device)) return multiDeviceText('multiDeviceSecureSetup', 'Secure setup needed');
     if (device.lastSeen) return multiDeviceText('multiDeviceAvailable', 'Available');
     return multiDeviceText('multiDeviceRemembered', 'Remembered');
 }
@@ -709,12 +744,17 @@ function multiDeviceRender() {
     });
 }
 
-async function multiDeviceConnectRecord(id) {
+async function multiDeviceConnectRecord(id, options = {}) {
     const device = multiDeviceRuntime.devices.get(id);
     if (!device) return false;
     if (device.id === multiDeviceRuntime.activeId && isConnectedMode) {
         fecharModalRede();
         return true;
+    }
+    // HTTPS devices go through the certificate check first (and the /trust page if needed),
+    // unless the caller just verified the HTTPS connection or a session already exists.
+    if (!options.verified && String(device.baseUrl || '').startsWith('https://') && !(device.connected && device.token)) {
+        return multiDeviceConnectSecure(device.baseUrl);
     }
     const snapshot = multiDeviceSnapshotGlobals();
     multiDeviceApplyRecord(device);
@@ -758,12 +798,18 @@ async function multiDeviceConnectIP(rawAddress) {
     // No plain-HTTP answer: v1.5+ modules accept other devices only over HTTPS.
     if (isPrivateIPv4(input)) {
         const secure = await multiDeviceProbeSecure(input);
-        if (secure) return multiDeviceConnectRecord(secure.id);
+        if (secure) return multiDeviceConnectRecord(secure.id, { verified: true });
         const ask = multiDeviceText('msgSecureTrustPrompt', 'No answer from {ip} over the network. Phones with Companion Module v1.5 or newer only accept secure (HTTPS) connections from other devices. Open the secure connection page now?');
         if (window.confirm(ask.replace('{ip}', input))) return multiDeviceBeginSecureTrust(input);
     }
     const device = multiDeviceUpsert({ baseUrl: `http://${input}:4040`, info: null });
     if (!device) return false;
+    // A device saved as HTTPS stays HTTPS (never downgraded). The user just declined the
+    // secure page, so don't reopen it from here: report it as unreachable instead.
+    if (String(device.baseUrl || '').startsWith('https://')) {
+        alert(multiDeviceText('msgNotFound', 'Module not found!'));
+        return false;
+    }
     return multiDeviceConnectRecord(device.id);
 }
 
