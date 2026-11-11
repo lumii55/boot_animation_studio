@@ -877,7 +877,16 @@
             : null;
 
         const credits = detail.credits || {};
-        const brand = credits.manufacturer || credits.detected_manufacturer;
+        // Credits: who made the animation, who made the art, and what the automatic checks recognised.
+        const animationBy = credits.animation_by === 'self' ? `${detail.owner.display_name} (@${detail.owner.handle})` : credits.animation_by;
+        const creditLines = [
+            animationBy ? t('creditAnimationLine', { name: animationBy }) : null,
+            credits.art_by ? t('creditArtLine', { name: credits.art_by }) : null,
+            credits.original_author ? t('creditOriginal', { name: credits.original_author }) : null,
+            credits.manufacturer ? t('creditManufacturer', { name: credits.manufacturer }) : null,
+            credits.detected_manufacturer && credits.detected_manufacturer !== credits.manufacturer
+                ? t('creditDetected', { name: credits.detected_manufacturer }) : null,
+        ].filter(Boolean);
         const facts = [
             [t('factResolution'), detail.width && detail.height ? `${detail.width} × ${detail.height}` : null],
             [t('factFps'), detail.fps || null],
@@ -926,9 +935,7 @@
                 detail.remix_source ? h('p', { class: 'cm-remix-of' }, t('remixOf'), ' ',
                     h('a', { href: `#community/a/${detail.remix_source.id}`, onclick: (event) => { event.preventDefault(); navigate(`a/${detail.remix_source.id}`); } }, detail.remix_source.title),
                     ` · @${detail.remix_source.owner}`) : null,
-                brand || credits.original_author ? h('ul', { class: 'cm-credits' },
-                    brand ? h('li', { text: t('creditManufacturer', { name: brand }) }) : null,
-                    credits.original_author ? h('li', { text: t('creditOriginal', { name: credits.original_author }) }) : null) : null,
+                creditLines.length ? h('div', { class: 'cm-credits' }, h('strong', { text: t('creditsTitle') }), creditLines.map((line) => h('span', { text: line }))) : null,
                 detail.tags && detail.tags.length ? h('div', { class: 'cm-tags' }, detail.tags.map((tag) => h('button', { class: 'cm-tag', type: 'button', onclick: () => navigate(`tag/${tag}`) }, `#${tag}`))) : null,
                 h('details', { class: 'cm-facts' },
                     h('summary', { text: t('details') }),
@@ -1316,56 +1323,124 @@
         });
     }
 
+    // Tag field: typed words become removable chips (Enter, comma or space).
+    function tagInput(max = 8) {
+        const tags = [];
+        const input = h('input', { class: 'cm-tag-entry', placeholder: t('tagsPlaceholder'), autocapitalize: 'off', enterkeyhint: 'done', maxlength: '24' });
+        const box = h('div', { class: 'cm-tagbox', onclick: () => input.focus() });
+        const normalize = (raw) => raw.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+        const paint = () => fill(box, tags.map((tag, index) => h('span', { class: 'cm-tag is-removable' }, `#${tag}`,
+            h('button', { type: 'button', 'aria-label': t('removeTag', { tag }), onclick: (event) => { event.stopPropagation(); tags.splice(index, 1); paint(); input.focus(); } }, icon('close', 'cm-icon-xs')))),
+        tags.length < max ? input : null);
+        const commit = () => {
+            const tag = normalize(input.value);
+            input.value = '';
+            if (tag && !tags.includes(tag) && tags.length < max) tags.push(tag);
+            paint();
+            input.focus();
+        };
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ',' || event.key === ' ') { event.preventDefault(); commit(); }
+            else if (event.key === 'Backspace' && !input.value && tags.length) { tags.pop(); paint(); input.focus(); }
+        });
+        input.addEventListener('input', () => { if (/[,\s]/.test(input.value)) commit(); });
+        input.addEventListener('blur', () => { if (input.value.trim()) commit(); });
+        paint();
+        return { el: box, values: () => (input.value.trim() ? [...tags, normalize(input.value)].filter(Boolean) : tags.slice()).slice(0, max) };
+    }
+
+    // A small segmented control; returns {el, value()}.
+    function segmented(options, initial, onChange) {
+        let value = initial;
+        const el = h('div', { class: 'cm-segmented', role: 'radiogroup' });
+        const paint = () => fill(el, options.map(([id, label]) => h('button', {
+            type: 'button', role: 'radio', 'aria-checked': String(id === value),
+            onclick: () => { if (value === id) return; value = id; paint(); if (onChange) onChange(id); },
+        }, label)));
+        paint();
+        return { el, value: () => value };
+    }
+
     function uploadView() {
         if (!state.token) return { el: signInPrompt(t('uploadSignIn')), title: t('navUpload') };
         let remixSource = null;
         try { remixSource = JSON.parse(sessionStorage.getItem(REMIX_KEY) || 'null'); } catch (error) { /* ignore */ }
-
-        const fileInput = h('input', { type: 'file', accept: '.zip,application/zip', hidden: true });
-        const drop = h('button', { class: 'cm-drop', type: 'button', onclick: () => fileInput.click() },
-            icon('upload', 'cm-icon-lg'), h('strong', { text: t('pickZip') }), h('small', { text: t('pickZipHint') }));
-        const picked = h('div', { class: 'cm-picked', hidden: true });
-        const title = h('input', { class: 'cm-input', maxlength: '60' });
-        const description = h('textarea', { class: 'cm-input', maxlength: '1000', rows: '3' });
-        const tags = h('input', { class: 'cm-input', placeholder: t('tagsPlaceholder'), autocapitalize: 'off' });
-        const license = h('select', { class: 'cm-input' }, LICENSES.map((id) => h('option', { value: id, text: licenseLabel(id) })));
-        const manufacturer = h('input', { class: 'cm-input', maxlength: '40', placeholder: t('manufacturerPlaceholder') });
-        const author = h('input', { class: 'cm-input', maxlength: '80', placeholder: t('originalAuthorPlaceholder') });
-        const remixBox = remixSource ? h('input', { type: 'checkbox', checked: true }) : null;
-        const rules = h('input', { type: 'checkbox' });
-        const check = robotCheck();
-        const submit = h('button', { class: 'cm-btn is-primary is-wide', type: 'button', disabled: true }, t('publish'));
-        const bar = h('span');
-        const progress = h('div', { class: 'cm-progress', hidden: true }, bar);
         let chosen = null;
 
+        // 1. The file: one big card that becomes the preview.
+        const fileInput = h('input', { type: 'file', accept: '.zip,application/zip', hidden: true });
+        const fileCard = h('button', { class: 'cm-create-file', type: 'button', onclick: () => fileInput.click() });
+        const paintEmpty = (error) => fill(fileCard,
+            h('span', { class: 'cm-create-file-icon' }, icon('upload', 'cm-icon-lg')),
+            h('strong', { text: t('pickZip') }),
+            h('small', { text: t('pickZipHint') }),
+            error ? h('span', { class: 'cm-error', text: error }) : null);
+        paintEmpty();
         fileInput.addEventListener('change', async () => {
             const file = fileInput.files && fileInput.files[0];
             fileInput.value = '';
             if (!file) return;
-            picked.hidden = false;
-            fill(picked, h('span', { class: 'cm-muted', text: t('checkingZip') }));
+            fileCard.classList.add('is-busy');
+            fill(fileCard, h('span', { class: 'cm-spinner' }), h('small', { text: t('checkingZip') }));
             try {
                 const info = await inspectZip(file);
                 chosen = { file, info, bytes: await file.arrayBuffer() };
-                if (!title.value) title.value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ').slice(0, 60);
-                fill(picked,
-                    info.thumb ? h('img', { src: info.thumb, alt: '' }) : null,
-                    h('div', {},
-                        h('strong', { text: file.name }),
-                        h('span', { class: 'cm-muted', text: `${info.width} × ${info.height} · ${info.fps} fps · ${formatCount(info.frames)} ${t('framesWord')} · ${formatBytes(file.size)}` })),
-                    h('button', { class: 'cm-link', type: 'button', onclick: () => fileInput.click() }, t('change')));
-                drop.hidden = true;
-                submit.disabled = false;
+                fileCard.classList.add('has-file');
+                fill(fileCard,
+                    info.thumb ? h('img', { class: 'cm-create-thumb', src: info.thumb, alt: '' }) : null,
+                    h('span', { class: 'cm-create-filebar' },
+                        h('span', { class: 'cm-create-fileinfo' },
+                            h('strong', { text: file.name }),
+                            h('small', { text: `${info.width} × ${info.height} · ${info.fps} fps · ${formatCount(info.frames)} ${t('framesWord')} · ${formatBytes(file.size)}` })),
+                        h('span', { class: 'cm-pill', text: t('change') })));
+                if (!title.value) title.value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ').trim().slice(0, 60);
             } catch (error) {
                 chosen = null;
-                submit.disabled = true;
-                fill(picked, h('p', { class: 'cm-error', text: error.message }));
+                fileCard.classList.remove('has-file');
+                paintEmpty(error.message);
+            } finally {
+                fileCard.classList.remove('is-busy');
+                paintSubmit();
             }
         });
 
+        // 2. Title, description, tags.
+        const title = h('input', { class: 'cm-create-title', maxlength: '60', placeholder: t('titlePlaceholder'), 'aria-label': t('fieldTitle') });
+        const description = h('textarea', { class: 'cm-create-desc', maxlength: '1000', rows: '2', placeholder: t('descriptionPlaceholder'), 'aria-label': t('fieldDescription') });
+        const grow = () => { description.style.height = 'auto'; description.style.height = `${Math.min(220, description.scrollHeight)}px`; };
+        description.addEventListener('input', grow);
+        const tags = tagInput();
+
+        // 3. Credits: who made the boot animation, and who made the art in it.
+        const otherName = h('input', { class: 'cm-input', maxlength: '80', placeholder: t('creditOtherPlaceholder'), hidden: true });
+        const who = segmented([['self', t('creditSelf')], ['other', t('creditOther')]], 'self', (value) => {
+            otherName.hidden = value !== 'other';
+            if (value === 'other') otherName.focus();
+        });
+        const art = h('input', { class: 'cm-input', maxlength: '160', placeholder: t('creditArtPlaceholder') });
+        const remixToggle = remixSource ? h('input', { type: 'checkbox', checked: true }) : null;
+
+        // 4. License: chips with the meaning of the chosen one underneath.
+        const licenseHint = h('small', { class: 'cm-muted' });
+        const license = segmented(LICENSES.map((id) => [id, t(`licenseShort_${id.replace(/[^a-z0-9]/g, '_')}`)]), 'cc-by-4.0', (id) => {
+            licenseHint.textContent = licenseLabel(id);
+        });
+        license.el.classList.add('is-scroll');
+        licenseHint.textContent = licenseLabel('cc-by-4.0');
+
+        // 5. Rules, anti-robot check, publish.
+        const rules = h('input', { type: 'checkbox' });
+        const check = robotCheck();
+        const submit = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, t('publish'));
+        const bar = h('span');
+        const progress = h('div', { class: 'cm-progress', hidden: true }, bar);
+        const paintSubmit = () => { submit.disabled = !chosen; };
+        paintSubmit();
+
         submit.addEventListener('click', async () => {
             if (!chosen) return;
+            if (!title.value.trim()) { title.focus(); return toast(t('needTitle'), 'info'); }
+            if (who.value() === 'other' && !otherName.value.trim()) { otherName.focus(); return toast(t('needCreditOther'), 'info', 4200); }
             if (!rules.checked) return toast(t('acceptRules'), 'info', 4200);
             submit.disabled = true;
             progress.hidden = false;
@@ -1375,10 +1450,10 @@
                 const draft = await api('POST', '/v1/animations', { json: {
                     title: title.value,
                     description: description.value,
-                    tags: tags.value.split(/[,#\s]+/).filter(Boolean).slice(0, 8),
-                    license: license.value,
-                    credits: { manufacturer: manufacturer.value, original_author: author.value },
-                    remix_of: remixBox && remixBox.checked ? remixSource.id : undefined,
+                    tags: tags.values(),
+                    license: license.value(),
+                    credits: { animation_by: who.value() === 'self' ? 'self' : otherName.value, art_by: art.value },
+                    remix_of: remixToggle && remixToggle.checked ? remixSource.id : undefined,
                     sha256: await sha256Hex(chosen.bytes),
                     size_bytes: chosen.bytes.byteLength,
                     turnstile_token: await check.token(),
@@ -1398,27 +1473,36 @@
                 if (error.code === 'duplicate' && error.details && error.details.id) navigate(`a/${error.details.id}`);
             } finally {
                 label.done();
-                submit.disabled = !chosen;
+                paintSubmit();
                 progress.hidden = true;
             }
         });
 
-        const el = h('section', { class: 'cm-upload' },
-            h('p', { class: 'cm-intro', text: t('uploadIntro') }),
-            drop, fileInput, picked,
-            h('div', { class: 'cm-form' },
-                field(t('fieldTitle'), title),
-                field(t('fieldDescription'), description),
-                field(t('fieldTags'), tags),
-                field(t('fieldLicense'), license),
-                h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('fieldCredits') }), manufacturer, author, h('small', { class: 'cm-muted', text: t('creditsHint') })),
-                remixBox ? h('label', { class: 'cm-check' }, remixBox, h('span', { text: t('isRemix', { title: remixSource.title, owner: remixSource.owner }) })) : null,
-                h('label', { class: 'cm-check' }, rules, h('span', { text: t('rulesAccept') })),
-                h('ul', { class: 'cm-rules' }, ['rule1', 'rule2', 'rule3', 'rule4'].map((key) => h('li', { text: t(key) }))),
-                check.el,
-                progress,
-                submit,
-                h('p', { class: 'cm-fine', text: t('reviewNote') })));
+        const group = (titleText, hint, ...body) => h('section', { class: 'cm-group' },
+            h('h3', { class: 'cm-group-title', text: titleText }), hint ? h('p', { class: 'cm-group-hint', text: hint }) : null, body);
+
+        const el = h('section', { class: 'cm-create' },
+            h('div', { class: 'cm-create-top' }, fileCard, fileInput,
+                h('div', { class: 'cm-create-text' }, title, description)),
+            group(t('fieldTags'), t('tagsHint'), tags.el),
+            group(t('creditsTitle'), null,
+                h('div', { class: 'cm-credit-card' },
+                    h('strong', { text: t('creditWhoTitle') }),
+                    h('small', { class: 'cm-muted', text: t('creditWhoHint') }),
+                    who.el, otherName),
+                h('div', { class: 'cm-credit-card' },
+                    h('strong', { text: t('creditArtTitle') }),
+                    h('small', { class: 'cm-muted', text: t('creditArtHint') }),
+                    art),
+                remixToggle ? h('label', { class: 'cm-credit-card is-check' }, remixToggle,
+                    h('span', { text: t('isRemix', { title: remixSource.title, owner: remixSource.owner }) })) : null),
+            group(t('fieldLicense'), null, license.el, licenseHint),
+            group(t('rulesTitle'), null,
+                h('ul', { class: 'cm-rule-list' }, ['rule1', 'rule2', 'rule3', 'rule4'].map((key) => h('li', {}, icon('panel', 'cm-icon-xs'), h('span', { text: t(key) })))),
+                h('label', { class: 'cm-check' }, rules, h('span', { text: t('rulesAccept') }))),
+            check.el,
+            h('p', { class: 'cm-fine', text: t('reviewNote') }),
+            h('div', { class: 'cm-create-footer' }, progress, submit));
         return { el, title: t('navUpload'), onLeave: () => check.remove() };
     }
 
