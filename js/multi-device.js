@@ -511,6 +511,10 @@ function multiDeviceRenderDiagnostics(report) {
     box.hidden = false;
 }
 
+function multiDeviceIsLanHttp(device) {
+    return String(device?.baseUrl || '').startsWith('http://') && isPrivateIPv4(device?.ip);
+}
+
 function multiDeviceNeedsSecureSetup(device) {
     return Boolean(device && String(device.baseUrl || '').startsWith('https://') && !device.info && !(device.connected && device.token));
 }
@@ -836,6 +840,15 @@ async function multiDeviceConnectRecord(id, options = {}) {
     if (device.id === multiDeviceRuntime.activeId && isConnectedMode) {
         fecharModalRede();
         return true;
+    }
+    // A phone saved as plain HTTP (v1.4) that was updated to v1.5 no longer answers on :4040.
+    // Notice that from its discovery signal and continue with the secure connection, instead of
+    // failing with "module not found" first. v1.4 phones still answer /info and continue as before.
+    if (!options.verified && multiDeviceIsLanHttp(device) && !(device.connected && device.token)) {
+        const stillHttp = await multiDeviceProbeIP(device.ip, BAS_SCAN_EXACT_TIMEOUT_MS);
+        if (!stillHttp && await multiDeviceProbeBeacon(device.ip, BAS_SCAN_EXACT_TIMEOUT_MS, null, BAS_SCAN_EXACT_SECURE_TIMEOUT_MS)) {
+            return multiDeviceConnectSecure(`https://${device.ip}:4041`);
+        }
     }
     // HTTPS devices go through the certificate check first (and the /trust page if needed),
     // unless the caller just verified the HTTPS connection or a session already exists.
