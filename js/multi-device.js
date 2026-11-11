@@ -523,7 +523,15 @@ async function multiDeviceCompleteSecureTrust() {
         return false;
     }
     pending.completing = true;
-    const device = await multiDeviceProbeSecure(pending.ip, 4000);
+    // Some browsers (seen on the Xbox Edge) take a moment to apply the certificate decision
+    // to requests from this tab, so retry briefly before giving up.
+    let device = null;
+    for (const delay of [0, 700, 1500, 3000]) {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        if (multiDeviceSecureTrust.pending !== pending) return false;
+        device = await multiDeviceProbeSecure(pending.ip, 4000);
+        if (device) break;
+    }
     if (!device) {
         pending.completing = false;
         return false;
@@ -758,10 +766,13 @@ async function multiDeviceConnectRecord(id, options = {}) {
     }
     const snapshot = multiDeviceSnapshotGlobals();
     multiDeviceApplyRecord(device);
+    const attemptSignal = multiDeviceActiveSignal();
     const input = document.getElementById('input-ip');
     if (input) input.value = device.ip;
     const ok = await tentaConexao();
     if (!ok) {
+        // A newer attempt replaced this one: its state is now current, don't roll it back.
+        if (attemptSignal.aborted) return false;
         multiDeviceRestoreGlobals(snapshot);
         if (snapshot.isConnectedMode && snapshot.sessionToken) {
             try {

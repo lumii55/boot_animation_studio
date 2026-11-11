@@ -362,23 +362,27 @@ function ensureModuleFeature(feature) {
 // non-timeout fetch error and still selects the legacy path below.
 const BAS_INFO_PROBE_TIMEOUTS_MS = Object.freeze([2200, 6000]);
 
-async function fetchModuleInfoResponse() {
+async function fetchModuleInfoResponse(attemptSignal = null) {
+    // Legacy pre-/info modules never had HTTPS, so on an HTTPS address any failure is a
+    // network/certificate hiccup worth retrying, never a reason to take the legacy path.
+    const secure = String(IP_LOCAL).startsWith('https://');
     let lastError = null;
     for (const timeoutMs of BAS_INFO_PROBE_TIMEOUTS_MS) {
         try {
             return await localNetworkFetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(timeoutMs) });
         } catch (error) {
             lastError = error;
-            if (!isTimeoutLikeError(error) || window.BASMultiDevice?.activeSignal?.()?.aborted) break;
+            if (attemptSignal?.aborted || (!secure && !isTimeoutLikeError(error))) break;
+            if (secure && !isTimeoutLikeError(error)) await connectionSleep(600);
         }
     }
     throw lastError;
 }
 
-async function detectModuleCompatibility() {
+async function detectModuleCompatibility(attemptSignal = null) {
     resetModuleCompatibility();
     try {
-        const response = await fetchModuleInfoResponse();
+        const response = await fetchModuleInfoResponse(attemptSignal);
         if (!response.ok) {
             moduleCompatibilityMode = 'legacy_pending';
             return true;
@@ -579,7 +583,7 @@ function moduleDiscoveryConfirmed() {
     return Boolean(moduleInfo && Number.isInteger(Number(moduleInfo.api_version)) && moduleCompatibilityMode === 'versioned');
 }
 
-async function requestAsyncAuthorization(btn, t) {
+async function requestAsyncAuthorization(btn, t, attemptSignal = null) {
     let startData = null;
     let lastError = null;
     let trustPayload = null;
@@ -606,8 +610,7 @@ async function requestAsyncAuthorization(btn, t) {
             }
             lastError = new Error(data.message || `auth_start_${response.status}`);
         } catch (error) {
-            const activeSignal = window.BASMultiDevice?.activeSignal?.();
-            if (activeSignal?.aborted) throw error;
+            if (attemptSignal?.aborted) throw error;
             lastError = error;
         }
         if (attempt === 0) await connectionSleep(350);
@@ -626,8 +629,7 @@ async function requestAsyncAuthorization(btn, t) {
 
     while (Date.now() < deadline) {
         await connectionSleep(450);
-        const activeSignal = window.BASMultiDevice?.activeSignal?.();
-        if (activeSignal?.aborted) {
+        if (attemptSignal?.aborted) {
             const error = new Error('device_switch_cancelled');
             error.name = 'AbortError';
             throw error;
@@ -654,8 +656,7 @@ async function requestAsyncAuthorization(btn, t) {
                 throw error;
             }
         } catch (error) {
-            const signal = window.BASMultiDevice?.activeSignal?.();
-            if (signal?.aborted) throw error;
+            if (attemptSignal?.aborted) throw error;
             consecutivePollErrors++;
             if (consecutivePollErrors >= 4) {
                 error.code = 'auth_status_failed';
@@ -674,13 +675,27 @@ async function tentaConexao() {
     const t = traducoes[idiomaAtual];
     btn.textContent = t.msgSearching;
     let discovered = false;
+    // Every connection attempt owns the device request scope that was active when it began.
+    // A newer attempt (another click, a device switch, the trust tab closing) aborts it; the
+    // superseded attempt must then stop quietly, without alerts and without touching the
+    // shared session state the newer attempt is using.
+    const attemptSignal = window.BASMultiDevice?.activeSignal?.() || null;
+    const superseded = () => Boolean(attemptSignal?.aborted);
+    const secure = String(IP_LOCAL).startsWith('https://');
 
     try {
-        if (!await detectModuleCompatibility()) {
+        if (!await detectModuleCompatibility(attemptSignal)) {
+            if (!superseded()) btn.textContent = t.btnConnect;
+            return false;
+        }
+        if (superseded()) return false;
+        discovered = moduleDiscoveryConfirmed();
+        if (secure && !discovered) {
+            // An HTTPS Companion always answers /info once the certificate is trusted.
+            alert(t.msgSecureConnectFailed || t.msgNotFound);
             btn.textContent = t.btnConnect;
             return false;
         }
-        discovered = moduleDiscoveryConfirmed();
 
         let data = null;
 
@@ -694,8 +709,7 @@ async function tentaConexao() {
                     data = null;
                 }
             } catch (error) {
-                const activeSignal = window.BASMultiDevice?.activeSignal?.();
-                if (activeSignal?.aborted) throw error;
+                if (superseded()) throw error;
                 sessionToken = '';
                 data = null;
             }
@@ -709,15 +723,14 @@ async function tentaConexao() {
                     sessionToken = trusted.token;
                 }
             } catch (error) {
-                const activeSignal = window.BASMultiDevice?.activeSignal?.();
-                if (activeSignal?.aborted) throw error;
+                if (superseded()) throw error;
             }
         }
 
         if (!sessionToken) {
             if (hasModuleFeature('async_auth')) {
-                data = await requestAsyncAuthorization(btn, t);
-                if (!data) return false;
+                data = await requestAsyncAuthorization(btn, t, attemptSignal);
+                if (!data || superseded()) return false;
                 sessionToken = data.token || '';
             } else {
                 // Backward-compatible path for the last public pre-async-auth module.
@@ -725,7 +738,8 @@ async function tentaConexao() {
                 data = await response.json().catch(() => ({}));
                 if (data.status === 'auth_required') {
                     btn.textContent = t.msgWaitingAuth;
-                    const authRes = await apiFetch('/request_auth', { method: 'POST' });
+                    const authRes = await apiFetch('/request_auth', { method: 'POST', timeoutMs: 35000 });
+                    if (superseded()) return false;
                     data = await authRes.json().catch(() => ({}));
                     if (data.status === 'denied') {
                         alert(t.msgAuthDenied);
@@ -760,6 +774,7 @@ async function tentaConexao() {
             return false;
         }
 
+        if (superseded()) return false;
         if (data?.status === 'ok' && sessionToken) {
             try {
                 completeConnectedState(data);
@@ -775,8 +790,7 @@ async function tentaConexao() {
         btn.textContent = t.btnConnect;
         return false;
     } catch (error) {
-        const activeSignal = window.BASMultiDevice?.activeSignal?.();
-        if (activeSignal?.aborted) return false;
+        if (superseded()) return false;
         sessionToken = '';
         alert(discovered || error?.code === 'auth_start_failed' || error?.code === 'auth_status_failed' ? t.msgAuthStartFailed : t.msgNotFound);
         btn.textContent = t.btnConnect;

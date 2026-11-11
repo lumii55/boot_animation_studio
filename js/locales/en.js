@@ -1810,6 +1810,7 @@
         "msgSecureTrustPrompt": "No answer from {ip} over the network. Phones with Companion Module v1.5 or newer only accept secure (HTTPS) connections from other devices.\n\nOpen the secure connection page now? If the browser warns about the certificate, choose Advanced → Continue. The page closes itself and the Studio connects.",
         "msgSecureTrustWaiting": "Waiting for you to accept the certificate in the other tab…",
         "msgSecurePopupBlocked": "The browser blocked the new tab. Allow pop-ups for this site, or open {url} yourself, accept the certificate and come back.",
-        "multiDeviceSecureSetup": "Secure setup needed"
+        "multiDeviceSecureSetup": "Secure setup needed",
+        "msgSecureConnectFailed": "Couldn't reach the phone over the secure connection. If the browser doesn't trust the phone's certificate yet, choose Secure connection again and accept it."
     };
 })(window);

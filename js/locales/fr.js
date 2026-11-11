@@ -1810,6 +1810,7 @@
         "msgSecureTrustPrompt": "Aucune réponse de {ip} sur le réseau. Les téléphones avec Companion Module v1.5 ou plus récent n’acceptent que des connexions sécurisées (HTTPS) depuis d’autres appareils.\n\nOuvrir la page de connexion sécurisée maintenant ? Si le navigateur affiche un avertissement sur le certificat, choisissez Paramètres avancés → Continuer. La page se ferme d’elle-même et le Studio se connecte.",
         "msgSecureTrustWaiting": "En attente de l’acceptation du certificat dans l’autre onglet…",
         "msgSecurePopupBlocked": "Le navigateur a bloqué le nouvel onglet. Autorisez les fenêtres pop-up pour ce site, ou ouvrez {url} vous-même, acceptez le certificat puis revenez.",
-        "multiDeviceSecureSetup": "Connexion sécurisée requise"
+        "multiDeviceSecureSetup": "Connexion sécurisée requise",
+        "msgSecureConnectFailed": "Impossible de joindre le téléphone via la connexion sécurisée. Si le navigateur ne fait pas encore confiance au certificat du téléphone, choisissez à nouveau Connexion sécurisée et acceptez-le."
     };
 })(window);

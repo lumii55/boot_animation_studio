@@ -1810,6 +1810,7 @@
         "msgSecureTrustPrompt": "通过网络未收到 {ip} 的响应。安装 Companion Module v1.5 或更新版本的手机只接受来自其他设备的安全（HTTPS）连接。\n\n现在打开安全连接页面吗？如果浏览器提示证书警告，请选择“高级”→“继续”。页面会自动关闭，Studio 随后连接。",
         "msgSecureTrustWaiting": "正在等待你在另一个标签页中接受证书…",
         "msgSecurePopupBlocked": "浏览器阻止了新标签页。请允许此网站的弹出窗口，或自行打开 {url}，接受证书后再回来。",
-        "multiDeviceSecureSetup": "需要安全连接"
+        "multiDeviceSecureSetup": "需要安全连接",
+        "msgSecureConnectFailed": "无法通过安全连接访问手机。如果浏览器尚未信任手机的证书，请再次选择“安全连接”并接受证书。"
     };
 })(window);

@@ -1810,6 +1810,7 @@
         "msgSecureTrustPrompt": "Keine Antwort von {ip} über das Netzwerk. Telefone mit Companion Module v1.5 oder neuer akzeptieren von anderen Geräten nur sichere Verbindungen (HTTPS).\n\nSeite für die sichere Verbindung jetzt öffnen? Wenn der Browser vor dem Zertifikat warnt, wähle Erweitert → Weiter. Die Seite schließt sich selbst und das Studio verbindet sich.",
         "msgSecureTrustWaiting": "Warte darauf, dass du das Zertifikat im anderen Tab akzeptierst…",
         "msgSecurePopupBlocked": "Der Browser hat den neuen Tab blockiert. Erlaube Pop-ups für diese Seite oder öffne {url} selbst, akzeptiere das Zertifikat und kehre zurück.",
-        "multiDeviceSecureSetup": "Sichere Verbindung nötig"
+        "multiDeviceSecureSetup": "Sichere Verbindung nötig",
+        "msgSecureConnectFailed": "Das Telefon war über die sichere Verbindung nicht erreichbar. Wenn der Browser dem Zertifikat des Telefons noch nicht vertraut, wähle erneut Sichere Verbindung und akzeptiere es."
     };
 })(window);
