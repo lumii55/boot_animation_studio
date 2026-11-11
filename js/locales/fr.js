@@ -1803,6 +1803,12 @@
         "healthBucket_trust": "Confiance et audit",
         "healthBucket_logs": "Logs",
         "healthBucket_runtime": "Runtime du module et autres",
-        "securityAuditActionSessionDisconnectedPageUnload": "Site fermé ou rechargé"
+        "securityAuditActionSessionDisconnectedPageUnload": "Site fermé ou rechargé",
+        "btnConnectSecure": "Connexion sécurisée (HTTPS)",
+        "networkSecureHint": "Téléphone avec Companion Module v1.5 ou plus récent ? Saisissez son IP et choisissez Connexion sécurisée. Le navigateur vous demandera une seule fois d’accepter le certificat du téléphone.",
+        "msgAllowLocalNetwork": "Autorisez l’accès au réseau local dans votre navigateur…",
+        "msgSecureTrustPrompt": "Aucune réponse de {ip} sur le réseau. Les téléphones avec Companion Module v1.5 ou plus récent n’acceptent que des connexions sécurisées (HTTPS) depuis d’autres appareils.\n\nOuvrir la page de connexion sécurisée maintenant ? Si le navigateur affiche un avertissement sur le certificat, choisissez Paramètres avancés → Continuer. La page se ferme d’elle-même et le Studio se connecte.",
+        "msgSecureTrustWaiting": "En attente de l’acceptation du certificat dans l’autre onglet…",
+        "msgSecurePopupBlocked": "Le navigateur a bloqué le nouvel onglet. Autorisez les fenêtres pop-up pour ce site, ou ouvrez {url} vous-même, acceptez le certificat puis revenez."
     };
 })(window);

@@ -1803,6 +1803,12 @@
         "healthBucket_trust": "Vertrauen & Audit",
         "healthBucket_logs": "Logs",
         "healthBucket_runtime": "Modul-Laufzeit & Sonstiges",
-        "securityAuditActionSessionDisconnectedPageUnload": "Website geschlossen oder neu geladen"
+        "securityAuditActionSessionDisconnectedPageUnload": "Website geschlossen oder neu geladen",
+        "btnConnectSecure": "Sichere Verbindung (HTTPS)",
+        "networkSecureHint": "Telefon mit Companion Module v1.5 oder neuer? Gib seine IP ein und wähle Sichere Verbindung. Der Browser bittet dich einmal, das Zertifikat des Telefons zu akzeptieren.",
+        "msgAllowLocalNetwork": "Erlaube den Zugriff auf das lokale Netzwerk in deinem Browser…",
+        "msgSecureTrustPrompt": "Keine Antwort von {ip} über das Netzwerk. Telefone mit Companion Module v1.5 oder neuer akzeptieren von anderen Geräten nur sichere Verbindungen (HTTPS).\n\nSeite für die sichere Verbindung jetzt öffnen? Wenn der Browser vor dem Zertifikat warnt, wähle Erweitert → Weiter. Die Seite schließt sich selbst und das Studio verbindet sich.",
+        "msgSecureTrustWaiting": "Warte darauf, dass du das Zertifikat im anderen Tab akzeptierst…",
+        "msgSecurePopupBlocked": "Der Browser hat den neuen Tab blockiert. Erlaube Pop-ups für diese Seite oder öffne {url} selbst, akzeptiere das Zertifikat und kehre zurück."
     };
 })(window);

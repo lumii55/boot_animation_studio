@@ -152,6 +152,10 @@ function mudarIdioma(lang) {
     document.getElementById('lbl-modal-net-title').textContent = t.modalNetTitle;
     document.getElementById('lbl-modal-net-desc').textContent = t.modalNetDesc;
     document.getElementById('btn-connect-ip').textContent = t.btnConnectIp;
+    const secureButton = document.getElementById('btn-connect-secure');
+    if (secureButton && t.btnConnectSecure) secureButton.textContent = t.btnConnectSecure;
+    const secureHint = document.getElementById('lbl-network-secure-hint');
+    if (secureHint && t.networkSecureHint) secureHint.textContent = t.networkSecureHint;
     document.getElementById('btn-cancel-net').textContent = t.btnPullCancel;
     document.getElementById('lbl-network-other').textContent = t.pairOther;
     document.getElementById('btn-baixar-video').textContent = t.btnDownloadVideo;

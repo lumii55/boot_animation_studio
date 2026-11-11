@@ -427,6 +427,101 @@ async function multiDeviceProbeIP(ip, timeout = 850) {
     }
 }
 
+// v1.5+ Companion Modules accept other devices only over HTTPS :4041. A probe succeeds
+// only once this browser trusts the device's self-signed certificate; an untrusted
+// certificate and a closed port look the same (a network error), so this never
+// "discovers" an untrusted module, it only confirms a trusted one.
+async function multiDeviceProbeSecure(ip, timeout = 2500) {
+    if (!isPrivateIPv4(ip)) return null;
+    const baseUrl = `https://${ip}:4041`;
+    try {
+        const response = await localNetworkFetch(baseUrl + '/info', { signal: AbortSignal.timeout(timeout), cache: 'no-store' });
+        if (!response.ok) return null;
+        const info = await response.json().catch(() => null);
+        if (!info || !Number.isInteger(Number(info.api_version))) return null;
+        return multiDeviceUpsert({ baseUrl, info });
+    } catch (error) {
+        return null;
+    }
+}
+
+// Certificate onboarding. fetch() cannot show the browser's certificate warning, so the
+// Studio opens the module's /trust page in a new tab. Once the user accepts the warning,
+// that page posts {type: 'bas-companion-trusted'} back to this tab and closes itself.
+// If the message never arrives (pop-up rules, browsers without window.opener), the
+// connection is retried when the Studio tab regains focus.
+const BAS_SECURE_TRUST_MAX_AGE_MS = 10 * 60 * 1000;
+const multiDeviceSecureTrust = { pending: null };
+
+function multiDeviceIpFromInput(value) {
+    const raw = String(value || '').trim();
+    try {
+        const url = new URL(raw.includes('://') ? raw : `https://${raw}`);
+        const host = url.hostname.replace(/^\[|\]$/g, '');
+        return isPrivateIPv4(host) ? host : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function multiDeviceBeginSecureTrust(ip) {
+    if (!isPrivateIPv4(ip)) return false;
+    const base = `https://${ip}:4041`;
+    const returnUrl = window.location.origin + window.location.pathname;
+    const url = `${base}/trust?return=${encodeURIComponent(returnUrl)}`;
+    multiDeviceSecureTrust.pending = { ip, base, startedAt: Date.now(), completing: false };
+    const desc = document.getElementById('lbl-modal-net-desc');
+    if (desc) desc.textContent = multiDeviceText('msgSecureTrustWaiting', 'Waiting for you to accept the certificate in the other tab…');
+    let opened = null;
+    // Not "noopener": the /trust page needs window.opener to notify this tab.
+    try { opened = window.open(url, 'bas-companion-trust'); } catch (error) { opened = null; }
+    if (!opened) {
+        alert(multiDeviceText('msgSecurePopupBlocked', 'The browser blocked the new tab. Allow pop-ups for this site, or open {url} yourself, accept the certificate and come back.').replace('{url}', url));
+    }
+    return false;
+}
+
+async function multiDeviceCompleteSecureTrust() {
+    const pending = multiDeviceSecureTrust.pending;
+    if (!pending || pending.completing) return false;
+    if (Date.now() - pending.startedAt > BAS_SECURE_TRUST_MAX_AGE_MS) {
+        multiDeviceSecureTrust.pending = null;
+        return false;
+    }
+    pending.completing = true;
+    const device = await multiDeviceProbeSecure(pending.ip, 4000);
+    if (!device) {
+        pending.completing = false;
+        return false;
+    }
+    multiDeviceSecureTrust.pending = null;
+    return multiDeviceConnectRecord(device.id);
+}
+
+function multiDeviceOnTrustMessage(event) {
+    const pending = multiDeviceSecureTrust.pending;
+    if (!pending || event.origin !== pending.base) return;
+    if (!event.data || event.data.type !== 'bas-companion-trusted') return;
+    multiDeviceCompleteSecureTrust();
+}
+
+function multiDeviceOnTrustReturn() {
+    if (document.visibilityState === 'hidden' || !multiDeviceSecureTrust.pending) return;
+    multiDeviceCompleteSecureTrust();
+}
+
+async function multiDeviceConnectSecure(rawAddress) {
+    const ip = multiDeviceIpFromInput(rawAddress);
+    if (!ip) {
+        alert(multiDeviceText('msgNotFound', 'Module not found!'));
+        return false;
+    }
+    await window.BASApi?.ensureLocalNetworkAccess?.(`https://${ip}:4041/info`);
+    const trusted = await multiDeviceProbeSecure(ip);
+    if (trusted) return multiDeviceConnectRecord(trusted.id);
+    return multiDeviceBeginSecureTrust(ip);
+}
+
 async function multiDeviceScanSubnet(subnet, exactSet, generation) {
     const results = [];
     const hosts = [];
@@ -448,6 +543,12 @@ async function multiDeviceScan(options = {}) {
     const generation = ++multiDeviceRuntime.scanGeneration;
     multiDeviceRuntime.scanning = true;
     multiDeviceRender();
+    const sampleIp = rememberedPhoneIp() || '192.168.0.1';
+    await window.BASApi?.ensureLocalNetworkAccess?.(`http://${sampleIp}:4040/info`, () => {
+        const desc = document.getElementById('lbl-modal-net-desc');
+        if (desc) desc.textContent = multiDeviceText('msgAllowLocalNetwork', 'Allow local network access in your browser to find your phone…');
+    });
+    if (multiDeviceRuntime.scanGeneration !== generation) return [];
     const exact = [];
     const subnets = [];
     const addIp = ip => {
@@ -490,6 +591,15 @@ async function multiDeviceScan(options = {}) {
     // intentionally removed in P14.12.
     const onDevice = await multiDeviceProbeIP('127.0.0.1', 1100);
     if (onDevice) found.push(onDevice);
+    // Modules this browser already trusts over HTTPS (v1.5+): re-confirm them directly.
+    const secureKnown = Array.from(multiDeviceRuntime.devices.values())
+        .filter(device => String(device.baseUrl || '').startsWith('https://'))
+        .map(device => device.ip);
+    for (const ip of Array.from(new Set(secureKnown))) {
+        if (multiDeviceRuntime.scanGeneration !== generation) break;
+        const device = await multiDeviceProbeSecure(ip, 1500);
+        if (device) found.push(device);
+    }
     for (const ip of exact) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
         const device = await multiDeviceProbeIP(ip, 1100);
@@ -637,15 +747,22 @@ async function multiDeviceConnectRecord(id) {
 async function multiDeviceConnectIP(rawAddress) {
     const input = String(rawAddress || '').trim();
     if (input.startsWith('https://')) {
-        // Explicit, opt-in secure transport. Browser certificate validation is
-        // mandatory; never retry this address over HTTP when trust fails.
-        const baseUrl = multiDeviceNormalizeBaseUrl(input);
-        if (!baseUrl) return false;
-        const device = multiDeviceUpsert({ baseUrl, info: null });
-        return device ? multiDeviceConnectRecord(device.id) : false;
+        // Explicit secure transport. Browser certificate validation is mandatory;
+        // never retry this address over HTTP when trust fails.
+        if (!multiDeviceNormalizeBaseUrl(input)) return false;
+        return multiDeviceConnectSecure(input);
     }
+    await window.BASApi?.ensureLocalNetworkAccess?.(`http://${input}:4040/info`);
     const probe = await multiDeviceProbeIP(input, 1800);
-    const device = probe || multiDeviceUpsert({ baseUrl: `http://${input}:4040`, info: null });
+    if (probe) return multiDeviceConnectRecord(probe.id);
+    // No plain-HTTP answer: v1.5+ modules accept other devices only over HTTPS.
+    if (isPrivateIPv4(input)) {
+        const secure = await multiDeviceProbeSecure(input);
+        if (secure) return multiDeviceConnectRecord(secure.id);
+        const ask = multiDeviceText('msgSecureTrustPrompt', 'No answer from {ip} over the network. Phones with Companion Module v1.5 or newer only accept secure (HTTPS) connections from other devices. Open the secure connection page now?');
+        if (window.confirm(ask.replace('{ip}', input))) return multiDeviceBeginSecureTrust(input);
+    }
+    const device = multiDeviceUpsert({ baseUrl: `http://${input}:4040`, info: null });
     if (!device) return false;
     return multiDeviceConnectRecord(device.id);
 }
@@ -749,6 +866,12 @@ function multiDeviceBind() {
     document.getElementById('multi-device-switch')?.addEventListener('click', () => multiDeviceOpenPicker({ scan: true }));
     document.getElementById('multi-device-workspace-switch')?.addEventListener('click', () => multiDeviceOpenPicker({ scan: true }));
     document.getElementById('multi-device-refresh')?.addEventListener('click', () => multiDeviceOpenPicker({ scan: true }));
+    document.getElementById('btn-connect-secure')?.addEventListener('click', () => {
+        multiDeviceConnectSecure(document.getElementById('input-ip')?.value || '');
+    });
+    window.addEventListener('message', multiDeviceOnTrustMessage);
+    window.addEventListener('focus', multiDeviceOnTrustReturn);
+    document.addEventListener('visibilitychange', multiDeviceOnTrustReturn);
     window.addEventListener('bas:languagechange', multiDeviceSyncText);
     multiDeviceSyncText();
 }
@@ -758,6 +881,7 @@ window.BASMultiDevice = Object.freeze({
     scan: multiDeviceScan,
     openPicker: multiDeviceOpenPicker,
     connectIP: multiDeviceConnectIP,
+    connectSecure: multiDeviceConnectSecure,
     connectRecord: multiDeviceConnectRecord,
     prepareBase: multiDevicePrepareBase,
     captureCompatibility: multiDeviceCaptureCompatibility,

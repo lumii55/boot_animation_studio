@@ -30,6 +30,71 @@ function localNetworkFetch(url, options = {}) {
     return fetch(url, { targetAddressSpace: 'local', ...safe });
 }
 
+// Chromium browsers (Chrome, Edge, the Xbox browser) ask the user before a public
+// site may reach devices on the local network ("Local Network Access"). While that
+// prompt is open, requests hang, and the short discovery timeouts below used to give
+// up first: the site then reported "module not found" or misread a modern module
+// as a legacy one. Connection entry points call this first, so that when the
+// permission is still undecided they wait for the user's answer instead of racing it.
+const BAS_LOCAL_NETWORK_PERMISSION_NAMES = Object.freeze(['local-network-access', 'local-network', 'loopback-network']);
+const BAS_LOCAL_NETWORK_PROMPT_WAIT_MS = 60000;
+let basLocalNetworkPermissionQuery = null;
+let basLocalNetworkPrompt = null;
+
+// Cached as a promise so concurrent callers (connect button + network scan) share one
+// query and all see the live PermissionStatus, never a placeholder.
+function queryLocalNetworkPermission() {
+    if (!basLocalNetworkPermissionQuery) {
+        basLocalNetworkPermissionQuery = (async () => {
+            if (!navigator.permissions?.query) return null;
+            for (const name of BAS_LOCAL_NETWORK_PERMISSION_NAMES) {
+                try {
+                    return await navigator.permissions.query({ name });
+                } catch (error) {
+                    // Unknown permission name in this browser; try the next one.
+                }
+            }
+            return null;
+        })();
+    }
+    return basLocalNetworkPermissionQuery;
+}
+
+async function ensureLocalNetworkAccess(sampleUrl, onPrompt) {
+    let status = null;
+    try { status = await queryLocalNetworkPermission(); } catch (error) { status = null; }
+    if (!status || status.state !== 'prompt') return status?.state || 'unsupported';
+    if (!basLocalNetworkPrompt) {
+        if (typeof onPrompt === 'function') { try { onPrompt(); } catch (error) {} }
+        basLocalNetworkPrompt = new Promise(resolve => {
+            const controller = new AbortController();
+            let settled = false;
+            const finish = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                status.removeEventListener?.('change', onChange);
+                controller.abort();
+                basLocalNetworkPrompt = null;
+                resolve(status.state);
+            };
+            const onChange = () => { if (status.state !== 'prompt') finish(); };
+            const timer = setTimeout(finish, BAS_LOCAL_NETWORK_PROMPT_WAIT_MS);
+            status.addEventListener?.('change', onChange);
+            // Any local-network request makes the browser show its prompt; the request
+            // itself settles only after the user answers (or dismisses) it.
+            localNetworkFetch(sampleUrl, { signal: controller.signal, cache: 'no-store' })
+                .catch(() => {})
+                .finally(finish);
+        });
+    }
+    return basLocalNetworkPrompt;
+}
+
+function isTimeoutLikeError(error) {
+    return error?.name === 'TimeoutError' || error?.name === 'AbortError';
+}
+
 function rememberPhoneIp(ip) {
     if (!isPrivateIPv4(ip)) return;
     try {
@@ -291,10 +356,29 @@ function ensureModuleFeature(feature) {
     return false;
 }
 
+// A timeout only means "no answer yet" (busy phone, slow Wi-Fi, a pending browser
+// permission). It is not evidence of a legacy module, so it gets one longer retry.
+// A legacy pre-/info module answers quickly with a CORS-less 404, which surfaces as a
+// non-timeout fetch error and still selects the legacy path below.
+const BAS_INFO_PROBE_TIMEOUTS_MS = Object.freeze([2200, 6000]);
+
+async function fetchModuleInfoResponse() {
+    let lastError = null;
+    for (const timeoutMs of BAS_INFO_PROBE_TIMEOUTS_MS) {
+        try {
+            return await localNetworkFetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(timeoutMs) });
+        } catch (error) {
+            lastError = error;
+            if (!isTimeoutLikeError(error) || window.BASMultiDevice?.activeSignal?.()?.aborted) break;
+        }
+    }
+    throw lastError;
+}
+
 async function detectModuleCompatibility() {
     resetModuleCompatibility();
     try {
-        const response = await localNetworkFetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(2200) });
+        const response = await fetchModuleInfoResponse();
         if (!response.ok) {
             moduleCompatibilityMode = 'legacy_pending';
             return true;
@@ -335,6 +419,29 @@ async function detectModuleCompatibility() {
     } catch (error) {
         moduleCompatibilityMode = 'legacy_pending';
         return true;
+    }
+}
+
+// After a legacy-path authorization succeeds, ask /info once more. If the first probe
+// only failed transiently, the module is modern: use its real capabilities instead of
+// the reduced legacy set (which hid most actions until the page was reloaded).
+async function upgradeLegacyPendingCompatibility() {
+    try {
+        const response = await localNetworkFetch(IP_LOCAL + '/info', { signal: AbortSignal.timeout(4000), cache: 'no-store' });
+        if (!response.ok) return false;
+        const data = await response.json().catch(() => null);
+        const apiVersion = Number(data?.api_version);
+        if (!Number.isInteger(apiVersion) || apiVersion < SITE_API_MIN || apiVersion > SITE_API_MAX) return false;
+        const features = Array.isArray(data.features) ? data.features.filter(feature => typeof feature === 'string') : [];
+        if (!features.includes('session_auth')) return false;
+        moduleInfo = data;
+        moduleApiVersion = apiVersion;
+        moduleFeatures = new Set(features);
+        moduleCompatibilityMode = 'versioned';
+        if (window.BASMultiDevice?.captureCompatibility) window.BASMultiDevice.captureCompatibility(data);
+        return true;
+    } catch (error) {
+        return false;
     }
 }
 
@@ -415,6 +522,10 @@ async function connectToPhone() {
     const t = traducoes[idiomaAtual];
 
     if (!isConnectedMode) {
+        btn.textContent = t.msgSearching;
+        await ensureLocalNetworkAccess('http://127.0.0.1:4040/info', () => {
+            btn.textContent = t.msgAllowLocalNetwork || t.msgSearching;
+        });
         btn.textContent = t.msgSearching;
         try {
             const loopbackBase = 'http://127.0.0.1:4040';
@@ -633,7 +744,9 @@ async function tentaConexao() {
                     }
                     if (data.status === 'ok' && data.token) {
                         sessionToken = data.token;
-                        if (moduleCompatibilityMode === 'legacy_pending') activateLegacySecureCompatibility();
+                        if (moduleCompatibilityMode === 'legacy_pending' && !await upgradeLegacyPendingCompatibility()) {
+                            activateLegacySecureCompatibility();
+                        }
                     }
                 }
             }
@@ -1327,6 +1440,7 @@ window.BASApi = Object.freeze({
     hasPermission: hasModulePermission,
     loadHistory,
     connect: connectToPhone,
+    ensureLocalNetworkAccess,
     syncConnectedSurfaces: syncConnectedDeviceSurfaces,
     refreshConnectedState: refreshConnectedModuleState
 });

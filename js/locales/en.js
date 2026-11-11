@@ -1803,6 +1803,12 @@
         "healthBucket_trust": "Trust & audit",
         "healthBucket_logs": "Logs",
         "healthBucket_runtime": "Module runtime & other",
-        "securityAuditActionSessionDisconnectedPageUnload": "Website closed or reloaded"
+        "securityAuditActionSessionDisconnectedPageUnload": "Website closed or reloaded",
+        "btnConnectSecure": "Secure connection (HTTPS)",
+        "networkSecureHint": "Phone with Companion Module v1.5 or newer? Enter its IP and choose Secure connection. Your browser will ask you to accept the phone's certificate once.",
+        "msgAllowLocalNetwork": "Allow local network access in your browser…",
+        "msgSecureTrustPrompt": "No answer from {ip} over the network. Phones with Companion Module v1.5 or newer only accept secure (HTTPS) connections from other devices.\n\nOpen the secure connection page now? If the browser warns about the certificate, choose Advanced → Continue. The page closes itself and the Studio connects.",
+        "msgSecureTrustWaiting": "Waiting for you to accept the certificate in the other tab…",
+        "msgSecurePopupBlocked": "The browser blocked the new tab. Allow pop-ups for this site, or open {url} yourself, accept the certificate and come back."
     };
 })(window);

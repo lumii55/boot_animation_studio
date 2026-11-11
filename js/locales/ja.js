@@ -1803,6 +1803,12 @@
         "healthBucket_trust": "信頼と監査",
         "healthBucket_logs": "ログ",
         "healthBucket_runtime": "モジュールランタイムとその他",
-        "securityAuditActionSessionDisconnectedPageUnload": "ウェブサイトを閉じたか再読み込み"
+        "securityAuditActionSessionDisconnectedPageUnload": "ウェブサイトを閉じたか再読み込み",
+        "btnConnectSecure": "安全な接続（HTTPS）",
+        "networkSecureHint": "Companion Module v1.5 以降のスマートフォンですか？IP を入力して「安全な接続」を選んでください。ブラウザーがスマートフォンの証明書を承認するよう一度だけ求めます。",
+        "msgAllowLocalNetwork": "ブラウザーでローカルネットワークへのアクセスを許可してください…",
+        "msgSecureTrustPrompt": "{ip} からネットワーク経由で応答がありません。Companion Module v1.5 以降のスマートフォンは、他のデバイスからの安全な接続（HTTPS）のみを受け付けます。\n\n今すぐ安全な接続のページを開きますか？ブラウザーが証明書について警告した場合は、「詳細設定」→「続行」を選んでください。ページは自動で閉じ、Studio が接続します。",
+        "msgSecureTrustWaiting": "もう一方のタブで証明書を承認するのを待っています…",
+        "msgSecurePopupBlocked": "ブラウザーが新しいタブをブロックしました。このサイトのポップアップを許可するか、{url} を自分で開いて証明書を承認してから戻ってください。"
     };
 })(window);
