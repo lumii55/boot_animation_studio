@@ -199,7 +199,7 @@
 .cm-facts dl div { display: grid; gap: 1px; padding: 6px 0; }
 .cm-facts dt { color: var(--muted); font-size: 11px; }
 .cm-facts dd { margin: 0; font-size: 13px; font-weight: 650; }
-.cm-owner-tools { display: flex; justify-content: flex-end; }
+.cm-owner-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cm-banner-status { display: grid; gap: 2px; margin: 0; padding: 10px 12px; border: 1px solid rgba(255, 189, 112, .3); border-radius: 14px; background: var(--warning-soft); color: var(--warning); font-size: 13px; }
 .cm-banner-status.is-rejected, .cm-banner-status.is-hidden { border-color: rgba(255, 115, 137, .3); background: var(--danger-soft); color: #ff9cab; }
 .cm-banner-status span { color: var(--text-soft); }
@@ -303,6 +303,11 @@ textarea.cm-input { resize: vertical; line-height: 1.4; }
     position: sticky; bottom: -24px; z-index: 2; display: grid; gap: 8px; margin: 0 -10px -24px; padding: 12px 10px 24px;
     border-top: 1px solid var(--line); background: rgba(7, 11, 18, .94); backdrop-filter: blur(10px);
 }
+
+/* ---------- legal pages ---------- */
+.cm-legal { display: grid; gap: 14px; max-width: 680px; margin: 0 auto; padding-bottom: 12px; }
+.cm-legal section { display: grid; gap: 4px; }
+.cm-legal-links a { color: var(--accent-2, #8ea3ff); }
 
 /* ---------- sheet (dialogs) ---------- */
 .cm-modal { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, .55); }

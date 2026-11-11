@@ -344,6 +344,7 @@
         [/^u\/([a-z0-9-]{1,39})$/, (m) => profileView(m[1])],
         [/^u\/([a-z0-9-]{1,39})\/(followers|following)$/, (m) => followListView(m[1], m[2])],
         [/^me\/edit$/, () => editProfileView()],
+        [/^legal\/(terms|privacy)$/, (m) => legalView(m[1])],
         [/^mod(?:\/(.*))?$/, (m) => (window.BASCommunityPanel ? window.BASCommunityPanel.view(m[1] || 'mass', kit) : notFoundView())],
     ];
 
@@ -672,7 +673,30 @@
         return h('div', { class: 'cm-empty' },
             h('p', { text: message }),
             h('button', { class: 'cm-btn is-primary', type: 'button', onclick: () => signIn() }, t('signInGithub')),
-            h('p', { class: 'cm-fine', text: t('signInPrivacy') }));
+            h('p', { class: 'cm-fine', text: t('signInPrivacy') }),
+            legalLinks(t('signInAccept')));
+    }
+
+    // "By … you accept the Terms and the Privacy policy", with both as links.
+    function legalLinks(lead) {
+        return h('p', { class: 'cm-fine cm-legal-links' }, lead ? `${lead} ` : null,
+            h('a', { href: '#community/legal/terms', onclick: (event) => { event.preventDefault(); navigate('legal/terms'); } }, t('legalTerms')),
+            ` ${t('and')} `,
+            h('a', { href: '#community/legal/privacy', onclick: (event) => { event.preventDefault(); navigate('legal/privacy'); } }, t('legalPrivacy')),
+            '.');
+    }
+
+    function legalView(which) {
+        const all = window.BASCommunityLegal || {};
+        const doc = ((all[lang()] || all.en || {})[which]) || { title: t('title'), sections: [] };
+        return {
+            title: doc.title,
+            el: h('article', { class: 'cm-legal' },
+                h('h3', { class: 'cm-detail-title', text: doc.title }),
+                h('p', { class: 'cm-fine', text: t('legalUpdated', { date: formatDate(Date.parse(`${all.updated || ''}T12:00:00Z`)) }) }),
+                doc.sections.map(([heading, body]) => h('section', {}, h('h4', { class: 'cm-section-title', text: heading }), h('p', { class: 'cm-text', text: body }))),
+                legalLinks('')),
+        };
     }
 
     // ------------------------------------------------------------------ animation page
@@ -947,6 +971,7 @@
     }
 
     function ownerTools(detail) {
+        const edit = h('button', { class: 'cm-btn', type: 'button', onclick: () => editAnimationSheet(detail) }, t('editAnimation'));
         const remove = h('button', { class: 'cm-link is-danger', type: 'button' }, t('deleteAnimation'));
         remove.addEventListener('click', async () => {
             if (!(await confirmAction(t('deleteAnimationConfirm'), true))) return;
@@ -959,7 +984,76 @@
                 reportError(error);
             }
         });
-        return h('div', { class: 'cm-owner-tools' }, remove);
+        return h('div', { class: 'cm-owner-tools' }, edit, remove);
+    }
+
+    // Credit fields shared by the upload page and the edit sheet.
+    function creditFields(credits = {}) {
+        const isSelf = !credits.animation_by || credits.animation_by === 'self';
+        const otherName = h('input', { class: 'cm-input', maxlength: '80', placeholder: t('creditOtherPlaceholder'), hidden: isSelf, value: isSelf ? '' : credits.animation_by });
+        const who = segmented([['self', t('creditSelf')], ['other', t('creditOther')]], isSelf ? 'self' : 'other', (value) => {
+            otherName.hidden = value !== 'other';
+            if (value === 'other') otherName.focus();
+        });
+        const art = h('input', { class: 'cm-input', maxlength: '160', placeholder: t('creditArtPlaceholder'), value: credits.art_by || credits.original_author || '' }); // older uploads kept a single "original author"
+        return {
+            cards: [
+                h('div', { class: 'cm-credit-card' }, h('strong', { text: t('creditWhoTitle') }), h('small', { class: 'cm-muted', text: t('creditWhoHint') }), who.el, otherName),
+                h('div', { class: 'cm-credit-card' }, h('strong', { text: t('creditArtTitle') }), h('small', { class: 'cm-muted', text: t('creditArtHint') }), art),
+            ],
+            // Returns null (and focuses the field) when "someone else" has no name yet.
+            value() {
+                if (who.value() === 'other' && !otherName.value.trim()) {
+                    otherName.focus();
+                    toast(t('needCreditOther'), 'info', 4200);
+                    return null;
+                }
+                return { animation_by: who.value() === 'self' ? 'self' : otherName.value, art_by: art.value };
+            },
+        };
+    }
+
+    function licensePicker(initial) {
+        const hint = h('small', { class: 'cm-muted', text: licenseLabel(initial) });
+        const picker = segmented(LICENSES.map((id) => [id, t(`licenseShort_${id.replace(/[^a-z0-9]/g, '_')}`)]), initial, (id) => { hint.textContent = licenseLabel(id); });
+        picker.el.classList.add('is-scroll');
+        return { el: [picker.el, hint], value: picker.value };
+    }
+
+    function editAnimationSheet(detail) {
+        const title = h('input', { class: 'cm-input', maxlength: '60', value: detail.title });
+        const description = h('textarea', { class: 'cm-input', maxlength: '1000', rows: '3' });
+        description.value = detail.description || '';
+        const tags = tagInput(8, detail.tags || []);
+        const credits = creditFields(detail.credits);
+        const license = licensePicker(detail.license);
+        const save = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, t('save'));
+        const sheet = modal(t('editAnimation'), h('div', { class: 'cm-form is-plain' },
+            field(t('fieldTitle'), title),
+            field(t('fieldDescription'), description),
+            h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('fieldTags') }), tags.el),
+            h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('creditsTitle') }), credits.cards),
+            h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('fieldLicense') }), license.el),
+            h('p', { class: 'cm-fine', text: t('editRecheckNote') }),
+            save));
+        save.addEventListener('click', async () => {
+            const creditValue = credits.value();
+            if (!creditValue) return;
+            const progress = busy(save, t('saving'));
+            try {
+                await api('PATCH', `/v1/animations/${detail.id}`, { json: {
+                    title: title.value, description: description.value, tags: tags.values(), license: license.value(), credits: creditValue,
+                } });
+                sheet.close();
+                state.views.clear();
+                toast(t('saved'), 'success');
+                route(`a/${detail.id}`, { force: true });
+            } catch (error) {
+                reportError(error);
+            } finally {
+                progress.done();
+            }
+        });
     }
 
     // ------------------------------------------------------------------ modal + Turnstile
@@ -1270,6 +1364,7 @@
                     save),
                 h('div', { class: 'cm-form is-danger-zone' },
                     h('h4', { class: 'cm-section-title', text: t('account') }),
+                    legalLinks(''),
                     logout,
                     h('p', { class: 'cm-fine', text: t('deleteAccountHint') }),
                     confirmInput,
@@ -1324,8 +1419,8 @@
     }
 
     // Tag field: typed words become removable chips (Enter, comma or space).
-    function tagInput(max = 8) {
-        const tags = [];
+    function tagInput(max = 8, initial = []) {
+        const tags = initial.slice(0, max);
         const input = h('input', { class: 'cm-tag-entry', placeholder: t('tagsPlaceholder'), autocapitalize: 'off', enterkeyhint: 'done', maxlength: '24' });
         const box = h('div', { class: 'cm-tagbox', onclick: () => input.focus() });
         const normalize = (raw) => raw.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
@@ -1412,21 +1507,11 @@
         const tags = tagInput();
 
         // 3. Credits: who made the boot animation, and who made the art in it.
-        const otherName = h('input', { class: 'cm-input', maxlength: '80', placeholder: t('creditOtherPlaceholder'), hidden: true });
-        const who = segmented([['self', t('creditSelf')], ['other', t('creditOther')]], 'self', (value) => {
-            otherName.hidden = value !== 'other';
-            if (value === 'other') otherName.focus();
-        });
-        const art = h('input', { class: 'cm-input', maxlength: '160', placeholder: t('creditArtPlaceholder') });
+        const credits = creditFields();
         const remixToggle = remixSource ? h('input', { type: 'checkbox', checked: true }) : null;
 
         // 4. License: chips with the meaning of the chosen one underneath.
-        const licenseHint = h('small', { class: 'cm-muted' });
-        const license = segmented(LICENSES.map((id) => [id, t(`licenseShort_${id.replace(/[^a-z0-9]/g, '_')}`)]), 'cc-by-4.0', (id) => {
-            licenseHint.textContent = licenseLabel(id);
-        });
-        license.el.classList.add('is-scroll');
-        licenseHint.textContent = licenseLabel('cc-by-4.0');
+        const license = licensePicker('cc-by-4.0');
 
         // 5. Rules, anti-robot check, publish.
         const rules = h('input', { type: 'checkbox' });
@@ -1440,7 +1525,8 @@
         submit.addEventListener('click', async () => {
             if (!chosen) return;
             if (!title.value.trim()) { title.focus(); return toast(t('needTitle'), 'info'); }
-            if (who.value() === 'other' && !otherName.value.trim()) { otherName.focus(); return toast(t('needCreditOther'), 'info', 4200); }
+            const creditValue = credits.value();
+            if (!creditValue) return;
             if (!rules.checked) return toast(t('acceptRules'), 'info', 4200);
             submit.disabled = true;
             progress.hidden = false;
@@ -1452,7 +1538,7 @@
                     description: description.value,
                     tags: tags.values(),
                     license: license.value(),
-                    credits: { animation_by: who.value() === 'self' ? 'self' : otherName.value, art_by: art.value },
+                    credits: creditValue,
                     remix_of: remixToggle && remixToggle.checked ? remixSource.id : undefined,
                     sha256: await sha256Hex(chosen.bytes),
                     size_bytes: chosen.bytes.byteLength,
@@ -1485,21 +1571,14 @@
             h('div', { class: 'cm-create-top' }, fileCard, fileInput,
                 h('div', { class: 'cm-create-text' }, title, description)),
             group(t('fieldTags'), t('tagsHint'), tags.el),
-            group(t('creditsTitle'), null,
-                h('div', { class: 'cm-credit-card' },
-                    h('strong', { text: t('creditWhoTitle') }),
-                    h('small', { class: 'cm-muted', text: t('creditWhoHint') }),
-                    who.el, otherName),
-                h('div', { class: 'cm-credit-card' },
-                    h('strong', { text: t('creditArtTitle') }),
-                    h('small', { class: 'cm-muted', text: t('creditArtHint') }),
-                    art),
+            group(t('creditsTitle'), null, credits.cards,
                 remixToggle ? h('label', { class: 'cm-credit-card is-check' }, remixToggle,
                     h('span', { text: t('isRemix', { title: remixSource.title, owner: remixSource.owner }) })) : null),
-            group(t('fieldLicense'), null, license.el, licenseHint),
+            group(t('fieldLicense'), null, license.el),
             group(t('rulesTitle'), null,
                 h('ul', { class: 'cm-rule-list' }, ['rule1', 'rule2', 'rule3', 'rule4'].map((key) => h('li', {}, icon('panel', 'cm-icon-xs'), h('span', { text: t(key) })))),
-                h('label', { class: 'cm-check' }, rules, h('span', { text: t('rulesAccept') }))),
+                h('label', { class: 'cm-check' }, rules, h('span', { text: t('rulesAccept') })),
+                legalLinks(t('uploadAccept'))),
             check.el,
             h('p', { class: 'cm-fine', text: t('reviewNote') }),
             h('div', { class: 'cm-create-footer' }, progress, submit));

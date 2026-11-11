@@ -318,6 +318,9 @@ function mudarIdioma(lang) {
     if (window.BASPresence?.syncText) window.BASPresence.syncText();
     if (window.BASPathResilience?.sync) window.BASPathResilience.sync();
     if (window.BASDeveloperLab?.syncText) window.BASDeveloperLab.syncText();
+    // Several modules (playlist, rotation, multi-device, module test, boot activity, Community) listen for this
+    // event to refresh their texts; it was never sent, so they kept the previous language until a reload.
+    window.dispatchEvent(new CustomEvent('bas:languagechange', { detail: { lang } }));
 }
 
 
