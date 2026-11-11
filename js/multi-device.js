@@ -506,6 +506,7 @@ function multiDeviceRenderDiagnostics(report) {
         `  v1.4 HTTP :4040 → ${host.http || '—'}\n  v1.5 signal :4042 → ${host.signal || '—'}\n  HTTPS :4041 → ${host.https || '—'}`);
     lines.push(`Subnets scanned: ${report.subnets.join(', ') || '—'} · found there: ${report.subnetFound}`);
     lines.push(`Local network permission: ${report.permission} · ${Math.round((Date.now() - report.started) / 100) / 10} s`);
+    lines.push(`Saved devices: ${report.savedDevices} · last phone IP: ${report.rememberedIp || '—'} · browser storage: ${report.storage}`);
     text.textContent = lines.join('\n');
     box.hidden = false;
 }
@@ -599,21 +600,53 @@ async function multiDeviceConnectSecure(rawAddress) {
     return multiDeviceBeginSecureTrust(ip);
 }
 
-async function multiDeviceScanSubnet(subnet, exactSet, generation) {
+// An address with nothing on it stays silent until the probe times out, while a real device
+// refuses a closed port at once. A v1.5 phone always refuses plain HTTP :4040 (that port only
+// listens on the phone itself), so a fast refusal marks an address worth a second, slower look.
+// Slow browsers (the Xbox Edge) can miss the 700 ms signal probe in a busy 48-host batch.
+const BAS_SCAN_RECHECK_LIMIT = 16;
+
+function multiDeviceAnsweredQuickly(host) {
+    return [host.http, host.signal].some(value => typeof value === 'string' && value.startsWith('failed'));
+}
+
+async function multiDeviceScanSubnet(subnet, exactSet, generation, report = null) {
     const results = [];
     const hosts = [];
     for (let host = 2; host <= 254; host++) {
         const ip = `${subnet}.${host}`;
         if (!exactSet.has(ip)) hosts.push(ip);
     }
+    const answered = [];
     const chunkSize = 48;
     for (let start = 0; start < hosts.length; start += chunkSize) {
         if (multiDeviceRuntime.scanGeneration !== generation) return results;
-        const batch = hosts.slice(start, start + chunkSize);
-        const found = await Promise.all(batch.map(ip => multiDeviceProbeHost(ip, 700)));
-        found.filter(Boolean).forEach(device => results.push(device));
+        const batch = hosts.slice(start, start + chunkSize).map(ip => ({ ip }));
+        const found = await Promise.all(batch.map(host => multiDeviceProbeHost(host.ip, 700, host)));
+        found.forEach((device, index) => {
+            if (device) results.push(device);
+            else if (multiDeviceAnsweredQuickly(batch[index])) answered.push(batch[index].ip);
+        });
+    }
+    for (const ip of answered.slice(0, BAS_SCAN_RECHECK_LIMIT)) {
+        if (multiDeviceRuntime.scanGeneration !== generation) break;
+        const host = { ip, role: 'answered in sweep' };
+        report?.hosts.push(host);
+        const device = await multiDeviceProbeBeacon(ip, BAS_SCAN_EXACT_TIMEOUT_MS, host, BAS_SCAN_EXACT_SECURE_TIMEOUT_MS);
+        if (device) results.push(device);
     }
     return results;
+}
+
+function multiDeviceStorageStatus() {
+    try {
+        const key = 'bas.storage.probe';
+        localStorage.setItem(key, '1');
+        localStorage.removeItem(key);
+        return 'ok';
+    } catch (error) {
+        return 'blocked (' + String(error?.name || 'Error') + ')';
+    }
 }
 
 async function multiDeviceScan(options = {}) {
@@ -621,7 +654,8 @@ async function multiDeviceScan(options = {}) {
     multiDeviceRuntime.scanning = true;
     multiDeviceRender();
     const sampleIp = rememberedPhoneIp() || '192.168.0.1';
-    const report = { started: Date.now(), hosts: [], subnets: [], subnetFound: 0, permission: '' };
+    const report = { started: Date.now(), hosts: [], subnets: [], subnetFound: 0, permission: '',
+        savedDevices: multiDeviceRuntime.devices.size, rememberedIp: rememberedPhoneIp(), storage: multiDeviceStorageStatus() };
     report.permission = await window.BASApi?.ensureLocalNetworkAccess?.(`http://${sampleIp}:4040/info`, () => {
         const desc = document.getElementById('lbl-modal-net-desc');
         if (desc) desc.textContent = multiDeviceText('msgAllowLocalNetwork', 'Allow local network access in your browser to find your phone…');
@@ -690,7 +724,7 @@ async function multiDeviceScan(options = {}) {
     report.subnets = subnets.slice(0, 3);
     for (const subnet of report.subnets) {
         if (multiDeviceRuntime.scanGeneration !== generation) break;
-        const batch = await multiDeviceScanSubnet(subnet, exactSet, generation);
+        const batch = await multiDeviceScanSubnet(subnet, exactSet, generation, report);
         report.subnetFound += batch.length;
         found.push(...batch);
     }
