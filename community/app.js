@@ -158,6 +158,13 @@
     }
 
     function errorText(code, fallback, details) {
+        if (code === 'restricted') {
+            // A punishment limits this action: say until when (or that it has no end date).
+            const action = details && details.action ? t(`restriction_${details.action}`) : '';
+            return details && details.until
+                ? t('err_restricted_until', { action, date: formatDate(details.until) })
+                : t('err_restricted', { action });
+        }
         const key = `err_${code}`;
         const text = t(key, details && details.retry_after ? { seconds: details.retry_after } : undefined);
         return text !== key ? text : (fallback || t('errGeneric'));
@@ -246,7 +253,9 @@
         const failure = params.get('bas-auth-error');
         if (failure) {
             const key = `authError_${failure}`;
-            toast(t(key) !== key ? t(key) : t('authError_github'), 'error', 5200);
+            const until = Number(params.get('until')) || 0;
+            const text = failure === 'suspended' && until ? t('authError_suspended', { date: formatDate(until) }) : (t(key) !== key ? t(key) : t('authError_github'));
+            toast(text, 'error', 7000);
             return 'explore';
         }
         const to = (params.get('to') || '').replace(/^#community\/?/, '') || 'explore';
@@ -629,18 +638,39 @@
         }
     }
 
+    // A short message from the team at the top of Explore; closing it hides that version only.
+    const ANNOUNCE_KEY = 'bas.community.announcement.closed';
+    function paintAnnouncement(box, announcement) {
+        let closed = null;
+        try { closed = localStorage.getItem(ANNOUNCE_KEY); } catch (error) { /* private mode */ }
+        if (!announcement || !announcement.text || closed === String(announcement.updated_at)) {
+            box.hidden = true;
+            return;
+        }
+        fill(box,
+            icon('bell'),
+            h('p', { text: announcement.text }),
+            h('button', { class: 'cm-iconbtn is-small', type: 'button', 'aria-label': t('close'), onclick: () => {
+                try { localStorage.setItem(ANNOUNCE_KEY, String(announcement.updated_at)); } catch (error) { /* session only */ }
+                box.hidden = true;
+            } }, icon('close')));
+        box.hidden = false;
+    }
+
     function exploreView({ tag = null } = {}) {
         const filters = { q: '', res: null };
         const res = deviceResolution();
         const search = h('input', { class: 'cm-search-input', type: 'search', enterkeyhint: 'search', placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'), maxlength: '60' });
         const sorts = ['trending', 'top', 'new'];
         // "Featured" appears once the team has chosen something.
+        const notice = h('div', { class: 'cm-announce', role: 'status', hidden: true });
         api('GET', '/v1/config').then((config) => {
             state.config = config;
             if (config.featured > 0 && !sorts.includes('featured')) {
                 sorts.unshift('featured');
                 paintChips();
             }
+            paintAnnouncement(notice, config.announcement);
         }).catch(() => {});
         const chips = h('div', { class: 'cm-chips', role: 'tablist' });
         const compat = res ? h('button', { class: 'cm-chip', type: 'button', 'aria-pressed': 'false' }, t('compatible', { res: res.replace('x', '×') })) : null;
@@ -686,6 +716,7 @@
         paintChips();
         const el = h('section', { class: 'cm-explore' },
             h('div', { class: 'cm-explore-head' },
+                notice,
                 tag ? h('div', { class: 'cm-tagline' }, h('span', { class: 'cm-tag is-active', text: `#${tag}` })) : null,
                 h('label', { class: 'cm-search' }, icon('search'), search),
                 chips),
@@ -1417,7 +1448,21 @@
         if (item.kind === 'published') return t('notif_published', { title });
         if (item.kind === 'refused') return t('notif_refused', { title });
         if (item.kind === 'remix') return t('notif_remix', { name, title });
+        if (item.kind === 'sanction') return sanctionNotice(item.data || {});
+        if (item.kind === 'sanction_end') return t('notif_sanction_end');
         return '';
+    }
+
+    function sanctionNotice(data) {
+        const until = data.ends_at ? formatDate(data.ends_at) : null;
+        if (data.sanction === 'warning') return t('notif_warning');
+        if (data.sanction === 'restrict') {
+            const what = (data.restrictions || []).map((item) => t(`restriction_${item}`)).join(', ');
+            return until ? t('notif_restrict_until', { what, date: until }) : t('notif_restrict', { what });
+        }
+        if (data.sanction === 'suspend') return t('notif_suspend', { date: until || '' });
+        if (data.sanction === 'ban') return t('notif_ban');
+        return t('notif_warning');
     }
 
     function notificationTarget(item) {
@@ -1445,14 +1490,14 @@
                     ? avatar(item.actor.avatar_url, 'md')
                     : (item.animation && item.animation.preview_url
                         ? h('span', { class: 'cm-notif-thumb' }, h('img', { src: item.animation.preview_url, alt: '', loading: 'lazy' }))
-                        : h('span', { class: 'cm-notif-thumb is-icon' }, icon(item.kind === 'refused' ? 'flag' : 'bell')));
+                        : h('span', { class: 'cm-notif-thumb is-icon' }, icon(item.kind === 'refused' || item.kind === 'sanction' ? 'flag' : 'bell')));
                 return h(target ? 'button' : 'div', {
                     class: `cm-notif${item.read ? '' : ' is-unread'} is-${item.kind}`,
                     type: target ? 'button' : null,
                     onclick: target ? () => navigate(target) : null,
                 }, thumb, h('span', { class: 'cm-notif-body' },
                     h('span', { text: notificationText(item) }),
-                    item.kind === 'refused' && item.reason ? h('small', { class: 'cm-notif-reason', text: t('notif_reason', { reason: item.reason }) }) : null,
+                    (item.kind === 'refused' || item.kind === 'sanction') && item.reason ? h('small', { class: 'cm-notif-reason', text: t('notif_reason', { reason: item.reason }) }) : null,
                     h('small', { class: 'cm-muted', text: relativeTime(item.created_at) })));
             },
             empty: () => t('emptyNotifications'),
