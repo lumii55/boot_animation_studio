@@ -120,6 +120,8 @@
         views: new Map(),      // kept-alive views: path -> {view, scroll}
         unread: 0,
         unreadTimer: 0,
+        pendingTimer: 0,
+        pendingSince: 0,
         current: null,
         root: null,
         main: null,
@@ -215,7 +217,49 @@
         }
         state.meLoaded = true;
         renderChrome();
+        watchPendingImages();
         return state.me;
+    }
+
+    // A new photo or banner is checked automatically (about a minute). While one waits, look again every 10 s
+    // (every minute after 5 minutes: then a person is reviewing it) and show the result without a reload.
+    function watchPendingImages() {
+        clearTimeout(state.pendingTimer);
+        const me = state.me;
+        if (!me || !(me.pending_avatar_url || me.pending_banner_url)) {
+            state.pendingSince = 0;
+            return;
+        }
+        if (!state.pendingSince) state.pendingSince = Date.now();
+        const delay = Date.now() - state.pendingSince < 5 * 60000 ? 10000 : 60000;
+        state.pendingTimer = setTimeout(async () => {
+            if (!state.open || document.hidden || state.me !== me) return watchPendingImages();
+            let fresh;
+            try {
+                fresh = await api('GET', '/v1/me');
+            } catch (error) {
+                return watchPendingImages();
+            }
+            if (state.me !== me) return watchPendingImages(); // something else refreshed it meanwhile
+            const results = [];
+            let refused = false;
+            for (const kind of ['avatar', 'banner']) {
+                const waited = me[`pending_${kind}_url`];
+                if (!waited || fresh[`pending_${kind}_url`] === waited) continue;
+                const approved = fresh[`${kind}_url`] === waited;
+                if (!approved) refused = true;
+                results.push(t(approved ? `imageApproved_${kind}` : `imageRefused_${kind}`));
+            }
+            state.me = fresh;
+            if (results.length) {
+                state.pendingSince = 0;
+                toast(results.join(' '), refused ? 'info' : 'success', 5200);
+                state.views.clear();
+                renderChrome();
+                if (state.path === 'me/edit' || state.path === `u/${fresh.handle}`) route(state.path, { force: true });
+            }
+            watchPendingImages();
+        }, delay);
     }
 
     // Unread notifications: checked when the Community opens and every minute while it is open.

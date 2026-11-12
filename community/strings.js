@@ -543,7 +543,11 @@
         "err_invalid_duration": "Choose a valid duration.",
         "err_already_revoked": "This punishment was already lifted.",
         "err_invalid_setting": "One of the values is outside the allowed range.",
-        "err_invalid_state": "This can't be done in the current state."
+        "err_invalid_state": "This can't be done in the current state.",
+        "imageApproved_avatar": "Your new photo is live.",
+        "imageApproved_banner": "Your new banner is live.",
+        "imageRefused_avatar": "Your new photo was not accepted.",
+        "imageRefused_banner": "Your new banner was not accepted."
     };
 
     const pt = {
@@ -1086,7 +1090,11 @@
         "err_invalid_duration": "Escolha uma duração válida.",
         "err_already_revoked": "Esta punição já foi retirada.",
         "err_invalid_setting": "Um dos valores está fora do permitido.",
-        "err_invalid_state": "Isso não pode ser feito no estado atual."
+        "err_invalid_state": "Isso não pode ser feito no estado atual.",
+        "imageApproved_avatar": "Sua foto nova está no ar.",
+        "imageApproved_banner": "Seu banner novo está no ar.",
+        "imageRefused_avatar": "Sua foto nova não foi aceita.",
+        "imageRefused_banner": "Seu banner novo não foi aceito."
     };
 
     const es = {
@@ -1344,7 +1352,11 @@
         "notif_restrict_until": "Tu cuenta no puede {what} hasta el {date}.",
         "notif_suspend": "Tu cuenta fue suspendida hasta el {date}.",
         "notif_ban": "Tu cuenta fue bloqueada.",
-        "notif_sanction_end": "Terminó una sanción en tu cuenta."
+        "notif_sanction_end": "Terminó una sanción en tu cuenta.",
+        "imageApproved_avatar": "Tu nueva foto ya está publicada.",
+        "imageApproved_banner": "Tu nuevo banner ya está publicado.",
+        "imageRefused_avatar": "Tu nueva foto no fue aceptada.",
+        "imageRefused_banner": "Tu nuevo banner no fue aceptado."
     };
 
     const fr = {
@@ -1602,7 +1614,11 @@
         "notif_restrict_until": "Votre compte ne peut pas {what} jusqu'au {date}.",
         "notif_suspend": "Votre compte est suspendu jusqu'au {date}.",
         "notif_ban": "Votre compte a été banni.",
-        "notif_sanction_end": "Une sanction sur votre compte a pris fin."
+        "notif_sanction_end": "Une sanction sur votre compte a pris fin.",
+        "imageApproved_avatar": "Votre nouvelle photo est en ligne.",
+        "imageApproved_banner": "Votre nouvelle bannière est en ligne.",
+        "imageRefused_avatar": "Votre nouvelle photo n’a pas été acceptée.",
+        "imageRefused_banner": "Votre nouvelle bannière n’a pas été acceptée."
     };
 
     const de = {
@@ -1860,7 +1876,11 @@
         "notif_restrict_until": "Dein Konto darf bis {date} nicht: {what}.",
         "notif_suspend": "Dein Konto ist bis {date} gesperrt.",
         "notif_ban": "Dein Konto wurde gebannt.",
-        "notif_sanction_end": "Eine Sanktion auf deinem Konto ist beendet."
+        "notif_sanction_end": "Eine Sanktion auf deinem Konto ist beendet.",
+        "imageApproved_avatar": "Dein neues Bild ist online.",
+        "imageApproved_banner": "Dein neues Banner ist online.",
+        "imageRefused_avatar": "Dein neues Bild wurde nicht angenommen.",
+        "imageRefused_banner": "Dein neues Banner wurde nicht angenommen."
     };
 
     const it = {
@@ -2118,7 +2138,11 @@
         "notif_restrict_until": "Il tuo account non può {what} fino al {date}.",
         "notif_suspend": "Il tuo account è sospeso fino al {date}.",
         "notif_ban": "Il tuo account è stato bannato.",
-        "notif_sanction_end": "Una sanzione sul tuo account è terminata."
+        "notif_sanction_end": "Una sanzione sul tuo account è terminata.",
+        "imageApproved_avatar": "La tua nuova foto è online.",
+        "imageApproved_banner": "Il tuo nuovo banner è online.",
+        "imageRefused_avatar": "La tua nuova foto non è stata accettata.",
+        "imageRefused_banner": "Il tuo nuovo banner non è stato accettato."
     };
 
     const ja = {
@@ -2376,7 +2400,11 @@
         "notif_restrict_until": "{date}まで次のことができません：{what}。",
         "notif_suspend": "アカウントは{date}まで停止されました。",
         "notif_ban": "アカウントは利用禁止になりました。",
-        "notif_sanction_end": "アカウントへのペナルティが終了しました。"
+        "notif_sanction_end": "アカウントへのペナルティが終了しました。",
+        "imageApproved_avatar": "新しい画像が公開されました。",
+        "imageApproved_banner": "新しいバナーが公開されました。",
+        "imageRefused_avatar": "新しい画像は承認されませんでした。",
+        "imageRefused_banner": "新しいバナーは承認されませんでした。"
     };
 
     const zh = {
@@ -2634,7 +2662,11 @@
         "notif_restrict_until": "你的账号在 {date} 前不能：{what}。",
         "notif_suspend": "你的账号已被停用至 {date}。",
         "notif_ban": "你的账号已被封禁。",
-        "notif_sanction_end": "你账号上的一项处罚已结束。"
+        "notif_sanction_end": "你账号上的一项处罚已结束。",
+        "imageApproved_avatar": "你的新头像已生效。",
+        "imageApproved_banner": "你的新横幅已生效。",
+        "imageRefused_avatar": "你的新头像未通过审核。",
+        "imageRefused_banner": "你的新横幅未通过审核。"
     };
 
     window.BASCommunityStrings = Object.freeze({ en, pt, es, fr, de, it, ja, zh });
