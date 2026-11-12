@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "Sichere Verbindung nötig",
         "msgSecureConnectFailed": "Das Telefon war über die sichere Verbindung nicht erreichbar. Wenn der Browser dem Zertifikat des Telefons noch nicht vertraut, wähle erneut Sichere Verbindung und akzeptiere es.",
         "msgAuthRateLimited": "Zu viele Verbindungsversuche in kurzer Zeit. Aus Sicherheitsgründen pausiert das Telefon neue Autorisierungsanfragen. Warte {seconds} s und versuche es erneut.",
-        "multiDeviceDiagnostics": "Details zur Suche"
+        "multiDeviceDiagnostics": "Details zur Suche",
+        "btnHome": "Start",
+        "btnHomeAria": "Zurück zum Startbildschirm",
+        "launchCommunity": "Community",
+        "launchCommunityDesc": "Boot-Animationen anderer entdecken, herunterladen und teilen."
     };
 })(window);

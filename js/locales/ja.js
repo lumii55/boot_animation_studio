@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "安全な接続が必要",
         "msgSecureConnectFailed": "安全な接続でスマートフォンに接続できませんでした。ブラウザーがまだスマートフォンの証明書を信頼していない場合は、もう一度「安全な接続」を選んで承認してください。",
         "msgAuthRateLimited": "短時間に接続が何度も試みられました。安全のため、スマートフォンは新しい認証リクエストを一時停止しています。{seconds} 秒待ってからもう一度お試しください。",
-        "multiDeviceDiagnostics": "検索の詳細"
+        "multiDeviceDiagnostics": "検索の詳細",
+        "btnHome": "ホーム",
+        "btnHomeAria": "スタート画面に戻る",
+        "launchCommunity": "コミュニティ",
+        "launchCommunityDesc": "ほかの人が作ったブートアニメーションを見つけて、ダウンロードして、共有しよう。"
     };
 })(window);

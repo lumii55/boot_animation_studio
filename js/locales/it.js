@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "Richiede connessione sicura",
         "msgSecureConnectFailed": "Impossibile raggiungere il telefono tramite la connessione sicura. Se il browser non considera ancora attendibile il certificato del telefono, scegli di nuovo Connessione sicura e accettalo.",
         "msgAuthRateLimited": "Troppi tentativi di connessione in poco tempo. Per sicurezza, il telefono sospende le nuove richieste di autorizzazione. Attendi {seconds} s e riprova.",
-        "multiDeviceDiagnostics": "Dettagli della ricerca"
+        "multiDeviceDiagnostics": "Dettagli della ricerca",
+        "btnHome": "Home",
+        "btnHomeAria": "Torna alla schermata iniziale",
+        "launchCommunity": "Community",
+        "launchCommunityDesc": "Esplora, scarica e condividi animazioni di avvio create da altre persone."
     };
 })(window);

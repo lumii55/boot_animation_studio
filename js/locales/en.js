@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "Secure setup needed",
         "msgSecureConnectFailed": "Couldn't reach the phone over the secure connection. If the browser doesn't trust the phone's certificate yet, choose Secure connection again and accept it.",
         "msgAuthRateLimited": "Too many connection attempts in a short time. For security, the phone pauses new authorization requests. Wait {seconds} s and try again.",
-        "multiDeviceDiagnostics": "Search details"
+        "multiDeviceDiagnostics": "Search details",
+        "btnHome": "Home",
+        "btnHomeAria": "Back to the start screen",
+        "launchCommunity": "Community",
+        "launchCommunityDesc": "Explore, download and share boot animations made by other people."
     };
 })(window);

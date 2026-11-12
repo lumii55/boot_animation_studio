@@ -304,7 +304,47 @@ function bindModuleWorkspace() {
     syncModuleWorkspaceUi();
 }
 
+// Home button (top bar): back to the start screen from the Studio or the module area. The open project and the
+// phone connection stay as they are; the start screen's buttons lead back to them.
+function returnToLaunchScreen() {
+    if (moduleWorkspaceUi.open && moduleWorkspaceUi.root) {
+        moduleWorkspaceUi.open = false;
+        moduleWorkspaceRestorePanel();
+        if (window.BASDeviceProfile?.setExpanded) window.BASDeviceProfile.setExpanded(moduleWorkspaceUi.profileWasExpanded);
+        moduleWorkspaceUi.root.hidden = true;
+        document.body.classList.remove('module-workspace-open');
+    }
+    document.getElementById('editor-section').style.display = 'none';
+    const connectedPanel = document.getElementById('connected-state');
+    if (connectedPanel) connectedPanel.style.display = 'none';
+    document.getElementById('initial-state').style.display = '';
+    window.BASWorkspace?.sync?.();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncStudioHomeButton() {
+    const button = document.getElementById('studio-home-button');
+    if (!button) return;
+    const launch = document.getElementById('initial-state');
+    button.hidden = !launch || launch.style.display !== 'none';
+    const label = window.BASI18n?.text?.('btnHomeAria', 'Back to the start screen') ?? 'Back to the start screen';
+    button.setAttribute('aria-label', label);
+    button.title = label;
+}
+
+function bindStudioHomeButton() {
+    const button = document.getElementById('studio-home-button');
+    const launch = document.getElementById('initial-state');
+    if (!button || !launch) return;
+    button.addEventListener('click', returnToLaunchScreen);
+    // Every screen change goes through the start screen's display style, so watching it keeps the button right.
+    new MutationObserver(syncStudioHomeButton).observe(launch, { attributes: true, attributeFilter: ['style'] });
+    window.addEventListener('bas:languagechange', syncStudioHomeButton);
+    syncStudioHomeButton();
+}
+
 window.BASModuleWorkspace = Object.freeze({
+    returnToLaunch: returnToLaunchScreen,
     open: openModuleWorkspace,
     leave: leaveModuleWorkspaceToStudio,
     requestConnection: requestModuleWorkspaceConnection,
@@ -328,3 +368,4 @@ window.syncModuleWorkspaceUi = syncModuleWorkspaceUi;
 window.syncModuleWorkspaceText = syncModuleWorkspaceText;
 window.setModuleWorkspaceTab = setModuleWorkspaceTab;
 window.addEventListener('DOMContentLoaded', bindModuleWorkspace);
+window.addEventListener('DOMContentLoaded', bindStudioHomeButton);

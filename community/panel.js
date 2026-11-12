@@ -2,7 +2,7 @@
 (function () {
     'use strict';
 
-    const TABS = ['mass', 'reports', 'review', 'audit', 'team'];
+    const TABS = ['overview', 'mass', 'reports', 'review', 'animations', 'people', 'audit', 'team'];
     const ACTION_STYLE = { approve: 'is-primary', hide: '', clear_profile: '', remove: 'is-danger', ban: 'is-danger' };
     const DANGEROUS = new Set(['remove', 'ban']);
 
@@ -216,12 +216,218 @@
         };
     }
 
+    // ------------------------------------------------------------------ overview
+
+    function overviewView(kit) {
+        const { h, t, api, fill, toast, reportError, formatBytes, formatCount, navigate, loading, emptyState } = kit;
+        const isOwner = kit.state.me && kit.state.me.role === 'owner';
+        const body = h('div', { class: 'cm-overview' }, loading());
+        async function load() {
+            try {
+                const data = await api('GET', '/v1/mod/stats');
+                const used = data.storage.used_bytes;
+                const limit = data.storage.limit_bytes || 1;
+                const share = Math.min(1, used / limit);
+                const level = share >= 0.95 ? 'is-danger' : share >= 0.8 ? 'is-warn' : '';
+                const pause = isOwner ? h('button', { class: `cm-btn ${data.storage.paused ? 'is-primary' : ''}`, type: 'button' },
+                    data.storage.paused ? t('resumeUploads') : t('pauseUploads')) : null;
+                if (pause) {
+                    pause.addEventListener('click', async () => {
+                        pause.disabled = true;
+                        try {
+                            await api('PUT', '/v1/mod/settings/uploads', { json: { paused: !data.storage.paused } });
+                            toast(data.storage.paused ? t('uploadsResumed') : t('uploadsPausedNow'), 'success');
+                            load();
+                        } catch (error) {
+                            reportError(error);
+                            pause.disabled = false;
+                        }
+                    });
+                }
+                const tile = (value, label, path, tone) => h(path ? 'button' : 'div', {
+                    class: `cm-stat${tone ? ` ${tone}` : ''}`, type: path ? 'button' : null, onclick: path ? () => navigate(path) : null,
+                }, h('strong', { text: formatCount(value) }), h('span', { text: label }));
+                fill(body,
+                    h('section', { class: 'cm-block cm-storage' },
+                        h('div', { class: 'cm-storage-head' },
+                            h('h4', { class: 'cm-section-title', text: t('storageTitle') }),
+                            data.storage.paused ? h('span', { class: 'cm-flag is-warn', text: t('uploadsPausedFlag') }) : null),
+                        h('div', { class: `cm-meter ${level}`, role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(limit), 'aria-valuenow': String(used) },
+                            h('span', { style: `width:${(share * 100).toFixed(1)}%` })),
+                        h('p', { class: 'cm-storage-text', text: t('storageText', { used: formatBytes(used), limit: formatBytes(limit), free: formatBytes(Math.max(0, limit - used)), pct: Math.round(share * 100) }) }),
+                        h('p', { class: 'cm-fine', text: t('storageHint') }),
+                        pause),
+                    h('section', { class: 'cm-block' },
+                        h('h4', { class: 'cm-section-title', text: t('waitingForYou') }),
+                        h('div', { class: 'cm-stats' },
+                            tile(data.open_cases.mass, t('panelTab_mass'), 'mod/mass', data.open_cases.mass ? 'is-danger' : ''),
+                            tile(data.open_cases.reports, t('panelTab_reports'), 'mod/reports', data.open_cases.reports ? 'is-warn' : ''),
+                            tile(data.open_cases.review, t('panelTab_review'), 'mod/review'))),
+                    h('section', { class: 'cm-block' },
+                        h('h4', { class: 'cm-section-title', text: t('communityNumbers') }),
+                        h('div', { class: 'cm-stats' },
+                            tile(data.users.total, t('statPeople'), 'mod/people'),
+                            tile(data.users.new_7d, t('statNewPeople')),
+                            tile(data.animations.published, t('statPublished'), 'mod/animations'),
+                            tile(data.animations.featured, t('statFeatured')),
+                            tile(data.downloads, t('downloadsLabel')),
+                            tile(data.reports_7d, t('statReports7d')),
+                            tile(data.animations.hidden, t('statHidden')),
+                            tile(data.animations.rejected, t('statRefused')),
+                            tile(data.users.banned, t('statBanned')),
+                            tile(data.checks.running, t('statChecksRunning')),
+                            tile(data.checks.failed_7d, t('statChecksFailed'), null, data.checks.failed_7d ? 'is-warn' : ''))));
+            } catch (error) {
+                fill(body, emptyState(error.message));
+            }
+        }
+        load();
+        return { el: h('section', { class: 'cm-panel' }, tabsBar(kit, 'overview'), body), title: t('navPanel') };
+    }
+
+    // ------------------------------------------------------------------ searchable lists (people, animations)
+
+    function searchableList(kit, { filters, initial, fetchPage, renderRow, placeholder }) {
+        const { h, t, fill, loading, emptyState } = kit;
+        let filter = initial;
+        let q = '';
+        let cursor = null;
+        const input = h('input', { class: 'cm-search-input', type: 'search', placeholder, 'aria-label': placeholder, maxlength: '60' });
+        const chips = h('div', { class: 'cm-chips', role: 'tablist' });
+        const list = h('div', { class: 'cm-rows' });
+        const more = h('button', { class: 'cm-btn is-wide', type: 'button', hidden: true }, t('loadMore'));
+        const paintChips = () => fill(chips, filters.map(([id, label]) => h('button', {
+            class: 'cm-chip', type: 'button', role: 'tab', 'aria-selected': String(id === filter),
+            onclick: () => { if (filter !== id) { filter = id; paintChips(); load(true); } },
+        }, label)));
+        async function load(reset) {
+            if (reset) { cursor = null; fill(list, loading()); }
+            more.disabled = true;
+            try {
+                const page = await fetchPage({ filter, q, cursor });
+                if (reset) fill(list);
+                page.items.forEach((item) => list.append(renderRow(item, () => load(true))));
+                if (reset && !page.items.length) fill(list, emptyState(t('nothingFound')));
+                cursor = page.next_cursor;
+                more.hidden = !cursor;
+            } catch (error) {
+                fill(list, emptyState(error.message));
+            } finally {
+                more.disabled = false;
+            }
+        }
+        let debounce = 0;
+        input.addEventListener('input', () => {
+            clearTimeout(debounce);
+            debounce = setTimeout(() => { if (input.value.trim() !== q) { q = input.value.trim(); load(true); } }, 320);
+        });
+        more.addEventListener('click', () => load(false));
+        paintChips();
+        load(true);
+        return [h('label', { class: 'cm-search' }, kit.icon('search'), input), chips, list, more];
+    }
+
+    function actionSheet(kit, title, actions, onDone) {
+        const { h, t, api, toast, reportError, confirmAction, modal } = kit;
+        const reason = h('textarea', { class: 'cm-input', rows: '2', maxlength: '500', placeholder: t('actionReason') });
+        const buttons = actions.map(({ label, style, path, json, confirm, done }) => {
+            const button = h('button', { class: `cm-btn is-wide ${style || ''}`, type: 'button' }, label);
+            button.addEventListener('click', async () => {
+                if (confirm && !(await confirmAction(confirm, true))) return;
+                button.disabled = true;
+                try {
+                    await api('POST', path, { json: { ...json, reason: reason.value } });
+                    sheet.close();
+                    toast(done || t('actionDone'), 'success');
+                    onDone();
+                } catch (error) {
+                    reportError(error);
+                    button.disabled = false;
+                }
+            });
+            return button;
+        });
+        const sheet = modal(title, h('div', { class: 'cm-form is-plain' }, reason, buttons));
+    }
+
+    function peopleView(kit) {
+        const { h, t, api, avatar, formatDate, navigate } = kit;
+        const filters = [['all', t('filterAll')], ['new', t('filterNew')], ['team', t('filterTeam')], ['banned', t('filterBanned')]];
+        const renderRow = (user, refresh) => {
+            const act = (action, label, style, confirm) => ({ label, style, path: `/v1/mod/users/${user.handle}/action`, json: { action }, confirm });
+            const actions = [
+                user.status === 'banned' ? act('unban', t('userUnban'), 'is-primary') : act('ban', t('userBan'), 'is-danger', t('userBanConfirm')),
+                user.trust ? act('untrust', t('userUntrust')) : act('trust', t('userTrust')),
+            ];
+            const canAct = user.role !== 'owner' && user.handle !== kit.state.me.handle && (user.role !== 'moderator' || kit.state.me.role === 'owner');
+            return h('div', { class: 'cm-row-item' },
+                h('button', { class: 'cm-row-main', type: 'button', onclick: () => navigate(`u/${user.handle}`) },
+                    avatar(user.avatar_url, 'md'),
+                    h('span', { class: 'cm-author-names' },
+                        h('strong', { text: user.display_name || user.handle }),
+                        h('small', { text: `@${user.handle} · ${t('joinedShort', { date: formatDate(user.created_at) })}` }),
+                        h('span', { class: 'cm-flags' },
+                            user.role !== 'user' ? h('span', { class: 'cm-flag is-ok', text: t(`role_${user.role}`) }) : null,
+                            user.status === 'banned' ? h('span', { class: 'cm-flag is-sev-3', text: t('flagBanned') }) : null,
+                            h('span', { class: 'cm-flag', text: user.trust ? t('flagTrusted') : t('flagNew') }),
+                            h('span', { class: 'cm-flag is-info', text: t('userCounts', { published: user.published, refused: user.refused }) })))),
+                canAct ? h('button', { class: 'cm-iconbtn is-small', type: 'button', 'aria-label': t('moreActions'),
+                    onclick: () => actionSheet(kit, `@${user.handle}`, actions, refresh) }, '⋯') : null);
+        };
+        return {
+            el: h('section', { class: 'cm-panel' }, tabsBar(kit, 'people'),
+                searchableList(kit, {
+                    filters, initial: 'all', placeholder: t('searchPeople'), renderRow,
+                    fetchPage: ({ filter, q, cursor }) => api('GET', `/v1/mod/users?filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ''}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
+                })),
+            title: t('navPanel'),
+        };
+    }
+
+    function animationsView(kit) {
+        const { h, t, api, media, navigate } = kit;
+        const filters = [['published', t('status_published')], ['review', t('status_review')], ['scanning', t('status_scanning')],
+            ['hidden', t('status_hidden')], ['rejected', t('status_rejected')], ['featured', t('statFeatured')]];
+        const renderRow = (item, refresh) => {
+            const act = (action, label, style, confirm) => ({ label, style, path: `/v1/mod/animations/${item.id}/action`, json: { action }, confirm });
+            const actions = [];
+            if (item.status === 'published') actions.push(item.featured ? act('unfeature', t('animUnfeature')) : act('feature', t('animFeature'), 'is-primary'));
+            if (item.status === 'review') actions.push(act('restore', t('action_approve'), 'is-primary'));
+            if (item.status === 'hidden') actions.push(act('restore', t('animRestore'), 'is-primary'));
+            if (['published', 'review'].includes(item.status)) actions.push(act('hide', t('action_hide')));
+            if (['published', 'review', 'hidden'].includes(item.status)) actions.push(act('recheck', t('animRecheck')));
+            if (['published', 'review', 'hidden', 'scanning'].includes(item.status)) actions.push(act('remove', t('action_remove'), 'is-danger', t('actionConfirm_remove')));
+            return h('div', { class: 'cm-row-item' },
+                h('button', { class: 'cm-row-main', type: 'button', onclick: () => navigate(`a/${item.id}`) },
+                    h('span', { class: 'cm-row-thumb' }, item.preview_url ? media(item.preview_url, 9, 16, 'cm-media') : null),
+                    h('span', { class: 'cm-author-names' },
+                        h('strong', { text: item.title }),
+                        h('small', { text: `@${item.owner.handle}` }),
+                        h('span', { class: 'cm-flags' },
+                            item.featured ? h('span', { class: 'cm-flag is-ok', text: t('statFeatured') }) : null,
+                            item.status_reason ? h('span', { class: 'cm-flag is-info', text: item.status_reason }) : null))),
+                actions.length ? h('button', { class: 'cm-iconbtn is-small', type: 'button', 'aria-label': t('moreActions'),
+                    onclick: () => actionSheet(kit, item.title, actions, refresh) }, '⋯') : null);
+        };
+        return {
+            el: h('section', { class: 'cm-panel' }, tabsBar(kit, 'animations'),
+                searchableList(kit, {
+                    filters, initial: 'published', placeholder: t('searchAnimationsPanel'), renderRow,
+                    fetchPage: ({ filter, q, cursor }) => api('GET', `/v1/mod/animations?status=${filter}${q ? `&q=${encodeURIComponent(q)}` : ''}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
+                })),
+            title: t('navPanel'),
+        };
+    }
+
     function view(sub, kit) {
         if (!kit.state.me || !['moderator', 'owner'].includes(kit.state.me.role)) {
             return { el: kit.emptyState(kit.t('modOnly')), title: kit.t('navPanel') };
         }
         const match = /^case\/([A-Za-z0-9_-]{16})$/.exec(sub);
         if (match) return caseView(kit, match[1]);
+        if (sub === 'overview') return overviewView(kit);
+        if (sub === 'people') return peopleView(kit);
+        if (sub === 'animations') return animationsView(kit);
         if (sub === 'audit') return auditView(kit);
         if (sub === 'team') return teamView(kit);
         return queueView(kit, ['mass', 'reports', 'review'].includes(sub) ? sub : 'mass');

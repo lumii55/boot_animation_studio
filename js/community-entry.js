@@ -2,7 +2,7 @@
 // downloaded when it is opened. While it is in preview it stays hidden unless the Developer Lab switch is on.
 (function() {
     const FLAG_KEY = 'bas.community.preview';
-    const ASSET_VERSION = 'web-v20';
+    const ASSET_VERSION = 'web-v21';
     const FILES = ['community/strings.js', 'community/legal.js', 'community/app.js', 'community/panel.js'];
     const LABELS = { en: 'Community', pt: 'Comunidade', es: 'Comunidad', fr: 'Communauté', de: 'Community', it: 'Community', ja: 'コミュニティ', zh: '社区' };
     const SHARE_LABELS = {
@@ -73,12 +73,14 @@
     function sync() {
         const on = flagOn();
         syncShareButton(on);
+        // The Community choice on the start screen, under "Connect to Phone".
+        const choice = document.getElementById('community-launch-choice');
+        if (choice) choice.hidden = !on;
+        const table = (typeof traducoes === 'object' && traducoes[typeof idiomaAtual === 'string' ? idiomaAtual : 'en']) || {};
         const launcher = document.getElementById('community-launcher');
-        if (launcher) {
-            launcher.hidden = !on;
-            const lang = typeof idiomaAtual === 'string' ? idiomaAtual : 'en';
-            launcher.textContent = LABELS[lang] || LABELS.en;
-        }
+        if (launcher) launcher.textContent = table.launchCommunity || label(LABELS);
+        const desc = document.getElementById('community-launch-desc');
+        if (desc && table.launchCommunityDesc) desc.textContent = table.launchCommunityDesc;
         const toggle = document.getElementById('developer-lab-community-toggle');
         if (toggle) toggle.checked = on;
         return on;

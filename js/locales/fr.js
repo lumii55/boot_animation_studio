@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "Connexion sécurisée requise",
         "msgSecureConnectFailed": "Impossible de joindre le téléphone via la connexion sécurisée. Si le navigateur ne fait pas encore confiance au certificat du téléphone, choisissez à nouveau Connexion sécurisée et acceptez-le.",
         "msgAuthRateLimited": "Trop de tentatives de connexion en peu de temps. Par sécurité, le téléphone suspend les nouvelles demandes d’autorisation. Patientez {seconds} s et réessayez.",
-        "multiDeviceDiagnostics": "Détails de la recherche"
+        "multiDeviceDiagnostics": "Détails de la recherche",
+        "btnHome": "Accueil",
+        "btnHomeAria": "Revenir à l’écran d’accueil",
+        "launchCommunity": "Communauté",
+        "launchCommunityDesc": "Explorez, téléchargez et partagez des animations de démarrage créées par d’autres."
     };
 })(window);

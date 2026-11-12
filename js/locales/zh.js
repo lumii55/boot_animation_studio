@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "需要安全连接",
         "msgSecureConnectFailed": "无法通过安全连接访问手机。如果浏览器尚未信任手机的证书，请再次选择“安全连接”并接受证书。",
         "msgAuthRateLimited": "短时间内连接尝试次数过多。为了安全，手机会暂停新的授权请求。请等待 {seconds} 秒后重试。",
-        "multiDeviceDiagnostics": "搜索详情"
+        "multiDeviceDiagnostics": "搜索详情",
+        "btnHome": "主页",
+        "btnHomeAria": "返回开始页面",
+        "launchCommunity": "社区",
+        "launchCommunityDesc": "浏览、下载并分享其他人制作的开机动画。"
     };
 })(window);

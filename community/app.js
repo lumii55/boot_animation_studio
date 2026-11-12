@@ -34,8 +34,11 @@
 
     const formatCount = (value) => new Intl.NumberFormat(lang(), { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value) || 0);
     function formatBytes(bytes) {
-        const mb = (Number(bytes) || 0) / (1024 * 1024);
-        return mb >= 1 ? `${mb.toFixed(mb >= 10 ? 0 : 1)} MB` : `${Math.max(1, Math.round((Number(bytes) || 0) / 1024))} KB`;
+        const value = Number(bytes) || 0;
+        const number = (n, digits) => new Intl.NumberFormat(lang(), { maximumFractionDigits: digits }).format(n);
+        if (value >= 1024 ** 3) return `${number(value / 1024 ** 3, 1)} GB`;
+        const mb = value / (1024 * 1024);
+        return mb >= 1 ? `${number(mb, mb >= 10 ? 0 : 1)} MB` : `${Math.max(1, Math.round(value / 1024))} KB`;
     }
     function formatDate(ms) {
         if (!ms) return '';
@@ -266,7 +269,7 @@
         { id: 'upload', icon: 'upload', label: 'navUpload', match: /^upload/ },
         { id: 'mod', icon: 'panel', label: 'navPanel', match: /^mod/, modOnly: true },
     ];
-    const isRootPath = (path) => /^(explore|following|upload|mod(\/(mass|reports|review|audit|team))?)$/.test(path);
+    const isRootPath = (path) => /^(explore|following|upload|mod(\/(overview|mass|reports|review|animations|people|audit|team))?)$/.test(path);
 
     function buildShell() {
         state.backBtn = h('button', { class: 'cm-iconbtn', type: 'button', 'aria-label': t('back'), onclick: () => history.back() }, icon('back'));
@@ -326,7 +329,7 @@
             type: 'button',
             'aria-current': section.match.test(state.path) ? 'page' : null,
             dataset: { section: section.id },
-            onclick: () => navigate(section.id === 'mod' ? 'mod/mass' : section.id),
+            onclick: () => navigate(section.id === 'mod' ? 'mod/overview' : section.id),
         }, icon(section.icon, 'cm-tab-icon'), h('span', { class: 'cm-tab-label', text: t(section.label) }))));
         const root = isRootPath(state.path);
         state.backBtn.hidden = root;
@@ -369,7 +372,7 @@
         [/^me\/edit$/, () => editProfileView()],
         [/^me\/notifications$/, () => notificationsView()],
         [/^legal\/(terms|privacy)$/, (m) => legalView(m[1])],
-        [/^mod(?:\/(.*))?$/, (m) => (window.BASCommunityPanel ? window.BASCommunityPanel.view(m[1] || 'mass', kit) : notFoundView())],
+        [/^mod(?:\/(.*))?$/, (m) => (window.BASCommunityPanel ? window.BASCommunityPanel.view(m[1] || 'overview', kit) : notFoundView())],
     ];
 
     function route(path, { force = false } = {}) {
@@ -631,6 +634,14 @@
         const res = deviceResolution();
         const search = h('input', { class: 'cm-search-input', type: 'search', enterkeyhint: 'search', placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'), maxlength: '60' });
         const sorts = ['trending', 'top', 'new'];
+        // "Featured" appears once the team has chosen something.
+        api('GET', '/v1/config').then((config) => {
+            state.config = config;
+            if (config.featured > 0 && !sorts.includes('featured')) {
+                sorts.unshift('featured');
+                paintChips();
+            }
+        }).catch(() => {});
         const chips = h('div', { class: 'cm-chips', role: 'tablist' });
         const compat = res ? h('button', { class: 'cm-chip', type: 'button', 'aria-pressed': 'false' }, t('compatible', { res: res.replace('x', '×') })) : null;
         const paintChips = () => fill(chips,
@@ -1580,6 +1591,27 @@
             }
         }
 
+        // With the phone connected, the animation applied on it can be shared directly.
+        const phoneConnected = typeof isConnectedMode !== 'undefined' && isConnectedMode
+            && (typeof hasModuleFeature !== 'function' || hasModuleFeature('pull'));
+        const fromPhone = phoneConnected ? h('button', { class: 'cm-btn is-wide cm-from-phone', type: 'button' }, icon('phone'), h('span', { text: t('usePhoneAnimation') })) : null;
+        if (fromPhone) {
+            fromPhone.addEventListener('click', async () => {
+                const progress = busy(fromPhone, t('pullingFromPhone'));
+                try {
+                    const response = await apiFetch(`/pull?source=module&t=${Date.now()}`);
+                    if (!response.ok) throw new Error(t('noAppliedAnimation'));
+                    const blob = await response.blob();
+                    const model = String(window.connectedPhoneModel || '').replace(/[^\w .-]+/g, '').trim();
+                    await useFile(new File([blob], `${model || 'phone'} bootanimation.zip`, { type: 'application/zip' }));
+                } catch (error) {
+                    reportError(error);
+                } finally {
+                    progress.done();
+                }
+            });
+        }
+
         // A build handed over from the Studio's finish screen starts the form already filled with the file.
         if (state.pendingUpload) {
             const { blob, name } = state.pendingUpload;
@@ -1657,7 +1689,7 @@
             h('h3', { class: 'cm-group-title', text: titleText }), hint ? h('p', { class: 'cm-group-hint', text: hint }) : null, body);
 
         const el = h('section', { class: 'cm-create' },
-            h('div', { class: 'cm-create-top' }, fileCard, fileInput,
+            h('div', { class: 'cm-create-top' }, h('div', { class: 'cm-create-source' }, fileCard, fromPhone), fileInput,
                 h('div', { class: 'cm-create-text' }, title, description)),
             group(t('fieldTags'), t('tagsHint'), tags.el),
             group(t('creditsTitle'), null, credits.cards,

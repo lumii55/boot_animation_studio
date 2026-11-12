@@ -1813,6 +1813,10 @@
         "multiDeviceSecureSetup": "Precisa da conexão segura",
         "msgSecureConnectFailed": "Não consegui falar com o celular pela conexão segura. Se o navegador ainda não confia no certificado do celular, escolha Conexão segura de novo e aceite.",
         "msgAuthRateLimited": "Muitas tentativas de conexão em pouco tempo. Por segurança, o celular pausa novos pedidos de autorização. Aguarde {seconds} s e tente de novo.",
-        "multiDeviceDiagnostics": "Detalhes da busca"
+        "multiDeviceDiagnostics": "Detalhes da busca",
+        "btnHome": "Início",
+        "btnHomeAria": "Voltar para a tela inicial",
+        "launchCommunity": "Comunidade",
+        "launchCommunityDesc": "Explore, baixe e compartilhe animações de boot feitas por outras pessoas."
     };
 })(window);
