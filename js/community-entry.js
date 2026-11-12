@@ -2,8 +2,8 @@
 // downloaded when it is opened. While it is in preview it stays hidden unless the Developer Lab switch is on.
 (function() {
     const FLAG_KEY = 'bas.community.preview';
-    const ASSET_VERSION = 'web-v26';
-    const FILES = ['community/strings.js', 'community/legal.js', 'community/app.js', 'community/panel.js'];
+    const ASSET_VERSION = 'web-v27';
+    const FILES = ['community/strings.js', 'community/legal.js', 'community/licenses.js', 'community/app.js', 'community/panel.js'];
     const LABELS = { en: 'Community', pt: 'Comunidade', es: 'Comunidad', fr: 'Communauté', de: 'Community', it: 'Community', ja: 'コミュニティ', zh: '社区' };
     const SHARE_LABELS = {
         en: 'Share in the Community', pt: 'Publicar na Comunidade', es: 'Publicar en la Comunidad', fr: 'Partager dans la Communauté',

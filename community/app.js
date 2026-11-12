@@ -15,7 +15,6 @@
     const REMIX_KEY = 'bas.community.remix';
     const TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     const MAX_ZIP = 50 * 1024 * 1024;
-    const LICENSES = ['cc-by-4.0', 'cc-by-sa-4.0', 'cc-by-nc-4.0', 'cc0-1.0', 'all-rights-reserved'];
 
     // ------------------------------------------------------------------ text
 
@@ -44,7 +43,29 @@
         if (!ms) return '';
         try { return new Date(ms).toLocaleDateString(lang(), { day: 'numeric', month: 'short', year: 'numeric' }); } catch (error) { return ''; }
     }
-    const licenseLabel = (id) => t(`license_${String(id || '').replace(/[^a-z0-9]/g, '_')}`);
+    // Licenses (catalog in licenses.js). Real license names stay as they are; "all rights reserved" and "custom"
+    // are translated; a custom license shows the name its author gave.
+    const licenseInfo = (id) => ((window.BASCommunityLicenses || {}).list || {})[id] || null;
+    const licenseName = (id, custom) => (id === 'custom' && custom && custom.name) || (licenseInfo(id) && licenseInfo(id).name)
+        || t(`licenseName_${String(id || '').replace(/[^a-z0-9]/g, '_')}`);
+    function licenseSummary(id, remixChoice) {
+        const text = licenseSummaryText(id, remixChoice);
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+    function licenseSummaryText(id, remixChoice) {
+        const info = licenseInfo(id);
+        if (!info) return '';
+        if (id === 'all-rights-reserved') return t('licArrSummary');
+        if (id === 'custom') {
+            return [remixChoice === true ? t('licRemixYes') : remixChoice === false ? t('licRemixNo') : null, t('licCustomHint')].filter(Boolean).join(' · ');
+        }
+        return [
+            info.remix ? t('licRemixYes') : t('licRemixNo'),
+            info.commercial ? t('licCommercialYes') : t('licCommercialNo'),
+            info.credit ? t('licCreditYes') : t('licCreditNo'),
+            info.same ? t('licSameLicense') : null,
+        ].filter(Boolean).join(' · ');
+    }
 
     // ------------------------------------------------------------------ DOM
 
@@ -1007,8 +1028,11 @@
 
         const install = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, icon('phone'), h('span', { text: t('installOnPhone') }));
         install.addEventListener('click', () => installOnPhone(detail, install));
-        const remix = h('button', { class: 'cm-action', type: 'button' }, icon('remix'), h('span', { text: t('actionRemix') }));
-        remix.addEventListener('click', () => openInStudio(detail, remix));
+        // The license decides whether others may remix it (the author always may).
+        const remixBlocked = detail.remix_allowed === false && !detail.is_mine;
+        const remix = h('button', { class: `cm-action${remixBlocked ? ' is-disabled' : ''}`, type: 'button', 'aria-disabled': remixBlocked ? 'true' : null,
+            title: remixBlocked ? t('remixBlocked') : null }, icon('remix'), h('span', { text: t('actionRemix') }));
+        remix.addEventListener('click', () => (remixBlocked ? toast(t('remixBlocked'), 'info', 4200) : openInStudio(detail, remix)));
         const download = h('button', { class: 'cm-action', type: 'button' }, icon('download'), h('span', { text: t('download') }));
         download.addEventListener('click', () => downloadAnimation(detail, download));
         const report = published && !detail.is_mine
@@ -1033,7 +1057,13 @@
             [t('factParts'), detail.parts || null],
             [t('factAudio'), detail.has_audio ? t('yes') : t('no')],
             [t('factSize'), formatBytes(detail.size_bytes)],
-            [t('factLicense'), licenseLabel(detail.license)],
+            [t('factLicense'), (() => {
+                const url = detail.license === 'custom' ? detail.license_custom && detail.license_custom.url : licenseInfo(detail.license) && licenseInfo(detail.license).url;
+                const name = licenseName(detail.license, detail.license_custom);
+                return h('span', { class: 'cm-license-fact' },
+                    url ? h('a', { href: url, target: '_blank', rel: 'noopener noreferrer nofollow', text: `${name} ↗` }) : h('span', { text: name }),
+                    h('small', { class: 'cm-muted', text: licenseSummary(detail.license, detail.license === 'custom' ? detail.remix_allowed : undefined) }));
+            })()],
             [t('factPublished'), formatDate(detail.published_at) || null],
         ].filter(([, value]) => !isEmpty(value));
 
@@ -1078,7 +1108,7 @@
                 detail.tags && detail.tags.length ? h('div', { class: 'cm-tags' }, detail.tags.map((tag) => h('button', { class: 'cm-tag', type: 'button', onclick: () => navigate(`tag/${tag}`) }, `#${tag}`))) : null,
                 h('details', { class: 'cm-facts' },
                     h('summary', { text: t('details') }),
-                    h('dl', {}, facts.map(([label, value]) => h('div', {}, h('dt', { text: label }), h('dd', { text: String(value) }))))),
+                    h('dl', {}, facts.map(([label, value]) => h('div', {}, h('dt', { text: label }), h('dd', {}, value instanceof Node ? value : String(value)))))),
                 detail.is_mine ? ownerTools(detail) : null),
             published ? moreSection : null);
         if (moreFeed) moreFeed.start();
@@ -1128,11 +1158,46 @@
         };
     }
 
-    function licensePicker(initial) {
-        const hint = h('small', { class: 'cm-muted', text: licenseLabel(initial) });
-        const picker = segmented(LICENSES.map((id) => [id, t(`licenseShort_${id.replace(/[^a-z0-9]/g, '_')}`)]), initial, (id) => { hint.textContent = licenseLabel(id); });
-        picker.el.classList.add('is-scroll');
-        return { el: [picker.el, hint], value: picker.value };
+    // License: a grouped list (Creative Commons, software licenses, other), what it allows in plain words, a link to
+    // the real text, and for a custom license its name, its https link and whether remixes are allowed.
+    function licensePicker(initial, custom = null, remixAllowedNow = null) {
+        const catalog = (window.BASCommunityLicenses || {}).list || {};
+        const groups = (window.BASCommunityLicenses || {}).groups || [];
+        const select = h('select', { class: 'cm-input cm-license-select', 'aria-label': t('fieldLicense') },
+            groups.map((group) => h('optgroup', { label: t(`licenseGroup_${group}`) },
+                Object.entries(catalog).filter(([, info]) => info.group === group)
+                    .map(([id]) => h('option', { value: id, text: licenseName(id), selected: id === initial ? true : null })))));
+        const summary = h('p', { class: 'cm-license-summary' });
+        const read = h('a', { class: 'cm-link', target: '_blank', rel: 'noopener noreferrer' });
+        const name = h('input', { class: 'cm-input', maxlength: '60', placeholder: t('customLicenseName'), value: custom && custom.name ? custom.name : '' });
+        const url = h('input', { class: 'cm-input', type: 'url', inputmode: 'url', maxlength: '300', placeholder: t('customLicenseUrl'), value: custom && custom.url ? custom.url : '' });
+        const remix = segmented([['yes', t('yes')], ['no', t('no')]], initial === 'custom' && remixAllowedNow !== null ? (remixAllowedNow ? 'yes' : 'no') : null, () => paint());
+        const customBox = h('div', { class: 'cm-license-custom' },
+            field(t('customLicenseNameLabel'), name),
+            field(t('customLicenseUrlLabel'), url),
+            h('div', { class: 'cm-field' }, h('span', { class: 'cm-label', text: t('customLicenseRemix') }), remix.el));
+        function paint() {
+            const id = select.value;
+            const info = catalog[id];
+            const choice = remix.value() === 'yes' ? true : remix.value() === 'no' ? false : null;
+            summary.textContent = licenseSummary(id, choice);
+            read.hidden = !(info && info.url);
+            if (info && info.url) { read.href = info.url; read.textContent = `${t('licenseRead')} ↗`; }
+            customBox.hidden = id !== 'custom';
+        }
+        select.addEventListener('change', paint);
+        paint();
+        return {
+            el: [h('p', { class: 'cm-fine', text: t('licensePickHint') }), select, summary, read, customBox],
+            value() {
+                const license = select.value;
+                if (license !== 'custom') return { license };
+                const link = url.value.trim();
+                if (!name.value.trim() || !/^https:\/\/\S+$/i.test(link)) { toast(t('needCustomLicense'), 'info', 4200); (name.value.trim() ? url : name).focus(); return null; }
+                if (!remix.value()) { toast(t('needCustomRemix'), 'info', 4200); return null; }
+                return { license, license_custom: { name: name.value.trim(), url: link, remix: remix.value() === 'yes' } };
+            },
+        };
     }
 
     function editAnimationSheet(detail) {
@@ -1141,7 +1206,7 @@
         description.value = detail.description || '';
         const tags = tagInput(8, detail.tags || []);
         const credits = creditFields(detail.credits);
-        const license = licensePicker(detail.license);
+        const license = licensePicker(detail.license, detail.license_custom, detail.remix_allowed);
         const save = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, t('save'));
         const sheet = modal(t('editAnimation'), h('div', { class: 'cm-form is-plain' },
             field(t('fieldTitle'), title),
@@ -1154,10 +1219,12 @@
         save.addEventListener('click', async () => {
             const creditValue = credits.value();
             if (!creditValue) return;
+            const licenseValue = license.value();
+            if (!licenseValue) return;
             const progress = busy(save, t('saving'));
             try {
                 await api('PATCH', `/v1/animations/${detail.id}`, { json: {
-                    title: title.value, description: description.value, tags: tags.values(), license: license.value(), credits: creditValue,
+                    title: title.value, description: description.value, tags: tags.values(), ...licenseValue, credits: creditValue,
                 } });
                 sheet.close();
                 state.views.clear();
@@ -1742,6 +1809,8 @@
             if (!title.value.trim()) { title.focus(); return toast(t('needTitle'), 'info'); }
             const creditValue = credits.value();
             if (!creditValue) return;
+            const licenseValue = license.value();
+            if (!licenseValue) return;
             if (!rules.checked) return toast(t('acceptRules'), 'info', 4200);
             submit.disabled = true;
             progress.hidden = false;
@@ -1752,7 +1821,7 @@
                     title: title.value,
                     description: description.value,
                     tags: tags.values(),
-                    license: license.value(),
+                    ...licenseValue,
                     credits: creditValue,
                     remix_of: remixToggle && remixToggle.checked ? remixSource.id : undefined,
                     sha256: await sha256Hex(chosen.bytes),
