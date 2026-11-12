@@ -121,6 +121,7 @@
         unread: 0,
         unreadTimer: 0,
         pendingTimer: 0,
+        freshUntil: 0,          // after a change of mine, lists skip the browser cache (they are cached 30 s)
         pendingSince: 0,
         current: null,
         root: null,
@@ -175,6 +176,9 @@
     async function api(method, path, { json, body, headers = {}, signal } = {}) {
         const init = { method, headers: { ...headers }, signal };
         if (state.token) init.headers.Authorization = `Bearer ${state.token}`;
+        // Public lists are kept by the browser for 30 s; right after I change something, ask the server again so
+        // a deleted or edited animation does not linger in Explore.
+        if (method === 'GET' && Date.now() < state.freshUntil) init.cache = 'reload';
         if (json !== undefined) {
             init.headers['Content-Type'] = 'application/json';
             init.body = JSON.stringify(json);
@@ -190,6 +194,7 @@
         }
         const type = response.headers.get('Content-Type') || '';
         const data = type.includes('json') ? await response.json().catch(() => null) : null;
+        if (method !== 'GET' && response.ok) state.freshUntil = Date.now() + 35000;
         if (!response.ok) {
             const err = (data && data.error) || {};
             if (response.status === 401 && state.token && err.code === 'sign_in_required') clearSession();
