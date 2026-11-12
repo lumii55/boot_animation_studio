@@ -104,7 +104,7 @@
                         item.report_count ? h('span', { class: `cm-flag is-sev-${item.max_severity}`, text: t(`severity_${Math.max(0, Math.min(3, item.max_severity))}`) }) : null,
                         item.auto_hidden ? h('span', { class: 'cm-flag is-warn', text: t('autoHidden') }) : null,
                         item.findings.length && item.findings[item.findings.length - 1].message
-                            ? h('span', { class: 'cm-flag is-info', text: item.findings[item.findings.length - 1].message }) : null))));
+                            ? h('span', { class: 'cm-flag is-info', text: kit.translateReason(item.findings[item.findings.length - 1].message) }) : null))));
     }
 
     function queueView(kit, tab) {
@@ -217,7 +217,7 @@
                 buttons.length ? section(kit, t('decide'), reason, h('div', { class: 'cm-decide' }, buttons))
                     : (item.status === 'open' ? h('p', { class: 'cm-fine', text: t('noPermissionHere') }) : null),
                 item.findings.length ? section(kit, t('findings'), h('ul', { class: 'cm-entries' }, item.findings.map((finding) => h('li', { dataset: { severity: finding.severity } },
-                    h('code', { text: finding.code }), finding.message ? ` ${finding.message}` : null)))) : null,
+                    h('code', { text: finding.code }), finding.message ? ` ${kit.translateReason(finding.message)}` : null)))) : null,
                 item.reports.length ? section(kit, t('reportsN', { n: item.reports.length }), h('ul', { class: 'cm-entries' }, item.reports.map((report) => h('li', { dataset: { severity: report.severity } },
                     h('strong', { text: t(`reportCat_${report.category}`) }),
                     h('small', { class: 'cm-muted', text: ` · ${report.reporter ? `@${report.reporter}` : t('deletedUser')} · ${ago(kit, report.created_at)}` }),
@@ -226,7 +226,7 @@
                 item.history.length ? section(kit, t('history'), h('ul', { class: 'cm-entries' }, item.history.map((entry) => h('li', {},
                     h('strong', { text: t(`action_${entry.action}`) }),
                     h('small', { class: 'cm-muted', text: ` · ${entry.actor ? `@${entry.actor}` : t('system')} · ${t(`source_${entry.source}`)} · ${ago(kit, entry.created_at)}` }),
-                    entry.reason ? h('p', { text: entry.reason }) : null)))) : null);
+                    entry.reason ? h('p', { text: kit.translateReason(entry.reason) }) : null)))) : null);
         }).catch((error) => fill(el, emptyState(error.message)));
         return { el, title: t('navPanel') };
     }
@@ -639,7 +639,7 @@
                         h('small', { text: `@${item.owner.handle}` }),
                         h('span', { class: 'cm-flags' },
                             item.featured ? h('span', { class: 'cm-flag is-ok', text: t('statFeatured') }) : null,
-                            item.status_reason ? h('span', { class: 'cm-flag is-info', text: item.status_reason }) : null))),
+                            item.status_reason ? h('span', { class: 'cm-flag is-info', text: kit.translateReason(item.status_reason) }) : null))),
                 allowed.length ? h('button', { class: 'cm-iconbtn is-small', type: 'button', 'aria-label': t('moreActions'),
                     onclick: () => actionSheet(kit, item.title, allowed, refresh) }, '⋯') : null);
         };
@@ -678,7 +678,7 @@
                     h('strong', { text: t(`action_${entry.action}`) }),
                     h('small', { class: 'cm-muted', text: ` · ${t(`targetType_${entry.target_type}`)} · ${entry.actor ? `@${entry.actor}` : t('system')} · ${t(`source_${entry.source}`)} · ${ago(kit, entry.created_at)}` }),
                     entry.case_id ? h('button', { class: 'cm-link', type: 'button', onclick: () => navigate(`mod/case/${entry.case_id}`) }, t('openCase')) : null,
-                    entry.reason ? h('p', { text: entry.reason }) : null)));
+                    entry.reason ? h('p', { text: kit.translateReason(entry.reason) }) : null)));
                 if (!list.childElementCount) fill(list, h('li', { class: 'cm-muted', text: t('nothingFound') }));
                 cursor = page.next_cursor;
                 more.hidden = !cursor;

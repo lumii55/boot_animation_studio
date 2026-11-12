@@ -281,6 +281,15 @@
         field.focus({ preventScroll: true });
         activate(field);
     }, true);
+    // A menu under a field (wide screens) follows it while the page scrolls, and closes once the field leaves the
+    // screen; the phone sheet does not move.
+    document.addEventListener('scroll', (event) => {
+        if (!open || open.panel.classList.contains('is-sheet') || open.panel.contains(event.target)) return;
+        const rect = open.field.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) { close(false); return; }
+        for (const prop of ['top', 'bottom', 'left', 'maxHeight', 'minWidth']) open.panel.style[prop] = '';
+        place(open.panel, open.field);
+    }, true);
     // Rotating or resizing the window closes the menu; the phone keyboard (height only) does not.
     let lastWidth = window.innerWidth;
     window.addEventListener('resize', () => {

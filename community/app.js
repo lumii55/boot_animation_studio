@@ -20,9 +20,25 @@
 
     const lang = () => (typeof idiomaAtual === 'string' ? idiomaAtual : 'en');
 
+    let pluralRules = null;
+    function isOne(value) {
+        const number = Number(String(value === undefined || value === null ? '' : value).replace(/\s/g, ''));
+        if (!Number.isFinite(number) || String(value).trim() === '') return false;
+        try {
+            if (!pluralRules || pluralRules.resolvedOptions().locale.split('-')[0] !== lang()) pluralRules = new Intl.PluralRules(lang());
+            return pluralRules.select(number) === 'one';
+        } catch (error) {
+            return number === 1;
+        }
+    }
+
     function t(key, vars) {
         const all = window.BASCommunityStrings || {};
-        let text = (all[lang()] && all[lang()][key]) || (all.en && all.en[key]) || key;
+        const table = all[lang()] || {};
+        // One item ("1 download") uses "<key>_one" when this language has it.
+        const count = vars ? (vars.count !== undefined ? vars.count : vars.n) : undefined;
+        if (count !== undefined && table[`${key}_one`] && isOne(count)) key = `${key}_one`;
+        let text = table[key] || (all.en && all.en[key]) || key;
         if (vars) {
             for (const [name, value] of Object.entries(vars)) {
                 text = text.split(`{${name}}`).join(value === null || value === undefined ? '' : String(value));
@@ -181,6 +197,62 @@
         }
     }
 
+    // Fixed English texts the server writes (automatic checks, system actions) → translated text. Anything else
+    // (a reason a moderator typed) is shown as written. Kept in sync with the server by a test.
+    const REASONS = [
+        [/^Account banned$/, 'reason_account_banned'],
+        [/^Account suspended$/, 'reason_account_suspended'],
+        [/^Hidden while reports are reviewed$/, 'reason_reports_pending'],
+        [/^Hidden by a moderator$/, 'reason_mod_hidden'],
+        [/^Removed by a moderator$/, 'reason_mod_removed'],
+        [/^Hidden by automatic checks$/, 'reason_auto_hidden'],
+        [/^Rejected by automatic checks$/, 'reason_auto_rejected'],
+        [/^Possible nudity or sexual content \(automatic check, (?<p>\d+)%\)\.$/, 'reason_possible_nudity'],
+        [/^Possible gore \(automatic check, (?<p>\d+)%\)\.$/, 'reason_possible_gore'],
+        [/^Possible violence or weapons \(automatic check, (?<p>\d+)%\)\.$/, 'reason_possible_violence'],
+        [/^Possible hate symbol \(automatic check, (?<p>\d+)%\)\.$/, 'reason_possible_hate'],
+        [/^A company logo seems to appear but is not credited; check the credits\.$/, 'reason_logo_unknown'],
+        [/^(?<brand>.+) logo recognised and credited automatically\.$/, 'reason_logo_detected'],
+        [/^(?<n>\d+) sampled frame\(s\) differ from the size in desc\.txt \((?<size>\d+x\d+)\)\.$/, 'reason_frame_size'],
+        [/^The ZIP has no files or too many files\.$/, 'reason_zip_entry_count'],
+        [/^Unsafe path in the ZIP: (?<name>.*)$/, 'reason_zip_unsafe_path'],
+        [/^Encrypted ZIP entries are not supported\.$/, 'reason_zip_encrypted'],
+        [/^Only stored or deflated ZIP entries are supported\.$/, 'reason_zip_method'],
+        [/^Symbolic links are not allowed in the ZIP\.$/, 'reason_zip_symlink'],
+        [/^Duplicate path in the ZIP: (?<name>.*)$/, 'reason_zip_duplicate'],
+        [/^The ZIP expands beyond the allowed size\.$/, 'reason_zip_too_big'],
+        [/^Invalid stored ZIP entry size\.$/, 'reason_zip_bad_size'],
+        [/^Unsafe ZIP compression ratio\.$/, 'reason_zip_ratio'],
+        [/^desc\.txt must start with: width height fps$/, 'reason_desc_header'],
+        [/^desc\.txt has an invalid size or fps\.$/, 'reason_desc_values'],
+        [/^Invalid part line in desc\.txt: (?<name>.*)$/, 'reason_desc_part'],
+        [/^Invalid part folder in desc\.txt: (?<name>.*)$/, 'reason_desc_part_folder'],
+        [/^desc\.txt does not list any part\.$/, 'reason_desc_parts'],
+        [/^The file is not a valid ZIP\.$/, 'reason_zip_invalid'],
+        [/^desc\.txt was not found at the top of the ZIP\.$/, 'reason_desc_missing'],
+        [/^desc\.txt is too large\.$/, 'reason_desc_too_big'],
+        [/^Unexpected folder in the ZIP: (?<name>.*)$/, 'reason_zip_unexpected_dir'],
+        [/^Unexpected file in the ZIP: (?<name>.*)$/, 'reason_zip_unexpected_file'],
+        [/^Part folder without frames: (?<name>.*)$/, 'reason_part_empty'],
+        [/^A frame could not be read: (?<name>.*)$/, 'reason_frame_broken'],
+        [/^The image could not be read\.$/, 'reason_image_broken'],
+        [/^Automatic checks failed; review manually\.$/, 'reason_pipeline_error'],
+        [/^Automatic image check did not run; please look at it\.$/, 'reason_visual_check_pending'],
+        [/^Clean, but the uploader is not established yet\.$/, 'reason_new_uploader'],
+    ];
+    function translateReason(text) {
+        const value = String(text || '');
+        if (!value) return '';
+        for (const [pattern, key] of REASONS) {
+            const match = pattern.exec(value);
+            if (match) {
+                const translated = t(key, match.groups || undefined);
+                return translated === key ? value : translated;
+            }
+        }
+        return value;
+    }
+
     function errorText(code, fallback, details) {
         if (code === 'restricted') {
             // A punishment limits this action: say until when (or that it has no end date).
@@ -191,7 +263,8 @@
         }
         const key = `err_${code}`;
         const text = t(key, details && details.retry_after ? { seconds: details.retry_after } : undefined);
-        return text !== key ? text : (fallback || t('errGeneric'));
+        if (text !== key) return text;
+        return lang() === 'en' && fallback ? fallback : t('errGeneric');
     }
 
     async function api(method, path, { json, body, headers = {}, signal } = {}) {
@@ -372,6 +445,7 @@
         state.titleEl = h('h2', { class: 'cm-title', id: 'cm-title' });
         state.account = h('div', { class: 'cm-account' });
         const closeBtn = h('button', { class: 'cm-iconbtn', type: 'button', 'aria-label': t('close'), onclick: () => closeCommunity() }, icon('close'));
+        state.closeBtn = closeBtn;
         state.main = h('main', { class: 'cm-main', id: 'cm-main', tabindex: '-1' });
         state.nav = h('nav', { class: 'cm-tabbar', 'aria-label': t('title') });
         const shell = h('div', { class: 'cm-shell', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'cm-title' },
@@ -391,8 +465,13 @@
             else hide();
         });
         window.addEventListener('bas:languagechange', () => {
-            if (!state.open) return;
             state.views.clear();
+            if (!state.open) {
+                // Rebuilt in the new language when it opens again (the screen still on display is not kept either).
+                if (state.current && state.current.onLeave) state.current.onLeave();
+                state.current = null;
+                return;
+            }
             renderChrome();
             route(state.path, { force: true });
         });
@@ -409,6 +488,10 @@
 
     function renderChrome() {
         if (!state.root) return;
+        // Labels of the frame itself follow the language too (read by screen readers).
+        state.backBtn.setAttribute('aria-label', t('back'));
+        state.closeBtn.setAttribute('aria-label', t('close'));
+        state.nav.setAttribute('aria-label', t('title'));
         if (!state.meLoaded) fill(state.account);
         else if (state.me) {
             fill(state.account,
@@ -1099,7 +1182,7 @@
         fill(el,
             detail.status && !published ? h('div', { class: `cm-banner-status is-${detail.status}` },
                 h('strong', { text: t(`status_${detail.status}`) }),
-                detail.status_reason ? h('span', { text: detail.status_reason }) : null) : null,
+                detail.status_reason ? h('span', { text: translateReason(detail.status_reason) }) : null) : null,
             h('div', { class: 'cm-detail-media' }, media(detail.preview_url, detail.width, detail.height, 'cm-media is-large')),
             h('div', { class: 'cm-detail-body' },
                 h('h3', { class: 'cm-detail-title', text: detail.title }),
@@ -1328,7 +1411,7 @@
                 sitekey: config.turnstile_site_key,
                 theme: 'dark',
                 size: 'flexible',
-                language: lang(),
+                language: ({ pt: 'pt-br', zh: 'zh-cn' })[lang()] || lang(),
                 callback: (value) => { token = value; waiters.splice(0).forEach((resolve) => resolve(value)); },
                 'expired-callback': () => { token = ''; },
                 'error-callback': () => { token = ''; },
@@ -1654,7 +1737,7 @@
                     onclick: target ? () => navigate(target) : null,
                 }, thumb, h('span', { class: 'cm-notif-body' },
                     h('span', { text: notificationText(item) }),
-                    (item.kind === 'refused' || item.kind === 'sanction') && item.reason ? h('small', { class: 'cm-notif-reason', text: t('notif_reason', { reason: item.reason }) }) : null,
+                    (item.kind === 'refused' || item.kind === 'sanction') && item.reason ? h('small', { class: 'cm-notif-reason', text: t('notif_reason', { reason: translateReason(item.reason) }) }) : null,
                     h('small', { class: 'cm-muted', text: relativeTime(item.created_at) })));
             },
             empty: () => t('emptyNotifications'),
@@ -1934,7 +2017,7 @@
     // Shared with panel.js.
     const kit = Object.freeze({
         h, fill, t, icon, api, navigate, toast, reportError, avatar, media, loading, emptyState,
-        formatCount, formatDate, formatBytes, confirmAction, fetchVerified, state, API, modal,
+        formatCount, formatDate, formatBytes, confirmAction, fetchVerified, state, API, modal, translateReason,
     });
 
     window.BASCommunity = Object.freeze({ open, close: closeCommunity, isOpen: () => state.open, kit });

@@ -2,7 +2,7 @@
 // downloaded when it is opened. It is public: the old preview switch (localStorage bas.community.preview) is gone.
 (function() {
     const OLD_FLAG_KEY = 'bas.community.preview';
-    const ASSET_VERSION = 'web-v28';
+    const ASSET_VERSION = 'web-v29';
     const FILES = ['community/strings.js', 'community/legal.js', 'community/licenses.js', 'community/app.js', 'community/panel.js'];
     const LABELS = { en: 'Community', pt: 'Comunidade', es: 'Comunidad', fr: 'Communauté', de: 'Community', it: 'Community', ja: 'コミュニティ', zh: '社区' };
     const SHARE_LABELS = {
@@ -13,6 +13,12 @@
         en: 'The project changed: build again first.', pt: 'O projeto mudou: gere de novo primeiro.', es: 'El proyecto cambió: vuelve a generarlo primero.',
         fr: 'Le projet a changé : générez-le à nouveau d’abord.', de: 'Das Projekt hat sich geändert: zuerst neu erstellen.',
         it: 'Il progetto è cambiato: generalo di nuovo prima.', ja: 'プロジェクトが変更されました。先にもう一度生成してください。', zh: '项目已更改：请先重新生成。',
+    };
+    const LOAD_LABELS = {
+        en: 'The Community could not be loaded. Check the connection and try again.', pt: 'Não foi possível carregar a Comunidade. Confira a conexão e tente de novo.',
+        es: 'No se pudo cargar la Comunidad. Revisa la conexión e inténtalo de nuevo.', fr: 'Impossible de charger la Communauté. Vérifiez la connexion et réessayez.',
+        de: 'Die Community konnte nicht geladen werden. Prüfe die Verbindung und versuche es erneut.', it: 'Impossibile caricare la Community. Controlla la connessione e riprova.',
+        ja: 'コミュニティを読み込めませんでした。接続を確認してもう一度お試しください。', zh: '无法加载社区。请检查网络连接后重试。',
     };
     let loading = null;
     let lastBuild = null; // the last bootanimation.zip built in the Studio (kept in memory only)
@@ -104,7 +110,8 @@
             const community = await load();
             community.open(route);
         } catch (error) {
-            if (typeof showToast === 'function') showToast(String(error.message || error), 'error', 4200);
+            console.warn('[BAS Community]', error);
+            if (typeof showToast === 'function') showToast(label(LOAD_LABELS), 'error', 4200);
         }
     }
 
