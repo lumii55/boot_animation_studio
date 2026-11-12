@@ -420,7 +420,7 @@ async function trustCenterDisconnectSession(session) {
     const question = session.current
         ? trustCenterText('trustDisconnectCurrentConfirm', 'Disconnect this BAS session now? You will be disconnected immediately, but persistent trust will not be removed.')
         : trustCenterText('trustDisconnectSessionConfirm', 'Disconnect this active BAS session? Persistent trust, if any, will be kept.');
-    if (!confirm(question)) return;
+    if (!(await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(question, true) : window.confirm(question)))) return;
     trustCenterState.loading = true;
     trustCenterRender();
     try {
@@ -446,7 +446,8 @@ async function trustCenterDisconnectSession(session) {
 
 async function trustCenterDisconnectAllSessions() {
     if (trustCenterState.loading || !trustCenterState.sessions.length || !trustCenterSessionsSupported()) return;
-    if (!confirm(trustCenterText('trustDisconnectAllConfirm', 'Disconnect every active BAS website session? Persistent trusted browsers will remain trusted and can reconnect later.'))) return;
+    const question = trustCenterText('trustDisconnectAllConfirm', 'Disconnect every active BAS website session? Persistent trusted browsers will remain trusted and can reconnect later.');
+    if (!(await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(question, true) : window.confirm(question)))) return;
     trustCenterState.loading = true;
     trustCenterRender();
     try {
@@ -468,7 +469,7 @@ async function trustCenterRevoke(client) {
     const question = client.current
         ? trustCenterText('trustRevokeCurrentConfirm', 'Revoke this browser trust? Its current BAS session will end immediately and it will need approval next time.')
         : trustCenterText('trustRevokeConfirm', 'Revoke persistent trust for this browser and end all of its active sessions?');
-    if (!confirm(question)) return;
+    if (!(await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(question, true) : window.confirm(question)))) return;
     trustCenterState.loading = true;
     trustCenterRender();
     try {
@@ -496,7 +497,8 @@ async function trustCenterRevoke(client) {
 async function trustCenterRevokeAll() {
     if (trustCenterState.loading || !trustCenterState.clients.length) return;
     const currentWillEnd = trustCenterState.clients.some(client => client.current);
-    if (!confirm(trustCenterText('trustRevokeAllConfirm', 'Revoke persistent trust for every BAS browser? Active sessions belonging to those trusted browsers will end; temporary sessions are not affected.'))) return;
+    const question = trustCenterText('trustRevokeAllConfirm', 'Revoke persistent trust for every BAS browser? Active sessions belonging to those trusted browsers will end; temporary sessions are not affected.');
+    if (!(await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(question, true) : window.confirm(question)))) return;
     trustCenterState.loading = true;
     trustCenterRender();
     try {
@@ -521,7 +523,8 @@ async function trustCenterRevokeAll() {
 
 async function trustCenterClearAudit() {
     if (!trustCenterAuditSupported() || trustCenterState.loading || !trustCenterState.audit.length) return;
-    if (!confirm(trustCenterText('securityAuditClearConfirm', 'Clear the Security & Access Audit? A new entry will record that the audit was cleared.'))) return;
+    const question = trustCenterText('securityAuditClearConfirm', 'Clear the Security & Access Audit? A new entry will record that the audit was cleared.');
+    if (!(await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(question, true) : window.confirm(question)))) return;
     trustCenterState.loading = true;
     trustCenterRender();
     try {

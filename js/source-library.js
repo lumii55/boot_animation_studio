@@ -561,7 +561,7 @@ async function removeSourceFromLibrary(id) {
     if (!source || source.isPrimary) return false;
     const accepted = typeof askConfirmation === 'function'
         ? await askConfirmation(sourceLibraryText('sourceLibraryRemoveConfirm', 'Remove this source from the project?'), true)
-        : globalThis.confirm(sourceLibraryText('sourceLibraryRemoveConfirm', 'Remove this source from the project?'));
+        : await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(sourceLibraryText('sourceLibraryRemoveConfirm', 'Remove this source from the project?'), true) : window.confirm(sourceLibraryText('sourceLibraryRemoveConfirm', 'Remove this source from the project?')));
     if (!accepted) return false;
     sourceLibraryCleanupSource(source);
     currentProject.sourceLibrary = getProjectSourceLibrary().filter(item => item.id !== id);

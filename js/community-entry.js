@@ -1,8 +1,8 @@
 // Community entry point (always loaded, tiny). The Community itself lives in community/ and is only
-// downloaded when it is opened. While it is in preview it stays hidden unless the Developer Lab switch is on.
+// downloaded when it is opened. It is public: the old preview switch (localStorage bas.community.preview) is gone.
 (function() {
-    const FLAG_KEY = 'bas.community.preview';
-    const ASSET_VERSION = 'web-v27';
+    const OLD_FLAG_KEY = 'bas.community.preview';
+    const ASSET_VERSION = 'web-v28';
     const FILES = ['community/strings.js', 'community/legal.js', 'community/licenses.js', 'community/app.js', 'community/panel.js'];
     const LABELS = { en: 'Community', pt: 'Comunidade', es: 'Comunidad', fr: 'Communauté', de: 'Community', it: 'Community', ja: 'コミュニティ', zh: '社区' };
     const SHARE_LABELS = {
@@ -17,19 +17,8 @@
     let loading = null;
     let lastBuild = null; // the last bootanimation.zip built in the Studio (kept in memory only)
 
-    function flagOn() {
-        try { return localStorage.getItem(FLAG_KEY) === '1'; } catch (error) { return false; }
-    }
-
-    function setFlag(on) {
-        try {
-            if (on) localStorage.setItem(FLAG_KEY, '1');
-            else localStorage.removeItem(FLAG_KEY);
-        } catch (error) {
-            // Private mode: the switch only lasts for this page.
-        }
-        sync();
-    }
+    const flagOn = () => true; // public for everyone
+    try { localStorage.removeItem(OLD_FLAG_KEY); } catch (error) { /* private mode */ }
 
     const label = (table) => table[typeof idiomaAtual === 'string' ? idiomaAtual : 'en'] || table.en;
 
@@ -81,8 +70,6 @@
         if (launcher) launcher.textContent = table.launchCommunity || label(LABELS);
         const desc = document.getElementById('community-launch-desc');
         if (desc && table.launchCommunityDesc) desc.textContent = table.launchCommunityDesc;
-        const toggle = document.getElementById('developer-lab-community-toggle');
-        if (toggle) toggle.checked = on;
         return on;
     }
 
@@ -128,27 +115,17 @@
         const isRoute = hash === '#community' || hash.startsWith('#community/');
         if (!isAuth && !isRoute) return;
         if (isRoute && window.BASCommunity && window.BASCommunity.isOpen()) return; // the open Community routes itself
-        if (!flagOn()) {
-            if (isAuth) history.replaceState(null, '', location.pathname + location.search);
-            return;
-        }
         open(isAuth ? { incoming: hash } : { path: hash.slice(1) });
     }
 
     function bind() {
         document.getElementById('community-launcher')?.addEventListener('click', () => open());
-        document.getElementById('developer-lab-community-toggle')?.addEventListener('change', event => {
-            setFlag(Boolean(event.target.checked));
-            if (typeof showToast === 'function') {
-                showToast(event.target.checked ? 'Community preview enabled on this browser.' : 'Community preview hidden.', 'info', 2400);
-            }
-        });
         window.addEventListener('bas:languagechange', sync);
         window.addEventListener('hashchange', handleIncomingHash);
         sync();
         handleIncomingHash();
     }
 
-    window.BASCommunityEntry = Object.freeze({ open, load, enabled: flagOn, setEnabled: setFlag, rememberBuild });
+    window.BASCommunityEntry = Object.freeze({ open, load, enabled: flagOn, rememberBuild });
     window.addEventListener('DOMContentLoaded', bind);
 })();

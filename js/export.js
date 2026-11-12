@@ -593,7 +593,7 @@ btnGerar.addEventListener('click', async () => {
         window.BASCompatibility?.refresh?.();
         return;
     }
-    if (typeof confirmHeavyExport === 'function' && !confirmHeavyExport(estimate)) return;
+    if (typeof confirmHeavyExport === 'function' && !(await confirmHeavyExport(estimate))) return;
 
     isGenerating = true;
     videoContainer.classList.add('bloqueado');

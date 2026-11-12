@@ -219,13 +219,21 @@
         if (!response.ok) {
             const err = (data && data.error) || {};
             if (response.status === 401 && state.token && err.code === 'sign_in_required') clearSession();
+            if (err.code === 'account_restricted' && err.details) {
+                // A banned or suspended account: say why instead of silently signing out.
+                if (state.token) clearSession();
+                showRestriction(err.details);
+                const quiet = new ApiError(response.status, err.code, '', err.details);
+                quiet.shown = true;
+                throw quiet;
+            }
             throw new ApiError(response.status, err.code || `http_${response.status}`, errorText(err.code, err.message, err.details), err.details);
         }
         return data;
     }
 
     function reportError(error) {
-        if (error && error.name === 'AbortError') return;
+        if (error && (error.name === 'AbortError' || error.shown)) return;
         console.warn('[BAS Community]', error);
         toast(error && error.message ? error.message : t('errGeneric'), 'error', 4200);
     }
@@ -321,6 +329,14 @@
         const params = new URLSearchParams(hash.slice(1));
         history.replaceState(null, '', location.pathname + location.search);
         const failure = params.get('bas-auth-error');
+        if (failure && params.get('notice') && (failure === 'banned' || failure === 'suspended')) {
+            // The one-time code only returns the punishment details (no session is created).
+            try {
+                await api('POST', '/v1/auth/exchange', { json: { grant: params.get('notice') } });
+            } catch (error) {
+                if (error.shown) return 'explore';
+            }
+        }
         if (failure) {
             const key = `authError_${failure}`;
             const until = Number(params.get('until')) || 0;
@@ -1236,6 +1252,31 @@
                 progress.done();
             }
         });
+    }
+
+    // ------------------------------------------------------------------ punished account notice
+
+    let restrictionOpen = false;
+    function showRestriction(notice) {
+        if (restrictionOpen || !state.root) return;
+        restrictionOpen = true;
+        const banned = notice.kind === 'ban';
+        const until = notice.until ? formatDate(notice.until) : '';
+        const days = notice.until ? Math.max(1, Math.ceil((notice.until - Date.now()) / 86400000)) : 0;
+        const contact = String(notice.contact || '');
+        const subject = encodeURIComponent(t('restrictMailSubject', { handle: notice.handle || '' }));
+        const ok = h('button', { class: 'cm-btn is-primary is-wide', type: 'button' }, t('restrictOk'));
+        const sheet = modal(banned ? t('restrictTitleBan') : t('restrictTitleSuspend'), h('div', { class: 'cm-restriction' },
+            h('div', { class: `cm-restriction-badge${banned ? ' is-ban' : ''}` }, icon('flag'),
+                h('strong', { text: banned ? t('restrictBanLine') : t('restrictSuspendLine', { date: until, n: days }) })),
+            notice.since ? h('p', { class: 'cm-muted', text: t('restrictSince', { date: formatDate(notice.since) }) }) : null,
+            notice.reason ? h('div', { class: 'cm-restriction-reason' }, h('span', { class: 'cm-label', text: t('restrictReason') }), h('p', { text: notice.reason })) : null,
+            h('p', { class: 'cm-text', text: banned ? t('restrictBanMeans') : t('restrictSuspendMeans') }),
+            contact ? h('p', { class: 'cm-restriction-contact' }, t('restrictContest'), ' ',
+                h('a', { href: `mailto:${contact}?subject=${subject}`, text: contact })) : null,
+            ok), { onClose: () => { restrictionOpen = false; } });
+        sheet.box.classList.add('is-restriction');
+        ok.addEventListener('click', () => sheet.close());
     }
 
     // ------------------------------------------------------------------ modal + Turnstile

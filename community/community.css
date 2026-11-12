@@ -484,3 +484,13 @@ button.cm-notif { cursor: pointer; }
     .cm-media::after, .cm-spinner { animation: none; }
     .cm-sheet { animation: none; }
 }
+
+/* Punished account notice */
+.cm-restriction { display: grid; gap: 12px; }
+.cm-restriction-badge { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid rgba(255, 189, 112, .4); border-radius: 14px; background: var(--warning-soft, rgba(255, 189, 112, .1)); color: var(--warning, #ffbd70); }
+.cm-restriction-badge.is-ban { border-color: rgba(255, 115, 137, .45); background: var(--danger-soft, rgba(255, 115, 137, .1)); color: #ff9cab; }
+.cm-restriction-badge strong { color: var(--text, #f4f7fb); }
+.cm-restriction p { margin: 0; }
+.cm-restriction-reason { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .03); }
+.cm-restriction-reason p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cm-restriction-contact a { color: var(--accent, #6fe3f4); overflow-wrap: anywhere; }

@@ -849,11 +849,12 @@ function compositionSetCurrentKeyframeEasing(value) {
     touchComposition('composition', `composition:${layer.id}:easing`);
 }
 
-function compositionClearKeyframes() {
+async function compositionClearKeyframes() {
     const layer = getCompositionLayer();
     if (!layer || !compositionNormalizeKeyframes(layer).length) return;
     const message = compositionText('compositionKeyframeClearConfirm', 'Clear all keyframes from this layer?');
-    if (typeof window.confirm === 'function' && !window.confirm(message)) return;
+    if (window.BASInSiteDialogs) { if (!(await window.BASInSiteDialogs.confirm(message, true))) return; }
+    else if (typeof window.confirm === 'function' && !window.confirm(message)) return;
     layer.keyframes = [];
     compositionRefreshMotionUi();
     touchComposition('composition', `composition:${layer.id}:keyframes-clear`);

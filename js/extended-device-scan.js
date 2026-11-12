@@ -89,7 +89,7 @@
     async function confirmRun(){
         const message=text('extendedConfirm','The Extended Device Scan will temporarily modify Companion Module state and clean up its own diagnostic resources. Continue?');
         if(typeof askConfirmation==='function') return askConfirmation(message,false);
-        return window.confirm(message);
+        return (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(message, false) : window.confirm(message));
     }
 
     async function run(){

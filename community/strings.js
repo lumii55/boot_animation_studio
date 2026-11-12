@@ -563,7 +563,19 @@
         "needCustomRemix": "Say whether others can publish remixes.",
         "remixBlocked": "The author does not allow remixes of this animation.",
         "err_remix_not_allowed": "The author does not allow remixes of this animation.",
-        "err_invalid_license_url": "The license link must start with https://"
+        "err_invalid_license_url": "The license link must start with https://",
+        "restrictTitleBan": "Account banned",
+        "restrictTitleSuspend": "Account suspended",
+        "restrictBanLine": "This account is banned from the Community.",
+        "restrictSuspendLine": "This account is suspended until {date}.",
+        "restrictSince": "Since {date}",
+        "restrictReason": "Reason",
+        "restrictBanMeans": "You cannot sign in with this account, but you can still browse and download animations without signing in.",
+        "restrictSuspendMeans": "You can sign in again when the suspension ends. Meanwhile you can still browse and download animations without signing in.",
+        "restrictContest": "Think it was a mistake? To contest it, write to",
+        "restrictMailSubject": "Contesting a punishment — @{handle}",
+        "restrictOk": "Got it",
+        "err_account_restricted": "This account cannot be used right now."
     };
 
     const pt = {
@@ -1126,7 +1138,19 @@
         "needCustomRemix": "Diga se outras pessoas podem publicar remixes.",
         "remixBlocked": "O autor não permite remixes desta animação.",
         "err_remix_not_allowed": "O autor não permite remixes desta animação.",
-        "err_invalid_license_url": "O link da licença precisa começar com https://"
+        "err_invalid_license_url": "O link da licença precisa começar com https://",
+        "restrictTitleBan": "Conta banida",
+        "restrictTitleSuspend": "Conta suspensa",
+        "restrictBanLine": "Esta conta foi banida da Comunidade.",
+        "restrictSuspendLine": "Esta conta está suspensa até {date}.",
+        "restrictSince": "Desde {date}",
+        "restrictReason": "Motivo",
+        "restrictBanMeans": "Você não pode entrar com esta conta, mas ainda pode ver e baixar animações sem entrar.",
+        "restrictSuspendMeans": "Você poderá entrar de novo quando a suspensão acabar. Enquanto isso, ainda pode ver e baixar animações sem entrar.",
+        "restrictContest": "Acha que foi um engano? Para contestar, escreva para",
+        "restrictMailSubject": "Contestação de punição — @{handle}",
+        "restrictOk": "Entendi",
+        "err_account_restricted": "Esta conta não pode ser usada agora."
     };
 
     const es = {
@@ -1404,7 +1428,19 @@
         "needCustomRemix": "Indica si otras personas pueden publicar remezclas.",
         "remixBlocked": "El autor no permite remezclas de esta animación.",
         "err_remix_not_allowed": "El autor no permite remezclas de esta animación.",
-        "err_invalid_license_url": "El enlace de la licencia debe empezar con https://"
+        "err_invalid_license_url": "El enlace de la licencia debe empezar con https://",
+        "restrictTitleBan": "Cuenta bloqueada",
+        "restrictTitleSuspend": "Cuenta suspendida",
+        "restrictBanLine": "Esta cuenta está bloqueada en la Comunidad.",
+        "restrictSuspendLine": "Esta cuenta está suspendida hasta el {date}.",
+        "restrictSince": "Desde el {date}",
+        "restrictReason": "Motivo",
+        "restrictBanMeans": "No puedes iniciar sesión con esta cuenta, pero aún puedes ver y descargar animaciones sin iniciar sesión.",
+        "restrictSuspendMeans": "Podrás iniciar sesión de nuevo cuando termine la suspensión. Mientras tanto, aún puedes ver y descargar animaciones sin iniciar sesión.",
+        "restrictContest": "¿Crees que fue un error? Para impugnarlo, escribe a",
+        "restrictMailSubject": "Impugnación de sanción — @{handle}",
+        "restrictOk": "Entendido",
+        "err_account_restricted": "Esta cuenta no se puede usar ahora."
     };
 
     const fr = {
@@ -1682,7 +1718,19 @@
         "needCustomRemix": "Indiquez si d’autres personnes peuvent publier des remix.",
         "remixBlocked": "L’auteur n’autorise pas les remix de cette animation.",
         "err_remix_not_allowed": "L’auteur n’autorise pas les remix de cette animation.",
-        "err_invalid_license_url": "Le lien de la licence doit commencer par https://"
+        "err_invalid_license_url": "Le lien de la licence doit commencer par https://",
+        "restrictTitleBan": "Compte banni",
+        "restrictTitleSuspend": "Compte suspendu",
+        "restrictBanLine": "Ce compte est banni de la Communauté.",
+        "restrictSuspendLine": "Ce compte est suspendu jusqu’au {date}.",
+        "restrictSince": "Depuis le {date}",
+        "restrictReason": "Motif",
+        "restrictBanMeans": "Vous ne pouvez pas vous connecter avec ce compte, mais vous pouvez toujours parcourir et télécharger des animations sans connexion.",
+        "restrictSuspendMeans": "Vous pourrez vous reconnecter à la fin de la suspension. En attendant, vous pouvez toujours parcourir et télécharger des animations sans connexion.",
+        "restrictContest": "Vous pensez que c’est une erreur ? Pour contester, écrivez à",
+        "restrictMailSubject": "Contestation d’une sanction — @{handle}",
+        "restrictOk": "Compris",
+        "err_account_restricted": "Ce compte ne peut pas être utilisé pour le moment."
     };
 
     const de = {
@@ -1960,7 +2008,19 @@
         "needCustomRemix": "Gib an, ob andere Remixe veröffentlichen dürfen.",
         "remixBlocked": "Die Person, die sie erstellt hat, erlaubt keine Remixe dieser Animation.",
         "err_remix_not_allowed": "Die Person, die sie erstellt hat, erlaubt keine Remixe dieser Animation.",
-        "err_invalid_license_url": "Der Lizenzlink muss mit https:// beginnen"
+        "err_invalid_license_url": "Der Lizenzlink muss mit https:// beginnen",
+        "restrictTitleBan": "Konto gesperrt",
+        "restrictTitleSuspend": "Konto vorübergehend gesperrt",
+        "restrictBanLine": "Dieses Konto ist aus der Community ausgeschlossen.",
+        "restrictSuspendLine": "Dieses Konto ist bis {date} gesperrt.",
+        "restrictSince": "Seit {date}",
+        "restrictReason": "Grund",
+        "restrictBanMeans": "Du kannst dich mit diesem Konto nicht anmelden, aber weiterhin ohne Anmeldung Animationen ansehen und herunterladen.",
+        "restrictSuspendMeans": "Nach Ende der Sperre kannst du dich wieder anmelden. Bis dahin kannst du ohne Anmeldung Animationen ansehen und herunterladen.",
+        "restrictContest": "Glaubst du, das war ein Fehler? Zum Widerspruch schreib an",
+        "restrictMailSubject": "Widerspruch gegen eine Sanktion — @{handle}",
+        "restrictOk": "Verstanden",
+        "err_account_restricted": "Dieses Konto kann gerade nicht verwendet werden."
     };
 
     const it = {
@@ -2238,7 +2298,19 @@
         "needCustomRemix": "Indica se altre persone possono pubblicare remix.",
         "remixBlocked": "L’autore non consente remix di questa animazione.",
         "err_remix_not_allowed": "L’autore non consente remix di questa animazione.",
-        "err_invalid_license_url": "Il link della licenza deve iniziare con https://"
+        "err_invalid_license_url": "Il link della licenza deve iniziare con https://",
+        "restrictTitleBan": "Account bannato",
+        "restrictTitleSuspend": "Account sospeso",
+        "restrictBanLine": "Questo account è bannato dalla Community.",
+        "restrictSuspendLine": "Questo account è sospeso fino al {date}.",
+        "restrictSince": "Dal {date}",
+        "restrictReason": "Motivo",
+        "restrictBanMeans": "Non puoi accedere con questo account, ma puoi ancora vedere e scaricare animazioni senza accedere.",
+        "restrictSuspendMeans": "Potrai accedere di nuovo alla fine della sospensione. Nel frattempo puoi ancora vedere e scaricare animazioni senza accedere.",
+        "restrictContest": "Pensi sia un errore? Per contestare, scrivi a",
+        "restrictMailSubject": "Contestazione di una sanzione — @{handle}",
+        "restrictOk": "Ho capito",
+        "err_account_restricted": "Questo account non può essere usato ora."
     };
 
     const ja = {
@@ -2516,7 +2588,19 @@
         "needCustomRemix": "他の人がリミックスを公開してよいか選んでください。",
         "remixBlocked": "作者はこのアニメーションのリミックスを許可していません。",
         "err_remix_not_allowed": "作者はこのアニメーションのリミックスを許可していません。",
-        "err_invalid_license_url": "ライセンスのリンクは https:// で始まる必要があります"
+        "err_invalid_license_url": "ライセンスのリンクは https:// で始まる必要があります",
+        "restrictTitleBan": "アカウント利用禁止",
+        "restrictTitleSuspend": "アカウント停止中",
+        "restrictBanLine": "このアカウントはコミュニティの利用を禁止されています。",
+        "restrictSuspendLine": "このアカウントは{date}まで停止されています。",
+        "restrictSince": "{date}から",
+        "restrictReason": "理由",
+        "restrictBanMeans": "このアカウントではログインできませんが、ログインせずにアニメーションを見たりダウンロードしたりはできます。",
+        "restrictSuspendMeans": "停止期間が終わると再びログインできます。それまでは、ログインせずにアニメーションを見たりダウンロードしたりできます。",
+        "restrictContest": "誤りだと思う場合は、異議申し立てのためにこちらへご連絡ください：",
+        "restrictMailSubject": "ペナルティへの異議申し立て — @{handle}",
+        "restrictOk": "わかりました",
+        "err_account_restricted": "このアカウントは現在使用できません。"
     };
 
     const zh = {
@@ -2794,7 +2878,19 @@
         "needCustomRemix": "请选择是否允许其他人发布改编作品。",
         "remixBlocked": "作者不允许改编此动画。",
         "err_remix_not_allowed": "作者不允许改编此动画。",
-        "err_invalid_license_url": "许可链接必须以 https:// 开头"
+        "err_invalid_license_url": "许可链接必须以 https:// 开头",
+        "restrictTitleBan": "账号已被封禁",
+        "restrictTitleSuspend": "账号已被停用",
+        "restrictBanLine": "此账号已被社区封禁。",
+        "restrictSuspendLine": "此账号已被停用至 {date}。",
+        "restrictSince": "自 {date} 起",
+        "restrictReason": "原因",
+        "restrictBanMeans": "你无法登录此账号，但仍可以不登录浏览和下载动画。",
+        "restrictSuspendMeans": "停用结束后即可重新登录。在此期间，你仍可以不登录浏览和下载动画。",
+        "restrictContest": "认为这是个错误？如需申诉，请写信至",
+        "restrictMailSubject": "处罚申诉 — @{handle}",
+        "restrictOk": "知道了",
+        "err_account_restricted": "此账号目前无法使用。"
     };
 
     window.BASCommunityStrings = Object.freeze({ en, pt, es, fr, de, it, ja, zh });

@@ -510,6 +510,7 @@ async function protectCurrentProjectBeforeOpen() {
         if (saved) return true;
     }
     const warning = projectFileText('projectFileReplaceDirtyConfirm', 'The current project could not be backed up automatically. Open another project anyway?');
+    if (window.BASInSiteDialogs) return window.BASInSiteDialogs.confirm(warning, true);
     return typeof window.confirm !== 'function' || window.confirm(warning);
 }
 

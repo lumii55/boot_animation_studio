@@ -552,11 +552,11 @@ function schedulePerformanceEstimate() {
     }, 80);
 }
 
-function confirmHeavyExport(estimate) {
+async function confirmHeavyExport(estimate) {
     if (!estimate || estimate.level !== 'heavy') return true;
     const t = traducoes[idiomaAtual];
     const message = `${t.perfConfirmHeavy}\n\n${t.perfFrames}: ${estimate.totalFrames.toLocaleString()}\n${t.perfProcess}: ${estimate.framesToProcess.toLocaleString()}\n${t.perfSize}: ≈ ${formatByteEstimate(estimate.deliveredBytes)}\n${t.perfMemory}: ≈ ${formatByteEstimate(estimate.estimatedMemoryBytes)}`;
-    return window.confirm(message);
+    return (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(message, false) : window.confirm(message));
 }
 
 

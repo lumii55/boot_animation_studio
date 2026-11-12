@@ -902,7 +902,7 @@ async function multiDeviceConnectIP(rawAddress) {
         const secure = await multiDeviceProbeSecure(input);
         if (secure) return multiDeviceConnectRecord(secure.id, { verified: true });
         const ask = multiDeviceText('msgSecureTrustPrompt', 'No answer from {ip} over the network. Phones with Companion Module v1.5 or newer only accept secure (HTTPS) connections from other devices. Open the secure connection page now?');
-        if (window.confirm(ask.replace('{ip}', input))) return multiDeviceBeginSecureTrust(input);
+        if (await (window.BASInSiteDialogs ? window.BASInSiteDialogs.confirm(ask.replace('{ip}', input), false) : window.confirm(ask.replace('{ip}', input)))) return multiDeviceBeginSecureTrust(input);
     }
     const device = multiDeviceUpsert({ baseUrl: `http://${input}:4040`, info: null });
     if (!device) return false;
