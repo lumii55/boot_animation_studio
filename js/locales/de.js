@@ -1822,6 +1822,8 @@
         "navPhone": "Handy",
         "navMain": "Hauptnavigation",
         "themeToggle": "Zwischen hellem und dunklem Design wechseln",
-        "startGo": "Loslegen"
+        "startGo": "Loslegen",
+        "footerContact": "Kontakt:",
+        "footerCommunityTerms": "Nutzungsbedingungen der Community"
     };
 })(window);

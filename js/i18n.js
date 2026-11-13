@@ -65,7 +65,6 @@ function mudarIdioma(lang) {
         'p11-launch-kicker': 'workspaceLaunchKicker',
         'p11-launch-title': 'workspaceLaunchTitle',
         'p11-launch-desc': 'workspaceLaunchDesc',
-        'p11-launch-privacy': 'workspaceLaunchPrivacy',
         'p11-launch-local-desc': 'workspaceLaunchLocalDesc',
         'p11-launch-device-desc': 'workspaceLaunchDeviceDesc',
         'p11-device-kicker': 'deviceKicker',

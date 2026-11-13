@@ -1822,6 +1822,8 @@
         "navPhone": "手机",
         "navMain": "主导航",
         "themeToggle": "切换浅色和深色主题",
-        "startGo": "开始"
+        "startGo": "开始",
+        "footerContact": "联系方式：",
+        "footerCommunityTerms": "社区使用条款"
     };
 })(window);

@@ -25,6 +25,8 @@
             'app-nav-phone': text('navPhone', 'Phone'),
             'app-nav-community': text('launchCommunity', 'Community'),
             'start-go-label': text('startGo', 'Start'),
+            'start-footer-contact': text('footerContact', 'Contact:'),
+            'start-footer-terms': text('footerCommunityTerms', 'Community terms of use'),
         };
         Object.entries(labels).forEach(([id, value]) => { const el = byId(id); if (el) el.textContent = value; });
         const nav = byId('app-nav');

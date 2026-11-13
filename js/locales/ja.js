@@ -1822,6 +1822,8 @@
         "navPhone": "スマホ",
         "navMain": "メインナビゲーション",
         "themeToggle": "ライト／ダークテーマを切り替え",
-        "startGo": "はじめる"
+        "startGo": "はじめる",
+        "footerContact": "連絡先:",
+        "footerCommunityTerms": "コミュニティ利用規約"
     };
 })(window);

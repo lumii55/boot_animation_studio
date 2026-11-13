@@ -1822,6 +1822,8 @@
         "navPhone": "Phone",
         "navMain": "Main navigation",
         "themeToggle": "Switch between light and dark theme",
-        "startGo": "Start"
+        "startGo": "Start",
+        "footerContact": "Contact:",
+        "footerCommunityTerms": "Community terms of use"
     };
 })(window);

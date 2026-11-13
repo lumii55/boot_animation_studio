@@ -1822,6 +1822,8 @@
         "navPhone": "Téléphone",
         "navMain": "Navigation principale",
         "themeToggle": "Basculer entre thème clair et sombre",
-        "startGo": "Commencer"
+        "startGo": "Commencer",
+        "footerContact": "Contact :",
+        "footerCommunityTerms": "Conditions d’utilisation de la Communauté"
     };
 })(window);
