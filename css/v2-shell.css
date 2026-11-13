@@ -43,15 +43,116 @@ body {
     gap: 10px;
 }
 
+/* Logo: three animation frames in a row, the front one playing. */
 .app-brand-mark {
     flex: 0 0 auto;
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-    background: var(--ui-gradient);
+    width: 36px;
+    height: 36px;
     display: grid;
     place-items: center;
-    color: var(--ui-on-gradient);
+}
+
+.app-brand-mark svg {
+    width: 36px;
+    height: 36px;
+}
+
+.app-logo-back { stroke: var(--ui-primary); stroke-opacity: 0.45; }
+.app-logo-mid { stroke: var(--ui-primary); stroke-opacity: 0.8; }
+.app-logo-play { fill: #14102b; }
+
+/* ---------------------------------------------------------------- signature: the frame strip
+   Five little frames light up in turn (loading), fill up as blocks (progress) and wait empty (empty states). */
+
+@keyframes ui-frames-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
+}
+
+#loading-overlay .loading-spinner {
+    position: relative;
+    width: 84px;
+    height: 26px;
+    margin: 4px auto 14px;
+    border: 0;
+    border-radius: 0;
+    background: rgba(196, 181, 253, 0.22);
+    overflow: hidden;
+    animation: none;
+    transform: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='26'%3E%3Crect width='13' height='26' rx='4'/%3E%3C/svg%3E") left center / 17px 26px repeat-x;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='26'%3E%3Crect width='13' height='26' rx='4'/%3E%3C/svg%3E") left center / 17px 26px repeat-x;
+}
+
+#loading-overlay .loading-spinner::before {
+    display: none;
+}
+
+#loading-overlay .loading-spinner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, #c4b5fd 30%, #67e8f9 70%, transparent);
+    animation: ui-frames-sweep 1.25s ease-in-out infinite;
+}
+
+/* Build progress: the bar is a strip of frames that fills up. */
+#container-progresso .barra-fundo {
+    height: 24px;
+    border: 0;
+    border-radius: 0;
+    background: rgba(196, 181, 253, 0.16);
+    overflow: hidden;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='24'%3E%3Crect width='16' height='24' rx='5'/%3E%3C/svg%3E") left center / 20px 24px repeat-x;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='24'%3E%3Crect width='16' height='24' rx='5'/%3E%3C/svg%3E") left center / 20px 24px repeat-x;
+}
+
+#container-progresso .barra-preenchimento {
+    height: 100%;
+    border-radius: 0;
+    background: linear-gradient(90deg, #c4b5fd, #67e8f9);
+    box-shadow: none;
+}
+
+#container-progresso .texto-progresso {
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+}
+
+/* Empty Studio: frames waiting for an animation. */
+#workspace-empty .workspace-empty-visual {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    height: auto;
+    border: 0;
+    background: none;
+    box-shadow: none;
+}
+
+#workspace-empty .workspace-empty-visual span {
+    position: static;
+    display: block;
+    width: 28px;
+    height: 46px;
+    border: 2px dashed rgba(196, 181, 253, 0.45);
+    border-radius: 8px;
+    background: none;
+    transform: none;
+    box-shadow: none;
+}
+
+#workspace-empty .workspace-empty-visual span:nth-child(2) {
+    border: 0;
+    background: linear-gradient(135deg, #c4b5fd, #67e8f9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #loading-overlay .loading-spinner::after { animation: none; left: 30%; }
 }
 
 .app-brand-copy {
