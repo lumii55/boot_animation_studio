@@ -1817,6 +1817,11 @@
         "btnHome": "ホーム",
         "btnHomeAria": "スタート画面に戻る",
         "launchCommunity": "コミュニティ",
-        "launchCommunityDesc": "ほかの人が作ったブートアニメーションを見つけて、ダウンロードして、共有しよう。"
+        "launchCommunityDesc": "ほかの人が作ったブートアニメーションを見つけて、ダウンロードして、共有しよう。",
+        "navStudio": "スタジオ",
+        "navPhone": "スマホ",
+        "navMain": "メインナビゲーション",
+        "themeToggle": "ライト／ダークテーマを切り替え",
+        "startGo": "はじめる"
     };
 })(window);

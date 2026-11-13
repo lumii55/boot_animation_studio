@@ -1817,6 +1817,11 @@
         "btnHome": "Início",
         "btnHomeAria": "Voltar para a tela inicial",
         "launchCommunity": "Comunidade",
-        "launchCommunityDesc": "Explore, baixe e compartilhe animações de boot feitas por outras pessoas."
+        "launchCommunityDesc": "Explore, baixe e compartilhe animações de boot feitas por outras pessoas.",
+        "navStudio": "Studio",
+        "navPhone": "Celular",
+        "navMain": "Navegação principal",
+        "themeToggle": "Alternar entre tema claro e escuro",
+        "startGo": "Começar"
     };
 })(window);

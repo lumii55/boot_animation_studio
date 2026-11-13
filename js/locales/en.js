@@ -1817,6 +1817,11 @@
         "btnHome": "Home",
         "btnHomeAria": "Back to the start screen",
         "launchCommunity": "Community",
-        "launchCommunityDesc": "Explore, download and share boot animations made by other people."
+        "launchCommunityDesc": "Explore, download and share boot animations made by other people.",
+        "navStudio": "Studio",
+        "navPhone": "Phone",
+        "navMain": "Main navigation",
+        "themeToggle": "Switch between light and dark theme",
+        "startGo": "Start"
     };
 })(window);

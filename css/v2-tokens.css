@@ -1,0 +1,169 @@
+/* Visual system v2 — colour, type and shape tokens for the redesigned site (mobile first).
+   Dark is the default; the system light theme applies unless the person picked one ([data-theme] on <html>,
+   set by js/app-shell.js). Screens not redesigned yet still read the legacy variables at the end of this file. */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    color-scheme: dark;
+    --ui-bg: #0e0d17;
+    --ui-surface: #1a1926;
+    --ui-surface-2: #222131;
+    --ui-surface-3: #2c2a3d;
+    --ui-text: #edebf7;
+    --ui-muted: #b9b5cc;
+    --ui-outline: #5a566e;
+    --ui-line: rgba(255, 255, 255, 0.1);
+    --ui-primary: #c4b5fd;
+    --ui-on-primary: #14102b;
+    --ui-gradient: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    --ui-on-gradient: #14102b;
+    --ui-text-gradient: linear-gradient(90deg, #c4b5fd, #67e8f9);
+    --ui-primary-container: #3b2a6b;
+    --ui-on-primary-container: #eaddff;
+    --ui-secondary-container: #123f48;
+    --ui-on-secondary-container: #c6f2fa;
+    --ui-tertiary-container: #4f1f33;
+    --ui-on-tertiary-container: #ffd9e6;
+    --ui-warning-container: #47330f;
+    --ui-on-warning-container: #ffe2b0;
+    --ui-glass: rgba(255, 255, 255, 0.08);
+    --ui-glass-nav: rgba(26, 25, 38, 0.66);
+    --ui-glass-line: rgba(255, 255, 255, 0.16);
+    --ui-nav-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --ui-card-shadow: none;
+    --ui-focus: #67e8f9;
+    --ui-aurora:
+        radial-gradient(ellipse 70% 30rem at 8% -6rem, rgba(124, 58, 237, 0.42), transparent 70%),
+        radial-gradient(ellipse 60% 24rem at 100% 2rem, rgba(6, 182, 212, 0.28), transparent 70%);
+    --ui-font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --ui-font-display: Outfit, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --ui-radius-s: 12px;
+    --ui-radius-m: 18px;
+    --ui-radius-l: 24px;
+    --ui-radius-xl: 28px;
+    --ui-tap: 48px;
+    --ui-nav-height: 76px;
+    --ui-rail-width: 96px;
+    --ui-ease: cubic-bezier(.2, .8, .2, 1);
+
+    /* Legacy palette, re-tuned to the new colours so screens that are not redesigned yet still fit in. */
+    --bg: #0e0d17;
+    --bg-deep: #0a0912;
+    --surface: #15141f;
+    --surface-raised: #1a1926;
+    --surface-soft: #201f2e;
+    --surface-hover: #2a2939;
+    --line: rgba(196, 190, 230, 0.13);
+    --line-strong: rgba(196, 190, 230, 0.24);
+    --text: #edebf7;
+    --text-soft: #cfcbe2;
+    --muted: #a19db6;
+    --muted-2: #77738c;
+    --accent: #c4b5fd;
+    --accent-strong: #a78bfa;
+    --accent-soft: rgba(196, 181, 253, 0.13);
+    --accent-2: #67e8f9;
+    --accent-2-soft: rgba(103, 232, 249, 0.12);
+}
+
+/* Light: from the system, unless dark was picked; or picked explicitly. */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        color-scheme: light;
+        --ui-bg: #f6f5fb;
+        --ui-surface: #ffffff;
+        --ui-surface-2: #f0eef7;
+        --ui-surface-3: #e7e4f1;
+        --ui-text: #1b1a26;
+        --ui-muted: #4f4c63;
+        --ui-outline: #a9a5bd;
+        --ui-line: rgba(27, 26, 38, 0.1);
+        --ui-primary: #6d28d9;
+        --ui-on-primary: #ffffff;
+        --ui-gradient: linear-gradient(135deg, #6d28d9, #0e7490);
+        --ui-on-gradient: #ffffff;
+        --ui-text-gradient: linear-gradient(90deg, #6d28d9, #0e7490);
+        --ui-primary-container: #eaddff;
+        --ui-on-primary-container: #25005a;
+        --ui-secondary-container: #d3f0f6;
+        --ui-on-secondary-container: #00363f;
+        --ui-tertiary-container: #ffd9e6;
+        --ui-on-tertiary-container: #3e0021;
+        --ui-warning-container: #ffe8c2;
+        --ui-on-warning-container: #3d2600;
+        --ui-glass: rgba(255, 255, 255, 0.6);
+        --ui-glass-nav: rgba(255, 255, 255, 0.74);
+        --ui-glass-line: rgba(255, 255, 255, 0.95);
+        --ui-nav-shadow: 0 10px 30px rgba(60, 30, 120, 0.14);
+        --ui-card-shadow: 0 2px 10px rgba(40, 20, 90, 0.07);
+        --ui-focus: #6d28d9;
+        --ui-aurora:
+            radial-gradient(ellipse 70% 30rem at 8% -6rem, rgba(167, 139, 250, 0.4), transparent 70%),
+            radial-gradient(ellipse 60% 24rem at 100% 2rem, rgba(103, 232, 249, 0.34), transparent 70%);
+    }
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+    --ui-bg: #f6f5fb;
+    --ui-surface: #ffffff;
+    --ui-surface-2: #f0eef7;
+    --ui-surface-3: #e7e4f1;
+    --ui-text: #1b1a26;
+    --ui-muted: #4f4c63;
+    --ui-outline: #a9a5bd;
+    --ui-line: rgba(27, 26, 38, 0.1);
+    --ui-primary: #6d28d9;
+    --ui-on-primary: #ffffff;
+    --ui-gradient: linear-gradient(135deg, #6d28d9, #0e7490);
+    --ui-on-gradient: #ffffff;
+    --ui-text-gradient: linear-gradient(90deg, #6d28d9, #0e7490);
+    --ui-primary-container: #eaddff;
+    --ui-on-primary-container: #25005a;
+    --ui-secondary-container: #d3f0f6;
+    --ui-on-secondary-container: #00363f;
+    --ui-tertiary-container: #ffd9e6;
+    --ui-on-tertiary-container: #3e0021;
+    --ui-warning-container: #ffe8c2;
+    --ui-on-warning-container: #3d2600;
+    --ui-glass: rgba(255, 255, 255, 0.6);
+    --ui-glass-nav: rgba(255, 255, 255, 0.74);
+    --ui-glass-line: rgba(255, 255, 255, 0.95);
+    --ui-nav-shadow: 0 10px 30px rgba(60, 30, 120, 0.14);
+    --ui-card-shadow: 0 2px 10px rgba(40, 20, 90, 0.07);
+    --ui-focus: #6d28d9;
+    --ui-aurora:
+        radial-gradient(ellipse 70% 30rem at 8% -6rem, rgba(167, 139, 250, 0.4), transparent 70%),
+        radial-gradient(ellipse 60% 24rem at 100% 2rem, rgba(103, 232, 249, 0.34), transparent 70%);
+}
+
+html {
+    background: var(--ui-bg);
+}
+
+body {
+    background: var(--ui-aurora), var(--ui-bg);
+    background-repeat: no-repeat;
+    color: var(--ui-text);
+    font-family: var(--ui-font);
+    font-size: 15px;
+    transition: background-color 200ms var(--ui-ease), color 200ms var(--ui-ease);
+}
+
+:focus-visible {
+    outline: 3px solid var(--ui-focus);
+    outline-offset: 2px;
+}
+
+.ui-visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body { transition: none; }
+}

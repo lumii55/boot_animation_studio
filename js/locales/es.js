@@ -1817,6 +1817,11 @@
         "btnHome": "Inicio",
         "btnHomeAria": "Volver a la pantalla inicial",
         "launchCommunity": "Comunidad",
-        "launchCommunityDesc": "Explora, descarga y comparte animaciones de arranque hechas por otras personas."
+        "launchCommunityDesc": "Explora, descarga y comparte animaciones de arranque hechas por otras personas.",
+        "navStudio": "Studio",
+        "navPhone": "Teléfono",
+        "navMain": "Navegación principal",
+        "themeToggle": "Cambiar entre tema claro y oscuro",
+        "startGo": "Empezar"
     };
 })(window);

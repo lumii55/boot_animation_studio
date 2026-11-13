@@ -1,0 +1,299 @@
+/* Visual system v2 — app frame: top bar, navigation (bottom bar on phones, side rail on wide screens). */
+
+/* Screens that are not redesigned yet keep their dark look in the light theme, so their text stays readable. */
+#editor-section,
+#connected-state,
+#module-workspace,
+.modal-overlay,
+.developer-lab-overlay {
+    color: var(--text);
+    color-scheme: dark;
+}
+
+body {
+    padding-bottom: calc(var(--ui-nav-height) + 16px + env(safe-area-inset-bottom));
+}
+
+.container {
+    padding-top: 0;
+}
+
+/* ---------------------------------------------------------------- top bar */
+
+.app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 64px;
+    margin: 0 -14px 6px;
+    padding: max(10px, env(safe-area-inset-top)) 10px 8px 14px;
+    background: color-mix(in srgb, var(--ui-bg) 84%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+.app-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.app-brand-mark {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: var(--ui-gradient);
+    display: grid;
+    place-items: center;
+    color: var(--ui-on-gradient);
+}
+
+.app-brand-copy {
+    min-width: 0;
+}
+
+.app-brand-copy h1 {
+    margin: 0;
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    font-size: 17px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-brand-copy p {
+    display: none;
+    margin: 2px 0 0;
+    color: var(--ui-muted);
+    font-size: 12.5px;
+}
+
+.app-bar-tools {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.app-icon-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ui-text);
+    font: 600 14px/1 var(--ui-font);
+    cursor: pointer;
+    transition: background-color 160ms var(--ui-ease);
+}
+
+.app-icon-button:hover {
+    background: var(--ui-glass);
+}
+
+.app-icon-button[hidden] {
+    display: none;
+}
+
+.app-icon-button svg {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+}
+
+.app-icon-button .app-button-label {
+    display: none;
+}
+
+.app-dev-button {
+    min-width: 0;
+    padding: 0 10px;
+    border: 1px solid var(--ui-outline);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+}
+
+/* Theme toggle: the icon shows the theme you would switch to. */
+.app-theme-toggle .app-icon-sun { display: block; }
+.app-theme-toggle .app-icon-moon { display: none; }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .app-theme-toggle .app-icon-sun { display: none; }
+    :root:not([data-theme="dark"]) .app-theme-toggle .app-icon-moon { display: block; }
+}
+:root[data-theme="light"] .app-theme-toggle .app-icon-sun { display: none; }
+:root[data-theme="light"] .app-theme-toggle .app-icon-moon { display: block; }
+
+/* Language: a compact pill with a globe; the in-site menu opens from the select itself. */
+.app-language {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+}
+
+.app-language svg {
+    position: absolute;
+    left: 11px;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    color: var(--ui-text);
+}
+
+.app-language select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 44px;
+    height: 44px;
+    padding: 0 0 0 44px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: transparent;
+    font: 600 14px var(--ui-font);
+    cursor: pointer;
+}
+
+.app-language select:hover {
+    background: var(--ui-glass);
+}
+
+.app-language select option {
+    color: #1b1a26;
+}
+
+/* ---------------------------------------------------------------- navigation */
+
+.app-nav {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 70;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: var(--ui-nav-height);
+    padding: 8px 4px;
+    border: 1px solid var(--ui-glass-line);
+    border-radius: 28px;
+    background: var(--ui-glass-nav);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: var(--ui-nav-shadow);
+}
+
+.app-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ui-muted);
+    font: 600 12px/1.2 var(--ui-font);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.app-nav-item > span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-nav-pill {
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 32px;
+    border-radius: 16px;
+    transition: background-color 180ms var(--ui-ease), color 180ms var(--ui-ease);
+}
+
+.app-nav-pill svg {
+    width: 22px;
+    height: 22px;
+}
+
+.app-nav-item[aria-current="page"] {
+    color: var(--ui-text);
+    font-weight: 700;
+}
+
+.app-nav-item[aria-current="page"] .app-nav-pill {
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+}
+
+.app-nav-item:not([aria-current="page"]):hover .app-nav-pill {
+    background: var(--ui-glass);
+}
+
+/* The Community opens over everything with its own bar; the site's navigation steps aside. */
+body.cm-open .app-nav {
+    display: none;
+}
+
+/* ---------------------------------------------------------------- wider screens */
+
+@media (min-width: 640px) {
+    .app-brand-copy p {
+        display: block;
+    }
+
+    .app-icon-button .app-button-label {
+        display: inline;
+    }
+
+    .app-bar {
+        margin: 0 -20px 10px;
+        padding-left: 20px;
+        padding-right: 16px;
+    }
+}
+
+@media (min-width: 960px) {
+    body {
+        padding-bottom: 0;
+        padding-left: var(--ui-rail-width);
+    }
+
+    .app-nav {
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: auto;
+        width: var(--ui-rail-width);
+        grid-template-columns: 1fr;
+        grid-auto-rows: 76px;
+        align-content: start;
+        gap: 6px;
+        padding: max(88px, calc(env(safe-area-inset-top) + 88px)) 8px 16px;
+        border-width: 0 1px 0 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .app-nav-pill {
+        width: 56px;
+    }
+}

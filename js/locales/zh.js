@@ -1817,6 +1817,11 @@
         "btnHome": "主页",
         "btnHomeAria": "返回开始页面",
         "launchCommunity": "社区",
-        "launchCommunityDesc": "浏览、下载并分享其他人制作的开机动画。"
+        "launchCommunityDesc": "浏览、下载并分享其他人制作的开机动画。",
+        "navStudio": "工作室",
+        "navPhone": "手机",
+        "navMain": "主导航",
+        "themeToggle": "切换浅色和深色主题",
+        "startGo": "开始"
     };
 })(window);

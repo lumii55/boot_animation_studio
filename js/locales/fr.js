@@ -1817,6 +1817,11 @@
         "btnHome": "Accueil",
         "btnHomeAria": "Revenir à l’écran d’accueil",
         "launchCommunity": "Communauté",
-        "launchCommunityDesc": "Explorez, téléchargez et partagez des animations de démarrage créées par d’autres."
+        "launchCommunityDesc": "Explorez, téléchargez et partagez des animations de démarrage créées par d’autres.",
+        "navStudio": "Studio",
+        "navPhone": "Téléphone",
+        "navMain": "Navigation principale",
+        "themeToggle": "Basculer entre thème clair et sombre",
+        "startGo": "Commencer"
     };
 })(window);

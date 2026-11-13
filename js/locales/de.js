@@ -1817,6 +1817,11 @@
         "btnHome": "Start",
         "btnHomeAria": "Zurück zum Startbildschirm",
         "launchCommunity": "Community",
-        "launchCommunityDesc": "Boot-Animationen anderer entdecken, herunterladen und teilen."
+        "launchCommunityDesc": "Boot-Animationen anderer entdecken, herunterladen und teilen.",
+        "navStudio": "Studio",
+        "navPhone": "Handy",
+        "navMain": "Hauptnavigation",
+        "themeToggle": "Zwischen hellem und dunklem Design wechseln",
+        "startGo": "Loslegen"
     };
 })(window);
