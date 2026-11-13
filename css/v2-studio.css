@@ -366,3 +366,397 @@ body.ui-screen-studio .app-bar {
         display: none;
     }
 }
+
+/* ================================================================ Studio, second pass: less text, compact layout,
+   one set of controls. Explanations live in Help; what stays on screen is what you act on or need to know. */
+
+/* ---------------------------------------------------------------- copy: labels and explanations off-screen */
+
+#editor-section .section-kicker,
+#editor-section .context-panel-kicker,
+#editor-section .context-panel-index,
+#editor-section .editor-context-kicker,
+#editor-section .stage-step,
+#p11-source-desc,
+#source-library-desc,
+#source-library-guide,
+#p11-edit-desc,
+#txt-dicavideo,
+#master-sequence-desc,
+#sequence-timeline-desc,
+#sequence-timeline-hint,
+#composition-desc,
+#composition-main-preview-desc,
+#composition-timing-hint,
+#composition-motion-desc,
+#p11-audio-desc,
+#editor-section .audio-studio-waveform-hint,
+#editor-section .audio-studio-timing-help,
+#advanced-parts-subtitle,
+#p11-tune-desc,
+#p11-basics-desc,
+#output-presets-desc,
+#custom-profiles-desc,
+#p11-framing-desc,
+#p11-performance-desc,
+#p11-build-desc,
+#compatibility-desc,
+#p11-release-desc,
+#build-package-desc,
+#p11-delivery-desc,
+#finish-desc {
+    display: none !important;
+}
+
+/* The step names already sit in the bottom bar on phones. */
+@media (max-width: 959px) {
+    #editor-section .stage-heading {
+        display: none;
+    }
+
+    /* The sources card belongs to editing; Output and Build show only their own work. */
+    #editor-section[data-mobile-view="settings"] .source-dock,
+    #editor-section[data-mobile-view="export"] .source-dock {
+        display: none;
+    }
+}
+
+/* ---------------------------------------------------------------- project bar: one compact block */
+
+#editor-section #p12-project-name {
+    font-size: 22px;
+}
+
+#editor-section .editor-topbar {
+    gap: 10px;
+}
+
+#editor-section .editor-context {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    row-gap: 2px;
+}
+
+#editor-section #p12-project-name {
+    flex: 1 1 100%;
+}
+
+#editor-section .project-save-status {
+    margin-top: 0;
+    padding: 2px 9px;
+}
+
+#editor-section .editor-context-state {
+    height: 40px;
+    margin-left: auto;
+}
+
+/* ---------------------------------------------------------------- sources: compact once something is loaded */
+
+#editor-section.has-media .source-dock {
+    gap: 10px;
+    padding: 14px;
+}
+
+#editor-section.has-media .source-dock-head h2 {
+    font-size: 17px;
+}
+
+#editor-section .source-library {
+    border: 0;
+    background: none;
+    padding: 0;
+    box-shadow: none;
+}
+
+#editor-section .source-library h3 {
+    font-size: 16px;
+}
+
+/* ---------------------------------------------------------------- headings inside tools */
+
+#editor-section .context-panel-heading h3,
+#editor-section .composition-editor-section h3 {
+    font-size: 19px;
+}
+
+#editor-section .stage-heading h2 {
+    font-size: 24px;
+}
+
+/* ---------------------------------------------------------------- one style of segmented tabs */
+
+#editor-section .timeline-view-tab,
+#editor-section .audio-role-tab,
+#editor-section .output-tool-tab,
+#editor-section .framing-mode-tab {
+    min-height: 44px;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    color: var(--ui-muted);
+    font: 600 13px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .timeline-view-tab.is-active,
+#editor-section .audio-role-tab.is-active,
+#editor-section .output-tool-tab.is-active,
+#editor-section .framing-mode-tab.is-active {
+    background: var(--ui-primary-container);
+    color: var(--ui-on-primary-container);
+    font-weight: 700;
+}
+
+#editor-section .output-tool-nav,
+#editor-section .timeline-view-switch {
+    gap: 4px;
+    padding: 5px;
+    border: 0;
+    border-radius: 20px;
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- one style of fields */
+
+#editor-section select,
+#editor-section input[type="text"],
+#editor-section input[type="number"] {
+    min-height: 48px;
+    border: 1px solid var(--ui-line);
+    border-radius: 14px;
+    background-color: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 600 15px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section select:focus,
+#editor-section input[type="text"]:focus,
+#editor-section input[type="number"]:focus {
+    border-color: var(--ui-primary);
+    outline: none;
+}
+
+#editor-section input[type="range"],
+#editor-section input[type="checkbox"] {
+    accent-color: var(--ui-primary);
+}
+
+#editor-section label {
+    color: var(--ui-muted);
+}
+
+/* Plain buttons inside the tools become soft pills. */
+#editor-section .edit-inspector-deck button:not([class]),
+#editor-section .configuracoes button:not([class]),
+#editor-section .output-preset-apply,
+#editor-section .optimizer-button,
+#editor-section .optimizer-apply,
+#editor-section .advanced-action-secondary,
+#editor-section .advanced-back-simple,
+#editor-section .delivery-connect,
+#editor-section .delivery-test-button {
+    min-height: 46px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 700 14px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .advanced-action-primary,
+#editor-section .advanced-parts-launch-btn {
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+    font: 700 14px var(--ui-font);
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- timeline */
+
+#editor-section .timeline-editor {
+    padding: 14px;
+}
+
+#editor-section .timeline-transport-btn {
+    min-height: 44px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 700 13px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .timeline-transport-btn.timeline-transport-primary {
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+}
+
+/* Section markers: four chips (Opening · Loop start · Loop end · Ending). */
+#editor-section .grid-marcadores {
+    padding: 8px;
+    gap: 6px;
+}
+
+#editor-section .btn-marc {
+    min-height: 56px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 700 12px var(--ui-font);
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- tool panels as a sheet */
+
+#editor-section .edit-inspector-deck {
+    position: relative;
+    padding-top: 22px;
+    border-radius: 28px 28px var(--ui-radius-l) var(--ui-radius-l);
+}
+
+#editor-section .edit-inspector-deck::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 2px;
+    background: var(--ui-outline);
+}
+
+#editor-section .composition-editor-section,
+#editor-section .audio-studio,
+#editor-section .advanced-parts {
+    border: 0;
+    background: none;
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- Output: settings card */
+
+#editor-section .configuracoes {
+    gap: 14px;
+    padding: 16px;
+    border: 0;
+    border-radius: var(--ui-radius-l);
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- Build */
+
+#editor-section .delivery-option {
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-m);
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    box-shadow: none;
+}
+
+#editor-section .delivery-option.is-active {
+    border-color: transparent;
+    background: var(--ui-primary-container);
+    color: var(--ui-on-primary-container);
+}
+
+#editor-section .btn-gerar {
+    min-height: 56px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+    font: 700 16px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .btn-gerar.btn-desativado,
+#editor-section .btn-gerar:disabled {
+    background: var(--ui-surface-2);
+    color: var(--ui-muted);
+}
+
+#editor-section .build-secondary-actions .btn-gerar {
+    min-height: 46px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font-size: 14px;
+}
+
+#editor-section .compatibility-center,
+#editor-section .release-review,
+#editor-section .build-package-panel,
+#editor-section .delivery-panel,
+#editor-section .finish-center {
+    padding: 16px;
+}
+
+#editor-section .timeline-kicker,
+#txt-hint-tooltip,
+#composition-main-preview-kicker,
+#composition-main-preview-title {
+    display: none !important;
+}
+
+#editor-section .timeline-heading h3,
+#editor-section .timeline-heading h2 {
+    background: none;
+    color: var(--ui-text);
+    -webkit-text-fill-color: currentColor;
+    font-family: var(--ui-font-display);
+    font-size: 18px;
+}
+
+#editor-section .composition-main-preview-note {
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+}
+
+#editor-section .composition-main-preview-note::before {
+    display: none;
+}
+
+/* Once a source is loaded, the "replace source" choices shrink to two small chips. */
+#editor-section.has-media .source-actions .btn-upload {
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+
+#p11-timeline-title {
+    background: none;
+    color: var(--ui-text);
+    -webkit-text-fill-color: currentColor;
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    font-size: 18px;
+}
+
+#editor-section .editor-context {
+    justify-content: flex-start;
+    text-align: left;
+    margin: 0;
+}
+
+#editor-section .editor-topbar {
+    align-items: stretch;
+}
+
+#editor-section .editor-context {
+    align-self: stretch;
+    width: 100%;
+}
