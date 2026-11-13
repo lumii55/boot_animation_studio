@@ -63,10 +63,10 @@ function mudarIdioma(lang) {
     document.getElementById('input-ip')?.setAttribute('aria-label', t.networkIpAria);
     const workspaceTextBindings = {
         'p11-launch-kicker': 'workspaceLaunchKicker',
-        'p11-launch-title': 'workspaceLaunchTitle',
+        'p11-launch-title': 'startTitle',
         'p11-launch-desc': 'workspaceLaunchDesc',
-        'p11-launch-local-desc': 'workspaceLaunchLocalDesc',
-        'p11-launch-device-desc': 'workspaceLaunchDeviceDesc',
+        'p11-launch-local-desc': 'startCreateDesc',
+        'p11-launch-device-desc': 'startPhoneDesc',
         'p11-device-kicker': 'deviceKicker',
         'p11-device-desc': 'deviceDesc',
         'p11-device-badge': 'deviceOnlineBadge',
@@ -216,7 +216,7 @@ function mudarIdioma(lang) {
     document.getElementById('lbl-audio-final').textContent = t.lblAudioFinal;
     
     document.getElementById('btn-connect').textContent = t.btnConnect;
-    document.getElementById('btn-manual').textContent = t.btnManual;
+    document.getElementById('btn-manual').textContent = t.startCreate;
     document.getElementById('btn-build-connect').textContent = t.deliveryConnect;
     document.getElementById('status-connected').textContent = isConnectedMode && window.connectedPhoneModel ? window.connectedPhoneModel : t.statusConnected;
     document.getElementById('btn-remove').textContent = t.btnRemove;

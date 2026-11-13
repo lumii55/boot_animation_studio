@@ -1817,13 +1817,17 @@
         "btnHome": "主页",
         "btnHomeAria": "返回开始页面",
         "launchCommunity": "社区",
-        "launchCommunityDesc": "浏览、下载并分享其他人制作的开机动画。",
+        "launchCommunityDesc": "浏览并分享动画。",
         "navStudio": "工作室",
         "navPhone": "手机",
         "navMain": "主导航",
         "themeToggle": "切换浅色和深色主题",
         "startGo": "开始",
         "footerContact": "联系方式：",
-        "footerCommunityTerms": "社区使用条款"
+        "footerCommunityTerms": "社区使用条款",
+        "startTitle": "今天要做点什么？",
+        "startCreate": "在浏览器中创建",
+        "startCreateDesc": "使用照片、视频或 bootanimation.zip。所有内容都留在你的设备上。",
+        "startPhoneDesc": "应用、历史记录和设备详情。"
     };
 })(window);

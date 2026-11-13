@@ -29,18 +29,16 @@
     margin: 0;
     font-family: var(--ui-font-display);
     font-weight: 600;
-    font-size: clamp(30px, 8.6vw, 44px);
-    line-height: 1.06;
+    font-size: clamp(34px, 9.6vw, 52px);
+    line-height: 1.04;
     letter-spacing: -0.02em;
     text-wrap: balance;
 }
 
+/* Short and direct: the long kicker and paragraph stay in the page for older tooling but are not shown. */
+.start-hero .start-kicker,
 .start-hero p {
-    margin: 0;
-    max-width: 46ch;
-    color: var(--ui-muted);
-    font-size: 15px;
-    line-height: 1.5;
+    display: none;
 }
 
 /* ---------------------------------------------------------------- choice cards */
@@ -381,10 +379,15 @@
     position: relative;
     padding: 12px 14px 12px 40px;
     border-radius: var(--ui-radius-m);
-    background: var(--ui-warning-container);
-    color: var(--ui-on-warning-container);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-card-shadow);
+    color: var(--ui-muted);
     font-size: 13px;
     line-height: 1.45;
+}
+
+.start-notice strong {
+    color: var(--ui-text);
 }
 
 .start-notice::before {
@@ -394,7 +397,7 @@
     top: 13px;
     width: 18px;
     height: 18px;
-    background: currentColor;
+    background: #f5a524;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8v5M12 16.5v.5'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8v5M12 16.5v.5'/%3E%3C/svg%3E") center / contain no-repeat;
 }

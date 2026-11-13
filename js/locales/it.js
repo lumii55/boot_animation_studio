@@ -1817,13 +1817,17 @@
         "btnHome": "Home",
         "btnHomeAria": "Torna alla schermata iniziale",
         "launchCommunity": "Community",
-        "launchCommunityDesc": "Esplora, scarica e condividi animazioni di avvio create da altre persone.",
+        "launchCommunityDesc": "Esplora e condividi animazioni.",
         "navStudio": "Studio",
         "navPhone": "Telefono",
         "navMain": "Navigazione principale",
         "themeToggle": "Passa dal tema chiaro a quello scuro",
         "startGo": "Inizia",
         "footerContact": "Contatto:",
-        "footerCommunityTerms": "Termini d’uso della Community"
+        "footerCommunityTerms": "Termini d’uso della Community",
+        "startTitle": "Cosa creiamo oggi?",
+        "startCreate": "Crea nel browser",
+        "startCreateDesc": "Da foto, video o un bootanimation.zip. Tutto resta sul tuo dispositivo.",
+        "startPhoneDesc": "Applica, cronologia e dettagli del dispositivo."
     };
 })(window);

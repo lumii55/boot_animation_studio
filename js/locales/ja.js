@@ -1817,13 +1817,17 @@
         "btnHome": "ホーム",
         "btnHomeAria": "スタート画面に戻る",
         "launchCommunity": "コミュニティ",
-        "launchCommunityDesc": "ほかの人が作ったブートアニメーションを見つけて、ダウンロードして、共有しよう。",
+        "launchCommunityDesc": "アニメーションを見つけて共有。",
         "navStudio": "スタジオ",
         "navPhone": "スマホ",
         "navMain": "メインナビゲーション",
         "themeToggle": "ライト／ダークテーマを切り替え",
         "startGo": "はじめる",
         "footerContact": "連絡先:",
-        "footerCommunityTerms": "コミュニティ利用規約"
+        "footerCommunityTerms": "コミュニティ利用規約",
+        "startTitle": "今日は何をつくる？",
+        "startCreate": "ブラウザで作成",
+        "startCreateDesc": "写真・動画・bootanimation.zip から。すべて端末内で完結します。",
+        "startPhoneDesc": "適用・履歴・端末の詳細。"
     };
 })(window);

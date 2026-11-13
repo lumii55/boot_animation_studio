@@ -1817,13 +1817,17 @@
         "btnHome": "Start",
         "btnHomeAria": "Zurück zum Startbildschirm",
         "launchCommunity": "Community",
-        "launchCommunityDesc": "Boot-Animationen anderer entdecken, herunterladen und teilen.",
+        "launchCommunityDesc": "Animationen entdecken und teilen.",
         "navStudio": "Studio",
         "navPhone": "Handy",
         "navMain": "Hauptnavigation",
         "themeToggle": "Zwischen hellem und dunklem Design wechseln",
         "startGo": "Loslegen",
         "footerContact": "Kontakt:",
-        "footerCommunityTerms": "Nutzungsbedingungen der Community"
+        "footerCommunityTerms": "Nutzungsbedingungen der Community",
+        "startTitle": "Was erschaffen wir heute?",
+        "startCreate": "Im Browser erstellen",
+        "startCreateDesc": "Aus Fotos, Videos oder einer bootanimation.zip. Alles bleibt auf deinem Gerät.",
+        "startPhoneDesc": "Anwenden, Verlauf und Gerätedetails."
     };
 })(window);

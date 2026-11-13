@@ -1817,13 +1817,17 @@
         "btnHome": "Home",
         "btnHomeAria": "Back to the start screen",
         "launchCommunity": "Community",
-        "launchCommunityDesc": "Explore, download and share boot animations made by other people.",
+        "launchCommunityDesc": "Explore and share animations.",
         "navStudio": "Studio",
         "navPhone": "Phone",
         "navMain": "Main navigation",
         "themeToggle": "Switch between light and dark theme",
         "startGo": "Start",
         "footerContact": "Contact:",
-        "footerCommunityTerms": "Community terms of use"
+        "footerCommunityTerms": "Community terms of use",
+        "startTitle": "What are we making today?",
+        "startCreate": "Create in the browser",
+        "startCreateDesc": "From photos, videos or a bootanimation.zip. Everything stays on your device.",
+        "startPhoneDesc": "Apply, history and device details."
     };
 })(window);
