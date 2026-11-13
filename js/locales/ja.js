@@ -1836,6 +1836,12 @@
         "studioToolParts": "パート",
         "studioToolSettings": "調整",
         "studioExport": "書き出し",
-        "studioTools": "スタジオのツール"
+        "studioTools": "スタジオのツール",
+        "phoneActionStudio": "作成して適用",
+        "phoneActionStudioSub": "スタジオを開く",
+        "phoneActionTest": "起動時にテスト",
+        "phoneActionTestSub": "今のものはそのまま",
+        "phoneActionHistory": "履歴",
+        "phoneActionPlaylists": "プレイリスト"
     };
 })(window);

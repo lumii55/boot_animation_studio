@@ -501,3 +501,23 @@ body.ui-screen-phone .app-nav {
     --ui-on-gradient: #14102b;
     --ui-nav-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
+
+/* The Community opens over the page; on phones the site's bar stays on top of it (Community is the active item). */
+@media (max-width: 959px) {
+    /* Only on the browsing screens (where the floating Upload shows), and never over an open sheet. */
+    body.cm-open:has(.cm-fab:not([hidden])):not(:has(.cm-modal)) .app-nav {
+        display: grid;
+        z-index: 10050;
+    }
+}
+
+@media (min-width: 960px) {
+    body.cm-open .cm-overlay {
+        left: var(--ui-rail-width);
+    }
+
+    body.cm-open .app-nav {
+        display: grid;
+        z-index: 10050;
+    }
+}

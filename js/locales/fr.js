@@ -1836,6 +1836,12 @@
         "studioToolParts": "Parties",
         "studioToolSettings": "Réglages",
         "studioExport": "Exporter",
-        "studioTools": "Outils du Studio"
+        "studioTools": "Outils du Studio",
+        "phoneActionStudio": "Créer et appliquer",
+        "phoneActionStudioSub": "ouvre le Studio",
+        "phoneActionTest": "Tester au démarrage",
+        "phoneActionTestSub": "sans changer l’actuelle",
+        "phoneActionHistory": "Historique",
+        "phoneActionPlaylists": "Playlists"
     };
 })(window);

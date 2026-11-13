@@ -220,3 +220,139 @@ body.ui-screen-phone .app-bar {
 #module-workspace-device-resolution::before {
     display: none;
 }
+
+/* ================================================================ phone dashboard (overview) */
+
+#module-workspace .module-workspace-hero {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+}
+
+#module-workspace .module-workspace-hero-actions {
+    grid-column: 1 / -1;
+}
+
+/* The phone, drawn: its screen plays the site's frame strip. */
+.phone-dash-device {
+    grid-row: span 1;
+    width: 112px;
+    height: 216px;
+    padding: 6px;
+    box-sizing: border-box;
+    border-radius: 22px;
+    background: #2c2a3d;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 16px 40px rgba(124, 58, 237, 0.25);
+}
+
+.phone-dash-screen {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 17px;
+    background: radial-gradient(circle at 50% 42%, rgba(196, 181, 253, 0.35), transparent 60%), #0a0912;
+}
+
+.phone-dash-frames {
+    display: flex;
+    gap: 4px;
+}
+
+.phone-dash-frames i {
+    display: block;
+    width: 9px;
+    height: 16px;
+    border-radius: 3px;
+    background: #c4b5fd;
+    opacity: 0.25;
+    animation: phone-dash-frame 1.25s ease-in-out infinite;
+}
+
+.phone-dash-frames i:nth-child(2) { animation-delay: 0.25s; background: #b2c3fb; }
+.phone-dash-frames i:nth-child(3) { animation-delay: 0.5s; background: #9fd1fa; }
+.phone-dash-frames i:nth-child(4) { animation-delay: 0.75s; background: #85ddf9; }
+.phone-dash-frames i:nth-child(5) { animation-delay: 1s; background: #67e8f9; }
+
+@keyframes phone-dash-frame {
+    0%, 100% { opacity: 0.25; }
+    20% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .phone-dash-frames i { animation: none; opacity: 0.8; }
+}
+
+/* Four big actions. */
+.phone-dash-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.phone-dash-actions[hidden],
+.phone-dash-action[hidden] {
+    display: none;
+}
+
+.phone-dash-action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    min-height: 104px;
+    padding: 14px;
+    border: 0;
+    border-radius: 22px;
+    background: #222131;
+    color: #edebf7;
+    text-align: left;
+    font-family: var(--ui-font);
+    cursor: pointer;
+}
+
+.phone-dash-action svg {
+    width: 24px;
+    height: 24px;
+}
+
+.phone-dash-action-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.phone-dash-action-sub {
+    font-weight: 600;
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.phone-dash-action[data-phone-action="studio"] {
+    background: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    color: #14102b;
+}
+
+.phone-dash-action[data-phone-action="test"] {
+    background: #123f48;
+    color: #c6f2fa;
+}
+
+/* The hero's own "Open Studio" is now the first big action. */
+#module-workspace .module-workspace-studio-button {
+    display: none;
+}
+
+#module-workspace .module-workspace-hero::before,
+#module-workspace .module-workspace-hero::after {
+    display: none;
+}
+
+#module-workspace .module-workspace-device-line > * {
+    margin-left: 0;
+    padding-left: 0;
+    text-indent: 0;
+}

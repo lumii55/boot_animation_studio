@@ -1836,6 +1836,12 @@
         "studioToolParts": "部分",
         "studioToolSettings": "调整",
         "studioExport": "导出",
-        "studioTools": "工作室工具"
+        "studioTools": "工作室工具",
+        "phoneActionStudio": "创建并应用",
+        "phoneActionStudioSub": "打开工作室",
+        "phoneActionTest": "开机测试",
+        "phoneActionTestSub": "不替换当前动画",
+        "phoneActionHistory": "历史记录",
+        "phoneActionPlaylists": "播放列表"
     };
 })(window);

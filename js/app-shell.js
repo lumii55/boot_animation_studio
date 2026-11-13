@@ -27,6 +27,12 @@
             'start-go-label': text('startGo', 'Start'),
             'start-footer-contact': text('footerContact', 'Contact:'),
             'start-footer-terms': text('footerCommunityTerms', 'Community terms of use'),
+            'phone-action-studio-label': text('phoneActionStudio', 'Create and apply'),
+            'phone-action-studio-sub': text('phoneActionStudioSub', 'opens the Studio'),
+            'phone-action-test-label': text('phoneActionTest', 'Test on boot'),
+            'phone-action-test-sub': text('phoneActionTestSub', 'keeps the current one'),
+            'phone-action-history-label': text('phoneActionHistory', 'History'),
+            'phone-action-playlists-label': text('phoneActionPlaylists', 'Playlists'),
         };
         Object.entries(labels).forEach(([id, value]) => { const el = byId(id); if (el) el.textContent = value; });
         const nav = byId('app-nav');
@@ -141,8 +147,48 @@
         },
     };
 
+    // ------------------------------------------------------------------ phone dashboard
+    // Four big actions on the phone area's overview. Each one only presses the existing control that owns it
+    // (the area's own tabs, or "Open Studio"); an action whose tab the module does not offer stays hidden.
+
+    function syncPhoneActions() {
+        const grid = byId('phone-dash-actions');
+        if (!grid) return;
+        const overview = byId('module-workspace-tab-overview');
+        grid.hidden = !!overview && overview.getAttribute('aria-selected') !== 'true';
+        ['test', 'history', 'playlists'].forEach((name) => {
+            const tab = byId(`module-workspace-tab-${name}`);
+            const action = grid.querySelector(`[data-phone-action="${name}"]`);
+            if (action) action.hidden = !tab || tab.hidden;
+        });
+        const counts = { history: byId('module-workspace-history-count'), playlists: byId('module-workspace-playlist-count') };
+        Object.entries(counts).forEach(([name, source]) => {
+            const sub = byId(`phone-action-${name}-sub`);
+            if (sub && source) sub.textContent = source.textContent.trim();
+        });
+    }
+
+    function bindPhoneDashboard() {
+        const grid = byId('phone-dash-actions');
+        if (!grid) return;
+        grid.addEventListener('click', (event) => {
+            const action = event.target.closest('[data-phone-action]')?.dataset.phoneAction;
+            if (!action) return;
+            if (action === 'studio') byId('module-workspace-open-studio')?.click();
+            else byId(`module-workspace-tab-${action}`)?.click();
+        });
+        const watch = new MutationObserver(syncPhoneActions);
+        document.querySelectorAll('.module-workspace-tab').forEach((tab) => watch.observe(tab, { attributes: true, attributeFilter: ['aria-selected', 'hidden'] }));
+        ['module-workspace-history-count', 'module-workspace-playlist-count'].forEach((id) => {
+            const el = byId(id);
+            if (el) watch.observe(el, { childList: true, characterData: true, subtree: true });
+        });
+        syncPhoneActions();
+    }
+
     function bind() {
         applyTheme(storedTheme());
+        bindPhoneDashboard();
         byId('theme-toggle')?.addEventListener('click', toggleTheme);
         window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', () => applyTheme(storedTheme()));
 

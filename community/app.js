@@ -452,9 +452,13 @@
         state.closeBtn = closeBtn;
         state.main = h('main', { class: 'cm-main', id: 'cm-main', tabindex: '-1' });
         state.nav = h('nav', { class: 'cm-tabbar', 'aria-label': t('title') });
+        // Redesign: browsing screens get a floating "Upload" button (the site's own bar replaces the tab bar on phones).
+        state.fab = h('button', { class: 'cm-fab', type: 'button', hidden: true, onclick: () => navigate('upload') },
+            icon('upload'), h('span', { class: 'cm-fab-label' }));
         const shell = h('div', { class: 'cm-shell', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'cm-title' },
             h('header', { class: 'cm-top' }, state.backBtn, state.brand, state.titleEl, state.account, closeBtn),
             state.main,
+            state.fab,
             state.nav);
         state.root = h('div', { class: 'cm-overlay', hidden: true }, shell);
         document.body.append(state.root);
@@ -516,6 +520,10 @@
         const root = isRootPath(state.path);
         state.backBtn.hidden = root;
         state.brand.hidden = !root;
+        if (state.fab) {
+            state.fab.hidden = !/^(explore|following|tag\/)/.test(state.path);
+            state.fab.querySelector('.cm-fab-label').textContent = t('navUpload');
+        }
     }
 
     function setTitle(text) {
@@ -830,6 +838,30 @@
         box.hidden = false;
     }
 
+    // Chips that move between sections (redesign: they replace the tab bar's Following / Panel on phones).
+    function sectionChips(active) {
+        return [
+            h('button', { class: 'cm-chip is-section', type: 'button', role: 'tab', 'aria-selected': String(active === 'following'),
+                onclick: () => { if (active !== 'following') navigate('following'); } }, t('navFollowing')),
+            isMod() ? h('button', { class: 'cm-chip is-section', type: 'button', onclick: () => navigate('mod/overview') }, t('navPanel')) : null,
+        ];
+    }
+
+    // Featured animation of the week, as a large card at the top of Explore.
+    function featuredHero(slot) {
+        api('GET', '/v1/animations?feed=featured').then((page) => {
+            const item = page && Array.isArray(page.items) ? page.items[0] : null;
+            if (!item) return;
+            fill(slot, h('button', { class: 'cm-hero', type: 'button', onclick: () => navigate(`a/${item.id}`) },
+                media(item.preview_url, 1, 9 / 16),
+                h('span', { class: 'cm-hero-badge' }, icon('star', 'cm-icon-xs'), t('sort_featured')),
+                h('span', { class: 'cm-hero-info' },
+                    h('span', { class: 'cm-hero-title', text: item.title }),
+                    h('span', { class: 'cm-hero-sub' }, avatar(item.owner.avatar_url, 'xs'), h('span', { text: item.owner.display_name })))));
+            slot.hidden = false;
+        }).catch(() => {});
+    }
+
     function exploreView({ tag = null } = {}) {
         const filters = { q: '', res: null };
         const res = deviceResolution();
@@ -837,8 +869,10 @@
         const sorts = ['trending', 'top', 'new'];
         // "Featured" appears once the team has chosen something.
         const notice = h('div', { class: 'cm-announce', role: 'status', hidden: true });
+        const hero = h('div', { class: 'cm-hero-slot', hidden: true });
         api('GET', '/v1/config').then((config) => {
             state.config = config;
+            if (config.featured > 0 && !tag) featuredHero(hero);
             if (config.featured > 0 && !sorts.includes('featured')) {
                 sorts.unshift('featured');
                 paintChips();
@@ -857,6 +891,7 @@
                     list.reset();
                 },
             }, t(`sort_${sort}`))),
+            tag ? null : sectionChips('explore'),
             compat);
         const list = feed({
             fetchPage: (cursor, signal) => {
@@ -893,6 +928,7 @@
                 tag ? h('div', { class: 'cm-tagline' }, h('span', { class: 'cm-tag is-active', text: `#${tag}` })) : null,
                 h('label', { class: 'cm-search' }, icon('search'), search),
                 chips),
+            hero,
             list.el);
         list.start();
         return { el, title: tag ? `#${tag}` : t('navExplore'), keepAlive: true };
@@ -905,7 +941,11 @@
             empty: () => t('emptyFollowing'),
         });
         list.start();
-        return { el: h('section', { class: 'cm-following' }, list.el), title: t('navFollowing'), keepAlive: true };
+        const chips = h('div', { class: 'cm-chips', role: 'tablist' },
+            ['trending', 'top', 'new'].map((sort) => h('button', { class: 'cm-chip', type: 'button', role: 'tab', 'aria-selected': 'false',
+                onclick: () => { state.sort = sort; state.views.delete('explore'); navigate('explore'); } }, t(`sort_${sort}`))),
+            sectionChips('following'));
+        return { el: h('section', { class: 'cm-following' }, h('div', { class: 'cm-explore-head' }, chips), list.el), title: t('navFollowing'), keepAlive: true };
     }
 
     function signInPrompt(message) {
