@@ -395,7 +395,11 @@
 
     function signIn(returnPath) {
         const back = `#community/${returnPath || state.path}`.slice(0, 100).replace(/[^A-Za-z0-9/_#-]/g, '');
-        location.href = `${API}/v1/auth/github/start?return=${encodeURIComponent(back)}`;
+        // A preview copy served on localhost (the owner's phone) asks to come back to itself; the server only
+        // accepts preview addresses it lists, everything else returns to the public site.
+        const here = location.origin + location.pathname;
+        const site = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(here) ? `&site=${encodeURIComponent(here)}` : '';
+        location.href = `${API}/v1/auth/github/start?return=${encodeURIComponent(back)}${site}`;
     }
 
     async function handleIncoming(hash) {

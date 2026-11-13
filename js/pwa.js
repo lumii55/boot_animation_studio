@@ -77,8 +77,22 @@ function watchPwaRegistration(registration) {
     });
 }
 
+// The owner's local preview (a work branch served on the phone at localhost:8095) must always show the latest
+// files, so it never keeps an offline copy; any worker left from an earlier visit is removed.
+function isBASLocalPreview() {
+    return location.hostname === 'localhost' && location.port === '8095';
+}
+
 async function registerBASPWA() {
     if (!basPwaState.supported || !basPwaState.secureContext) return null;
+    if (isBASLocalPreview()) {
+        try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+            if (window.caches) await Promise.all((await caches.keys()).map((key) => caches.delete(key)));
+        } catch (error) {}
+        return null;
+    }
     try {
         basPwaState.registration = await navigator.serviceWorker.register('./service-worker.js', { scope: './', updateViaCache: 'none' });
         watchPwaRegistration(basPwaState.registration);
