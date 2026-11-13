@@ -1,0 +1,222 @@
+/* Visual system v2 — phone area (#module-workspace, with the device panel #connected-state moved inside it).
+   Same treatment as the Studio: short copy, compact header, one style of tabs, cards and buttons. Stays dark in
+   both themes until its inner panels (history, playlists, test, device) are reviewed for light colours. */
+
+#module-workspace,
+#connected-state {
+    --ui-surface: #1a1926;
+    --ui-surface-2: #222131;
+    --ui-text: #edebf7;
+    --ui-muted: #b9b5cc;
+    --ui-line: rgba(255, 255, 255, 0.1);
+    --ui-primary: #c4b5fd;
+    --ui-gradient: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    --ui-on-gradient: #14102b;
+    --ui-primary-container: #3b2a6b;
+    --ui-on-primary-container: #eaddff;
+    --ui-secondary-container: #123f48;
+    --ui-on-secondary-container: #c6f2fa;
+    color: var(--ui-text);
+    font-family: var(--ui-font);
+}
+
+body.ui-screen-phone {
+    background: radial-gradient(ellipse 70% 30rem at 8% -6rem, rgba(6, 182, 212, 0.3), transparent 70%), #0e0d17;
+    color: #edebf7;
+}
+
+body.ui-screen-phone .app-bar {
+    --ui-text: #edebf7;
+    --ui-glass: rgba(255, 255, 255, 0.08);
+    background: rgba(14, 13, 23, 0.84);
+    color: #edebf7;
+    color-scheme: dark;
+}
+
+#module-workspace h2,
+#module-workspace h3,
+#connected-state h2,
+#connected-state h3 {
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* Labels and explanations off-screen; status stays. */
+#module-workspace .section-kicker,
+#connected-state .section-kicker,
+#module-workspace-desc,
+#p11-device-desc {
+    display: none !important;
+}
+
+/* ---------------------------------------------------------------- header: the phone, big */
+
+#module-workspace .module-workspace-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    border: 0;
+    border-radius: var(--ui-radius-l);
+    background:
+        radial-gradient(ellipse 80% 70% at 100% 0%, rgba(6, 182, 212, 0.22), transparent 70%),
+        var(--ui-surface);
+    box-shadow: none;
+}
+
+#module-workspace-title {
+    margin: 0;
+    color: var(--ui-muted);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#module-workspace .module-workspace-device-line {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+#module-workspace-device-name {
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.15;
+}
+
+#module-workspace-device-resolution {
+    color: var(--ui-muted);
+    font-size: 13px;
+}
+
+#module-workspace .module-workspace-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+#module-workspace .device-online-badge {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-secondary-container);
+    color: var(--ui-on-secondary-container);
+    font: 700 12px var(--ui-font);
+    letter-spacing: 0.02em;
+}
+
+#module-workspace .module-workspace-device-switch,
+#module-workspace .module-workspace-studio-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 700 14px var(--ui-font);
+    box-shadow: none;
+}
+
+#module-workspace .module-workspace-studio-button {
+    margin-left: auto;
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+}
+
+/* ---------------------------------------------------------------- tabs */
+
+#module-workspace .module-workspace-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 5px;
+    overflow-x: auto;
+    border: 0;
+    border-radius: 20px;
+    background: var(--ui-surface);
+    scrollbar-width: none;
+}
+
+#module-workspace .module-workspace-tab {
+    flex: 1 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    color: var(--ui-muted);
+    font: 600 13.5px var(--ui-font);
+    white-space: nowrap;
+    box-shadow: none;
+}
+
+#module-workspace .module-workspace-tab[hidden] {
+    display: none;
+}
+
+#module-workspace .module-workspace-tab.is-active {
+    background: var(--ui-primary-container);
+    color: var(--ui-on-primary-container);
+    font-weight: 700;
+}
+
+#module-workspace .module-workspace-tab-count {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--ui-glass, rgba(255, 255, 255, 0.08));
+    font-size: 11px;
+}
+
+/* ---------------------------------------------------------------- panels */
+
+#connected-state,
+#connected-state .device-panel-head {
+    border: 0;
+    border-radius: var(--ui-radius-l);
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+#connected-state button:not([class]),
+#connected-state .btn-upload {
+    min-height: 44px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 700 14px var(--ui-font);
+    box-shadow: none;
+}
+
+#connected-state select,
+#connected-state input[type="text"],
+#connected-state input[type="number"] {
+    min-height: 46px;
+    border: 1px solid var(--ui-line);
+    border-radius: 14px;
+    background-color: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 600 15px var(--ui-font);
+}
+
+#connected-state input[type="checkbox"],
+#connected-state input[type="range"] {
+    accent-color: var(--ui-primary);
+}
+
+#module-workspace-device-resolution {
+    margin: 0;
+    padding: 0;
+}
+
+#module-workspace-device-resolution::before {
+    display: none;
+}

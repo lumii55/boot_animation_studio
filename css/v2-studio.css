@@ -760,3 +760,9 @@ body.ui-screen-studio .app-bar {
     align-self: stretch;
     width: 100%;
 }
+
+/* No project yet: the editor tools stay hidden (the new display rules above must not bring them back). */
+#editor-section:not(.has-media) .edit-tool-dock,
+#editor-section:not(.has-media) .edit-inspector-deck {
+    display: none;
+}

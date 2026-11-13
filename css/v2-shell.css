@@ -398,3 +398,106 @@ body.cm-open .app-nav {
         width: 56px;
     }
 }
+
+/* ---------------------------------------------------------------- dialogs, menus and notices
+   They float over every screen, so they keep the dark surface in both themes (the screens behind may be dark). */
+
+.modal-overlay {
+    background: rgba(8, 7, 14, 0.62);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+.modal-overlay .modal-box {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+    background: #1a1926;
+    color: #edebf7;
+    font-family: var(--ui-font);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-overlay .modal-box h2,
+.modal-overlay .modal-box h3 {
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.modal-overlay .modal-box .btn-upload,
+.modal-overlay .modal-box .btn-fechar-modal {
+    min-height: 46px;
+    border: 0;
+    border-radius: 999px;
+    background: #2c2a3d;
+    color: #edebf7;
+    font: 700 14px var(--ui-font);
+    box-shadow: none;
+}
+
+#confirm-ok {
+    background: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    color: #14102b;
+}
+
+/* Notices: a dark pill with a coloured dot for the kind of message. */
+.toast {
+    position: relative;
+    padding: 13px 16px 13px 36px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background: rgba(26, 25, 38, 0.96);
+    color: #edebf7;
+    font: 600 14px/1.4 var(--ui-font);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.toast::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 18px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #c4b5fd;
+}
+
+.toast[data-type="success"]::before { background: #6ee7b7; }
+.toast[data-type="error"]::before { background: #fb7185; }
+.toast[data-type="info"]::before { background: #67e8f9; }
+
+/* The site's own menus (instead of the browser's pop-ups). */
+.bas-choice-panel {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    background: #1a1926;
+    color: #edebf7;
+    font-family: var(--ui-font);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.bas-choice-item {
+    min-height: 48px;
+    border-radius: 14px;
+    font: 600 15px var(--ui-font);
+}
+
+.bas-choice-item[aria-selected="true"],
+.bas-choice-item[aria-checked="true"] {
+    background: #3b2a6b;
+    color: #eaddff;
+}
+
+/* On dark screens (Studio, phone area) the navigation is dark too. */
+body.ui-screen-studio .app-nav,
+body.ui-screen-phone .app-nav {
+    --ui-text: #edebf7;
+    --ui-muted: #b9b5cc;
+    --ui-glass: rgba(255, 255, 255, 0.08);
+    --ui-glass-nav: rgba(26, 25, 38, 0.66);
+    --ui-glass-line: rgba(255, 255, 255, 0.16);
+    --ui-gradient: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    --ui-on-gradient: #14102b;
+    --ui-nav-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
