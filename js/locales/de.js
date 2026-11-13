@@ -1828,6 +1828,14 @@
         "startTitle": "Was erschaffen wir heute?",
         "startCreate": "Im Browser erstellen",
         "startCreateDesc": "Aus Fotos, Videos oder einer bootanimation.zip. Alles bleibt auf deinem Gerät.",
-        "startPhoneDesc": "Anwenden, Verlauf und Gerätedetails."
+        "startPhoneDesc": "Anwenden, Verlauf und Gerätedetails.",
+        "studioToolMedia": "Medien",
+        "studioToolMarkers": "Abschnitte",
+        "studioToolText": "Text",
+        "studioToolAudio": "Audio",
+        "studioToolParts": "Teile",
+        "studioToolSettings": "Anpassen",
+        "studioExport": "Exportieren",
+        "studioTools": "Studio-Werkzeuge"
     };
 })(window);

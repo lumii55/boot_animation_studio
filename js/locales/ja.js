@@ -1828,6 +1828,14 @@
         "startTitle": "今日は何をつくる？",
         "startCreate": "ブラウザで作成",
         "startCreateDesc": "写真・動画・bootanimation.zip から。すべて端末内で完結します。",
-        "startPhoneDesc": "適用・履歴・端末の詳細。"
+        "startPhoneDesc": "適用・履歴・端末の詳細。",
+        "studioToolMedia": "素材",
+        "studioToolMarkers": "区間",
+        "studioToolText": "テキスト",
+        "studioToolAudio": "音声",
+        "studioToolParts": "パート",
+        "studioToolSettings": "調整",
+        "studioExport": "書き出し",
+        "studioTools": "スタジオのツール"
     };
 })(window);

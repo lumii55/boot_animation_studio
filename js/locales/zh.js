@@ -1828,6 +1828,14 @@
         "startTitle": "今天要做点什么？",
         "startCreate": "在浏览器中创建",
         "startCreateDesc": "使用照片、视频或 bootanimation.zip。所有内容都留在你的设备上。",
-        "startPhoneDesc": "应用、历史记录和设备详情。"
+        "startPhoneDesc": "应用、历史记录和设备详情。",
+        "studioToolMedia": "素材",
+        "studioToolMarkers": "片段",
+        "studioToolText": "文字",
+        "studioToolAudio": "音频",
+        "studioToolParts": "部分",
+        "studioToolSettings": "调整",
+        "studioExport": "导出",
+        "studioTools": "工作室工具"
     };
 })(window);

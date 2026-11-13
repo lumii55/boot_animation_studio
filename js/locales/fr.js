@@ -1828,6 +1828,14 @@
         "startTitle": "On crée quoi aujourd’hui ?",
         "startCreate": "Créer dans le navigateur",
         "startCreateDesc": "À partir de photos, de vidéos ou d’un bootanimation.zip. Tout reste sur votre appareil.",
-        "startPhoneDesc": "Appliquer, historique et détails de l’appareil."
+        "startPhoneDesc": "Appliquer, historique et détails de l’appareil.",
+        "studioToolMedia": "Médias",
+        "studioToolMarkers": "Sections",
+        "studioToolText": "Texte",
+        "studioToolAudio": "Audio",
+        "studioToolParts": "Parties",
+        "studioToolSettings": "Réglages",
+        "studioExport": "Exporter",
+        "studioTools": "Outils du Studio"
     };
 })(window);

@@ -1828,6 +1828,14 @@
         "startTitle": "What are we making today?",
         "startCreate": "Create in the browser",
         "startCreateDesc": "From photos, videos or a bootanimation.zip. Everything stays on your device.",
-        "startPhoneDesc": "Apply, history and device details."
+        "startPhoneDesc": "Apply, history and device details.",
+        "studioToolMedia": "Media",
+        "studioToolMarkers": "Sections",
+        "studioToolText": "Text",
+        "studioToolAudio": "Audio",
+        "studioToolParts": "Parts",
+        "studioToolSettings": "Adjust",
+        "studioExport": "Export",
+        "studioTools": "Studio tools"
     };
 })(window);

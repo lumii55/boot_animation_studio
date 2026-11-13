@@ -766,3 +766,339 @@ body.ui-screen-studio .app-bar {
 #editor-section:not(.has-media) .edit-inspector-deck {
     display: none;
 }
+
+/* ================================================================ Studio app mode (phones, a source loaded):
+   one fixed full-screen frame — top bar, preview, frame strip, tool row, one tool at a time in a sheet.
+   js/studio-shell.js moves the existing pieces into #studio-app-* and sets data-studio-tool. */
+
+body.ui-studio-app {
+    overflow: hidden;
+    padding-bottom: 0;
+}
+
+body.ui-studio-app .app-bar,
+body.ui-studio-app .app-nav,
+body.ui-studio-app #mobile-workflow-nav,
+body.ui-studio-app #editor-section .editor-topbar,
+body.ui-studio-app #editor-section .edit-tool-dock,
+body.ui-studio-app #editor-section .workflow-step-actions,
+body.ui-studio-app #editor-section .stage-heading,
+body.ui-studio-app #editor-section .workflow-next,
+body.ui-studio-app #editor-section .workflow-back,
+body.ui-studio-app #editor-section .timeline-heading,
+body.ui-studio-app #editor-section .project-engine-summary,
+body.ui-studio-app #editor-section .editor-context-kicker {
+    display: none !important;
+}
+
+body.ui-studio-app #editor-section {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+    max-width: none;
+    margin: 0;
+    padding: env(safe-area-inset-top) 0 0;
+    background: #0e0d17;
+    overflow: hidden;
+}
+
+.studio-app-head[hidden],
+.studio-app-stage[hidden],
+.studio-app-strip[hidden],
+.studio-app-tools[hidden],
+.studio-app-sheet[hidden] {
+    display: none !important;
+}
+
+.studio-app-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 58px;
+    padding: 0 10px 0 2px;
+}
+
+.studio-app-icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #edebf7;
+    cursor: pointer;
+}
+
+.studio-app-icon svg,
+.studio-app-export svg {
+    width: 22px;
+    height: 22px;
+}
+
+.studio-app-context {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#studio-app-context-slot .editor-context {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: auto;
+    margin: 0;
+}
+
+#studio-app-context-slot #p12-project-name {
+    flex: 0 0 auto;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#studio-app-context-slot .project-save-status {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    font-size: 11.5px;
+}
+
+#studio-app-history-slot .project-history-controls {
+    gap: 0;
+}
+
+#studio-app-history-slot .project-history-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    background: transparent;
+}
+
+.studio-app-export {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 42px;
+    margin-left: 4px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    color: #14102b;
+    font: 700 14px var(--ui-font);
+    cursor: pointer;
+}
+
+.studio-app-export.is-active {
+    box-shadow: 0 0 0 2px #0e0d17, 0 0 0 4px #c4b5fd;
+}
+
+/* Preview: a fixed stage. */
+.studio-app-stage {
+    flex: 0 0 auto;
+    height: min(36vh, 330px);
+    margin: 0 10px;
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+#studio-app-stage .video-container {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 24px;
+}
+
+#studio-app-stage .framing-preview {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+#studio-app-stage video,
+#studio-app-stage canvas {
+    max-height: 100%;
+}
+
+/* Frame strip: the official filmstrip and transport, compact. */
+.studio-app-strip {
+    flex: 0 0 auto;
+    padding: 6px 10px 0;
+}
+
+#studio-app-strip .timeline-editor {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+}
+
+/* Tool row. */
+.studio-app-tools {
+    flex: 0 0 auto;
+    display: flex;
+    padding: 6px 4px 2px;
+}
+
+.studio-app-tool {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #b9b5cc;
+    font: 600 11.5px var(--ui-font);
+    cursor: pointer;
+}
+
+.studio-app-tool-pill {
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 32px;
+    border-radius: 16px;
+    transition: background-color 180ms var(--ui-ease);
+}
+
+.studio-app-tool-pill svg {
+    width: 21px;
+    height: 21px;
+}
+
+.studio-app-tool[aria-current="true"] {
+    color: #edebf7;
+    font-weight: 700;
+}
+
+.studio-app-tool[aria-current="true"] .studio-app-tool-pill {
+    background: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    color: #14102b;
+}
+
+/* Sheet: the open tool. */
+.studio-app-sheet {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 6px;
+    padding: 18px 14px calc(28px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 26px 26px 0 0;
+    background: #1a1926;
+}
+
+.studio-app-sheet .editor-grid,
+.studio-app-sheet .workspace-stage,
+.studio-app-sheet .settings-stage,
+.studio-app-sheet .export-stage {
+    padding: 0;
+    gap: 12px;
+}
+
+.studio-app-sheet .edit-inspector-deck,
+.studio-app-sheet .grid-marcadores,
+.studio-app-sheet .source-dock,
+.studio-app-sheet .configuracoes,
+.studio-app-sheet .compatibility-center,
+.studio-app-sheet .release-review,
+.studio-app-sheet .build-package-panel,
+.studio-app-sheet .delivery-panel,
+.studio-app-sheet .finish-center {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+}
+
+.studio-app-sheet .edit-inspector-deck::before {
+    display: none;
+}
+
+/* Which pieces each tool shows. */
+.studio-app-files,
+#editor-section[data-studio-tool] .studio-app-sheet > .source-dock {
+    display: none;
+}
+
+#editor-section[data-studio-tool="settings"] .studio-app-files {
+    display: block;
+    margin-bottom: 14px;
+}
+
+#editor-section[data-studio-tool="media"] .studio-app-sheet > .source-dock {
+    display: flex;
+}
+
+#editor-section[data-studio-tool="media"] .studio-app-sheet .editor-grid {
+    display: none;
+}
+
+#editor-section[data-studio-tool="markers"] .studio-app-sheet .edit-inspector-deck,
+#editor-section[data-studio-tool="text"] .studio-app-sheet .grid-marcadores,
+#editor-section[data-studio-tool="audio"] .studio-app-sheet .grid-marcadores,
+#editor-section[data-studio-tool="parts"] .studio-app-sheet .grid-marcadores {
+    display: none !important;
+}
+
+#editor-section[data-studio-tool="markers"] .studio-app-sheet .grid-marcadores {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+/* Compact strip: filmstrip + transport only; the section map shows while the Sections tool is open. */
+#studio-app-strip .timeline-editor-head,
+#studio-app-strip .master-sequence-overview {
+    display: none !important;
+}
+
+#studio-app-strip .timeline-editor .timeline-wrapper {
+    --timeline-filmstrip-height: 58px;
+}
+
+#studio-app-strip .timeline-transport {
+    gap: 6px;
+    margin-top: 6px;
+}
+
+#studio-app-strip .timeline-transport-btn {
+    min-height: 36px;
+    font-size: 12px;
+}
+
+#editor-section:not([data-studio-tool="markers"]) #studio-app-strip #simple-sequence,
+#editor-section:not([data-studio-tool="markers"]) #studio-app-strip .sequence-timeline-view {
+    display: none !important;
+}
+
+/* Inside the sheet, a tool's own outer card is the sheet itself. */
+.studio-app-sheet .edit-inspector-pane > section,
+.studio-app-sheet .edit-inspector-pane > div,
+.studio-app-sheet .composition-editor-section,
+.studio-app-sheet .output-workbench > div,
+.studio-app-sheet .export-stage > section,
+.studio-app-sheet .export-stage > div {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+}
+
+.studio-app-sheet .edit-inspector-pane > section,
+.studio-app-sheet .composition-editor-section {
+    padding: 0;
+}
