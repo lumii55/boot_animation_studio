@@ -164,29 +164,6 @@
     height: 18px;
 }
 
-/* Three little frames: an animation, at a glance. */
-.start-card-art {
-    position: absolute;
-    top: 18px;
-    right: -14px;
-    display: flex;
-    gap: 6px;
-    transform: rotate(-8deg);
-    pointer-events: none;
-}
-
-.start-card-art i {
-    display: block;
-    width: 42px;
-    height: 76px;
-    border-radius: 10px;
-    background: radial-gradient(circle at 50% 45%, #ffd6f5 0 var(--dot, 9%), #b67cff calc(var(--dot, 9%) + 1%) calc(var(--dot, 9%) * 2 + 6%), #3b1d6e calc(var(--dot, 9%) * 2 + 7%));
-}
-
-.start-card-art i:nth-child(1) { --dot: 9%; opacity: 0.45; }
-.start-card-art i:nth-child(2) { --dot: 12%; opacity: 0.72; }
-.start-card-art i:nth-child(3) { --dot: 15%; }
-
 .start-card-phone {
     background: var(--ui-secondary-container);
     color: var(--ui-on-secondary-container);
@@ -502,11 +479,6 @@
         min-height: 260px;
     }
 
-    .start-card-art {
-        top: 26px;
-        right: 22px;
-        transform: rotate(-8deg) scale(1.25);
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
