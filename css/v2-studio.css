@@ -1,0 +1,368 @@
+/* Visual system v2 — Studio editor (#editor-section), first pass: frame, cards, preview stage, tool tabs and the
+   step bar. Inner tools (timeline, composition, audio, parts, output, build) keep their own controls for now.
+   Until those inner tools are reviewed for light colours, the Studio stays dark in both themes. */
+
+#editor-section {
+    --ui-surface: #1a1926;
+    --ui-surface-2: #222131;
+    --ui-surface-3: #2c2a3d;
+    --ui-text: #edebf7;
+    --ui-muted: #b9b5cc;
+    --ui-outline: #5a566e;
+    --ui-line: rgba(255, 255, 255, 0.1);
+    --ui-primary: #c4b5fd;
+    --ui-gradient: linear-gradient(135deg, #c4b5fd, #67e8f9);
+    --ui-on-gradient: #14102b;
+    --ui-text-gradient: linear-gradient(90deg, #c4b5fd, #67e8f9);
+    --ui-primary-container: #3b2a6b;
+    --ui-on-primary-container: #eaddff;
+    --ui-secondary-container: #123f48;
+    --ui-on-secondary-container: #c6f2fa;
+    --ui-glass: rgba(255, 255, 255, 0.08);
+    --ui-glass-nav: rgba(26, 25, 38, 0.72);
+    --ui-glass-line: rgba(255, 255, 255, 0.16);
+    --ui-focus: #67e8f9;
+    gap: 14px;
+    color: var(--ui-text);
+    font-family: var(--ui-font);
+}
+
+/* In the light theme the dark Studio sits on its own dark page. */
+body.ui-screen-studio {
+    background: radial-gradient(ellipse 70% 30rem at 8% -6rem, rgba(124, 58, 237, 0.42), transparent 70%), #0e0d17;
+    color: #edebf7;
+}
+
+body.ui-screen-studio .app-bar {
+    --ui-text: #edebf7;
+    --ui-glass: rgba(255, 255, 255, 0.08);
+    --ui-focus: #67e8f9;
+    background: rgba(14, 13, 23, 0.84);
+    color: #edebf7;
+    color-scheme: dark;
+}
+
+#editor-section h2,
+#editor-section h3 {
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+#editor-section .section-kicker,
+#editor-section .editor-context-kicker,
+#editor-section .context-panel-kicker {
+    background: var(--ui-text-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-family: var(--ui-font);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+/* ---------------------------------------------------------------- project bar */
+
+#editor-section .editor-topbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px 2px 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+}
+
+#editor-section .editor-context {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+#editor-section #p12-project-name {
+    font-family: var(--ui-font-display);
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+}
+
+#editor-section .project-engine-summary {
+    color: var(--ui-muted);
+    font-size: 13px;
+}
+
+#editor-section .project-save-status {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--ui-glass);
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#editor-section .editor-topbar-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    gap: 8px;
+}
+
+#editor-section .project-file-actions,
+#editor-section .project-history-controls {
+    order: 0;
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+#editor-section .project-file-button {
+    flex: 0 0 auto;
+}
+
+#editor-section .project-file-button,
+#editor-section .project-history-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 600 13px var(--ui-font);
+    cursor: pointer;
+}
+
+#editor-section .project-file-button:disabled,
+#editor-section .project-history-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+#editor-section .project-history-button {
+    padding: 0;
+    width: 44px;
+}
+
+#editor-section .project-history-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+
+#editor-section .project-file-glyph,
+#editor-section .project-history-glyph {
+    font-size: 17px;
+    line-height: 1;
+}
+
+#editor-section .editor-context-state {
+    order: 0;
+    max-width: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    margin-left: auto;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-secondary-container);
+    color: var(--ui-on-secondary-container);
+    font: 700 13px var(--ui-font);
+    cursor: pointer;
+}
+
+@media (max-width: 479px) {
+    #editor-section .project-file-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    #editor-section .project-file-button {
+        width: 44px;
+        padding: 0;
+    }
+}
+
+/* ---------------------------------------------------------------- cards */
+
+/* The old cards' coloured top lines are not part of the new look. */
+#editor-section .source-dock::before,
+#editor-section .workspace-stage::before,
+#editor-section .settings-stage::before,
+#editor-section .export-stage::before {
+    display: none;
+}
+
+#editor-section .source-dock,
+#editor-section .timeline-editor,
+#editor-section .grid-marcadores,
+#editor-section .edit-inspector-deck,
+#editor-section .compatibility-center,
+#editor-section .release-review,
+#editor-section .build-package-panel,
+#editor-section .delivery-panel,
+#editor-section .finish-center {
+    border: 0;
+    border-radius: var(--ui-radius-l);
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+#editor-section .source-dock {
+    padding: 18px;
+}
+
+#editor-section .source-dock h2 {
+    font-size: 20px;
+}
+
+#editor-section .source-dock p {
+    color: var(--ui-muted);
+}
+
+#editor-section .source-ready-indicator {
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-glass);
+    color: var(--ui-muted);
+    font-weight: 700;
+}
+
+/* Main choices inside the source card: tonal, rounded, easy to tap. */
+#editor-section .source-actions .btn-upload {
+    min-height: 52px;
+    border: 0;
+    border-radius: var(--ui-radius-m);
+    background: var(--ui-primary-container);
+    color: var(--ui-on-primary-container);
+    font: 700 14px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .source-actions .btn-upload + .btn-upload {
+    background: var(--ui-secondary-container);
+    color: var(--ui-on-secondary-container);
+}
+
+/* ---------------------------------------------------------------- preview stage */
+
+#editor-section .video-container {
+    border: 0;
+    border-radius: 26px;
+    background:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(124, 58, 237, 0.4), transparent 70%),
+        radial-gradient(ellipse 50% 40% at 90% 90%, rgba(6, 182, 212, 0.26), transparent 70%),
+        #0b0a14;
+    box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- editor tools (Composition · Audio · Parts) */
+
+#editor-section .edit-tool-dock {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    border: 0;
+    border-radius: var(--ui-radius-l);
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+#editor-section .edit-tool-button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 48px;
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    color: var(--ui-muted);
+    font: 600 13px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .edit-tool-button.is-active {
+    background: var(--ui-primary-container);
+    color: var(--ui-on-primary-container);
+    font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- step buttons */
+
+#editor-section .workflow-next {
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+    font: 700 15px var(--ui-font);
+    box-shadow: none;
+}
+
+#editor-section .workflow-back {
+    border: 0;
+    border-radius: 999px;
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font: 700 15px var(--ui-font);
+}
+
+/* ---------------------------------------------------------------- step bar (Edit · Tune · Build) */
+
+#editor-section .mobile-workflow-nav {
+    right: 12px;
+    left: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid var(--ui-glass-line);
+    border-radius: 28px;
+    background: var(--ui-glass-nav);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+#editor-section .workflow-tab {
+    min-height: 52px;
+    border-radius: 20px;
+    color: var(--ui-muted);
+    font: 600 13px var(--ui-font);
+    transition: background-color 180ms var(--ui-ease), color 180ms var(--ui-ease);
+}
+
+#editor-section .workflow-tab.is-active {
+    background: var(--ui-gradient);
+    color: var(--ui-on-gradient);
+    font-weight: 700;
+}
+
+/* While a project is open on a phone, the Studio's step bar takes the place of the main navigation
+   (Home stays one tap away in the top bar). */
+@media (max-width: 959px) {
+    body.ui-screen-studio:has(#mobile-workflow-nav.is-visible) .app-nav {
+        display: none;
+    }
+}

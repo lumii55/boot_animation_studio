@@ -93,6 +93,8 @@
     function syncNav() {
         const active = activeScreen();
         if (active === 'studio') studioSeen = true;
+        // Lets the stylesheets adapt the frame per screen (e.g. the Studio's own step bar replaces the main one).
+        ['home', 'studio', 'phone', 'community'].forEach((name) => document.body.classList.toggle(`ui-screen-${name}`, name === active));
         document.querySelectorAll('[data-app-nav]').forEach((item) => {
             if (item.dataset.appNav === active) item.setAttribute('aria-current', 'page');
             else item.removeAttribute('aria-current');
